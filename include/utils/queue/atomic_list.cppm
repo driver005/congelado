@@ -47,7 +47,10 @@ public:
             // read the next and not worry about it changing between now and the time we do the CAS
             auto* next = head->m_next.load(std::memory_order_relaxed);
             if (m_head.compare_exchange_strong(
-                    head, next, std::memory_order_acquire, std::memory_order_relaxed
+                    head,
+                    next,
+                    std::memory_order_acquire,
+                    std::memory_order_relaxed
                 )) {
                 // Yay, got the node. This means it was on the list, which means
                 // shouldBeOnAtomicList must be false no matter the refcount (because nobody else
@@ -119,7 +122,10 @@ private:
             node->m_next.store(head, std::memory_order_relaxed);
             node->m_refs.store(1, std::memory_order_release);
             if (!m_head.compare_exchange_strong(
-                    head, node, std::memory_order_release, std::memory_order_relaxed
+                    head,
+                    node,
+                    std::memory_order_release,
+                    std::memory_order_relaxed
                 )) {
                 // Hmm, the add failed, but we can only try again when the refcount goes back to
                 // zero
@@ -142,13 +148,16 @@ private:
 namespace {
 using namespace boost::ut;
 
-suite<"AtomicList"> atomic_list_suite = [] {
-    "starts empty"_test = [] {
+suite<"AtomicList"> atomic_list_suite = []
+{
+    "starts empty"_test = []
+    {
         AtomicList list;
         expect(list.get_head() == nullptr);
         expect(list.try_get() == nullptr);
     };
-    "add then try_get round-trips a single node"_test = [] {
+    "add then try_get round-trips a single node"_test = []
+    {
         AtomicList list;
         Node node;
 
@@ -159,7 +168,8 @@ suite<"AtomicList"> atomic_list_suite = [] {
         expect(got == &node);
         expect(list.get_head() == nullptr);
     };
-    "add is LIFO — try_get drains most-recently-added first"_test = [] {
+    "add is LIFO — try_get drains most-recently-added first"_test = []
+    {
         AtomicList list;
         Node first;
         Node second;
@@ -172,7 +182,8 @@ suite<"AtomicList"> atomic_list_suite = [] {
         expect(list.try_get() == &first);
         expect(list.try_get() == nullptr);
     };
-    "a node can be returned to the list after being taken off"_test = [] {
+    "a node can be returned to the list after being taken off"_test = []
+    {
         AtomicList list;
         Node node;
 

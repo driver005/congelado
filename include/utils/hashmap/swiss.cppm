@@ -13,35 +13,55 @@ constexpr std::size_t GROUP_WIDTH = 16;
 
 export namespace hashmap::swiss {
 
-template <typename K, typename V>
-struct Entry {
+template<typename K, typename V>
+struct Entry
+{
     /**
      * @brief Builds an entry from a key/value pair, moving both in.
      * @param key_arg the key to store.
      * @param value_arg the value to store.
      */
-    Entry(K key_arg, V value_arg) : m_key(std::move(key_arg)), m_value(std::move(value_arg)) {}
+    Entry(K key_arg, V value_arg) :
+        m_key(std::move(key_arg)),
+        m_value(std::move(value_arg))
+    {
+    }
 
     /**
      * @brief Grabs the key.
      * @return a mutable reference to the stored key.
      */
-    K &key() { return m_key; }
+    K& key()
+    {
+        return m_key;
+    }
+
     /**
      * @brief Const overload of key().
      * @return a read-only reference to the stored key.
      */
-    [[nodiscard]] const K &key() const { return m_key; }
+    [[nodiscard]] const K& key() const
+    {
+        return m_key;
+    }
+
     /**
      * @brief Grabs the value.
      * @return a mutable reference to the stored value.
      */
-    V &value() { return m_value; }
+    V& value()
+    {
+        return m_value;
+    }
+
     /**
      * @brief Const overload of value().
      * @return a read-only reference to the stored value.
      */
-    [[nodiscard]] const V &value() const { return m_value; }
+    [[nodiscard]] const V& value() const
+    {
+        return m_value;
+    }
 
     // NOTE: used by compiler-generated get<I> for structured bindings, not intended for direct use.
     /**
@@ -50,8 +70,9 @@ struct Entry {
      * @tparam I the tuple-like index (0 for key, 1 for value).
      * @return a mutable reference to the key or value depending on `I`.
      */
-    template <std::size_t I>
-    auto &get() {
+    template<std::size_t I>
+    auto& get()
+    {
         if constexpr (I == 0) {
             return m_key;
         } else {
@@ -65,8 +86,9 @@ struct Entry {
      * @tparam I the tuple-like index (0 for key, 1 for value).
      * @return a read-only reference to the key or value depending on `I`.
      */
-    template <std::size_t I>
-    const auto &get() const {
+    template<std::size_t I>
+    const auto& get() const
+    {
         if constexpr (I == 0) {
             return m_key;
         } else {
@@ -74,7 +96,7 @@ struct Entry {
         }
     }
 
-  private:
+private:
     K m_key;
     V m_value;
 };
@@ -95,8 +117,9 @@ struct Entry {
  * @param entry the entry to pull from.
  * @return a mutable reference to the key or value depending on `I`.
  */
-template <std::size_t I, typename K, typename V>
-auto &get(Entry<K, V> &entry) {
+template<std::size_t I, typename K, typename V>
+auto& get(Entry<K, V>& entry)
+{
     return entry.template get<I>();
 }
 
@@ -109,45 +132,54 @@ auto &get(Entry<K, V> &entry) {
  * @param entry the entry to pull from.
  * @return a read-only reference to the key or value depending on `I`.
  */
-template <std::size_t I, typename K, typename V>
-const auto &get(const Entry<K, V> &entry) {
+template<std::size_t I, typename K, typename V>
+const auto& get(const Entry<K, V>& entry)
+{
     return entry.template get<I>();
 }
 
-template <typename K, typename V, typename Hash = std::hash<K>, typename KeyEqual = std::equal_to<K>,
-          typename ValueEqual = std::equal_to<V>>
-class SwissHashMap {
-  public:
+template<
+    typename K,
+    typename V,
+    typename Hash = std::hash<K>,
+    typename KeyEqual = std::equal_to<K>,
+    typename ValueEqual = std::equal_to<V>>
+class SwissHashMap
+{
+public:
     using Entry = Entry<K, V>;
 
     // Raw uninitialised storage for one Entry — no K or V construction until
     // placement new fires in insert_impl. alignas ensures placement new is valid.
-    class alignas(alignof(Entry)) RawSlot {
-      public:
+    class alignas(alignof(Entry)) RawSlot
+    {
+    public:
         // Destructor declared first (and defaulted on its only declaration) so the compiler
         // treats this as trivially destructible — it's raw byte storage, nothing to tear down.
         ~RawSlot() = default;
         RawSlot() = default;
-        RawSlot(const RawSlot &) = default;
-        RawSlot &operator=(const RawSlot &) = default;
-        RawSlot(RawSlot &&) = default;
-        RawSlot &operator=(RawSlot &&) = default;
+        RawSlot(const RawSlot&) = default;
+        RawSlot& operator=(const RawSlot&) = default;
+        RawSlot(RawSlot&&) = default;
+        RawSlot& operator=(RawSlot&&) = default;
 
-      private:
+    private:
         std::byte m_data[sizeof(Entry)];
     };
 
-    enum class ControlByte : std::uint8_t {
+    enum class ControlByte : std::uint8_t
+    {
         EMPTY = 0xFF,
         DELETED = 0x7E,
         SENTINEL = 0xFE,
     };
 
-    template <bool IsConst>
-    class IteratorBase {
-        using MapPtr = std::conditional_t<IsConst, const SwissHashMap *, SwissHashMap *>;
-        using EntryRef = std::conditional_t<IsConst, const Entry &, Entry &>;
-        using EntryPtr = std::conditional_t<IsConst, const Entry *, Entry *>;
+    template<bool IsConst>
+    class IteratorBase
+    {
+        using MapPtr = std::conditional_t<IsConst, const SwissHashMap*, SwissHashMap*>;
+        using EntryRef = std::conditional_t<IsConst, const Entry&, Entry&>;
+        using EntryPtr = std::conditional_t<IsConst, const Entry*, Entry*>;
 
         MapPtr m_map;
         std::size_t m_idx;
@@ -156,10 +188,12 @@ class SwissHashMap {
          * @brief Skips forward over empty/deleted/sentinel control bytes until it lands on a live
          * slot (or runs off the end of the table).
          */
-        void advance() {
+        void advance()
+        {
             // Walk forward until we land on a live slot or fall off the end of the table.
             while (m_idx < m_map->m_capacity) {
-                std::uint8_t byte_value = m_map->m_control[m_idx];  // FIXME(clang-tidy): unchecked operator[], consider .at()
+                std::uint8_t byte_value = m_map->m_control[m_idx]; // FIXME(clang-tidy): unchecked
+                                                                   // operator[], consider .at()
                 if (byte_value != static_cast<std::uint8_t>(SwissHashMap::ControlByte::EMPTY) &&
                     byte_value != static_cast<std::uint8_t>(SwissHashMap::ControlByte::DELETED) &&
                     byte_value != static_cast<std::uint8_t>(SwissHashMap::ControlByte::SENTINEL)) {
@@ -169,7 +203,7 @@ class SwissHashMap {
             }
         }
 
-      public:
+    public:
         using iterator_category = std::forward_iterator_tag;
         using value_type = Entry;
         using difference_type = std::ptrdiff_t;
@@ -188,37 +222,53 @@ class SwissHashMap {
          * @param map the table this iterator walks.
          * @param idx the starting slot index.
          */
-        IteratorBase(MapPtr map, std::size_t idx) : m_map(map), m_idx(idx) { advance(); }
-        IteratorBase(const IteratorBase &) = default;
-        IteratorBase &operator=(const IteratorBase &) = default;
-        IteratorBase(IteratorBase &&) = default;
-        IteratorBase &operator=(IteratorBase &&) = default;
+        IteratorBase(MapPtr map, std::size_t idx) :
+            m_map(map),
+            m_idx(idx)
+        {
+            advance();
+        }
+
+        IteratorBase(const IteratorBase&) = default;
+        IteratorBase& operator=(const IteratorBase&) = default;
+        IteratorBase(IteratorBase&&) = default;
+        IteratorBase& operator=(IteratorBase&&) = default;
 
         /**
          * @brief Dereferences the entry at the current slot.
          * @return a reference to the live entry.
          */
-        reference operator*() const { return m_map->slot(m_idx); }
+        reference operator*() const
+        {
+            return m_map->slot(m_idx);
+        }
+
         /**
          * @brief Arrow overload, mirrors operator*().
          * @return a pointer to the live entry.
          */
-        pointer operator->() const { return &m_map->slot(m_idx); }
+        pointer operator->() const
+        {
+            return &m_map->slot(m_idx);
+        }
 
         /**
          * @brief Steps to the next live slot, skipping dead ones via advance().
          * @return `*this`, advanced.
          */
-        IteratorBase &operator++() {
+        IteratorBase& operator++()
+        {
             ++m_idx;
             advance();
             return *this;
         }
+
         /**
          * @brief Postfix advance — copies the current state out before stepping forward.
          * @return the iterator's state before this call.
          */
-        IteratorBase operator++(int) {
+        IteratorBase operator++(int)
+        {
             auto tmp = *this;
             ++(*this);
             return tmp;
@@ -229,13 +279,20 @@ class SwissHashMap {
          * @param other the iterator to compare against.
          * @return true if both are parked at the same slot index.
          */
-        bool operator==(const IteratorBase &other) const { return m_idx == other.m_idx; }
+        bool operator==(const IteratorBase& other) const
+        {
+            return m_idx == other.m_idx;
+        }
+
         /**
          * @brief Inequality check against another iterator.
          * @param other the iterator to compare against.
          * @return true if the slot indices differ.
          */
-        bool operator!=(const IteratorBase &other) const { return m_idx != other.m_idx; }
+        bool operator!=(const IteratorBase& other) const
+        {
+            return m_idx != other.m_idx;
+        }
     };
 
     using iterator = IteratorBase<false>;
@@ -245,32 +302,55 @@ class SwissHashMap {
      * @brief Start of the table.
      * @return a mutable iterator at slot 0, already advanced past any dead leading slots.
      */
-    iterator begin() { return {this, 0}; }
+    iterator begin()
+    {
+        return {this, 0};
+    }
+
     /**
      * @brief End of the table.
      * @return a mutable iterator parked at `m_capacity`, the past-the-end sentinel position.
      */
-    iterator end() { return {this, m_capacity}; }
+    iterator end()
+    {
+        return {this, m_capacity};
+    }
+
     /**
      * @brief Const overload of begin().
      * @return a read-only iterator at slot 0.
      */
-    [[nodiscard]] const_iterator begin() const { return {this, 0}; }
+    [[nodiscard]] const_iterator begin() const
+    {
+        return {this, 0};
+    }
+
     /**
      * @brief Const overload of end().
      * @return a read-only iterator at the past-the-end position.
      */
-    [[nodiscard]] const_iterator end() const { return {this, m_capacity}; }
+    [[nodiscard]] const_iterator end() const
+    {
+        return {this, m_capacity};
+    }
+
     /**
      * @brief Explicit const begin(), for when you want cbegin() over begin() on a mutable map.
      * @return a read-only iterator at slot 0.
      */
-    [[nodiscard]] const_iterator cbegin() const { return begin(); }
+    [[nodiscard]] const_iterator cbegin() const
+    {
+        return begin();
+    }
+
     /**
      * @brief Explicit const end().
      * @return a read-only iterator at the past-the-end position.
      */
-    [[nodiscard]] const_iterator cend() const { return end(); }
+    [[nodiscard]] const_iterator cend() const
+    {
+        return end();
+    }
 
     /**
      * @brief Builds an empty table — no capacity allocated yet, first insert() triggers the
@@ -281,26 +361,32 @@ class SwissHashMap {
     /**
      * @brief Runs every live entry's destructor via destroy_all().
      */
-    ~SwissHashMap() { destroy_all(); }
+    ~SwissHashMap()
+    {
+        destroy_all();
+    }
 
     /**
      * @brief Deleted — no copying, this table owns raw uninitialized storage with manually
      * managed entry lifetimes, a deep copy isn't free and isn't implemented.
      */
-    SwissHashMap(const SwissHashMap &) = delete;
+    SwissHashMap(const SwissHashMap&) = delete;
     /**
      * @brief Deleted, same reasoning as the copy ctor.
      */
-    SwissHashMap &operator=(const SwissHashMap &) = delete;
+    SwissHashMap& operator=(const SwissHashMap&) = delete;
 
     /**
      * @brief Move ctor — steals `other`'s control bytes and raw slot storage outright, leaves
      * `other` at capacity/size zero (an empty, safely-destructible table).
      * @param other the table to move from.
      */
-    SwissHashMap(SwissHashMap &&other) noexcept
-        : m_control(std::move(other.m_control)), m_raw_slots(std::move(other.m_raw_slots)),
-          m_capacity(other.m_capacity), m_size(other.m_size) {
+    SwissHashMap(SwissHashMap&& other) noexcept :
+        m_control(std::move(other.m_control)),
+        m_raw_slots(std::move(other.m_raw_slots)),
+        m_capacity(other.m_capacity),
+        m_size(other.m_size)
+    {
         other.m_capacity = 0;
         other.m_size = 0;
     }
@@ -311,7 +397,8 @@ class SwissHashMap {
      * @param other the table to move from, left empty after.
      * @return `*this`, now holding `other`'s table.
      */
-    SwissHashMap &operator=(SwissHashMap &&other) noexcept {
+    SwissHashMap& operator=(SwissHashMap&& other) noexcept
+    {
         if (this != &other) {
             // Tear down whatever entries `*this` already owned first, or they'd leak once the
             // backing vectors below get overwritten.
@@ -336,7 +423,8 @@ class SwissHashMap {
      * @param key the key to insert.
      * @param value the value to insert.
      */
-    void insert(K key, V &&value) {
+    void insert(K key, V&& value)
+    {
         // Grow first if we're empty or about to cross a 7/8 load factor — insert_impl() has no
         // growth logic of its own, this is the only gate keeping probes from running long.
         if (m_capacity == 0 || m_size >= (m_capacity * 7) / 8) {
@@ -359,9 +447,11 @@ class SwissHashMap {
      * @param args the key (or key-equivalent args) to look up.
      * @return the matching value if found, nullopt otherwise.
      */
-    template <typename... Args>
-    // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward) — args is read multiple times (once per probed slot); forwarding would use-after-move on the second probe
-    [[nodiscard]] std::optional<V> find(Args &&...args) const {
+    template<typename... Args>
+    // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward) — args is read multiple times (once per
+    // probed slot); forwarding would use-after-move on the second probe
+    [[nodiscard]] std::optional<V> find(Args&&... args) const
+    {
         // Nothing's ever been allocated, no point probing.
         if (m_capacity == 0) {
             return std::nullopt;
@@ -373,7 +463,10 @@ class SwissHashMap {
         // below and may be evaluated multiple times (once per probed slot) — forwarding it
         // (i.e. casting to an rvalue) here would make any later use a use-after-move, so it's
         // passed as an lvalue everywhere in this function instead.
-        std::size_t hash_value = Hash{}(args...); // FIXME(clang-tidy): array-to-pointer-decay — flagged only for instantiations where a caller passes a fixed-size array as the key; Hash{}/KeyEqual{} forwarding args generically, not a mechanical fix
+        std::size_t hash_value =
+            Hash{}(args...); // FIXME(clang-tidy): array-to-pointer-decay — flagged only for
+                             // instantiations where a caller passes a fixed-size array as the key;
+                             // Hash{}/KeyEqual{} forwarding args generically, not a mechanical fix
         std::size_t grp = h1(hash_value);
         std::uint8_t fp = h2(hash_value);
 
@@ -386,7 +479,12 @@ class SwissHashMap {
             while (match != 0) {
                 int bit = __builtin_ctz(match);
                 std::size_t slot_index = (cur * GROUP_WIDTH) + bit;
-                if (KeyEqual{}(slot(slot_index).key(), args...)) { // FIXME(clang-tidy): array-to-pointer-decay — flagged only for instantiations where a caller passes a fixed-size array as the key; Hash{}/KeyEqual{} forwarding args generically, not a mechanical fix
+                if (KeyEqual{}(
+                        slot(slot_index).key(),
+                        args...
+                    )) { // FIXME(clang-tidy): array-to-pointer-decay — flagged only for
+                         // instantiations where a caller passes a fixed-size array as the key;
+                         // Hash{}/KeyEqual{} forwarding args generically, not a mechanical fix
                     return slot(slot_index).value();
                 }
                 match &= ~(1U << bit);
@@ -415,8 +513,9 @@ class SwissHashMap {
      * @param value the value to set or insert.
      * @return true if this inserted a brand-new entry, false if it updated an existing one.
      */
-    template <typename KeyArg, typename ValueArg>
-    std::optional<bool> upsert(KeyArg &&key, ValueArg &&value) {
+    template<typename KeyArg, typename ValueArg>
+    std::optional<bool> upsert(KeyArg&& key, ValueArg&& value)
+    {
         // Same grow-if-needed gate as insert().
         if (m_capacity == 0 || m_size >= (m_capacity * 7) / 8) {
             rehash();
@@ -459,9 +558,11 @@ class SwissHashMap {
      * @tparam Args the heterogeneous lookup key argument pack.
      * @param args the key (or key-equivalent args) to erase.
      */
-    template <typename... Args>
-    // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward) — args is read multiple times (once per probed slot); forwarding would use-after-move on the second probe
-    void erase(Args &&...args) {
+    template<typename... Args>
+    // NOLINTNEXTLINE(cppcoreguidelines-missing-std-forward) — args is read multiple times (once per
+    // probed slot); forwarding would use-after-move on the second probe
+    void erase(Args&&... args)
+    {
         if (m_capacity == 0) {
             return;
         }
@@ -469,7 +570,10 @@ class SwissHashMap {
         // NOTE: same reasoning as find() — args is read-only here and may be compared against
         // multiple slots, so it's passed as an lvalue rather than forwarded to avoid a
         // use-after-move on repeated evaluation.
-        std::size_t hash_value = Hash{}(args...); // FIXME(clang-tidy): array-to-pointer-decay — flagged only for instantiations where a caller passes a fixed-size array as the key; Hash{}/KeyEqual{} forwarding args generically, not a mechanical fix
+        std::size_t hash_value =
+            Hash{}(args...); // FIXME(clang-tidy): array-to-pointer-decay — flagged only for
+                             // instantiations where a caller passes a fixed-size array as the key;
+                             // Hash{}/KeyEqual{} forwarding args generically, not a mechanical fix
         std::size_t grp = h1(hash_value);
         std::uint8_t fp = h2(hash_value);
 
@@ -483,9 +587,16 @@ class SwissHashMap {
             while (match != 0) {
                 int bit = __builtin_ctz(match);
                 std::size_t slot_index = (cur * GROUP_WIDTH) + bit;
-                if (KeyEqual{}(slot(slot_index).key(), args...)) { // FIXME(clang-tidy): array-to-pointer-decay — flagged only for instantiations where a caller passes a fixed-size array as the key; Hash{}/KeyEqual{} forwarding args generically, not a mechanical fix
+                if (KeyEqual{}(
+                        slot(slot_index).key(),
+                        args...
+                    )) { // FIXME(clang-tidy): array-to-pointer-decay — flagged only for
+                         // instantiations where a caller passes a fixed-size array as the key;
+                         // Hash{}/KeyEqual{} forwarding args generically, not a mechanical fix
                     slot(slot_index).~Entry();
-                    m_control[slot_index] = static_cast<std::uint8_t>(ControlByte::DELETED);  // FIXME(clang-tidy): unchecked operator[], consider .at()
+                    m_control[slot_index] = static_cast<std::uint8_t>(
+                        ControlByte::DELETED
+                    ); // FIXME(clang-tidy): unchecked operator[], consider .at()
                     m_size--;
                     return;
                 }
@@ -502,12 +613,16 @@ class SwissHashMap {
      * @brief Wipes every entry via destroy_all(), then resets every control byte back to
      * `EMPTY` — the table keeps its allocated capacity, just goes back to logically empty.
      */
-    void clear() {
+    void clear()
+    {
         // Run every live entry's dtor first, then reset the control bytes back to all-empty —
         // capacity stays allocated, the table just goes logically empty.
         destroy_all();
         if (m_capacity > 0) {
-            m_control.assign(m_capacity + GROUP_WIDTH, static_cast<std::uint8_t>(ControlByte::EMPTY));
+            m_control.assign(
+                m_capacity + GROUP_WIDTH,
+                static_cast<std::uint8_t>(ControlByte::EMPTY)
+            );
         }
         m_size = 0;
     }
@@ -516,20 +631,27 @@ class SwissHashMap {
      * @brief Grabs the live entry count.
      * @return how many entries are currently stored.
      */
-    [[nodiscard]] std::size_t size() const { return m_size; }
+    [[nodiscard]] std::size_t size() const
+    {
+        return m_size;
+    }
+
     /**
      * @brief Checks whether the table has any live entries.
      * @return true if size() is zero.
      */
-    [[nodiscard]] bool empty() const { return m_size == 0; }
+    [[nodiscard]] bool empty() const
+    {
+        return m_size == 0;
+    }
 
-  private:
+private:
     std::vector<std::uint8_t> m_control;
     std::vector<RawSlot> m_raw_slots;
     std::size_t m_capacity = 0;
     std::size_t m_size = 0;
 
-    template <bool>
+    template<bool>
     friend class IteratorBase;
 
     /**
@@ -542,13 +664,20 @@ class SwissHashMap {
      * @param index the slot index to reinterpret.
      * @return a mutable reference to the entry stored at slot `index`.
      */
-    Entry &slot(std::size_t index) { return *std::launder(reinterpret_cast<Entry *>(&m_raw_slots[index])); }  // FIXME(clang-tidy): unchecked operator[], consider .at(); reinterpret_cast usage
+    Entry& slot(std::size_t index)
+    {
+        return *std::launder(reinterpret_cast<Entry*>(&m_raw_slots[index]));
+    } // FIXME(clang-tidy): unchecked operator[], consider .at(); reinterpret_cast usage
+
     /**
      * @brief Const overload of slot(), same liveness-assumption warning applies.
      * @param index the slot index to reinterpret.
      * @return a read-only reference to the entry stored at slot `index`.
      */
-    [[nodiscard]] const Entry &slot(std::size_t index) const { return *std::launder(reinterpret_cast<const Entry *>(&m_raw_slots[index])); }  // FIXME(clang-tidy): unchecked operator[], consider .at(); reinterpret_cast usage
+    [[nodiscard]] const Entry& slot(std::size_t index) const
+    {
+        return *std::launder(reinterpret_cast<const Entry*>(&m_raw_slots[index]));
+    } // FIXME(clang-tidy): unchecked operator[], consider .at(); reinterpret_cast usage
 
     /**
      * @brief Walks every slot and runs the destructor on whichever ones are actually live
@@ -558,7 +687,8 @@ class SwissHashMap {
      * objects are living inside them, so skipping this step would leak every live `K`/`V` pair
      * (file handles, heap allocations, whatever they own) without ever running their dtors.
      */
-    void destroy_all() {
+    void destroy_all()
+    {
         // Nothing allocated, nothing to destroy.
         if (m_capacity == 0) {
             return;
@@ -568,7 +698,9 @@ class SwissHashMap {
         for (std::size_t i = 0; i < m_capacity; ++i) {
             if (m_control[i] != static_cast<std::uint8_t>(ControlByte::EMPTY) &&
                 m_control[i] != static_cast<std::uint8_t>(ControlByte::DELETED) &&
-                m_control[i] != static_cast<std::uint8_t>(ControlByte::SENTINEL)) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
+                m_control[i] != static_cast<std::uint8_t>(
+                                    ControlByte::SENTINEL
+                                )) { // FIXME(clang-tidy): unchecked operator[], consider .at()
                 slot(i).~Entry();
             }
         }
@@ -579,7 +711,10 @@ class SwissHashMap {
      * @param hash the full hash value to derive the group index from.
      * @return the starting group index for probing.
      */
-    [[nodiscard]] std::size_t h1(std::size_t hash) const { return (hash >> 7) % (m_capacity / GROUP_WIDTH); }
+    [[nodiscard]] std::size_t h1(std::size_t hash) const
+    {
+        return (hash >> 7) % (m_capacity / GROUP_WIDTH);
+    }
 
     /**
      * @brief Second-stage hash — a 7-bit fingerprint stored per-slot in the control bytes, used
@@ -589,7 +724,8 @@ class SwissHashMap {
      * @param hash the full hash value to derive the fingerprint from.
      * @return a 7-bit fingerprint byte, never equal to `DELETED` or `EMPTY`.
      */
-    [[nodiscard]] std::uint8_t h2(std::size_t hash) const {
+    [[nodiscard]] std::uint8_t h2(std::size_t hash) const
+    {
         // Take the low 7 bits as the fingerprint, then dodge the two reserved control-byte
         // patterns (DELETED, EMPTY) by remapping those specific values — a real fingerprint
         // should never collide with a tombstone/empty marker.
@@ -616,12 +752,15 @@ class SwissHashMap {
      * @param target the control byte value to match against.
      * @return a 16-bit mask, bit `i` set if slot `i` in the group matches `target`.
      */
-    [[nodiscard]] std::uint32_t match_byte(std::size_t group_idx, std::uint8_t target) const {
+    [[nodiscard]] std::uint32_t match_byte(std::size_t group_idx, std::uint8_t target) const
+    {
         // One SSE2 compare instead of 16 scalar byte comparisons — load 16 control bytes,
         // broadcast the target byte across a second register, compare, and pack the result into
         // a bitmask. This is the whole speed trick behind swiss tables.
         std::size_t off = group_idx * GROUP_WIDTH;
-        __m128i grp = _mm_loadu_si128(reinterpret_cast<const __m128i *>(&m_control[off]));  // FIXME(clang-tidy): unchecked operator[], consider .at(); reinterpret_cast usage
+        __m128i grp = _mm_loadu_si128(
+            reinterpret_cast<const __m128i*>(&m_control[off])
+        ); // FIXME(clang-tidy): unchecked operator[], consider .at(); reinterpret_cast usage
         __m128i tgt = _mm_set1_epi8(static_cast<char>(target));
         __m128i cmp = _mm_cmpeq_epi8(grp, tgt);
         return static_cast<std::uint32_t>(_mm_movemask_epi8(cmp));
@@ -636,14 +775,23 @@ class SwissHashMap {
      * @param group_idx which group of 16 control bytes to scan.
      * @return a 16-bit mask, bit `i` set if slot `i` in the group is empty or deleted.
      */
-    [[nodiscard]] std::uint32_t match_empty_or_deleted(std::size_t group_idx) const {
+    [[nodiscard]] std::uint32_t match_empty_or_deleted(std::size_t group_idx) const
+    {
         // Same SIMD-load trick as match_byte(), but run the compare twice (once against EMPTY,
         // once against DELETED) and OR the two masks together, so insert_impl() can reuse
         // tombstoned slots instead of only ever landing on untouched ones.
         std::size_t off = group_idx * GROUP_WIDTH;
-        __m128i grp = _mm_loadu_si128(reinterpret_cast<const __m128i *>(&m_control[off]));  // FIXME(clang-tidy): unchecked operator[], consider .at(); reinterpret_cast usage
-        __m128i empty_mask = _mm_cmpeq_epi8(grp, _mm_set1_epi8(static_cast<char>(std::to_underlying(ControlByte::EMPTY))));
-        __m128i del_mask = _mm_cmpeq_epi8(grp, _mm_set1_epi8(static_cast<char>(std::to_underlying(ControlByte::DELETED))));
+        __m128i grp = _mm_loadu_si128(
+            reinterpret_cast<const __m128i*>(&m_control[off])
+        ); // FIXME(clang-tidy): unchecked operator[], consider .at(); reinterpret_cast usage
+        __m128i empty_mask = _mm_cmpeq_epi8(
+            grp,
+            _mm_set1_epi8(static_cast<char>(std::to_underlying(ControlByte::EMPTY)))
+        );
+        __m128i del_mask = _mm_cmpeq_epi8(
+            grp,
+            _mm_set1_epi8(static_cast<char>(std::to_underlying(ControlByte::DELETED)))
+        );
         return static_cast<std::uint32_t>(_mm_movemask_epi8(_mm_or_si128(empty_mask, del_mask)));
     }
 
@@ -656,7 +804,8 @@ class SwissHashMap {
      * iterator across an insert() that triggers a rehash and that's a straight use-after-free
      * waiting to happen, classic iterator-invalidation footgun, don't get cooked by it.
      */
-    void rehash() {
+    void rehash()
+    {
         // Pull the old storage out from under the live members before replacing them, bet —
         // old_ctrl/old_slots_raw keep the existing entries alive long enough to reinsert below.
         std::size_t old_capacity = m_capacity;
@@ -677,8 +826,13 @@ class SwissHashMap {
         for (std::size_t i = 0; i < old_capacity; ++i) {
             if (old_ctrl[i] != static_cast<std::uint8_t>(ControlByte::EMPTY) &&
                 old_ctrl[i] != static_cast<std::uint8_t>(ControlByte::DELETED) &&
-                old_ctrl[i] != static_cast<std::uint8_t>(ControlByte::SENTINEL)) {  // FIXME(clang-tidy): unchecked operator[], consider .at()
-                Entry &entry = *std::launder(reinterpret_cast<Entry *>(&old_slots_raw[i]));  // FIXME(clang-tidy): unchecked operator[], consider .at(); reinterpret_cast usage
+                old_ctrl[i] != static_cast<std::uint8_t>(
+                                   ControlByte::SENTINEL
+                               )) { // FIXME(clang-tidy): unchecked operator[], consider .at()
+                Entry& entry = *std::launder(
+                    reinterpret_cast<Entry*>(&old_slots_raw[i])
+                ); // FIXME(clang-tidy): unchecked operator[], consider .at(); reinterpret_cast
+                   // usage
                 insert_impl(std::move(entry.key()), std::move(entry.value()));
                 entry.~Entry(); // explicit dtor — vector<RawSlot> dtor only frees bytes
             }
@@ -700,8 +854,9 @@ class SwissHashMap {
      * finding an empty or tombstoned slot — a hard L that should be unreachable given insert()/
      * upsert() always rehash() before this gets called.
      */
-    template <typename KeyArg, typename ValueArg>
-    void insert_impl(KeyArg &&key, ValueArg &&value) {
+    template<typename KeyArg, typename ValueArg>
+    void insert_impl(KeyArg&& key, ValueArg&& value)
+    {
         std::size_t hash_value = Hash{}(key);
         std::size_t grp = h1(hash_value);
         std::uint8_t fp = h2(hash_value);
@@ -716,9 +871,13 @@ class SwissHashMap {
                 int bit = __builtin_ctz(avail);
                 std::size_t slot_index = (cur * GROUP_WIDTH) + bit;
 
-                m_control[slot_index] = fp;  // FIXME(clang-tidy): unchecked operator[], consider .at()
+                m_control[slot_index] =
+                    fp; // FIXME(clang-tidy): unchecked operator[], consider .at()
                 // Construct DIRECTLY in the slot without intermediate temporaries
-                new (&m_raw_slots[slot_index]) Entry(std::forward<KeyArg>(key), std::forward<ValueArg>(value));  // FIXME(clang-tidy): unchecked operator[], consider .at()
+                new (&m_raw_slots[slot_index]) Entry(
+                    std::forward<KeyArg>(key),
+                    std::forward<ValueArg>(value)
+                ); // FIXME(clang-tidy): unchecked operator[], consider .at()
                 m_size++;
                 return;
             }
@@ -735,14 +894,17 @@ class SwissHashMap {
 namespace hashmap::swiss::tests {
 using namespace boost::ut;
 
-suite<"SwissHashMap"> swiss_hash_map_suite = [] {
-    "starts empty"_test = [] {
+suite<"SwissHashMap"> swiss_hash_map_suite = []
+{
+    "starts empty"_test = []
+    {
         SwissHashMap<std::string, int> map;
         expect(map.empty());
         expect(map.size() == 0);
         expect(not map.find("missing").has_value());
     };
-    "insert then find round-trips a value"_test = [] {
+    "insert then find round-trips a value"_test = []
+    {
         SwissHashMap<std::string, int> map;
         map.insert("a", 1);
 
@@ -750,7 +912,8 @@ suite<"SwissHashMap"> swiss_hash_map_suite = [] {
         expect(map.size() == 1);
         expect(map.find("a") == 1);
     };
-    "upsert inserts new keys and updates existing ones"_test = [] {
+    "upsert inserts new keys and updates existing ones"_test = []
+    {
         SwissHashMap<std::string, int> map;
 
         auto inserted = map.upsert("a", 1);
@@ -762,7 +925,8 @@ suite<"SwissHashMap"> swiss_hash_map_suite = [] {
         expect(map.find("a") == 2);
         expect(map.size() == 1);
     };
-    "erase removes an entry"_test = [] {
+    "erase removes an entry"_test = []
+    {
         SwissHashMap<std::string, int> map;
         map.insert("a", 1);
         map.erase("a");
@@ -770,7 +934,8 @@ suite<"SwissHashMap"> swiss_hash_map_suite = [] {
         expect(map.empty());
         expect(not map.find("a").has_value());
     };
-    "clear empties the table but keeps it usable"_test = [] {
+    "clear empties the table but keeps it usable"_test = []
+    {
         SwissHashMap<std::string, int> map;
         map.insert("a", 1);
         map.insert("b", 2);
@@ -780,7 +945,8 @@ suite<"SwissHashMap"> swiss_hash_map_suite = [] {
         map.insert("c", 3);
         expect(map.find("c") == 3);
     };
-    "grows past the initial capacity via rehash and keeps every entry"_test = [] {
+    "grows past the initial capacity via rehash and keeps every entry"_test = []
+    {
         SwissHashMap<int, int> map;
         for (int i = 0; i < 500; ++i) {
             map.insert(i, i * 2);
@@ -791,7 +957,8 @@ suite<"SwissHashMap"> swiss_hash_map_suite = [] {
         expect(map.find(250) == 500);
         expect(map.find(499) == 998);
     };
-    "iteration visits every live entry exactly once"_test = [] {
+    "iteration visits every live entry exactly once"_test = []
+    {
         SwissHashMap<int, int> map;
         map.insert(1, 10);
         map.insert(2, 20);
@@ -799,7 +966,7 @@ suite<"SwissHashMap"> swiss_hash_map_suite = [] {
 
         std::size_t count = 0;
         int sum = 0;
-        for (auto &entry : map) {
+        for (auto& entry: map) {
             ++count;
             sum += entry.value();
         }
@@ -820,14 +987,19 @@ namespace std {
 // standard library template for a user-defined type). There's no safe alternative that still
 // enables structured bindings on `hashmap::swiss::Entry`, so this is left as-is.
 // NOTE: this tells the compiler the size to use structured bindings
-template <typename K, typename V>
-struct tuple_size<hashmap::swiss::Entry<K, V>> : std::integral_constant<std::size_t, 2> {};  // NOLINT(bugprone-std-namespace-modification) — required tuple_size specialization for structured bindings, permitted under [namespace.std]
+template<typename K, typename V>
+struct tuple_size<hashmap::swiss::Entry<K, V>> : std::integral_constant<std::size_t, 2>
+{}; // NOLINT(bugprone-std-namespace-modification) — required tuple_size specialization for
+    // structured bindings, permitted under [namespace.std]
 
 // FIXME(clang-tidy): bugprone-std-namespace-modification — same rationale as tuple_size above.
 // NOTE: this tells the compiler the types to use for structured bindings
-template <std::size_t I, typename K, typename V>
-struct tuple_element<I, hashmap::swiss::Entry<K, V>> {  // NOLINT(bugprone-std-namespace-modification) — required tuple_element specialization for structured bindings, permitted under [namespace.std]
-    // Simple swith at compile time via std::conditional_t to return the correct type based on the index I
+template<std::size_t I, typename K, typename V>
+struct tuple_element<I, hashmap::swiss::Entry<K, V>>
+{ // NOLINT(bugprone-std-namespace-modification) — required tuple_element specialization for
+  // structured bindings, permitted under [namespace.std]
+    // Simple swith at compile time via std::conditional_t to return the correct type based on the
+    // index I
     using type = std::conditional_t<I == 0, K, V>;
 };
 

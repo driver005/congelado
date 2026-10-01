@@ -29,7 +29,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         class OpRegistryInterface;
@@ -106,7 +105,10 @@ export {
             DataTypeVector output_types;
             TF_RETURN_IF_ERROR(InOutTypesForNode(node_def, *op_def, &input_types, &output_types));
             props->reset(new NodeProperties(
-                op_def, std::move(node_def), std::move(input_types), std::move(output_types)
+                op_def,
+                std::move(node_def),
+                std::move(input_types),
+                std::move(output_types)
             ));
             return absl::OkStatus();
         }

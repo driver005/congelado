@@ -34,7 +34,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // Type used for tag-dispatch of the Encode/Decode Variant implementations. This
@@ -58,7 +57,9 @@ export {
         // Specialization for POD type
         template<typename T>
         void EncodeVariantImpl(
-            const T& value, TypeResolver<T, true /* is_pod */>, VariantTensorData* data
+            const T& value,
+            TypeResolver<T, true /* is_pod */>,
+            VariantTensorData* data
         )
         {
             data->set_metadata(value);
@@ -207,7 +208,8 @@ export {
 
         template<typename T>
         std::string TypeNameVariantImpl(
-            const T& value, TypeNameResolver<T, false /* has_type_name */, true /* Tensor */>
+            const T& value,
+            TypeNameResolver<T, false /* has_type_name */, true /* Tensor */>
         )
         {
             return "tensorflow::Tensor";
@@ -356,13 +358,17 @@ export {
         // Encodes an array of Variant objects in to the given StringListEncoder.
         // `variant_array` is assumed to point to an array of `n` Variant objects.
         void EncodeVariantList(
-            const Variant* variant_array, int64_t n, std::unique_ptr<port::StringListEncoder> e
+            const Variant* variant_array,
+            int64_t n,
+            std::unique_ptr<port::StringListEncoder> e
         );
 
         // Decodes an array of Variant objects from the given StringListDecoder.
         // `variant_array` is assumed to point to an array of `n` Variant objects.
         bool DecodeVariantList(
-            std::unique_ptr<port::StringListDecoder> d, Variant* variant_array, int64_t n
+            std::unique_ptr<port::StringListDecoder> d,
+            Variant* variant_array,
+            int64_t n
         );
 
     } // end namespace tensorflow

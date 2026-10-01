@@ -331,27 +331,33 @@ public:
         // bits into `value` until a terminal byte (MSB clear) shows up.
         auto sub_range = all | std::views::drop(consumed);
 
-        auto terminal_it = std::ranges::find_if(sub_range, [&](auto byte) {
-            const std::size_t SHIFT = (consumed - 1) * 7U;
+        auto terminal_it = std::ranges::find_if(
+            sub_range,
+            [&](auto byte)
+            {
+                const std::size_t SHIFT = (consumed - 1) * 7U;
 
-            // Guard against bit-shift overflow (e.g., shifting by 32+ on a uint32_t)
-            if (SHIFT >= std::numeric_limits<UInt>::digits) {
-                throw error::http::IntegerDecodeError{"overflow: integer exceeds type capacity"};
+                // Guard against bit-shift overflow (e.g., shifting by 32+ on a uint32_t)
+                if (SHIFT >= std::numeric_limits<UInt>::digits) {
+                    throw error::http::IntegerDecodeError{
+                        "overflow: integer exceeds type capacity"
+                    };
+                }
+
+                const UInt SHIFTED = (std::to_integer<UInt>(byte) & 0x7FU) << SHIFT;
+
+                // Check for overflow before adding the shifted value to the total value.
+                // Clang and GCC only sorry!
+                if (__builtin_add_overflow(value, SHIFTED, &value)) {
+                    throw error::http::IntegerDecodeError{"overflow: accumulation wrapped around"};
+                }
+
+                ++consumed;
+
+                // Terminate the iteration instantly when the MSB is 0 (terminal byte)
+                return (std::to_integer<std::uint8_t>(byte) & 0x80U) == 0;
             }
-
-            const UInt SHIFTED = (std::to_integer<UInt>(byte) & 0x7FU) << SHIFT;
-
-            // Check for overflow before adding the shifted value to the total value.
-            // Clang and GCC only sorry!
-            if (__builtin_add_overflow(value, SHIFTED, &value)) {
-                throw error::http::IntegerDecodeError{"overflow: accumulation wrapped around"};
-            }
-
-            ++consumed;
-
-            // Terminate the iteration instantly when the MSB is 0 (terminal byte)
-            return (std::to_integer<std::uint8_t>(byte) & 0x80U) == 0;
-        });
+        );
 
         // If we exhaust the range but no terminal byte is found, the stream is cut off.
         if (terminal_it == std::ranges::end(sub_range)) {
@@ -377,7 +383,8 @@ public:
      * defaults to 7.
      */
     explicit constexpr EncodeStringAdaptor(
-        bool huffman_encode, std::uint8_t prefix_size = 7U
+        bool huffman_encode,
+        std::uint8_t prefix_size = 7U
     ) noexcept :
         m_huffman{huffman_encode},
         m_prefix_size{prefix_size}
@@ -495,9 +502,14 @@ public:
 
         // Otherwise it's plain bytes — just reinterpret each std::byte as a char.
         return {
-            body | std::views::transform([](std::byte byte) noexcept {
-                return static_cast<char>(std::to_integer<std::uint8_t>(byte));
-            }) | std::ranges::to<std::string>(),
+            body |
+                std::views::transform(
+                    [](std::byte byte) noexcept
+                    {
+                        return static_cast<char>(std::to_integer<std::uint8_t>(byte));
+                    }
+                ) |
+                std::ranges::to<std::string>(),
             CONSUMED
         };
     }
@@ -512,8 +524,10 @@ private:
 namespace io::shared_codec::lowlevel::tests {
 using namespace boost::ut;
 
-suite<"EncodeIntView/EncodeIntAdaptor"> encode_int_view_suite = [] {
-    "single-octet value"_test = [] {
+suite<"EncodeIntView/EncodeIntAdaptor"> encode_int_view_suite = []
+{
+    "single-octet value"_test = []
+    {
         EncodeIntView<std::uint32_t> view{10U, 5U, std::uint8_t{0}};
 
         expect(view.size() == 1);
@@ -525,7 +539,8 @@ suite<"EncodeIntView/EncodeIntAdaptor"> encode_int_view_suite = [] {
         expect(std::to_integer<int>(bytes[0]) == 10);
     };
 
-    "multi-octet value matches the RFC 7541 C.1.2 known vector"_test = [] {
+    "multi-octet value matches the RFC 7541 C.1.2 known vector"_test = []
+    {
         auto view = 1'337U | EncodeIntAdaptor<std::uint32_t>{5U, std::uint8_t{0}};
 
         expect(view.size() == 3);
@@ -537,8 +552,10 @@ suite<"EncodeIntView/EncodeIntAdaptor"> encode_int_view_suite = [] {
     };
 };
 
-suite<"DecodeIntAdaptor"> decode_int_adaptor_suite = [] {
-    "round-trips through EncodeIntAdaptor"_test = [] {
+suite<"DecodeIntAdaptor"> decode_int_adaptor_suite = []
+{
+    "round-trips through EncodeIntAdaptor"_test = []
+    {
         auto encoded_view = 1'337U | EncodeIntAdaptor<std::uint32_t>{5U, std::uint8_t{0}};
         std::vector<std::byte> bytes(encoded_view.begin(), encoded_view.end());
 
@@ -547,7 +564,8 @@ suite<"DecodeIntAdaptor"> decode_int_adaptor_suite = [] {
         expect(result.consumed() == 3U);
     };
 
-    "captures prefix metadata bits when PrefixOffset > 0"_test = [] {
+    "captures prefix metadata bits when PrefixOffset > 0"_test = []
+    {
         // prefix_size=5, metadata bits = 0b01 (is_static), value = 10 (single octet).
         std::vector<std::byte> bytes{std::byte{static_cast<std::uint8_t>((0x01U << 5) | 10U)}};
 
@@ -557,35 +575,64 @@ suite<"DecodeIntAdaptor"> decode_int_adaptor_suite = [] {
         expect(not result.is_never_indexed());
     };
 
-    "rejects an out-of-range prefix size"_test = [] {
+    "rejects an out-of-range prefix size"_test = []
+    {
         std::vector<std::byte> bytes{std::byte{0x00}};
-        expect(throws<std::invalid_argument>([&] {
-            auto result = bytes | DecodeIntAdaptor<std::uint32_t>{0U};
-        }));
+        expect(
+            throws<std::invalid_argument>(
+                [&]
+                {
+                    auto result = bytes | DecodeIntAdaptor<std::uint32_t>{0U};
+                }
+            )
+        );
     };
 
-    "an empty range throws TruncatedDataError"_test = [] {
+    "an empty range throws TruncatedDataError"_test = []
+    {
         std::vector<std::byte> bytes;
-        expect(throws<error::http::TruncatedDataError>([&] {
-            auto result = bytes | DecodeIntAdaptor<std::uint32_t>{5U};
-        }));
+        expect(
+            throws<error::http::TruncatedDataError>(
+                [&]
+                {
+                    auto result = bytes | DecodeIntAdaptor<std::uint32_t>{5U};
+                }
+            )
+        );
     };
 
-    "a stream with no terminal continuation byte throws IntegerDecodeError"_test = [] {
-        std::vector<std::byte> bytes{std::byte{0x07}, std::byte{0x80}, std::byte{0x80},
-                                     std::byte{0x80}, std::byte{0x80}, std::byte{0x80}};
-        expect(throws<error::http::IntegerDecodeError>([&] {
-            auto result = bytes | DecodeIntAdaptor<std::uint32_t>{3U};
-        }));
+    "a stream with no terminal continuation byte throws IntegerDecodeError"_test = []
+    {
+        std::vector<std::byte> bytes{
+            std::byte{0x07},
+            std::byte{0x80},
+            std::byte{0x80},
+            std::byte{0x80},
+            std::byte{0x80},
+            std::byte{0x80}
+        };
+        expect(
+            throws<error::http::IntegerDecodeError>(
+                [&]
+                {
+                    auto result = bytes | DecodeIntAdaptor<std::uint32_t>{3U};
+                }
+            )
+        );
     };
 };
 
-suite<"EncodeStringAdaptor/DecodeStringAdaptor"> string_adaptor_suite = [] {
-    "raw round-trip through the pipe adaptors"_test = [] {
+suite<"EncodeStringAdaptor/DecodeStringAdaptor"> string_adaptor_suite = []
+{
+    "raw round-trip through the pipe adaptors"_test = []
+    {
         std::string original = "hello";
-        auto byte_view = original | std::views::transform([](char character) {
-                             return static_cast<std::byte>(character);
-                         });
+        auto byte_view = original | std::views::transform(
+                                        [](char character)
+                                        {
+                                            return static_cast<std::byte>(character);
+                                        }
+                                    );
 
         std::vector<std::byte> encoded;
         for (std::byte value: byte_view | EncodeStringAdaptor<4>{false}) {
@@ -597,11 +644,15 @@ suite<"EncodeStringAdaptor/DecodeStringAdaptor"> string_adaptor_suite = [] {
         expect(consumed == encoded.size());
     };
 
-    "the huffman_encode flag is currently a no-op — output is identical either way"_test = [] {
+    "the huffman_encode flag is currently a no-op — output is identical either way"_test = []
+    {
         std::string original = "hello";
-        auto byte_view = original | std::views::transform([](char character) {
-                             return static_cast<std::byte>(character);
-                         });
+        auto byte_view = original | std::views::transform(
+                                        [](char character)
+                                        {
+                                            return static_cast<std::byte>(character);
+                                        }
+                                    );
 
         std::vector<std::byte> raw_encoded;
         for (std::byte value: byte_view | EncodeStringAdaptor<4>{false}) {
@@ -618,11 +669,15 @@ suite<"EncodeStringAdaptor/DecodeStringAdaptor"> string_adaptor_suite = [] {
         expect(std::ranges::equal(raw_encoded, flagged_encoded));
     };
 
-    "DecodeStringAdaptor huffman-decodes the body when the H-bit is set"_test = [] {
+    "DecodeStringAdaptor huffman-decodes the body when the H-bit is set"_test = []
+    {
         std::string original = "www.example.com";
-        auto byte_view = original | std::views::transform([](char character) {
-                             return static_cast<std::byte>(character);
-                         });
+        auto byte_view = original | std::views::transform(
+                                        [](char character)
+                                        {
+                                            return static_cast<std::byte>(character);
+                                        }
+                                    );
 
         std::vector<std::byte> huffman_body;
         for (std::byte value: byte_view | huffman::HuffmanEncodeAdaptor{}) {
@@ -642,11 +697,17 @@ suite<"EncodeStringAdaptor/DecodeStringAdaptor"> string_adaptor_suite = [] {
         expect(consumed == data.size());
     };
 
-    "an empty range throws TruncatedDataError"_test = [] {
+    "an empty range throws TruncatedDataError"_test = []
+    {
         std::vector<std::byte> data;
-        expect(throws<error::http::TruncatedDataError>([&] {
-            auto result = data | DecodeStringAdaptor<4>{};
-        }));
+        expect(
+            throws<error::http::TruncatedDataError>(
+                [&]
+                {
+                    auto result = data | DecodeStringAdaptor<4>{};
+                }
+            )
+        );
     };
 };
 

@@ -66,10 +66,13 @@ struct serde::Serializable<model::PollData>
     {
         return std::tuple{
             serde::FieldDesc<
-                "worker_type", &model::PollData::get_worker_type, &model::PollData::set_worker_type,
+                "worker_type",
+                &model::PollData::get_worker_type,
+                &model::PollData::set_worker_type,
                 serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
             serde::FieldDesc<
-                "last_poll_at", &model::PollData::get_last_poll_at,
+                "last_poll_at",
+                &model::PollData::get_last_poll_at,
                 &model::PollData::set_last_poll_at>{},
         };
     }
@@ -79,12 +82,15 @@ struct serde::Serializable<model::PollData>
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"PollData"> poll_data_suite = [] {
-    "defaults to an empty worker_type and fails validation"_test = [] {
+suite<"PollData"> poll_data_suite = []
+{
+    "defaults to an empty worker_type and fails validation"_test = []
+    {
         PollData data;
         expect(not data.validate().has_value());
     };
-    "setters round-trip and a non-empty worker_type passes validation"_test = [] {
+    "setters round-trip and a non-empty worker_type passes validation"_test = []
+    {
         PollData data;
         auto now = std::chrono::system_clock::now();
         data.set_worker_type("email_worker");

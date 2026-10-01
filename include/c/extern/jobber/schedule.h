@@ -1,10 +1,10 @@
 #ifndef CONGELADO_C_EXTERN_JOB_SCHEDULE_H_
 #define CONGELADO_C_EXTERN_JOB_SCHEDULE_H_
 
-#include "include/c/macros.h"
+#include "include/c/extern/jobber/job.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/vector.h"
-#include "include/c/extern/jobber/job.h"
+#include "include/c/macros.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -23,8 +23,18 @@ extern "C"
         void (*destroy)(TF_Schedule* handle);
 
 
-        void (*add_dependency)(TF_Schedule* schedule, TF_Job* job, TF_Job* depends_on, TF_Status* out_status);
-        void (*list_dependencies)(TF_Schedule* schedule, TF_Job* job, TF_Vector* out_job_ids, TF_Status* out_status);
+        void (*add_dependency)(
+            TF_Schedule* schedule,
+            TF_Job* job,
+            TF_Job* depends_on,
+            TF_Status* out_status
+        );
+        void (*list_dependencies)(
+            TF_Schedule* schedule,
+            TF_Job* job,
+            TF_Vector* out_job_ids,
+            TF_Status* out_status
+        );
 
         void (*pause)(TF_Schedule* schedule, TF_Job* job, TF_Status* out_status);
         void (*resume)(TF_Schedule* schedule, TF_Job* job, TF_Status* out_status);
@@ -35,11 +45,8 @@ extern "C"
 
 #define TF_SCHEDULE_STRUCT_SIZE TF_OFFSET_OF_END(TF_ScheduleOps, stop)
 
-    TF_CAPI_EXPORT void create_schedule(
-        TF_ScheduleOps** ops,
-        void** plugin_context,
-        TF_Status* out_status
-    );
+    TF_CAPI_EXPORT void
+    create_schedule(TF_ScheduleOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_schedule(void* plugin_context);
 
 #ifdef __cplusplus

@@ -44,7 +44,9 @@ public:
      * @return nothing on success, or an error string if serialization/write failed.
      */
     [[nodiscard]] virtual std::expected<void, std::string> write_document(
-        std::string_view title, std::string_view version, const std::filesystem::path& output_path
+        std::string_view title,
+        std::string_view version,
+        const std::filesystem::path& output_path
     ) const = 0;
 
     /**

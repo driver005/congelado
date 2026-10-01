@@ -11,7 +11,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // Native alias to cc_abi ice::DataType

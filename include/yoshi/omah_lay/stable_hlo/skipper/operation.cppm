@@ -81,8 +81,7 @@ public:
     // carrier contract of TF_Tensor_Handle). The handles are heap copies with
     // parameter-slot context applied; ownership of each transfers to the C side,
     // which frees them with parameter_destroy/attribute_destroy.
-    std::expected<ice::TensorHandle, ice::Status>
-    get_inputs() const noexcept override
+    std::expected<ice::TensorHandle, ice::Status> get_inputs() const noexcept override
     {
         int64_t count = static_cast<int64_t>(m_parameters.size());
         auto handle = make_handle_tensor(count);
@@ -98,8 +97,7 @@ public:
         return handle;
     }
 
-    std::expected<ice::TensorHandle, ice::Status>
-    get_outputs() const noexcept override
+    std::expected<ice::TensorHandle, ice::Status> get_outputs() const noexcept override
     {
         int64_t count = static_cast<int64_t>(m_results.size());
         auto handle = make_handle_tensor(count);
@@ -115,8 +113,7 @@ public:
         return handle;
     }
 
-    std::expected<ice::TensorHandle, ice::Status>
-    get_attrs() const noexcept override
+    std::expected<ice::TensorHandle, ice::Status> get_attrs() const noexcept override
     {
         int64_t count = static_cast<int64_t>(m_attrs.size());
         auto handle = make_handle_tensor(count);

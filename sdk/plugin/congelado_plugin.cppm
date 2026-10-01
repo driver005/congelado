@@ -434,7 +434,9 @@ namespace _cap_dispatch {
             case CONGELADO_RUN_LOGGER:
                 if (action == CONGELADO_ACTION_WRITE && args_count >= 2) {
                     logger_write(
-                        plugin, static_cast<int>(args[0].v_int64), std::string_view{args[1].v_cstr}
+                        plugin,
+                        static_cast<int>(args[0].v_int64),
+                        std::string_view{args[1].v_cstr}
                     );
                 } else if (action == CONGELADO_ACTION_ERROR && args_count >= 1) {
                     logger_write(plugin, 4, std::string_view{args[0].v_cstr});
@@ -442,43 +444,63 @@ namespace _cap_dispatch {
                 return CongeladoAny{};
             case CONGELADO_RUN_STORAGE:
                 return CongeladoAny{
-                    .type_index = CG_PTR, .zero_padding = 0, .v_ptr = storage_get(plugin)
+                    .type_index = CG_PTR,
+                    .zero_padding = 0,
+                    .v_ptr = storage_get(plugin)
                 };
             case CONGELADO_RUN_PROTOCOL:
                 return CongeladoAny{
-                    .type_index = CG_PTR, .zero_padding = 0, .v_ptr = protocol_get(plugin)
+                    .type_index = CG_PTR,
+                    .zero_padding = 0,
+                    .v_ptr = protocol_get(plugin)
                 };
             case CONGELADO_RUN_SERDE:
                 return CongeladoAny{
-                    .type_index = CG_PTR, .zero_padding = 0, .v_ptr = serde_get(plugin)
+                    .type_index = CG_PTR,
+                    .zero_padding = 0,
+                    .v_ptr = serde_get(plugin)
                 };
             case CONGELADO_RUN_OTEL:
                 return CongeladoAny{
-                    .type_index = CG_PTR, .zero_padding = 0, .v_ptr = otel_get(plugin)
+                    .type_index = CG_PTR,
+                    .zero_padding = 0,
+                    .v_ptr = otel_get(plugin)
                 };
             case CONGELADO_RUN_OPENAPI:
                 return CongeladoAny{
-                    .type_index = CG_PTR, .zero_padding = 0, .v_ptr = openapi_get(plugin)
+                    .type_index = CG_PTR,
+                    .zero_padding = 0,
+                    .v_ptr = openapi_get(plugin)
                 };
             case CONGELADO_RUN_SEARCH:
                 return CongeladoAny{
-                    .type_index = CG_PTR, .zero_padding = 0, .v_ptr = search_get(plugin)
+                    .type_index = CG_PTR,
+                    .zero_padding = 0,
+                    .v_ptr = search_get(plugin)
                 };
             case CONGELADO_RUN_EVENTS:
                 return CongeladoAny{
-                    .type_index = CG_PTR, .zero_padding = 0, .v_ptr = event_get(plugin)
+                    .type_index = CG_PTR,
+                    .zero_padding = 0,
+                    .v_ptr = event_get(plugin)
                 };
             case CONGELADO_RUN_CACHE:
                 return CongeladoAny{
-                    .type_index = CG_PTR, .zero_padding = 0, .v_ptr = cache_get(plugin)
+                    .type_index = CG_PTR,
+                    .zero_padding = 0,
+                    .v_ptr = cache_get(plugin)
                 };
             case CONGELADO_RUN_CRON:
                 return CongeladoAny{
-                    .type_index = CG_PTR, .zero_padding = 0, .v_ptr = cron_get(plugin)
+                    .type_index = CG_PTR,
+                    .zero_padding = 0,
+                    .v_ptr = cron_get(plugin)
                 };
             case CONGELADO_RUN_WORKER_MANAGER:
                 return CongeladoAny{
-                    .type_index = CG_PTR, .zero_padding = 0, .v_ptr = worker_manager_get(plugin)
+                    .type_index = CG_PTR,
+                    .zero_padding = 0,
+                    .v_ptr = worker_manager_get(plugin)
                 };
             case CONGELADO_RUN_WORKER_ORCHESTRATOR:
                 return CongeladoAny{
@@ -494,15 +516,21 @@ namespace _cap_dispatch {
                 };
             case CONGELADO_RUN_PAYLOAD_STORAGE:
                 return CongeladoAny{
-                    .type_index = CG_PTR, .zero_padding = 0, .v_ptr = payload_storage_get(plugin)
+                    .type_index = CG_PTR,
+                    .zero_padding = 0,
+                    .v_ptr = payload_storage_get(plugin)
                 };
             case CONGELADO_RUN_WORKER:
                 return CongeladoAny{
-                    .type_index = CG_PTR, .zero_padding = 0, .v_ptr = worker_get(plugin)
+                    .type_index = CG_PTR,
+                    .zero_padding = 0,
+                    .v_ptr = worker_get(plugin)
                 };
             case CONGELADO_RUN_APP_DEFS:
                 return CongeladoAny{
-                    .type_index = CG_PTR, .zero_padding = 0, .v_ptr = app_defs_get(plugin)
+                    .type_index = CG_PTR,
+                    .zero_padding = 0,
+                    .v_ptr = app_defs_get(plugin)
                 };
             case CONGELADO_RUN_BRIDGE:
                 if (action == CONGELADO_ACTION_GET_NATIVE_HANDLE) {
@@ -513,7 +541,9 @@ namespace _cap_dispatch {
                     };
                 }
                 return CongeladoAny{
-                    .type_index = CG_PTR, .zero_padding = 0, .v_ptr = bridge_get(plugin)
+                    .type_index = CG_PTR,
+                    .zero_padding = 0,
+                    .v_ptr = bridge_get(plugin)
                 };
         }
         return CongeladoAny{};
@@ -614,8 +644,10 @@ public:
     }
 };
 
-suite<"Plugin"> plugin_suite = [] {
-    "unoverridden hooks report safe, inert defaults"_test = [] {
+suite<"Plugin"> plugin_suite = []
+{
+    "unoverridden hooks report safe, inert defaults"_test = []
+    {
         TestPlugin plugin;
 
         expect(plugin.capabilities() == 0);
@@ -627,7 +659,8 @@ suite<"Plugin"> plugin_suite = [] {
         expect(plugin.on_reload_requested() == true);
     };
 
-    "execute_worker default returns an empty config view"_test = [] {
+    "execute_worker default returns an empty config view"_test = []
+    {
         TestPlugin plugin;
         auto result = plugin.execute_worker(nullptr);
 
@@ -636,7 +669,8 @@ suite<"Plugin"> plugin_suite = [] {
         expect(result.values == nullptr);
     };
 
-    "write() forwards to logger_write() with the level and message intact"_test = [] {
+    "write() forwards to logger_write() with the level and message intact"_test = []
+    {
         TestPlugin plugin;
         plugin.write(interfaces::LogLevel::WARNING, "careful");
 
@@ -644,7 +678,8 @@ suite<"Plugin"> plugin_suite = [] {
         expect(plugin.get_last_message() == "careful");
     };
 
-    "error() forwards to logger_write() at the hardcoded level 4"_test = [] {
+    "error() forwards to logger_write() at the hardcoded level 4"_test = []
+    {
         TestPlugin plugin;
         plugin.error("boom");
 
@@ -652,44 +687,67 @@ suite<"Plugin"> plugin_suite = [] {
         expect(plugin.get_last_message() == "boom");
     };
 
-    "on_load default is a no-op, safe to call with empty host/config views"_test = [] {
+    "on_load default is a no-op, safe to call with empty host/config views"_test = []
+    {
         TestPlugin plugin;
-        expect(nothrow([&] {
-            plugin.on_load(CongeladoHostCallbacks{}, CongeladoConfigView{});
-        }));
+        expect(nothrow(
+            [&]
+            {
+                plugin.on_load(CongeladoHostCallbacks{}, CongeladoConfigView{});
+            }
+        ));
     };
 
-    "on_unload default is a no-op"_test = [] {
+    "on_unload default is a no-op"_test = []
+    {
         TestPlugin plugin;
-        expect(nothrow([&] {
-            plugin.on_unload();
-        }));
+        expect(nothrow(
+            [&]
+            {
+                plugin.on_unload();
+            }
+        ));
     };
 
-    "on_shutdown_requested default is a no-op"_test = [] {
+    "on_shutdown_requested default is a no-op"_test = []
+    {
         TestPlugin plugin;
-        expect(nothrow([&] {
-            plugin.on_shutdown_requested();
-        }));
+        expect(nothrow(
+            [&]
+            {
+                plugin.on_shutdown_requested();
+            }
+        ));
     };
 
-    "on_ready default is a no-op"_test = [] {
+    "on_ready default is a no-op"_test = []
+    {
         TestPlugin plugin;
-        expect(nothrow([&] {
-            plugin.on_ready();
-        }));
+        expect(nothrow(
+            [&]
+            {
+                plugin.on_ready();
+            }
+        ));
     };
 
     "logger_write's base default is a no-op — write()/error() don't crash without an override"_test =
-        [] {
-            BareTestPlugin plugin;
-            expect(nothrow([&] {
+        []
+    {
+        BareTestPlugin plugin;
+        expect(nothrow(
+            [&]
+            {
                 plugin.write(interfaces::LogLevel::WARNING, "careful");
-            }));
-            expect(nothrow([&] {
+            }
+        ));
+        expect(nothrow(
+            [&]
+            {
                 plugin.error("boom");
-            }));
-        };
+            }
+        ));
+    };
 };
 
 } // namespace congelado::tests

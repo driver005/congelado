@@ -14,12 +14,15 @@ export inline constexpr std::size_t SHOULD_BE_ON_LIST = ~REFS_MASK;
 namespace {
 using namespace boost::ut;
 
-suite<"consts"> consts_suite = [] {
-    "REFS_MASK and SHOULD_BE_ON_LIST partition every bit exactly once"_test = [] {
+suite<"consts"> consts_suite = []
+{
+    "REFS_MASK and SHOULD_BE_ON_LIST partition every bit exactly once"_test = []
+    {
         expect((REFS_MASK & SHOULD_BE_ON_LIST) == 0);
         expect((REFS_MASK | SHOULD_BE_ON_LIST) == ~static_cast<std::size_t>(0));
     };
-    "SHOULD_BE_ON_LIST is exactly the top bit"_test = [] {
+    "SHOULD_BE_ON_LIST is exactly the top bit"_test = []
+    {
         expect(SHOULD_BE_ON_LIST == (static_cast<std::size_t>(1) << (sizeof(std::size_t) * 8 - 1)));
     };
 };

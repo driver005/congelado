@@ -132,7 +132,9 @@ public:
     /// @return true if the worker completed before this call returned (`completion` already
     /// fired), false if it parked and `completion` will fire later, from another thread.
     bool run_task_async(
-        std::string_view task_type, const serde::Value& input, TaskCompletion completion
+        std::string_view task_type,
+        const serde::Value& input,
+        TaskCompletion completion
     )
     {
         auto* worker = get_task_worker(task_type);
@@ -142,7 +144,8 @@ public:
         }
         auto shared_completion = std::make_shared<TaskCompletion>(std::move(completion));
         auto finished = std::make_shared<bool>(false);
-        auto finish = [worker, shared_completion, finished](interfaces::WorkerResult output) {
+        auto finish = [worker, shared_completion, finished](interfaces::WorkerResult output)
+        {
             if (*finished) {
                 return;
             }
@@ -202,19 +205,24 @@ public:
         }
         std::promise<EngineResponse> promise;
         auto future = promise.get_future();
-        m_register.send(std::move(request), [&promise](interfaces::io::IResponse& response) {
-            auto& view = response.get_body();
-            std::string resp_body;
-            resp_body.reserve(view.size());
-            for (auto byte: view) {
-                resp_body.push_back(static_cast<char>(byte));
+        m_register.send(
+            std::move(request),
+            [&promise](interfaces::io::IResponse& response)
+            {
+                auto& view = response.get_body();
+                std::string resp_body;
+                resp_body.reserve(view.size());
+                for (auto byte: view) {
+                    resp_body.push_back(static_cast<char>(byte));
+                }
+                promise.set_value(
+                    {.m_status = static_cast<int>(
+                         interfaces::io::types::status_code(response.get_status())
+                     ),
+                     .m_body = std::move(resp_body)}
+                );
             }
-            promise.set_value(
-                {.m_status =
-                     static_cast<int>(interfaces::io::types::status_code(response.get_status())),
-                 .m_body = std::move(resp_body)}
-            );
-        });
+        );
         return future.get();
     }
 
@@ -327,7 +335,8 @@ public:
     }
 
     void set_header(
-        std::variant<std::string_view, interfaces::io::types::Token>, std::string_view
+        std::variant<std::string_view, interfaces::io::types::Token>,
+        std::string_view
     ) & override
     {
     }
@@ -372,28 +381,34 @@ public:
     }
 };
 
-suite<"WorkerContext::EngineResponse"> engine_response_suite = [] {
-    "default-constructs with status 0 and an empty body"_test = [] {
+suite<"WorkerContext::EngineResponse"> engine_response_suite = []
+{
+    "default-constructs with status 0 and an empty body"_test = []
+    {
         WorkerContext::EngineResponse response;
         expect(response.m_status == 0);
         expect(response.m_body.empty());
     };
 };
 
-suite<"WorkerContext identity/registry"> worker_context_registry_suite = [] {
-    "set_worker_id/get_worker_id round-trip, starts empty"_test = [] {
+suite<"WorkerContext identity/registry"> worker_context_registry_suite = []
+{
+    "set_worker_id/get_worker_id round-trip, starts empty"_test = []
+    {
         WorkerContext ctx;
         expect(ctx.get_worker_id().empty());
         ctx.set_worker_id("worker-1");
         expect(ctx.get_worker_id() == "worker-1");
     };
 
-    "get_task_worker returns nullptr for an unregistered type"_test = [] {
+    "get_task_worker returns nullptr for an unregistered type"_test = []
+    {
         WorkerContext ctx;
         expect(ctx.get_task_worker("echo") == nullptr);
     };
 
-    "add_worker registers by task_type; get_task_types lists everything registered"_test = [] {
+    "add_worker registers by task_type; get_task_types lists everything registered"_test = []
+    {
         WorkerContext ctx;
         expect(ctx.get_task_types().empty());
 
@@ -411,7 +426,8 @@ suite<"WorkerContext identity/registry"> worker_context_registry_suite = [] {
         expect(std::ranges::find(types, "transform") != types.end());
     };
 
-    "add_worker for a type already registered — the last registration wins"_test = [] {
+    "add_worker for a type already registered — the last registration wins"_test = []
+    {
         WorkerContext ctx;
         FakeWorker first{"echo"};
         FakeWorker second{"echo"};
@@ -423,15 +439,18 @@ suite<"WorkerContext identity/registry"> worker_context_registry_suite = [] {
     };
 };
 
-suite<"WorkerContext::run_task"> worker_context_run_task_suite = [] {
-    "returns an unregistered-worker error for an unknown type"_test = [] {
+suite<"WorkerContext::run_task"> worker_context_run_task_suite = []
+{
+    "returns an unregistered-worker error for an unknown type"_test = []
+    {
         WorkerContext ctx;
         auto result = ctx.run_task("missing", serde::Value{});
         expect(not result.has_value()) << fatal;
         expect(result.error().getMessage() == "unregistered worker type");
     };
 
-    "returns the worker's output on success and calls on_released but not on_error"_test = [] {
+    "returns the worker's output on success and calls on_released but not on_error"_test = []
+    {
         WorkerContext ctx;
         FakeWorker echo{"echo"};
         echo.set_result(interfaces::WorkerOutput{{"out", "ok"}});
@@ -446,45 +465,51 @@ suite<"WorkerContext::run_task"> worker_context_run_task_suite = [] {
     };
 
     "catches a std::exception from execute(), reports it via on_error and the returned WorkerError, still calls on_released"_test =
-        [] {
-            WorkerContext ctx;
-            FakeWorker echo{"echo"};
-            echo.set_throw_std_exception(true);
-            ctx.add_worker(echo);
+        []
+    {
+        WorkerContext ctx;
+        FakeWorker echo{"echo"};
+        echo.set_throw_std_exception(true);
+        ctx.add_worker(echo);
 
-            auto result = ctx.run_task("echo", serde::Value{});
-            expect(not result.has_value()) << fatal;
-            expect(result.error().getMessage() == "execute boom");
-            expect(echo.get_on_error_count() == 1);
-            expect(echo.get_last_error() == "execute boom");
-            expect(echo.get_on_released_count() == 1);
-        };
+        auto result = ctx.run_task("echo", serde::Value{});
+        expect(not result.has_value()) << fatal;
+        expect(result.error().getMessage() == "execute boom");
+        expect(echo.get_on_error_count() == 1);
+        expect(echo.get_last_error() == "execute boom");
+        expect(echo.get_on_released_count() == 1);
+    };
 
     "catches a non-std::exception throw from execute(), reports \"unknown error\", still calls on_released"_test =
-        [] {
-            WorkerContext ctx;
-            FakeWorker echo{"echo"};
-            echo.set_throw_unknown(true);
-            ctx.add_worker(echo);
+        []
+    {
+        WorkerContext ctx;
+        FakeWorker echo{"echo"};
+        echo.set_throw_unknown(true);
+        ctx.add_worker(echo);
 
-            auto result = ctx.run_task("echo", serde::Value{});
-            expect(not result.has_value()) << fatal;
-            expect(result.error().getMessage() == "unknown error");
-            expect(echo.get_on_error_count() == 1);
-            expect(echo.get_last_error() == "unknown error");
-            expect(echo.get_on_released_count() == 1);
-        };
+        auto result = ctx.run_task("echo", serde::Value{});
+        expect(not result.has_value()) << fatal;
+        expect(result.error().getMessage() == "unknown error");
+        expect(echo.get_on_error_count() == 1);
+        expect(echo.get_last_error() == "unknown error");
+        expect(echo.get_on_released_count() == 1);
+    };
 };
 
-suite<"WorkerContext::run_task_async"> worker_context_run_task_async_suite = [] {
-    "completes synchronously with an unregistered-worker error for an unknown type"_test = [] {
+suite<"WorkerContext::run_task_async"> worker_context_run_task_async_suite = []
+{
+    "completes synchronously with an unregistered-worker error for an unknown type"_test = []
+    {
         WorkerContext ctx;
         bool completed = false;
         interfaces::WorkerResult captured{std::unexpected{interfaces::WorkerError{"unset"}}};
 
         auto finished = ctx.run_task_async(
-            "missing", serde::Value{},
-            [&completed, &captured](interfaces::WorkerResult result) noexcept {
+            "missing",
+            serde::Value{},
+            [&completed, &captured](interfaces::WorkerResult result) noexcept
+            {
                 completed = true;
                 captured = std::move(result);
             }
@@ -503,25 +528,29 @@ suite<"WorkerContext::run_task_async"> worker_context_run_task_async_suite = [] 
     // worker, run_task_async() always parks: the completion never fires synchronously and the
     // call returns false. This test pins that real, documented behavior rather than forcing the
     // queue to run.
-    "parks for a registered type — completion does not fire synchronously, returns false"_test =
-        [] {
-            WorkerContext ctx;
-            FakeWorker echo{"echo"};
-            ctx.add_worker(echo);
-            bool completed = false;
+    "parks for a registered type — completion does not fire synchronously, returns false"_test = []
+    {
+        WorkerContext ctx;
+        FakeWorker echo{"echo"};
+        ctx.add_worker(echo);
+        bool completed = false;
 
-            auto finished = ctx.run_task_async(
-                "echo", serde::Value{}, [&completed](interfaces::WorkerResult) noexcept {
-                    completed = true;
-                }
-            );
+        auto finished = ctx.run_task_async(
+            "echo",
+            serde::Value{},
+            [&completed](interfaces::WorkerResult) noexcept
+            {
+                completed = true;
+            }
+        );
 
-            expect(not finished);
-            expect(not completed);
-        };
+        expect(not finished);
+        expect(not completed);
+    };
 };
 
-suite<"WorkerContext::call_engine"> worker_context_call_engine_suite = [] {
+suite<"WorkerContext::call_engine"> worker_context_call_engine_suite = []
+{
     // call_engine() blocks on a future with no timeout until the response is correlated back —
     // genuinely round-tripping it needs a live IClient whose send() actually completes, which
     // this binary never does (see core_client's own Register test suite for the same
@@ -532,21 +561,36 @@ suite<"WorkerContext::call_engine"> worker_context_call_engine_suite = [] {
     // blocking, no risk of hanging the shared test binary.
     static ThrowingTestClient client;
 
-    "throws once the bound client's send() fails (GET, no body)"_test = [] {
+    "throws once the bound client's send() fails (GET, no body)"_test = []
+    {
         WorkerContext ctx;
         ctx.set_runtime(client);
-        expect(throws<std::runtime_error>([&] {
-            [[maybe_unused]] auto response = ctx.call_engine("GET", "/api/v1/tasks");
-        }));
+        expect(
+            throws<std::runtime_error>(
+                [&]
+                {
+                    [[maybe_unused]] auto response = ctx.call_engine("GET", "/api/v1/tasks");
+                }
+            )
+        );
     };
 
-    "throws once the bound client's send() fails (POST, with a body)"_test = [] {
+    "throws once the bound client's send() fails (POST, with a body)"_test = []
+    {
         WorkerContext ctx;
         ctx.set_runtime(client);
-        expect(throws<std::runtime_error>([&] {
-            [[maybe_unused]] auto response =
-                ctx.call_engine("POST", "/api/v1/tasks/1/result", R"({"result":"SUCCESS"})");
-        }));
+        expect(
+            throws<std::runtime_error>(
+                [&]
+                {
+                    [[maybe_unused]] auto response = ctx.call_engine(
+                        "POST",
+                        "/api/v1/tasks/1/result",
+                        R"({"result":"SUCCESS"})"
+                    );
+                }
+            )
+        );
     };
 };
 

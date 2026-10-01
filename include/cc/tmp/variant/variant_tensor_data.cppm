@@ -31,7 +31,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         class VariantTensorDataProto;
@@ -300,7 +299,11 @@ export {
                 repeated_field = absl::StrCat(repeated_field, " tensors: ", t.DebugString());
             }
             return strings::StrCat(
-                "type_name: ", type_name(), " metadata: ", metadata_, repeated_field
+                "type_name: ",
+                type_name(),
+                " metadata: ",
+                metadata_,
+                repeated_field
             );
         }
 

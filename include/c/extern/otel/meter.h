@@ -1,11 +1,11 @@
 #ifndef CONGELADO_C_OTEL_METER_H_
 #define CONGELADO_C_OTEL_METER_H_
 
-#include "include/c/macros.h"
-#include "include/c/intern/status.h"
-#include "include/c/intern/tstring.h"
 #include "include/c/extern/otel/counter.h"
 #include "include/c/extern/otel/histogram.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #ifdef __cplusplus
 extern "C"

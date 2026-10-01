@@ -334,40 +334,54 @@ struct serde::Serializable<model::TaskDef>
     {
         return std::tuple{
             serde::FieldDesc<
-                "name", &model::TaskDef::get_name, &model::TaskDef::set_name,
+                "name",
+                &model::TaskDef::get_name,
+                &model::TaskDef::set_name,
                 serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
             serde::FieldDesc<"type", &model::TaskDef::get_type, &model::TaskDef::set_type>{},
             serde::FieldDesc<
-                "worker_type", &model::TaskDef::get_worker_type,
+                "worker_type",
+                &model::TaskDef::get_worker_type,
                 &model::TaskDef::set_worker_type>{},
             serde::FieldDesc<
-                "input_keys", &model::TaskDef::get_input_keys, &model::TaskDef::set_input_keys>{},
+                "input_keys",
+                &model::TaskDef::get_input_keys,
+                &model::TaskDef::set_input_keys>{},
             serde::FieldDesc<
-                "output_keys", &model::TaskDef::get_output_keys,
+                "output_keys",
+                &model::TaskDef::get_output_keys,
                 &model::TaskDef::set_output_keys>{},
             serde::FieldDesc<"retry", &model::TaskDef::get_retry, &model::TaskDef::set_retry>{},
+            serde::
+                FieldDesc<"timeout", &model::TaskDef::get_timeout, &model::TaskDef::set_timeout>{},
             serde::FieldDesc<
-                "timeout", &model::TaskDef::get_timeout, &model::TaskDef::set_timeout>{},
+                "rate_limit",
+                &model::TaskDef::get_rate_limit,
+                &model::TaskDef::set_rate_limit>{},
             serde::FieldDesc<
-                "rate_limit", &model::TaskDef::get_rate_limit, &model::TaskDef::set_rate_limit>{},
-            serde::FieldDesc<
-                "dynamic_task_param", &model::TaskDef::get_dynamic_task_param,
+                "dynamic_task_param",
+                &model::TaskDef::get_dynamic_task_param,
                 &model::TaskDef::set_dynamic_task_param>{},
             serde::FieldDesc<
-                "wait_duration_ms", &model::TaskDef::get_wait_duration_ms,
+                "wait_duration_ms",
+                &model::TaskDef::get_wait_duration_ms,
                 &model::TaskDef::set_wait_duration_ms>{},
             serde::FieldDesc<"domain", &model::TaskDef::get_domain, &model::TaskDef::set_domain>{},
             serde::FieldDesc<
-                "input_schema", &model::TaskDef::get_input_schema,
+                "input_schema",
+                &model::TaskDef::get_input_schema,
                 &model::TaskDef::set_input_schema>{},
             serde::FieldDesc<
-                "output_schema", &model::TaskDef::get_output_schema,
+                "output_schema",
+                &model::TaskDef::get_output_schema,
                 &model::TaskDef::set_output_schema>{},
             serde::FieldDesc<
-                "enforce_schema", &model::TaskDef::get_enforce_schema,
+                "enforce_schema",
+                &model::TaskDef::get_enforce_schema,
                 &model::TaskDef::set_enforce_schema>{},
             serde::FieldDesc<
-                "masked_fields", &model::TaskDef::get_masked_fields,
+                "masked_fields",
+                &model::TaskDef::get_masked_fields,
                 &model::TaskDef::set_masked_fields>{},
         };
     }
@@ -377,15 +391,18 @@ struct serde::Serializable<model::TaskDef>
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"TaskDef"> task_def_suite = [] {
-    "defaults to SIMPLE type and fails validation with an empty name"_test = [] {
+suite<"TaskDef"> task_def_suite = []
+{
+    "defaults to SIMPLE type and fails validation with an empty name"_test = []
+    {
         TaskDef def;
 
         expect(def.get_type() == TaskType::SIMPLE);
         expect(def.get_name().empty());
         expect(not def.validate().has_value());
     };
-    "setters round-trip and add_input_key/add_output_key accumulate"_test = [] {
+    "setters round-trip and add_input_key/add_output_key accumulate"_test = []
+    {
         TaskDef def;
         def.set_name("send_email");
         def.set_type(TaskType::SIMPLE);
@@ -399,21 +416,24 @@ suite<"TaskDef"> task_def_suite = [] {
         expect(def.get_input_keys().size() == 2);
         expect(def.get_output_keys().size() == 1);
     };
-    "SIMPLE tasks require a non-empty worker_type"_test = [] {
+    "SIMPLE tasks require a non-empty worker_type"_test = []
+    {
         TaskDef def;
         def.set_name("send_email");
         def.set_type(TaskType::SIMPLE);
 
         expect(not def.validate().has_value());
     };
-    "non-SIMPLE tasks don't require worker_type"_test = [] {
+    "non-SIMPLE tasks don't require worker_type"_test = []
+    {
         TaskDef def;
         def.set_name("fork_step");
         def.set_type(TaskType::FORK);
 
         expect(bool(def.validate()));
     };
-    "a valid SIMPLE task passes validation"_test = [] {
+    "a valid SIMPLE task passes validation"_test = []
+    {
         TaskDef def;
         def.set_name("send_email");
         def.set_type(TaskType::SIMPLE);
@@ -421,7 +441,8 @@ suite<"TaskDef"> task_def_suite = [] {
 
         expect(bool(def.validate()));
     };
-    "an invalid nested retry policy propagates through validate"_test = [] {
+    "an invalid nested retry policy propagates through validate"_test = []
+    {
         TaskDef def;
         def.set_name("send_email");
         def.set_type(TaskType::SIMPLE);

@@ -1,22 +1,27 @@
 #ifndef TENSORFLOW_C_EXTERN_STREAM_EXECUTOR_DEVICE_H_
 #define TENSORFLOW_C_EXTERN_STREAM_EXECUTOR_DEVICE_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdbool.h>
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-    typedef struct TF_Device { void* plugin_data; } TF_Device;
+    typedef struct TF_Device
+    {
+        void* plugin_data;
+    } TF_Device;
 
     // POD mirror of c10/XPUDeviceProp.h. Append-only, versioned by struct_size.
-    typedef struct TF_DeviceProperties {
+    typedef struct TF_DeviceProperties
+    {
         size_t struct_size;
         char name[256];
         char vendor[128];
@@ -85,7 +90,8 @@ extern "C" {
     } TF_DeviceProperties;
 
     // TF_DeviceOps
-    typedef struct TF_DeviceOps {
+    typedef struct TF_DeviceOps
+    {
         size_t struct_size;
         void (*create)(TF_Device* out_handle);
         void (*destroy)(TF_Device* handle);
@@ -95,16 +101,22 @@ extern "C" {
         void (*get_hardware_name)(TF_Device* device, TF_String* out_name);
         void (*get_device_vendor)(TF_Device* device, TF_String* out_vendor);
         void (*get_pci_bus_id)(TF_Device* device, TF_String* out_pci_bus_id);
-        void (*get_device_properties)(TF_Device* device, TF_DeviceProperties* out_properties, TF_Status* out_status);
+        void (*get_device_properties)(
+            TF_Device* device,
+            TF_DeviceProperties* out_properties,
+            TF_Status* out_status
+        );
         void (*get_native_handle)(TF_Device* device, void** out_handle);
     } TF_DeviceOps;
-    #define TF_DEVICE_STRUCT_SIZE TF_OFFSET_OF_END(TF_DeviceOps, get_native_handle)
-    
-    TF_CAPI_EXPORT void create_device(TF_DeviceOps** ops, void** plugin_context, TF_Status* out_status);
+
+#define TF_DEVICE_STRUCT_SIZE TF_OFFSET_OF_END(TF_DeviceOps, get_native_handle)
+
+    TF_CAPI_EXPORT void
+    create_device(TF_DeviceOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_device(void* plugin_context);
 
 #ifdef __cplusplus
 } /* end extern "C" */
 #endif
 
-#endif  // TENSORFLOW_C_EXTERN_STREAM_EXECUTOR_DEVICE_H_
+#endif // TENSORFLOW_C_EXTERN_STREAM_EXECUTOR_DEVICE_H_

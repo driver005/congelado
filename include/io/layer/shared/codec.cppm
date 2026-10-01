@@ -32,10 +32,14 @@ public:
         constexpr std::size_t BYTES = sizeof(UInt);
         std::size_t index = 0UZ;
 
-        std::ranges::generate(std::views::take(std::forward<R>(range), BYTES), [&index, val]() {
-            const auto SHIFT = 8UZ * (BYTES - 1UZ - index++);
-            return static_cast<std::byte>(val >> SHIFT);
-        });
+        std::ranges::generate(
+            std::views::take(std::forward<R>(range), BYTES),
+            [&index, val]()
+            {
+                const auto SHIFT = 8UZ * (BYTES - 1UZ - index++);
+                return static_cast<std::byte>(val >> SHIFT);
+            }
+        );
     }
 
     /**
@@ -150,9 +154,12 @@ public:
 
         // View data as plain uint8_t so the bit ops below don't need std::to_integer
         // everywhere.
-        auto view = std::forward<R>(data) | std::views::transform([](std::byte byte) {
-                        return std::to_integer<std::uint8_t>(byte);
-                    });
+        auto view = std::forward<R>(data) | std::views::transform(
+                                                [](std::byte byte)
+                                                {
+                                                    return std::to_integer<std::uint8_t>(byte);
+                                                }
+                                            );
 
         // First byte's top 2 bits pick the length bucket; the low 6 bits are value's first
         // chunk.
@@ -239,8 +246,10 @@ private:
 namespace io::shared_layer::tests {
 using namespace boost::ut;
 
-suite<"Atom-big-endian"> atom_big_endian_suite = [] {
-    "write/read round trip for a 32-bit value"_test = [] {
+suite<"Atom-big-endian"> atom_big_endian_suite = []
+{
+    "write/read round trip for a 32-bit value"_test = []
+    {
         std::array<std::byte, 4> buffer{};
         Atom<std::uint32_t>::write_big_endian(buffer, 0x01'02'03'04U);
 
@@ -252,28 +261,36 @@ suite<"Atom-big-endian"> atom_big_endian_suite = [] {
         expect(Atom<std::uint32_t>::read_big_endian(buffer) == 0x01'02'03'04U);
     };
 
-    "write/read round trip for a 16-bit value"_test = [] {
+    "write/read round trip for a 16-bit value"_test = []
+    {
         std::array<std::byte, 2> buffer{};
         Atom<std::uint16_t>::write_big_endian(buffer, 0xBE'EFU);
 
         expect(Atom<std::uint16_t>::read_big_endian(buffer) == 0xBE'EFU);
     };
 
-    "read tolerates fewer bytes than sizeof(UInt), missing bytes don't contribute"_test = [] {
+    "read tolerates fewer bytes than sizeof(UInt), missing bytes don't contribute"_test = []
+    {
         std::array<std::byte, 2> buffer{std::byte{0x00}, std::byte{0x2A}};
         expect(Atom<std::uint32_t>::read_big_endian(buffer) == 0x2AU);
     };
 
-    "read throws when given more bytes than sizeof(UInt)"_test = [] {
+    "read throws when given more bytes than sizeof(UInt)"_test = []
+    {
         std::array<std::byte, 5> buffer{};
-        expect(throws([&] {
-            std::ignore = Atom<std::uint32_t>::read_big_endian(buffer);
-        }));
+        expect(throws(
+            [&]
+            {
+                std::ignore = Atom<std::uint32_t>::read_big_endian(buffer);
+            }
+        ));
     };
 };
 
-suite<"Atom-varint"> atom_varint_suite = [] {
-    "1-byte bucket round trip for a value under 64"_test = [] {
+suite<"Atom-varint"> atom_varint_suite = []
+{
+    "1-byte bucket round trip for a value under 64"_test = []
+    {
         std::array<std::byte, 8> buffer{};
         Atom<std::uint32_t>::write_varint(buffer, 42U);
 
@@ -282,7 +299,8 @@ suite<"Atom-varint"> atom_varint_suite = [] {
         expect(length == 1);
     };
 
-    "2-byte bucket round trip for a value under 16384"_test = [] {
+    "2-byte bucket round trip for a value under 16384"_test = []
+    {
         std::array<std::byte, 8> buffer{};
         Atom<std::uint32_t>::write_varint(buffer, 1'000U);
 
@@ -291,7 +309,8 @@ suite<"Atom-varint"> atom_varint_suite = [] {
         expect(length == 2);
     };
 
-    "4-byte bucket round trip for a value under 2^30"_test = [] {
+    "4-byte bucket round trip for a value under 2^30"_test = []
+    {
         std::array<std::byte, 8> buffer{};
         Atom<std::uint32_t>::write_varint(buffer, 100'000U);
 
@@ -300,7 +319,8 @@ suite<"Atom-varint"> atom_varint_suite = [] {
         expect(length == 4);
     };
 
-    "8-byte bucket round trip for a value at or above 2^30"_test = [] {
+    "8-byte bucket round trip for a value at or above 2^30"_test = []
+    {
         std::array<std::byte, 8> buffer{};
         Atom<std::uint64_t>::write_varint(buffer, 5'000'000'000ULL);
 
@@ -309,7 +329,8 @@ suite<"Atom-varint"> atom_varint_suite = [] {
         expect(length == 8);
     };
 
-    "reading an empty range bails out with {0, 0}"_test = [] {
+    "reading an empty range bails out with {0, 0}"_test = []
+    {
         std::array<std::byte, 0> buffer{};
         auto [value, length] = Atom<std::uint32_t>::read_varint(buffer);
         expect(value == 0U);

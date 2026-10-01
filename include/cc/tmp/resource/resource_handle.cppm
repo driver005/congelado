@@ -44,7 +44,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         class ResourceHandleProto;
@@ -196,7 +195,10 @@ export {
             )
             {
                 return MakeRefCountingHandle(
-                    resource, device_name, TypeIndex::Make<T>(), dtypes_and_shapes,
+                    resource,
+                    device_name,
+                    TypeIndex::Make<T>(),
+                    dtypes_and_shapes,
                     definition_stack_trace
                 );
             }
@@ -264,12 +266,16 @@ export {
 
         // Encodes a list of ResourceHandle protos in the given StringListEncoder.
         void EncodeResourceHandleList(
-            const ResourceHandle* p, int64_t n, std::unique_ptr<port::StringListEncoder> e
+            const ResourceHandle* p,
+            int64_t n,
+            std::unique_ptr<port::StringListEncoder> e
         );
 
         // Decodes a list of ResourceHandle protos from the given StringListDecoder.
         bool DecodeResourceHandleList(
-            std::unique_ptr<port::StringListDecoder> d, ResourceHandle* ps, int64_t n
+            std::unique_ptr<port::StringListDecoder> d,
+            ResourceHandle* ps,
+            int64_t n
         );
 
     } // namespace tensorflow
@@ -291,7 +297,8 @@ export {
                     // can't directly use DataTypeString due to circular dependency.
                     dtype_and_shape_strings.push_back(
                         absl::StrFormat(
-                            "DType enum: %d, Shape: %s", dtype_and_shape.dtype,
+                            "DType enum: %d, Shape: %s",
+                            dtype_and_shape.dtype,
                             dtype_and_shape.shape.DebugString()
                         )
                     );
@@ -377,7 +384,11 @@ export {
             return absl::StrFormat(
                 "device: %s container: %s name: %s hash_code: 0x%X maybe_type_name %s, "
                 "dtype and shapes : %s",
-                device(), container(), name(), hash_code(), port::Demangle(maybe_type_name()),
+                device(),
+                container(),
+                name(),
+                hash_code(),
+                port::Demangle(maybe_type_name()),
                 DtypeAndShapesToString(dtypes_and_shapes())
             );
         }
@@ -387,7 +398,10 @@ export {
             return absl::StrFormat(
                 "ResourceHandle(name=\"%s\", device=\"%s\", container=\"%s\", "
                 "type=\"%s\", dtype and shapes : \"%s\")",
-                name(), device(), container(), port::Demangle(maybe_type_name()),
+                name(),
+                device(),
+                container(),
+                port::Demangle(maybe_type_name()),
                 DtypeAndShapesToString(dtypes_and_shapes())
             );
         }
@@ -421,10 +435,17 @@ export {
             if (type_index.hash_code() != hash_code()) {
                 return errors::InvalidArgument(
                     "Trying to access a handle's resource using the wrong type. ",
-                    "The handle points to a resource (name '", name(), "') of type '",
-                    port::Demangle(maybe_type_name()), "' (hash code ", hash_code(),
+                    "The handle points to a resource (name '",
+                    name(),
+                    "') of type '",
+                    port::Demangle(maybe_type_name()),
+                    "' (hash code ",
+                    hash_code(),
                     ") but you are trying to access the resource as type '",
-                    port::Demangle(type_index.name()), "' (hash code ", type_index.hash_code(), ")"
+                    port::Demangle(type_index.name()),
+                    "' (hash code ",
+                    type_index.hash_code(),
+                    ")"
                 );
             }
             return absl::OkStatus();
@@ -443,7 +464,9 @@ export {
         }
 
         void EncodeResourceHandleList(
-            const ResourceHandle* p, int64_t n, std::unique_ptr<port::StringListEncoder> e
+            const ResourceHandle* p,
+            int64_t n,
+            std::unique_ptr<port::StringListEncoder> e
         )
         {
             ResourceHandleProto proto;
@@ -455,7 +478,9 @@ export {
         }
 
         bool DecodeResourceHandleList(
-            std::unique_ptr<port::StringListDecoder> d, ResourceHandle* ps, int64_t n
+            std::unique_ptr<port::StringListDecoder> d,
+            ResourceHandle* ps,
+            int64_t n
         )
         {
             std::vector<uint32_t> sizes(n);

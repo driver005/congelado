@@ -29,7 +29,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         class Variant;
@@ -56,7 +55,9 @@ export {
                 }
 
                 void* p = raw_allocator->AllocateRawAlignedNew(
-                    Allocator::kAllocatorAlignment, sizeof(T) * num_elements, allocation_attr
+                    Allocator::kAllocatorAlignment,
+                    sizeof(T) * num_elements,
+                    allocation_attr
                 );
                 T* typed_p = reinterpret_cast<T*>(p);
                 if (typed_p) {
@@ -71,7 +72,9 @@ export {
                 if (ptr) {
                     RunDtor<T>(raw_allocator, ptr, num_elements);
                     raw_allocator->DeallocateRawAlignedDelete(
-                        ptr, Allocator::kAllocatorAlignment, sizeof(T) * num_elements
+                        ptr,
+                        Allocator::kAllocatorAlignment,
+                        sizeof(T) * num_elements
                     );
                 }
             }

@@ -611,8 +611,10 @@ private:
 namespace utils::openapi::tests {
 using namespace boost::ut;
 
-suite<"SchemaObject"> schema_object_suite = [] {
-    "defaults to not-nullable with everything else empty"_test = [] {
+suite<"SchemaObject"> schema_object_suite = []
+{
+    "defaults to not-nullable with everything else empty"_test = []
+    {
         SchemaObject schema;
         expect(schema.get_type().empty());
         expect(not schema.get_nullable());
@@ -620,7 +622,8 @@ suite<"SchemaObject"> schema_object_suite = [] {
         expect(schema.get_properties().empty());
         expect(schema.get_items() == nullptr);
     };
-    "setters round-trip, add_required/add_enum_value accumulate"_test = [] {
+    "setters round-trip, add_required/add_enum_value accumulate"_test = []
+    {
         SchemaObject schema;
         schema.set_type("string");
         schema.set_format("date-time");
@@ -637,7 +640,8 @@ suite<"SchemaObject"> schema_object_suite = [] {
         expect(schema.get_required().size() == 2);
         expect(schema.get_enum_values().size() == 1);
     };
-    "add_property/set_items wrap nested schemas"_test = [] {
+    "add_property/set_items wrap nested schemas"_test = []
+    {
         SchemaObject inner;
         inner.set_type("integer");
 
@@ -652,8 +656,10 @@ suite<"SchemaObject"> schema_object_suite = [] {
     };
 };
 
-suite<"Components"> components_suite = [] {
-    "add_schema registers a named schema"_test = [] {
+suite<"Components"> components_suite = []
+{
+    "add_schema registers a named schema"_test = []
+    {
         Components components;
         SchemaObject schema;
         schema.set_type("object");
@@ -664,8 +670,10 @@ suite<"Components"> components_suite = [] {
     };
 };
 
-suite<"MediaType"> media_type_suite = [] {
-    "set_schema/get_schema round-trip"_test = [] {
+suite<"MediaType"> media_type_suite = []
+{
+    "set_schema/get_schema round-trip"_test = []
+    {
         MediaType media;
         SchemaObject schema;
         schema.set_type("string");
@@ -675,13 +683,16 @@ suite<"MediaType"> media_type_suite = [] {
     };
 };
 
-suite<"RequestBody"> request_body_suite = [] {
-    "defaults to required with no content"_test = [] {
+suite<"RequestBody"> request_body_suite = []
+{
+    "defaults to required with no content"_test = []
+    {
         RequestBody body;
         expect(body.get_required());
         expect(body.get_content().empty());
     };
-    "add_content registers a media-type entry"_test = [] {
+    "add_content registers a media-type entry"_test = []
+    {
         RequestBody body;
         body.set_required(false);
         body.add_content("application/json", MediaType{});
@@ -691,13 +702,16 @@ suite<"RequestBody"> request_body_suite = [] {
     };
 };
 
-suite<"Response"> response_suite = [] {
-    "defaults to description OK with no content"_test = [] {
+suite<"Response"> response_suite = []
+{
+    "defaults to description OK with no content"_test = []
+    {
         Response response;
         expect(response.get_description() == "OK");
         expect(response.get_content().empty());
     };
-    "setters round-trip and add_content accumulates"_test = [] {
+    "setters round-trip and add_content accumulates"_test = []
+    {
         Response response;
         response.set_description("Not Found");
         response.add_content("application/json", MediaType{});
@@ -707,15 +721,18 @@ suite<"Response"> response_suite = [] {
     };
 };
 
-suite<"Operation"> operation_suite = [] {
-    "defaults to empty with no request body"_test = [] {
+suite<"Operation"> operation_suite = []
+{
+    "defaults to empty with no request body"_test = []
+    {
         Operation operation;
         expect(operation.get_summary().empty());
         expect(operation.get_tags().empty());
         expect(operation.get_request_body() == nullptr);
         expect(operation.get_responses().empty());
     };
-    "setters/adders round-trip"_test = [] {
+    "setters/adders round-trip"_test = []
+    {
         Operation operation;
         operation.set_summary("List tasks");
         operation.set_description("Returns every task");
@@ -731,13 +748,16 @@ suite<"Operation"> operation_suite = [] {
     };
 };
 
-suite<"Info"> info_suite = [] {
-    "defaults to Congelado API / 1.0.0"_test = [] {
+suite<"Info"> info_suite = []
+{
+    "defaults to Congelado API / 1.0.0"_test = []
+    {
         Info info;
         expect(info.get_title() == "Congelado API");
         expect(info.get_version() == "1.0.0");
     };
-    "setters round-trip"_test = [] {
+    "setters round-trip"_test = []
+    {
         Info info;
         info.set_title("My API");
         info.set_version("2.0.0");
@@ -747,13 +767,16 @@ suite<"Info"> info_suite = [] {
     };
 };
 
-suite<"Document"> document_suite = [] {
-    "defaults to openapi 3.0.3 with no paths"_test = [] {
+suite<"Document"> document_suite = []
+{
+    "defaults to openapi 3.0.3 with no paths"_test = []
+    {
         Document document;
         expect(document.get_openapi() == "3.0.3");
         expect(document.get_paths().empty());
     };
-    "add_operation nests path -> method -> operation"_test = [] {
+    "add_operation nests path -> method -> operation"_test = []
+    {
         Document document;
         Operation operation;
         operation.set_summary("List tasks");
@@ -784,14 +807,16 @@ struct serde::Serializable<utils::openapi::SchemaObject>
             serde::FieldDesc<"type", &SchemaObject::get_type, &SchemaObject::set_type>{},
             serde::FieldDesc<"format", &SchemaObject::get_format, &SchemaObject::set_format>{},
             serde::FieldDesc<"$ref", &SchemaObject::get_ref, &SchemaObject::set_ref>{},
+            serde::
+                FieldDesc<"nullable", &SchemaObject::get_nullable, &SchemaObject::set_nullable>{},
+            serde::
+                FieldDesc<"required", &SchemaObject::get_required, &SchemaObject::add_required>{},
+            serde::
+                FieldDesc<"enum", &SchemaObject::get_enum_values, &SchemaObject::add_enum_value>{},
             serde::FieldDesc<
-                "nullable", &SchemaObject::get_nullable, &SchemaObject::set_nullable>{},
-            serde::FieldDesc<
-                "required", &SchemaObject::get_required, &SchemaObject::add_required>{},
-            serde::FieldDesc<
-                "enum", &SchemaObject::get_enum_values, &SchemaObject::add_enum_value>{},
-            serde::FieldDesc<
-                "properties", &SchemaObject::get_properties, &SchemaObject::add_property>{},
+                "properties",
+                &SchemaObject::get_properties,
+                &SchemaObject::add_property>{},
             serde::FieldDesc<"items", &SchemaObject::get_items, &SchemaObject::set_items>{},
         };
     }
@@ -859,8 +884,8 @@ struct serde::Serializable<utils::openapi::Response>
     {
         using utils::openapi::Response;
         return std::tuple{
-            serde::FieldDesc<
-                "description", &Response::get_description, &Response::set_description>{},
+            serde::
+                FieldDesc<"description", &Response::get_description, &Response::set_description>{},
             serde::FieldDesc<"content", &Response::get_content, &Response::add_content>{},
         };
     }
@@ -881,10 +906,14 @@ struct serde::Serializable<utils::openapi::Operation>
         return std::tuple{
             serde::FieldDesc<"summary", &Operation::get_summary, &Operation::set_summary>{},
             serde::FieldDesc<
-                "description", &Operation::get_description, &Operation::set_description>{},
+                "description",
+                &Operation::get_description,
+                &Operation::set_description>{},
             serde::FieldDesc<"tags", &Operation::get_tags, &Operation::add_tag>{},
             serde::FieldDesc<
-                "requestBody", &Operation::get_request_body, &Operation::set_request_body>{},
+                "requestBody",
+                &Operation::get_request_body,
+                &Operation::set_request_body>{},
             serde::FieldDesc<"responses", &Operation::get_responses, &Operation::add_response>{},
         };
     }

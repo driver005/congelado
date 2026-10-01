@@ -54,20 +54,17 @@ public:
     }
 
     // A module binds no inputs, outputs, or attrs of its own — all empty handle tensors.
-    std::expected<ice::TensorHandle, ice::Status>
-    get_inputs() const noexcept override
+    std::expected<ice::TensorHandle, ice::Status> get_inputs() const noexcept override
     {
         return make_handle_tensor(0);
     }
 
-    std::expected<ice::TensorHandle, ice::Status>
-    get_outputs() const noexcept override
+    std::expected<ice::TensorHandle, ice::Status> get_outputs() const noexcept override
     {
         return make_handle_tensor(0);
     }
 
-    std::expected<ice::TensorHandle, ice::Status>
-    get_attrs() const noexcept override
+    std::expected<ice::TensorHandle, ice::Status> get_attrs() const noexcept override
     {
         return make_handle_tensor(0);
     }

@@ -15,7 +15,9 @@ extern "C"
         const char* version;
     } TF_PluginInfo;
 
-    // Initializes a plugin. Must be present in the plugin's shared object — the host dlopen's the library, dlsym's this symbol, and calls it, handing it a pointer to an empty TF_PluginInfo the plugin fills in place. Returns nothing; the host reads the same struct back afterward.
+    // Initializes a plugin. Must be present in the plugin's shared object — the host dlopen's the
+    // library, dlsym's this symbol, and calls it, handing it a pointer to an empty TF_PluginInfo
+    // the plugin fills in place. Returns nothing; the host reads the same struct back afterward.
     TF_CAPI_EXPORT void create_plugin(TF_PluginInfo* plugin_info);
 
 #ifdef __cplusplus

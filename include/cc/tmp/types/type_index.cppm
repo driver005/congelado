@@ -27,7 +27,6 @@ import std;
 import cc_abi;
 
 export {
-
 #if defined(__GXX_RTTI) || defined(_CPPRTTI)
 #endif // __GXX_RTTI
 
@@ -88,7 +87,8 @@ export {
 #ifdef PLATFORM_CLOUD_TPU
                 static bool hash_bit[1];
                 return TypeIndex(
-                    static_cast<uint64_t>(reinterpret_cast<intptr_t>(hash_bit)), typeid(T).name()
+                    static_cast<uint64_t>(reinterpret_cast<intptr_t>(hash_bit)),
+                    typeid(T).name()
                 );
 #endif
 #if defined(__GXX_RTTI) || defined(_CPPRTTI)
@@ -99,15 +99,16 @@ export {
 
 #else
                 static bool hash_bit[1];
-#    if TARGET_OS_OSX
-                // Warn MacOS users that not using RTTI can cause problems (b/156979412).
-#        warning "Compiling with RTTI disabled on MacOS can cause problems when comparing " \
+    #if TARGET_OS_OSX
+                    // Warn MacOS users that not using RTTI can cause problems (b/156979412).
+        #warning "Compiling with RTTI disabled on MacOS can cause problems when comparing " \
     "types across shared libraries."
-#    endif // TARGET_OS_OSX
+    #endif // TARGET_OS_OSX
 
                 // No type names available.
                 return TypeIndex(
-                    static_cast<uint64_t>(reinterpret_cast<intptr_t>(hash_bit)), "[RTTI disabled]"
+                    static_cast<uint64_t>(reinterpret_cast<intptr_t>(hash_bit)),
+                    "[RTTI disabled]"
                 );
 #endif     // __GXX_RTTI
             }

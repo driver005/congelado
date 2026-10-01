@@ -17,7 +17,8 @@ C10_API Tensor convolution_pointwise(
     int64_t groups,
     std::string_view attr,
     torch::List<std::optional<at::Scalar>> scalars,
-    std::optional<std::string_view> algorithm);
+    std::optional<std::string_view> algorithm
+);
 
 C10_API Tensor convolution_pointwise_binary(
     const Tensor& input_t,
@@ -32,7 +33,8 @@ C10_API Tensor convolution_pointwise_binary(
     std::optional<at::Scalar> alpha,
     std::optional<std::string_view> unary_attr,
     torch::List<std::optional<at::Scalar>> unary_scalars,
-    std::optional<std::string_view> unary_algorithm);
+    std::optional<std::string_view> unary_algorithm
+);
 
 C10_API Tensor& convolution_pointwise_binary_(
     Tensor& other_t,
@@ -47,7 +49,8 @@ C10_API Tensor& convolution_pointwise_binary_(
     std::optional<at::Scalar> alpha,
     std::optional<std::string_view> unary_attr,
     torch::List<std::optional<at::Scalar>> unary_scalars,
-    std::optional<std::string_view> unary_algorithm);
+    std::optional<std::string_view> unary_algorithm
+);
 
 } // namespace at::native::xpu
 

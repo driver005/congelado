@@ -1,9 +1,9 @@
 #ifndef TENSORFLOW_C_TF_FORWARD_LIST_FORWARD_LIST_H_
 #define TENSORFLOW_C_TF_FORWARD_LIST_FORWARD_LIST_H_
 
-#include "include/c/macros.h"
-#include "include/c/intern/status.h"
 #include "include/c/intern/forward_list/node.h"
+#include "include/c/intern/status.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -12,7 +12,8 @@ extern "C"
 {
 #endif
 
-    // TF_ForwardList — plugin vtable for a type-erased singly linked list (std::forward_list<T> equivalent), fixed to element_size bytes per element at creation.
+    // TF_ForwardList — plugin vtable for a type-erased singly linked list (std::forward_list<T>
+    // equivalent), fixed to element_size bytes per element at creation.
 
     typedef struct TF_ForwardList
     {
@@ -31,7 +32,8 @@ extern "C"
 
         void (*set_element_size)(TF_ForwardList* list, size_t element_size);
 
-        // Copy one element_size-byte element from value onto the front, returning a handle to the new node.
+        // Copy one element_size-byte element from value onto the front, returning a handle to the
+        // new node.
         void (*push_front)(
             TF_ForwardList* list,
             const void* value,
@@ -39,18 +41,12 @@ extern "C"
             TF_Status* out_status
         );
 
-        // Erase the node immediately following node (or the front node, if node is NULL). Matches std::forward_list::erase_after semantics.
-        void (*erase_after)(
-            TF_ForwardList* list,
-            TFForwardListNode* node
-        );
+        // Erase the node immediately following node (or the front node, if node is NULL). Matches
+        // std::forward_list::erase_after semantics.
+        void (*erase_after)(TF_ForwardList* list, TFForwardListNode* node);
 
         // Call visitor(capture, element) once per element, front to back.
-        void (*for_each)(
-            const TF_ForwardList* list,
-            TF_ForwardListVisitor visitor,
-            void* capture
-        );
+        void (*for_each)(const TF_ForwardList* list, TF_ForwardListVisitor visitor, void* capture);
 
 
     } TF_ForwardListOps;

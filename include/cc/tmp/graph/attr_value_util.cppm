@@ -60,7 +60,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         namespace attr_value_util_internal {
@@ -153,7 +152,9 @@ export {
         // then compares proto representation to avoid construction of large (> 32mb)
         // tensors.
         bool AreAttrValuesEqual(
-            const AttrValue& a, const AttrValue& b, bool allow_false_negatives = false
+            const AttrValue& a,
+            const AttrValue& b,
+            bool allow_false_negatives = false
         );
 
         // Returns true if "val" has a placeholder.
@@ -246,7 +247,9 @@ export {
             }
 
             bool AreTensorProtosEqual(
-                const TensorProto& lhs, const TensorProto& rhs, bool allow_false_negatives
+                const TensorProto& lhs,
+                const TensorProto& rhs,
+                bool allow_false_negatives
             )
             {
                 // A small TensorProto can expand into a giant Tensor.  So we avoid
@@ -357,7 +360,9 @@ export {
                     return absl::StrCat("<TensorProto: ", tensor_proto.ShortDebugString(), ">");
                 } else if (!t.FromProto(tensor_proto)) {
                     return absl::StrCat(
-                        "<Invalid TensorProto: ", tensor_proto.ShortDebugString(), ">"
+                        "<Invalid TensorProto: ",
+                        tensor_proto.ShortDebugString(),
+                        ">"
                     );
                 }
                 return t.DebugString();
@@ -490,7 +495,11 @@ export {
                             pieces.erase(pieces.begin() + 5, pieces.end() - 6);
                             pieces[5] = "...";
                             return absl::StrCat(
-                                "[", absl::StrJoin(pieces, ", "), "]{attr_hash=", fingerprint, "}"
+                                "[",
+                                absl::StrJoin(pieces, ", "),
+                                "]{attr_hash=",
+                                fingerprint,
+                                "}"
                             );
                         } else {
                             return absl::StrCat("[", absl::StrJoin(pieces, ", "), "]");
@@ -518,7 +527,8 @@ export {
             if (attr_value.list().name##_size() > 0) {                                             \
                 if (type != "list(" type_string ")") {                                             \
                     return errors::InvalidArgument(                                                \
-                        "AttrValue had value with type 'list(" type_string ")' when '", type,      \
+                        "AttrValue had value with type 'list(" type_string ")' when '",            \
+                        type,                                                                      \
                         "' expected"                                                               \
                     );                                                                             \
                 }                                                                                  \
@@ -527,7 +537,9 @@ export {
         } else if (attr_value.value_case() == AttrValue::oneof_case) {                             \
             if (type != type_string) {                                                             \
                 return errors::InvalidArgument(                                                    \
-                    "AttrValue had value with type '" type_string "' when '", type, "' expected"   \
+                    "AttrValue had value with type '" type_string "' when '",                      \
+                    type,                                                                          \
+                    "' expected"                                                                   \
                 );                                                                                 \
             }                                                                                      \
             ++num_set;                                                                             \

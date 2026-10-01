@@ -40,7 +40,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         class NodeDefBuilder;
@@ -83,7 +82,9 @@ export {
                 const NodeDebugInfo* debug = nullptr
             );
             NodeDefBuilder(
-                absl::string_view name, absl::string_view op_name, const NodeDebugInfo& debug
+                absl::string_view name,
+                absl::string_view op_name,
+                const NodeDebugInfo& debug
             );
             // REQUIRES: in addition, *op_def must outlive *this.
             NodeDefBuilder(absl::string_view name, const OpDef* op_def);
@@ -261,7 +262,9 @@ export {
         }
 
         NodeDefBuilder::NodeDefBuilder(
-            absl::string_view name, absl::string_view op_name, const NodeDebugInfo& debug
+            absl::string_view name,
+            absl::string_view op_name,
+            const NodeDebugInfo& debug
         ) :
             NodeDefBuilder(name, op_name)
         {
@@ -296,7 +299,9 @@ export {
             } else if (inputs_specified_ >= op_def_->input_arg_size()) {
                 errors_.push_back(
                     absl::StrCat(
-                        "More Input() calls than the ", op_def_->input_arg_size(), " input_args"
+                        "More Input() calls than the ",
+                        op_def_->input_arg_size(),
+                        " input_args"
                     )
                 );
                 return false;
@@ -342,7 +347,10 @@ export {
         }
 
         void NodeDefBuilder::SingleInput(
-            const OpDef::ArgDef* input_arg, absl::string_view src_node, int src_index, DataType dt
+            const OpDef::ArgDef* input_arg,
+            absl::string_view src_node,
+            int src_index,
+            DataType dt
         )
         {
             AddInput(src_node, src_index);
@@ -364,7 +372,8 @@ export {
         }
 
         void NodeDefBuilder::ListInput(
-            const OpDef::ArgDef* input_arg, absl::Span<const NodeOut> src_list
+            const OpDef::ArgDef* input_arg,
+            absl::Span<const NodeOut> src_list
         )
         {
             for (const auto& node_out: src_list) {
@@ -398,7 +407,8 @@ export {
             } else {
                 errors_.push_back(
                     absl::StrCat(
-                        "List provided to input '", input_arg->name(),
+                        "List provided to input '",
+                        input_arg->name(),
                         "' when single Tensor expected"
                     )
                 );
@@ -419,13 +429,19 @@ export {
         }
 
         void NodeDefBuilder::VerifyInputType(
-            const OpDef::ArgDef* input_arg, DataType expected, DataType dt
+            const OpDef::ArgDef* input_arg,
+            DataType expected,
+            DataType dt
         )
         {
             if (!TypesCompatible(expected, dt)) {
                 errors_.push_back(
                     strings::StrCat(
-                        "Input '", input_arg->name(), "' passed ", DataTypeString(dt), " expected ",
+                        "Input '",
+                        input_arg->name(),
+                        "' passed ",
+                        DataTypeString(dt),
+                        " expected ",
                         DataTypeString(expected)
                     )
                 );
@@ -437,7 +453,10 @@ export {
             if (input_arg->is_ref() && !IsRefType(dt)) {
                 errors_.push_back(
                     strings::StrCat(
-                        "Input '", input_arg->name(), "' passed ", DataTypeString(dt),
+                        "Input '",
+                        input_arg->name(),
+                        "' passed ",
+                        DataTypeString(dt),
                         " expected ref type"
                     )
                 );
@@ -466,7 +485,9 @@ export {
                 errors_storage = errors_;
                 errors_storage.push_back(
                     absl::StrCat(
-                        inputs_specified_, " inputs specified of ", op_def_->input_arg_size(),
+                        inputs_specified_,
+                        " inputs specified of ",
+                        op_def_->input_arg_size(),
                         " inputs in Op"
                     )
                 );
@@ -478,29 +499,42 @@ export {
                     if (op_def_ == nullptr) {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                (*errors_ptr)[0], " while building NodeDef '", node_def_.name(), "'"
+                                (*errors_ptr)[0],
+                                " while building NodeDef '",
+                                node_def_.name(),
+                                "'"
                             )
                         );
                     }
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            (*errors_ptr)[0], " while building NodeDef '", node_def_.name(),
-                            "' using ", SummarizeOpDef(*op_def_)
+                            (*errors_ptr)[0],
+                            " while building NodeDef '",
+                            node_def_.name(),
+                            "' using ",
+                            SummarizeOpDef(*op_def_)
                         )
                     );
                 } else {
                     if (op_def_ == nullptr) {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                errors_ptr->size(), " errors while building NodeDef '",
-                                node_def_.name(), "':\n", absl::StrJoin(*errors_ptr, "\n")
+                                errors_ptr->size(),
+                                " errors while building NodeDef '",
+                                node_def_.name(),
+                                "':\n",
+                                absl::StrJoin(*errors_ptr, "\n")
                             )
                         );
                     }
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            errors_ptr->size(), " errors while building NodeDef '",
-                            node_def_.name(), "' using ", SummarizeOpDef(*op_def_), ":\n",
+                            errors_ptr->size(),
+                            " errors while building NodeDef '",
+                            node_def_.name(),
+                            "' using ",
+                            SummarizeOpDef(*op_def_),
+                            ":\n",
                             absl::StrJoin(*errors_ptr, "\n")
                         )
                     );
@@ -534,8 +568,12 @@ export {
                 if (!AreAttrValuesEqual(*found, value)) {
                     errors_.push_back(
                         strings::StrCat(
-                            "Inconsistent values for attr '", name, "' ",
-                            SummarizeAttrValue(*found), " vs. ", SummarizeAttrValue(value)
+                            "Inconsistent values for attr '",
+                            name,
+                            "' ",
+                            SummarizeAttrValue(*found),
+                            " vs. ",
+                            SummarizeAttrValue(value)
                         )
                     );
                 }

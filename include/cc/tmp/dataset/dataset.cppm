@@ -83,7 +83,6 @@ import std;
 import cc_abi;
 
 export {
-
 // Polymorphic datasets should support all primitive TensorFlow
 // types. Use this macro to expand `m(T)` once for each primitive type
 // `T`, e.g. to build a `switch` statement.
@@ -103,7 +102,8 @@ export {
                 // the field value from the source takes precedence.
                 void MergeOptions(const protobuf::Message& source, protobuf::Message* destination);
                 void MergeOptions(
-                    const protobuf::MessageLite& source, protobuf::MessageLite* destination
+                    const protobuf::MessageLite& source,
+                    protobuf::MessageLite* destination
                 );
             } // namespace internal
 
@@ -174,7 +174,9 @@ export {
                 // TODO(jsimsa): Remove non-FLR overrides once all callers are updated.
                 virtual absl::Status ReadTensor(absl::string_view key, Tensor* val) const = 0;
                 virtual absl::Status ReadTensor(
-                    FunctionLibraryRuntime* flr, absl::string_view key, Tensor* val
+                    FunctionLibraryRuntime* flr,
+                    absl::string_view key,
+                    Tensor* val
                 ) const = 0;
                 virtual absl::Status
                 ReadTensor(absl::string_view name, absl::string_view key, Tensor* val) const = 0;
@@ -277,7 +279,8 @@ export {
                 absl::Status AddVector(const std::vector<T>& val, Node** output)
                 {
                     Tensor val_t = Tensor(
-                        DataTypeToEnum<T>::v(), TensorShape({static_cast<int64_t>(val.size())})
+                        DataTypeToEnum<T>::v(),
+                        TensorShape({static_cast<int64_t>(val.size())})
                     );
                     for (size_t i = 0; i < val.size(); i++) {
                         val_t.flat<T>()(i) = val[i];
@@ -353,7 +356,9 @@ export {
                 // non-null if the method returns with an OK status. The returned `Node`
                 // pointer is owned by the backing `Graph` of `GraphDefBuilder`.
                 absl::Status AddDataset(
-                    const DatasetBase* dataset, const std::vector<Node*>& inputs, Node** output
+                    const DatasetBase* dataset,
+                    const std::vector<Node*>& inputs,
+                    Node** output
                 );
                 absl::Status AddDataset(
                     const DatasetBase* dataset,
@@ -482,11 +487,13 @@ export {
                 virtual absl::Status Reset() = 0;
                 // Saves the state of this split provider.
                 virtual absl::Status Save(
-                    std::function<std::string(std::string)> full_name, IteratorStateWriter* writer
+                    std::function<std::string(std::string)> full_name,
+                    IteratorStateWriter* writer
                 ) = 0;
                 // Restores the state of this split provider.
                 virtual absl::Status Restore(
-                    std::function<std::string(std::string)> full_name, IteratorStateReader* reader
+                    std::function<std::string(std::string)> full_name,
+                    IteratorStateReader* reader
                 ) = 0;
 
                 // Returns the number of splits:
@@ -594,7 +601,9 @@ export {
                 }
 
                 absl::Status WriteScalar(
-                    absl::string_view name, absl::string_view key, const tstring& val
+                    absl::string_view name,
+                    absl::string_view key,
+                    const tstring& val
                 ) override
                 {
                     auto id = id_registry_->Add(std::string(name), std::string(key));
@@ -610,7 +619,9 @@ export {
                 }
 
                 absl::Status WriteTensor(
-                    absl::string_view name, absl::string_view key, const Tensor& val
+                    absl::string_view name,
+                    absl::string_view key,
+                    const Tensor& val
                 ) override
                 {
                     auto id = id_registry_->Add(std::string(name), std::string(key));
@@ -848,7 +859,8 @@ export {
                         DeviceBase* device =
                             reinterpret_cast<DeviceBase*>(ctx->function_library()->device());
                         accelerator_device_info = device->tensorflow_accelerator_device_info();
-                        allocator_getter = [device](AllocatorAttributes attrs) {
+                        allocator_getter = [device](AllocatorAttributes attrs)
+                        {
                             return device->GetAllocator(attrs);
                         };
 
@@ -862,16 +874,19 @@ export {
                                 // Note: `runner` is a const reference to avoid copying it.
                                 const std::function<void(std::function<void()>)>& ctx_runner,
                                 std::function<void()> fn
-                            ) {
+                            )
+                            {
                                 std::function<void()> wrapped_fn = std::bind(
-                                    [](const std::function<void()>& fn) {
+                                    [](const std::function<void()>& fn)
+                                    {
                                         Runner::get()->Run(fn);
                                     },
                                     std::move(fn)
                                 );
                                 ctx_runner(std::move(wrapped_fn));
                             },
-                            *ctx->runner(), std::placeholders::_1
+                            *ctx->runner(),
+                            std::placeholders::_1
                         );
                     }
 
@@ -1156,7 +1171,10 @@ export {
                         return std::make_unique<thread::ThreadPool>(params_.thread_pool);
                     } else {
                         return std::make_unique<thread::ThreadPool>(
-                            params_.env, ThreadOptions(), name, num_threads,
+                            params_.env,
+                            ThreadOptions(),
+                            name,
+                            num_threads,
                             /*low_latency_hint=*/false
                         );
                     }
@@ -1300,11 +1318,15 @@ export {
                 // TODO(mrry): Define `GetNextAsync()` or `GetNextManyAsync()`, and
                 // potentially remove this method.
                 virtual absl::Status GetNext(
-                    IteratorContext* ctx, std::vector<Tensor>* out_tensors, bool* end_of_sequence
+                    IteratorContext* ctx,
+                    std::vector<Tensor>* out_tensors,
+                    bool* end_of_sequence
                 ) = 0;
 
                 absl::Status GetNext(
-                    IteratorContext&& ctx, std::vector<Tensor>* out_tensors, bool* end_of_sequence
+                    IteratorContext&& ctx,
+                    std::vector<Tensor>* out_tensors,
+                    bool* end_of_sequence
                 )
                 {
                     return GetNext(&ctx, out_tensors, end_of_sequence);
@@ -1325,11 +1347,17 @@ export {
                 // store the number of outputs that are skipped. When `*end_of_sequence` is
                 // `false`, `*num_skipped` should equal to `num_to_skip`.
                 virtual absl::Status Skip(
-                    IteratorContext* ctx, int num_to_skip, bool* end_of_sequence, int* num_skipped
+                    IteratorContext* ctx,
+                    int num_to_skip,
+                    bool* end_of_sequence,
+                    int* num_skipped
                 ) = 0;
 
                 virtual absl::Status Skip(
-                    IteratorContext&& ctx, int num_to_skip, bool* end_of_sequence, int* num_skipped
+                    IteratorContext&& ctx,
+                    int num_to_skip,
+                    bool* end_of_sequence,
+                    int* num_skipped
                 )
                 {
                     return Skip(&ctx, num_to_skip, end_of_sequence, num_skipped);
@@ -1631,7 +1659,9 @@ export {
                     IteratorContext restore_ctx(std::move(params));
                     TF_RETURN_IF_ERROR(MakeIterator(
                         &restore_ctx,
-                        /*parent=*/nullptr, output_prefix, &it
+                        /*parent=*/nullptr,
+                        output_prefix,
+                        &it
                     ));
                     TF_RETURN_IF_ERROR(it->Restore(&restore_ctx, reader));
                     ctx->MergeCheckpoint(restore_ctx.checkpoint());
@@ -1756,7 +1786,9 @@ export {
                     }
 
                     absl::Status AddInputDataset(
-                        SerializationContext* ctx, const DatasetBase* dataset, Node** output
+                        SerializationContext* ctx,
+                        const DatasetBase* dataset,
+                        Node** output
                     );
                     absl::Status
                     AddDatasetOrTensor(SerializationContext* ctx, const Tensor& val, Node** output);
@@ -1769,7 +1801,9 @@ export {
 
                 private:
                     absl::Status AddDatasetOrTensorHelper(
-                        SerializationContext* ctx, const Tensor& val, Node** output
+                        SerializationContext* ctx,
+                        const Tensor& val,
+                        Node** output
                     );
                     absl::Status
                     AddResourceHelper(SerializationContext* ctx, const Tensor& val, Node** output);
@@ -1789,7 +1823,9 @@ export {
                 // different environment). If a subclass of `DatasetBase` does not implement
                 // this method, then this migration will not be possible.
                 virtual absl::Status AsGraphDefInternal(
-                    SerializationContext* ctx, DatasetGraphDefBuilder* b, Node** node
+                    SerializationContext* ctx,
+                    DatasetGraphDefBuilder* b,
+                    Node** node
                 ) const = 0;
 
                 virtual std::unique_ptr<IteratorBase>
@@ -1871,18 +1907,25 @@ export {
                 std::string BuildTraceMeName();
 
                 absl::Status GetNext(
-                    IteratorContext* ctx, std::vector<Tensor>* out_tensors, bool* end_of_sequence
+                    IteratorContext* ctx,
+                    std::vector<Tensor>* out_tensors,
+                    bool* end_of_sequence
                 ) final;
 
                 absl::Status GetNext(
-                    IteratorContext&& ctx, std::vector<Tensor>* out_tensors, bool* end_of_sequence
+                    IteratorContext&& ctx,
+                    std::vector<Tensor>* out_tensors,
+                    bool* end_of_sequence
                 )
                 {
                     return GetNext(&ctx, out_tensors, end_of_sequence);
                 }
 
                 absl::Status Skip(
-                    IteratorContext* ctx, int num_to_skip, bool* end_of_sequence, int* num_skipped
+                    IteratorContext* ctx,
+                    int num_to_skip,
+                    bool* end_of_sequence,
+                    int* num_skipped
                 ) final;
 
                 absl::Status Save(SerializationContext* ctx, IteratorStateWriter* writer) final
@@ -1901,7 +1944,10 @@ export {
                         strings::StrCat(
                             "Error in user-defined function passed to ",
                             dataset()->metadata().name(),
-                            " transformation with iterator: ", prefix(), ": ", status.message()
+                            " transformation with iterator: ",
+                            prefix(),
+                            ": ",
+                            status.message()
                         )
                     );
                 }
@@ -1920,12 +1966,17 @@ export {
                 // `out_tensors` and `end_of_sequence`. Implementations may assume that
                 // `*out_tensors` is empty.
                 virtual absl::Status GetNextInternal(
-                    IteratorContext* ctx, std::vector<Tensor>* out_tensors, bool* end_of_sequence
+                    IteratorContext* ctx,
+                    std::vector<Tensor>* out_tensors,
+                    bool* end_of_sequence
                 ) = 0;
 
                 // Internal implementation of Skip that is wrapped in tracing logic
                 virtual absl::Status SkipInternal(
-                    IteratorContext* ctx, int num_to_skip, bool* end_of_sequence, int* num_skipped
+                    IteratorContext* ctx,
+                    int num_to_skip,
+                    bool* end_of_sequence,
+                    int* num_skipped
                 );
 
                 std::string full_name(const std::string& name) const
@@ -2068,7 +2119,9 @@ export {
 
             template<typename T>
             absl::Status ParseScalarArgument(
-                OpKernelContext* ctx, const absl::string_view& argument_name, T* output
+                OpKernelContext* ctx,
+                const absl::string_view& argument_name,
+                T* output
             )
             {
                 const Tensor* argument_t;
@@ -2084,7 +2137,9 @@ export {
 
             template<typename T>
             absl::Status ParseVectorArgument(
-                OpKernelContext* ctx, const absl::string_view& argument_name, std::vector<T>* output
+                OpKernelContext* ctx,
+                const absl::string_view& argument_name,
+                std::vector<T>* output
             )
             {
                 const Tensor* argument_t;
@@ -2114,7 +2169,8 @@ export {
                         std::string serialized_metadata;
                         OP_REQUIRES_OK(ctx, ctx->GetAttr(kMetadata, &serialized_metadata));
                         OP_REQUIRES(
-                            ctx, metadata_.ParseFromString(serialized_metadata),
+                            ctx,
+                            metadata_.ParseFromString(serialized_metadata),
                             absl::InvalidArgumentError("Could not parse the 'metadata' attribute.")
                         );
                     }
@@ -2220,7 +2276,7 @@ export {
 
 // On Windows, disable some macros that would break compile
 #if defined(PLATFORM_WINDOWS)
-#    undef GetMessage
+    #undef GetMessage
 #endif
 
     namespace tensorflow {
@@ -2402,7 +2458,8 @@ export {
                 };
 
                 REGISTER_KERNEL_BUILDER(
-                    Name("WrapDatasetVariant").Device(DEVICE_CPU), WrapDatasetVariantOp
+                    Name("WrapDatasetVariant").Device(DEVICE_CPU),
+                    WrapDatasetVariantOp
                 );
                 REGISTER_KERNEL_BUILDER(
                     Name("WrapDatasetVariant")
@@ -2435,7 +2492,8 @@ export {
                         const WrappedDatasetVariantWrapper* wrapper =
                             variant.get<WrappedDatasetVariantWrapper>();
                         OP_REQUIRES(
-                            ctx, wrapper != nullptr,
+                            ctx,
+                            wrapper != nullptr,
                             absl::InvalidArgumentError(
                                 "Tensor must be a WrappedDataset variant object."
                             )
@@ -2446,7 +2504,8 @@ export {
                 };
 
                 REGISTER_KERNEL_BUILDER(
-                    Name("UnwrapDatasetVariant").Device(DEVICE_CPU), UnwrapDatasetVariantOp
+                    Name("UnwrapDatasetVariant").Device(DEVICE_CPU),
+                    UnwrapDatasetVariantOp
                 );
                 REGISTER_KERNEL_BUILDER(
                     Name("UnwrapDatasetVariant")
@@ -2468,7 +2527,9 @@ export {
 
 #define REGISTER_OPTIONAL_COPY(DIRECTION)                                                          \
     INTERNAL_REGISTER_UNARY_VARIANT_DEVICE_COPY_FUNCTION(                                          \
-        WrappedDatasetVariantWrapper, DIRECTION, WrappedDatasetVariantDeviceCopy                   \
+        WrappedDatasetVariantWrapper,                                                              \
+        DIRECTION,                                                                                 \
+        WrappedDatasetVariantDeviceCopy                                                            \
     )
 
                 REGISTER_OPTIONAL_COPY(VariantDeviceCopyDirection::HOST_TO_DEVICE);
@@ -2476,13 +2537,16 @@ export {
                 REGISTER_OPTIONAL_COPY(VariantDeviceCopyDirection::DEVICE_TO_DEVICE);
 
                 REGISTER_UNARY_VARIANT_DECODE_FUNCTION(
-                    WrappedDatasetVariantWrapper, kWrappedDatasetVariantTypeName
+                    WrappedDatasetVariantWrapper,
+                    kWrappedDatasetVariantTypeName
                 );
 
             } // namespace
 
             absl::Status GraphDefBuilderWrapper::AddDataset(
-                const DatasetBase* dataset, const std::vector<Node*>& inputs, Node** output
+                const DatasetBase* dataset,
+                const std::vector<Node*>& inputs,
+                Node** output
             )
             {
                 return AddDataset(dataset, inputs, {}, output);
@@ -2511,8 +2575,12 @@ export {
             )
             {
                 return AddDataset(
-                    dataset, inputs, list_inputs, attrs,
-                    /*use_dataset_name=*/false, output
+                    dataset,
+                    inputs,
+                    list_inputs,
+                    attrs,
+                    /*use_dataset_name=*/false,
+                    output
                 );
             }
 
@@ -2564,7 +2632,8 @@ export {
                 }
                 NodeBuilder node_builder(
                     use_dataset_name ? dataset->node_name() : opts->GetNameForOp(type_string),
-                    type_string, opts->op_registry()
+                    type_string,
+                    opts->op_registry()
                 );
                 {
                     size_t total_size = inputs.size() + list_inputs.size();
@@ -2595,7 +2664,9 @@ export {
                 if (*output == nullptr) {
                     return absl::InternalError(
                         absl::StrCat(
-                            "AddDataset: Failed to build ", type_string, " op with error ",
+                            "AddDataset: Failed to build ",
+                            type_string,
+                            " op with error ",
                             opts->StatusToString()
                         )
                     );
@@ -2618,7 +2689,9 @@ export {
                 if (f_def == nullptr) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Unable to find FunctionDef for ", function_name, " in the registry."
+                            "Unable to find FunctionDef for ",
+                            function_name,
+                            " in the registry."
                         )
                     );
                 }
@@ -2663,12 +2736,14 @@ export {
             void GraphDefBuilderWrapper::AddTensorInternal(const Tensor& val, Node** output)
             {
                 *output = ops::SourceOp(
-                    "Const", b_->opts().WithAttr("dtype", val.dtype()).WithAttr("value", val)
+                    "Const",
+                    b_->opts().WithAttr("dtype", val.dtype()).WithAttr("value", val)
                 );
             }
 
             bool GraphDefBuilderWrapper::HasAttr(
-                const std::string& name, const std::string& attr_name
+                const std::string& name,
+                const std::string& attr_name
             ) const
             {
                 const OpDef* op_def = nullptr;
@@ -2740,29 +2815,46 @@ export {
             std::string MemoryCheckpoint::DebugString() const
             {
                 std::string result = absl::StrCat(
-                    "status=", status_.ToString(),
+                    "status=",
+                    status_.ToString(),
                     ", "
                     "root=",
-                    (is_root_ ? "true" : "false"), "\n"
+                    (is_root_ ? "true" : "false"),
+                    "\n"
                 );
                 absl::StrAppend(&result, "number of integers: ", int_values_.size(), "\n");
                 for (const auto& [k, v]: int_values_) {
                     absl::StrAppend(
-                        &result, "  ", id_registry_->Get(k).first, ":", id_registry_->Get(k).second,
-                        ": ", v, "\n"
+                        &result,
+                        "  ",
+                        id_registry_->Get(k).first,
+                        ":",
+                        id_registry_->Get(k).second,
+                        ": ",
+                        v,
+                        "\n"
                     );
                 }
                 absl::StrAppend(&result, "number of strings: ", str_values_.size(), "\n");
                 for (const auto& [k, v]: str_values_) {
                     absl::StrAppend(
-                        &result, "  ", id_registry_->Get(k).first, ":", id_registry_->Get(k).second,
-                        ": ", v, "\n"
+                        &result,
+                        "  ",
+                        id_registry_->Get(k).first,
+                        ":",
+                        id_registry_->Get(k).second,
+                        ": ",
+                        v,
+                        "\n"
                     );
                 }
                 absl::StrAppend(&result, "number of tensors: ", tensor_values_.size(), "\n");
 
                 absl::StrAppend(
-                    &result, "number of expired prefixes: ", expired_prefixes_.size(), "\n"
+                    &result,
+                    "number of expired prefixes: ",
+                    expired_prefixes_.size(),
+                    "\n"
                 );
                 return result;
             }
@@ -2842,25 +2934,31 @@ export {
                 id_ = Hash64CombineUnordered(Hash64(prefix()), reinterpret_cast<uint64_t>(this));
                 if (parent_) {
                     parent_id_ = Hash64CombineUnordered(
-                        Hash64(parent_->prefix()), reinterpret_cast<uint64_t>(parent_)
+                        Hash64(parent_->prefix()),
+                        reinterpret_cast<uint64_t>(parent_)
                     );
                     // This block of code is executed only when `parent_` is not a `nullptr`
                     // because we do not create a `Node` in the `Model` for `RootDataset`.
                     if (const auto& model = ctx->model()) {
-                        auto factory = [ctx, this](model::Node::Args args) {
+                        auto factory = [ctx, this](model::Node::Args args)
+                        {
                             return CreateNode(ctx, std::move(args));
                         };
                         model->AddNode(std::move(factory), prefix(), parent->model_node(), &node_);
-                        cleanup_fns_.push_back([this, model]() {
-                            model->RemoveNode(node_);
-                        });
+                        cleanup_fns_.push_back(
+                            [this, model]()
+                            {
+                                model->RemoveNode(node_);
+                            }
+                        );
                     }
                 }
                 return absl::OkStatus();
             }
 
             absl::Status GetCompressedElementFromVariantTensor(
-                const Tensor& tensor, const CompressedElement** out_compressed_element
+                const Tensor& tensor,
+                const CompressedElement** out_compressed_element
             )
             {
                 if (!(tensor.dtype() == DT_VARIANT && TensorShapeUtils::IsScalar(tensor.shape()))) {
@@ -3022,7 +3120,10 @@ export {
 
                     std::vector<const protobuf::FieldDescriptor*> in_both;
                     std::set_intersection(
-                        set_src.begin(), set_src.end(), set_dst.begin(), set_dst.end(),
+                        set_src.begin(),
+                        set_src.end(),
+                        set_dst.begin(),
+                        set_dst.end(),
                         std::back_inserter(in_both)
                     );
 
@@ -3082,7 +3183,8 @@ export {
                 }
 
                 void MergeOptions(
-                    const protobuf::MessageLite& source, protobuf::MessageLite* destination
+                    const protobuf::MessageLite& source,
+                    protobuf::MessageLite* destination
                 )
                 {
                     destination->CheckTypeAndMergeFrom(source);
@@ -3128,7 +3230,8 @@ export {
                     if (input->num_sources() < 0) {
                         return absl::FailedPreconditionError(
                             absl::StrCat(
-                                "Cannot compute input sources for dataset of type ", type_string(),
+                                "Cannot compute input sources for dataset of type ",
+                                type_string(),
                                 ", because sources could not be computed for input dataset of "
                                 "type ",
                                 input->type_string()
@@ -3148,7 +3251,9 @@ export {
                 if (cardinality == kInfiniteCardinality || cardinality == kUnknownCardinality) {
                     return absl::FailedPreconditionError(
                         absl::StrCat(
-                            "Dataset of type ", this->DebugString(), " has ",
+                            "Dataset of type ",
+                            this->DebugString(),
+                            " has ",
                             cardinality == kInfiniteCardinality ? "infinite" : "unknown",
                             " cardinality, which does not support random access."
                         )
@@ -3163,7 +3268,9 @@ export {
             }
 
             absl::Status DatasetBase::Get(
-                OpKernelContext* ctx, int64_t index, std::vector<Tensor>* out_tensors
+                OpKernelContext* ctx,
+                int64_t index,
+                std::vector<Tensor>* out_tensors
             ) const
             {
                 return absl::UnimplementedError(
@@ -3228,9 +3335,11 @@ export {
                     return inputs[0]->MakeIterator(ctx, parent, output_prefix, iterator);
                 }
                 tsl::profiler::TraceMe traceme(
-                    [&] {
+                    [&]
+                    {
                         return tsl::profiler::TraceMeEncode(
-                            absl::StrCat("MakeIterator::", type_string()), {}
+                            absl::StrCat("MakeIterator::", type_string()),
+                            {}
                         );
                     },
                     tsl::profiler::TraceMeLevel::kInfo
@@ -3257,7 +3366,8 @@ export {
                 if (absl::IsUnimplemented(s)) {
                     return absl::UnimplementedError(
                         absl::StrCat(
-                            "Cannot create split providers for dataset of type ", type_string(),
+                            "Cannot create split providers for dataset of type ",
+                            type_string(),
                             ", because the dataset implements neither `InputDatasets` nor "
                             "`MakeSplitProvider`."
                         )
@@ -3266,7 +3376,8 @@ export {
                 if (inputs.size() != 1) {
                     return absl::UnimplementedError(
                         absl::StrCat(
-                            "Cannot create split providers for dataset of type ", type_string(),
+                            "Cannot create split providers for dataset of type ",
+                            type_string(),
                             ", because the dataset is not unary (instead having arity ",
                             inputs.size(),
                             "), and no custom implementation of `MakeSplitProvider` is defined."
@@ -3324,7 +3435,8 @@ export {
             {
                 return absl::UnimplementedError(
                     absl::StrCat(
-                        "Cannot compute input sources for dataset of type ", type_string(),
+                        "Cannot compute input sources for dataset of type ",
+                        type_string(),
                         ", because the dataset does not implement `InputDatasets`. To fix this, "
                         "your dataset should override the `InputDatasets` method. If it is a "
                         "source dataset, it should return empty inputs."
@@ -3333,7 +3445,9 @@ export {
             }
 
             absl::Status DatasetBase::DatasetGraphDefBuilder::AddInputDataset(
-                SerializationContext* ctx, const DatasetBase* dataset, Node** output
+                SerializationContext* ctx,
+                const DatasetBase* dataset,
+                Node** output
             )
             {
                 absl::Status status = dataset->AsGraphDefInternal(ctx, this, output);
@@ -3365,7 +3479,9 @@ export {
             }
 
             absl::Status DatasetBase::DatasetGraphDefBuilder::AddDatasetOrTensor(
-                SerializationContext* ctx, const Tensor& t, Node** output
+                SerializationContext* ctx,
+                const Tensor& t,
+                Node** output
             )
             {
                 if (t.dtype() == DT_VARIANT) {
@@ -3400,13 +3516,17 @@ export {
             )
             {
                 *output = ops::UnaryOp(
-                    "Identity", *input, builder()->opts().WithName(UniqueNodeName(name_prefix))
+                    "Identity",
+                    *input,
+                    builder()->opts().WithName(UniqueNodeName(name_prefix))
                 );
                 return absl::OkStatus();
             }
 
             absl::Status DatasetBase::DatasetGraphDefBuilder::AddDatasetOrTensorHelper(
-                SerializationContext* ctx, const Tensor& t, Node** output
+                SerializationContext* ctx,
+                const Tensor& t,
+                Node** output
             )
             {
                 if (t.dims() == 0) {
@@ -3429,7 +3549,9 @@ export {
             }
 
             absl::Status DatasetBase::DatasetGraphDefBuilder::AddResourceHelper(
-                SerializationContext* ctx, const Tensor& t, Node** output
+                SerializationContext* ctx,
+                const Tensor& t,
+                Node** output
             )
             {
                 if (t.NumElements() == 0) {
@@ -3439,8 +3561,12 @@ export {
                 if (ctx->device_name() != handle.device()) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Trying to access resource ", handle.name(), " located in device ",
-                            handle.device(), " from device ", ctx->device_name()
+                            "Trying to access resource ",
+                            handle.name(),
+                            " located in device ",
+                            handle.device(),
+                            " from device ",
+                            ctx->device_name()
                         )
                     );
                 }
@@ -3494,11 +3620,13 @@ export {
                 if (model_node() != nullptr) {
                     if (model_node()->buffered_elements() > 0) {
                         absl::StrAppend(
-                            &result, ",buffered_elements=",
+                            &result,
+                            ",buffered_elements=",
                             static_cast<long long>(model_node()->buffered_elements())
                         );
                         absl::StrAppend(
-                            &result, ",buffered_bytes_MB=",
+                            &result,
+                            ",buffered_bytes_MB=",
                             static_cast<long long>(
                                 static_cast<double>(model_node()->buffered_bytes()) * 1e-6
                             )
@@ -3510,19 +3638,26 @@ export {
             }
 
             absl::Status DatasetBaseIterator::GetNext(
-                IteratorContext* ctx, std::vector<Tensor>* out_tensors, bool* end_of_sequence
+                IteratorContext* ctx,
+                std::vector<Tensor>* out_tensors,
+                bool* end_of_sequence
             )
             {
-                activity_watcher::ActivityScope activity_scope([&]() {
-                    activity_watcher::Activity::Attributes attributes;
-                    attributes["iterator_prefix"] = prefix();
-                    return std::make_unique<activity_watcher::Activity>(
-                        "Iterator::GetNext", activity_watcher::ActivityCategory::kDatasetOp,
-                        std::move(attributes)
-                    );
-                });
+                activity_watcher::ActivityScope activity_scope(
+                    [&]()
+                    {
+                        activity_watcher::Activity::Attributes attributes;
+                        attributes["iterator_prefix"] = prefix();
+                        return std::make_unique<activity_watcher::Activity>(
+                            "Iterator::GetNext",
+                            activity_watcher::ActivityCategory::kDatasetOp,
+                            std::move(attributes)
+                        );
+                    }
+                );
                 tsl::profiler::TraceMe activity(
-                    [&] {
+                    [&]
+                    {
                         return BuildTraceMeName();
                     },
                     tsl::profiler::TraceMeLevel::kInfo
@@ -3542,11 +3677,15 @@ export {
                 absl::Status s = GetNextInternal(ctx, out_tensors, end_of_sequence);
                 ctx->SaveCheckpoint(this);
                 if (!SymbolicCheckpointCompatible()) {
-                    ctx->UpdateCheckpointStatus([this]() {
-                        return errors::UnimplementedError(
-                            dataset()->type_string(), " does not support symbolic checkpointing."
-                        );
-                    });
+                    ctx->UpdateCheckpointStatus(
+                        [this]()
+                        {
+                            return errors::UnimplementedError(
+                                dataset()->type_string(),
+                                " does not support symbolic checkpointing."
+                            );
+                        }
+                    );
                 }
                 if (TF_PREDICT_TRUE(s.ok())) {
                     if (TF_PREDICT_TRUE(!*end_of_sequence)) {
@@ -3554,8 +3693,11 @@ export {
                                 out_tensors->size() != dataset()->output_dtypes().size()
                             )) {
                             return errors::InternalError(
-                                "Expected ", dataset()->output_dtypes().size(),
-                                " components but got ", out_tensors->size(), "."
+                                "Expected ",
+                                dataset()->output_dtypes().size(),
+                                " components but got ",
+                                out_tensors->size(),
+                                "."
                             );
                         }
                         RecordElement(ctx, out_tensors);
@@ -3572,7 +3714,8 @@ export {
                 }
                 if (TF_PREDICT_FALSE(absl::IsOutOfRange(s))) {
                     s = errors::InternalError(
-                        "Iterator \"", params_.prefix,
+                        "Iterator \"",
+                        params_.prefix,
                         "\" returned `OutOfRange`. This indicates an "
                         "implementation error as `OutOfRange` errors are not "
                         "expected to be returned here. Original message: ",
@@ -3585,11 +3728,15 @@ export {
             }
 
             absl::Status DatasetBaseIterator::Skip(
-                IteratorContext* ctx, int num_to_skip, bool* end_of_sequence, int* num_skipped
+                IteratorContext* ctx,
+                int num_to_skip,
+                bool* end_of_sequence,
+                int* num_skipped
             )
             {
                 tsl::profiler::TraceMe activity(
-                    [&] {
+                    [&]
+                    {
                         return BuildTraceMeName();
                     },
                     tsl::profiler::TraceMeLevel::kInfo
@@ -3618,7 +3765,8 @@ export {
                 if (TF_PREDICT_FALSE(absl::IsOutOfRange(s))) {
                     s = absl::InternalError(
                         absl::StrCat(
-                            "Iterator \"", params_.prefix,
+                            "Iterator \"",
+                            params_.prefix,
                             "\" returned `OutOfRange`. This indicates an "
                             "implementation error as `OutOfRange` errors are not "
                             "expected to be returned here. Original message: ",
@@ -3632,7 +3780,10 @@ export {
             }
 
             absl::Status DatasetBaseIterator::SkipInternal(
-                IteratorContext* ctx, int num_to_skip, bool* end_of_sequence, int* num_skipped
+                IteratorContext* ctx,
+                int num_to_skip,
+                bool* end_of_sequence,
+                int* num_skipped
             )
             {
                 *num_skipped = 0;
@@ -3667,7 +3818,10 @@ export {
                         VLOG(4) << "Dataset " << dataset->type_string()
                                 << " created using the following stack trace:";
                         for (const auto& stack_frame: ctx->stack_trace()->ToStackFrames(
-                                 {}, {}, /*reverse_traversal=*/false, /*limit=*/-1
+                                 {},
+                                 {},
+                                 /*reverse_traversal=*/false,
+                                 /*limit=*/-1
                              )) {
                             VLOG(4) << stack_frame.file_name << ":" << stack_frame.line_number
                                     << " in " << stack_frame.function_name << "()";
@@ -3780,11 +3934,14 @@ export {
                 {
                     mutex_lock l(mu_);
                     if (!thread_) {
-                        thread_ = absl::WrapUnique(
-                            env_->StartThread({} /* thread_options */, name_, [this]() {
+                        thread_ = absl::WrapUnique(env_->StartThread(
+                            {} /* thread_options */,
+                            name_,
+                            [this]()
+                            {
                                 WorkerLoop();
-                            })
-                        );
+                            }
+                        ));
                     }
                     work_queue_.push_back(std::move(work_item));
                 }

@@ -9,30 +9,31 @@ namespace at::xpu {
 using c10::CaptureId_t;
 using c10::MempoolId_t;
 
-struct TORCH_XPU_API MemPool {
-  MemPool(
-      std::shared_ptr<c10::xpu::XPUCachingAllocator::XPUAllocator> allocator =
-          nullptr,
-      bool is_user_created = true,
-      bool use_on_oom = false,
-      bool no_split = false);
+struct TORCH_XPU_API MemPool
+{
+    MemPool(
+        std::shared_ptr<c10::xpu::XPUCachingAllocator::XPUAllocator> allocator = nullptr,
+        bool is_user_created = true,
+        bool use_on_oom = false,
+        bool no_split = false
+    );
 
-  C10_DISABLE_COPY_AND_ASSIGN(MemPool);
-  MemPool(MemPool&&) = default;
-  MemPool& operator=(MemPool&&) = default;
-  ~MemPool();
+    C10_DISABLE_COPY_AND_ASSIGN(MemPool);
+    MemPool(MemPool&&) = default;
+    MemPool& operator=(MemPool&&) = default;
+    ~MemPool();
 
-  MempoolId_t id();
-  int use_count();
-  c10::DeviceIndex device();
-  static MempoolId_t graph_pool_handle(bool is_user_created = true);
+    MempoolId_t id();
+    int use_count();
+    c10::DeviceIndex device();
+    static MempoolId_t graph_pool_handle(bool is_user_created = true);
 
- private:
-  static std::atomic<CaptureId_t> uid_;
-  static std::atomic<CaptureId_t> uuid_;
-  bool is_user_created_;
-  MempoolId_t id_;
-  c10::DeviceIndex device_;
+private:
+    static std::atomic<CaptureId_t> uid_;
+    static std::atomic<CaptureId_t> uuid_;
+    bool is_user_created_;
+    MempoolId_t id_;
+    c10::DeviceIndex device_;
 };
 
 } // namespace at::xpu

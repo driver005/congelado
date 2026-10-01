@@ -1,8 +1,8 @@
 module;
 
 #ifdef CONGELADO_TEST
-#    include <rfl/Generic.hpp>
-#    include <rfl/json.hpp>
+    #include <rfl/Generic.hpp>
+    #include <rfl/json.hpp>
 #endif
 
 export module client_worker;
@@ -96,7 +96,9 @@ struct serde::Serializable<worker_client::ClientInput>
             serde::FieldDesc<"method", &ClientInput::getMethod, &ClientInput::setMethod>{},
             serde::FieldDesc<"body", &ClientInput::getBody, &ClientInput::setBody>{},
             serde::FieldDesc<
-                "content_type", &ClientInput::getContentType, &ClientInput::setContentType>{},
+                "content_type",
+                &ClientInput::getContentType,
+                &ClientInput::setContentType>{},
         };
     }
 };
@@ -157,13 +159,20 @@ public:
             return;
         }
         auto connect_result = http2_client->connect(
-            std::move(endpoint), *m_leverager, *m_group, verify_peer, [this, http2_client] {
+            std::move(endpoint),
+            *m_leverager,
+            *m_group,
+            verify_peer,
+            [this, http2_client]
+            {
                 m_register.set_runtime(*http2_client);
             }
         );
         if (!connect_result) {
             core::logger::error(
-                "client_worker", "downstream connect failed: {}", connect_result.error()
+                "client_worker",
+                "downstream connect failed: {}",
+                connect_result.error()
             );
         }
     }
@@ -189,7 +198,8 @@ public:
         auto builder = core::client::Client::custom(parsed->getMethod(), parsed->getPath());
         if (parsed->getContentType().has_value()) {
             builder.add_header(
-                interfaces::io::types::Token::CONTENT_TYPE, *parsed->getContentType()
+                interfaces::io::types::Token::CONTENT_TYPE,
+                *parsed->getContentType()
             );
         }
         // SECURITY: every `header.<Name>` key in the zero-auth task input is forwarded verbatim
@@ -219,7 +229,8 @@ public:
         auto request = builder.build(m_register.runtime());
         m_register.send(
             std::move(request),
-            [on_complete = std::move(on_complete)](interfaces::io::IResponse& response) mutable {
+            [on_complete = std::move(on_complete)](interfaces::io::IResponse& response) mutable
+            {
                 auto& view = response.get_body();
                 std::string body;
                 body.reserve(view.size());
@@ -229,11 +240,12 @@ public:
                 on_complete(
                     interfaces::WorkerOutput{
                         {"http_status", "ok"},
-                        {"status", std::to_string(
-                                       static_cast<int>(
-                                           interfaces::io::types::status_code(response.get_status())
-                                       )
-                                   )},
+                        {"status",
+                         std::to_string(
+                             static_cast<int>(
+                                 interfaces::io::types::status_code(response.get_status())
+                             )
+                         )},
                         {"body", std::move(body)}
                     }
                 );
@@ -271,41 +283,48 @@ using namespace boost::ut;
     return rfl::json::read<rfl::Generic>(std::string{json}).value();
 }
 
-suite<"ClientInput"> client_input_suite = [] {
-    "setPath/getPath round-trips"_test = [] {
+suite<"ClientInput"> client_input_suite = []
+{
+    "setPath/getPath round-trips"_test = []
+    {
         ClientInput input;
         input.setPath("/foo");
         expect(input.getPath() == "/foo");
     };
 
-    "setMethod/getMethod round-trips"_test = [] {
+    "setMethod/getMethod round-trips"_test = []
+    {
         ClientInput input;
         input.setMethod("POST");
         expect(input.getMethod() == "POST");
     };
 
-    "setBody/getBody round-trips"_test = [] {
+    "setBody/getBody round-trips"_test = []
+    {
         ClientInput input;
         input.setBody("payload");
         expect(input.getBody().has_value()) << fatal;
         expect(*input.getBody() == "payload");
     };
 
-    "setContentType/getContentType round-trips"_test = [] {
+    "setContentType/getContentType round-trips"_test = []
+    {
         ClientInput input;
         input.setContentType("application/json");
         expect(input.getContentType().has_value()) << fatal;
         expect(*input.getContentType() == "application/json");
     };
 
-    "default-constructed method is GET, body/content_type are unset"_test = [] {
+    "default-constructed method is GET, body/content_type are unset"_test = []
+    {
         ClientInput input;
         expect(input.getMethod() == "GET");
         expect(!input.getBody().has_value());
         expect(!input.getContentType().has_value());
     };
 
-    "from_value fails entirely when 'path' is omitted"_test = [] {
+    "from_value fails entirely when 'path' is omitted"_test = []
+    {
         auto value = make_value(R"({"method":"GET"})");
         auto parsed = serde::Ser::from_value<ClientInput>(value);
         expect(!parsed.has_value()) << fatal;
@@ -315,14 +334,16 @@ suite<"ClientInput"> client_input_suite = [] {
     // BUG: pins the finding documented above ClientInput::m_method — omitting "method" fails
     // the whole decode despite the doc comment claiming it defaults to GET.
     "BUG: from_value fails entirely when 'method' is omitted, despite its documented default"_test =
-        [] {
-            auto value = make_value(R"({"path":"/foo"})");
-            auto parsed = serde::Ser::from_value<ClientInput>(value);
-            expect(!parsed.has_value()) << fatal;
-            expect(parsed.error().contains("method")) << parsed.error();
-        };
+        []
+    {
+        auto value = make_value(R"({"path":"/foo"})");
+        auto parsed = serde::Ser::from_value<ClientInput>(value);
+        expect(!parsed.has_value()) << fatal;
+        expect(parsed.error().contains("method")) << parsed.error();
+    };
 
-    "from_value succeeds when 'body'/'content_type' are omitted — they're std::optional"_test = [] {
+    "from_value succeeds when 'body'/'content_type' are omitted — they're std::optional"_test = []
+    {
         auto value = make_value(R"({"path":"/foo","method":"GET"})");
         auto parsed = serde::Ser::from_value<ClientInput>(value);
         expect(parsed.has_value()) << fatal;
@@ -331,7 +352,8 @@ suite<"ClientInput"> client_input_suite = [] {
         expect(!parsed->getContentType().has_value());
     };
 
-    "from_value succeeds when every field is present"_test = [] {
+    "from_value succeeds when every field is present"_test = []
+    {
         auto value =
             make_value(R"({"path":"/foo","method":"POST","body":"b","content_type":"text/plain"})");
         auto parsed = serde::Ser::from_value<ClientInput>(value);
@@ -343,13 +365,16 @@ suite<"ClientInput"> client_input_suite = [] {
     };
 };
 
-suite<"ClientWorker"> client_worker_suite = [] {
-    "get_task_type reports 'http'"_test = [] {
+suite<"ClientWorker"> client_worker_suite = []
+{
+    "get_task_type reports 'http'"_test = []
+    {
         ClientWorker worker;
         expect(worker.get_task_type() == "http");
     };
 
-    "run() with no downstream configured fails without touching input parsing"_test = [] {
+    "run() with no downstream configured fails without touching input parsing"_test = []
+    {
         ClientWorker worker;
         // Deliberately malformed (missing every ClientInput field) — if run() reached parsing
         // this would surface a from_value error message instead of the runtime-missing one.
@@ -357,58 +382,81 @@ suite<"ClientWorker"> client_worker_suite = [] {
         interfaces::WorkerResult observed = interfaces::WorkerOutput{};
         bool called = false;
 
-        worker.run(value, [&](interfaces::WorkerResult result) {
-            called = true;
-            observed = std::move(result);
-        });
+        worker.run(
+            value,
+            [&](interfaces::WorkerResult result)
+            {
+                called = true;
+                observed = std::move(result);
+            }
+        );
 
         expect(called) << fatal;
         expect(!observed.has_value()) << fatal;
         expect(observed.error().getMessage() == "no downstream client configured");
     };
 
-    "set_protocol(nullptr)/set_leverager(nullptr)/set_group(nullptr) are all safe no-ops"_test =
-        [] {
-            ClientWorker worker;
-            expect(nothrow([&] {
+    "set_protocol(nullptr)/set_leverager(nullptr)/set_group(nullptr) are all safe no-ops"_test = []
+    {
+        ClientWorker worker;
+        expect(nothrow(
+            [&]
+            {
                 worker.set_protocol(nullptr);
                 worker.set_leverager(nullptr);
                 worker.set_group(nullptr);
-            }));
-        };
-
-    "set_group with a real ContractGroup binds the worker's TaskQueue without crashing"_test = [] {
-        ClientWorker worker;
-        core::contract::ContractGroup<> group;
-        expect(nothrow([&] {
-            worker.set_group(&group);
-        }));
+            }
+        ));
     };
 
-    "connect_downstream is a no-op when no dependency was ever injected"_test = [] {
+    "set_group with a real ContractGroup binds the worker's TaskQueue without crashing"_test = []
+    {
         ClientWorker worker;
-        expect(nothrow([&] {
-            worker.connect_downstream(io::base::socket::Endpoint{"127.0.0.1", 443}, false);
-        }));
+        core::contract::ContractGroup<> group;
+        expect(nothrow(
+            [&]
+            {
+                worker.set_group(&group);
+            }
+        ));
+    };
+
+    "connect_downstream is a no-op when no dependency was ever injected"_test = []
+    {
+        ClientWorker worker;
+        expect(nothrow(
+            [&]
+            {
+                worker.connect_downstream(io::base::socket::Endpoint{"127.0.0.1", 443}, false);
+            }
+        ));
         // Still no runtime — run() takes the same early-exit path as with nothing configured.
         auto value = make_value(R"({})");
         interfaces::WorkerResult observed = interfaces::WorkerOutput{};
-        worker.run(value, [&](interfaces::WorkerResult result) {
-            observed = std::move(result);
-        });
+        worker.run(
+            value,
+            [&](interfaces::WorkerResult result)
+            {
+                observed = std::move(result);
+            }
+        );
         expect(!observed.has_value()) << fatal;
         expect(observed.error().getMessage() == "no downstream client configured");
     };
 
     "connect_downstream is a no-op when only the contract group was injected (protocol/leverager still null)"_test =
-        [] {
-            ClientWorker worker;
-            core::contract::ContractGroup<> group;
-            worker.set_group(&group);
-            expect(nothrow([&] {
+        []
+    {
+        ClientWorker worker;
+        core::contract::ContractGroup<> group;
+        worker.set_group(&group);
+        expect(nothrow(
+            [&]
+            {
                 worker.connect_downstream(io::base::socket::Endpoint{"127.0.0.1", 443}, true);
-            }));
-        };
+            }
+        ));
+    };
 };
 
 } // namespace worker_client::client_worker_tests

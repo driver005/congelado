@@ -6,9 +6,10 @@
 
 module;
 
-#include "include/c/extern/kernel/builder.h"
-#include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
 #include "docs/aten_xpu/sycl_backend/kernels/kernel_construction_view.h"
+#include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
+#include "include/c/extern/kernel/builder.h"
+
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_sycl.hpp>
 
@@ -71,8 +72,7 @@ public:
         if (source_handle == nullptr || weight_handle == nullptr ||
             source_scale_handle == nullptr || source_zp_handle == nullptr ||
             weight_scale_handle == nullptr || output_scale_handle == nullptr ||
-            output_zp_handle == nullptr)
-        {
+            output_zp_handle == nullptr) {
             ctx.fail(&status);
             return;
         }
@@ -91,12 +91,8 @@ public:
             (source_dims[3] + 2 * attrs.padding - attrs.dilation * (weight_dims[3] - 1) - 1) /
                 attrs.stride +
             1;
-        const std::vector<int64_t> dst_dims{
-            source_dims[0],
-            weight_dims[0],
-            output_height,
-            output_width
-        };
+        const std::vector<int64_t>
+            dst_dims{source_dims[0], weight_dims[0], output_height, output_width};
 
         std::size_t element_count = 1;
         for (int64_t extent: dst_dims) {
@@ -186,7 +182,11 @@ private:
         dnnl::memory::desc source_md{source_dims, quant_type, dnnl::memory::format_tag::nchw};
         dnnl::memory::desc weight_md{weight_dims, quant_type, dnnl::memory::format_tag::oihw};
         dnnl::memory::desc dst_md{dst_dims, quant_type, dnnl::memory::format_tag::nchw};
-        dnnl::memory::desc scalar_md{{1}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::x};
+        dnnl::memory::desc scalar_md{
+            {1},
+            dnnl::memory::data_type::f32,
+            dnnl::memory::format_tag::x
+        };
         dnnl::memory::desc zp_md{{1}, dnnl::memory::data_type::s32, dnnl::memory::format_tag::x};
 
         dnnl::primitive_attr attributes;

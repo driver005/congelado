@@ -169,7 +169,10 @@ public:
                 }
             default:
                 core::logger::debug(
-                    "http2/settings", "unrecognized setting id={} value={}", setting_id, value
+                    "http2/settings",
+                    "unrecognized setting id={} value={}",
+                    setting_id,
+                    value
                 );
                 m_vendor_settings.emplace_back(setting_id, value);
                 return;
@@ -468,17 +471,27 @@ struct ReadSettingsAdaptor : std::ranges::range_adaptor_closure<ReadSettingsAdap
         // Slice into 6-byte pairs, drop any trailing partial chunk, decode each into
         // (id, value), then fold every pair onto a fresh Settings via apply().
         return std::ranges::fold_left(
-            std::forward<R>(data) | std::views::chunk(6) | std::views::filter([](auto&& chunk) {
-                return std::ranges::distance(chunk) == 6;
-            }) | std::views::transform([](auto&& chunk) {
-                return std::pair{
-                    chunk | std::views::take(2) |
-                        utils::codec::ReadBigEndianAdaptor<std::uint16_t>{},
-                    chunk | std::views::drop(2) | std::views::take(4) |
-                        utils::codec::ReadBigEndianAdaptor<>{}
-                };
-            }),
-            Settings{}, [](Settings acc, auto&& pair) {
+            std::forward<R>(data) | std::views::chunk(6) |
+                std::views::filter(
+                    [](auto&& chunk)
+                    {
+                        return std::ranges::distance(chunk) == 6;
+                    }
+                ) |
+                std::views::transform(
+                    [](auto&& chunk)
+                    {
+                        return std::pair{
+                            chunk | std::views::take(2) |
+                                utils::codec::ReadBigEndianAdaptor<std::uint16_t>{},
+                            chunk | std::views::drop(2) | std::views::take(4) |
+                                utils::codec::ReadBigEndianAdaptor<>{}
+                        };
+                    }
+                ),
+            Settings{},
+            [](Settings acc, auto&& pair)
+            {
                 acc.apply(pair.first, pair.second);
                 return acc;
             }
@@ -515,7 +528,8 @@ struct WriteSettingsAdaptor : std::ranges::range_adaptor_closure<WriteSettingsAd
 
         // Small local helper, lowkey does all the heavy lifting — encodes one id/value pair and
         // appends it to the running buffer.
-        auto emit = [&](const std::uint16_t SETTING_ID, const std::uint32_t VALUE) {
+        auto emit = [&](const std::uint16_t SETTING_ID, const std::uint32_t VALUE)
+        {
             auto entry = std::views::empty<std::byte> |
                          utils::codec::WriteBigEndianAdaptor<std::uint16_t>{SETTING_ID} |
                          utils::codec::WriteBigEndianAdaptor<std::uint32_t>{VALUE} |
@@ -573,8 +587,10 @@ private:
 namespace io::layer::http2::tests {
 using namespace boost::ut;
 
-suite<"Settings defaults"> settings_defaults_suite = [] {
-    "starts at RFC 9113 spec defaults"_test = [] {
+suite<"Settings defaults"> settings_defaults_suite = []
+{
+    "starts at RFC 9113 spec defaults"_test = []
+    {
         Settings settings;
 
         expect(settings.get_header_table_size() == DEFAULT_HEADER_TABLE_SIZE);
@@ -589,8 +605,10 @@ suite<"Settings defaults"> settings_defaults_suite = [] {
     };
 };
 
-suite<"Settings::apply"> settings_apply_suite = [] {
-    "applies every recognized setting id to its matching field"_test = [] {
+suite<"Settings::apply"> settings_apply_suite = []
+{
+    "applies every recognized setting id to its matching field"_test = []
+    {
         Settings settings;
 
         settings.apply(0x1, 8'192);
@@ -608,37 +626,67 @@ suite<"Settings::apply"> settings_apply_suite = [] {
         expect(settings.get_max_header_list_size() == 4'000U);
     };
 
-    "rejects ENABLE_PUSH values other than 0 or 1"_test = [] {
+    "rejects ENABLE_PUSH values other than 0 or 1"_test = []
+    {
         Settings settings;
-        expect(throws<error::http::ConnectionError>([&] {
-            settings.apply(0x2, 2);
-        }));
+        expect(
+            throws<error::http::ConnectionError>(
+                [&]
+                {
+                    settings.apply(0x2, 2);
+                }
+            )
+        );
     };
 
-    "rejects INITIAL_WINDOW_SIZE past 2^31-1"_test = [] {
+    "rejects INITIAL_WINDOW_SIZE past 2^31-1"_test = []
+    {
         Settings settings;
-        expect(throws<error::http::ConnectionError>([&] {
-            settings.apply(0x4, MAX_INITIAL_WINDOW_SIZE + 1);
-        }));
-        expect(nothrow([&] {
-            settings.apply(0x4, MAX_INITIAL_WINDOW_SIZE);
-        }));
+        expect(
+            throws<error::http::ConnectionError>(
+                [&]
+                {
+                    settings.apply(0x4, MAX_INITIAL_WINDOW_SIZE + 1);
+                }
+            )
+        );
+        expect(nothrow(
+            [&]
+            {
+                settings.apply(0x4, MAX_INITIAL_WINDOW_SIZE);
+            }
+        ));
     };
 
-    "rejects MAX_FRAME_SIZE outside [16384, 2^24-1]"_test = [] {
+    "rejects MAX_FRAME_SIZE outside [16384, 2^24-1]"_test = []
+    {
         Settings settings;
-        expect(throws<error::http::ConnectionError>([&] {
-            settings.apply(0x5, MIN_FRAME_SIZE - 1);
-        }));
-        expect(throws<error::http::ConnectionError>([&] {
-            settings.apply(0x5, MAX_FRAME_SIZE + 1);
-        }));
-        expect(nothrow([&] {
-            settings.apply(0x5, MIN_FRAME_SIZE);
-        }));
+        expect(
+            throws<error::http::ConnectionError>(
+                [&]
+                {
+                    settings.apply(0x5, MIN_FRAME_SIZE - 1);
+                }
+            )
+        );
+        expect(
+            throws<error::http::ConnectionError>(
+                [&]
+                {
+                    settings.apply(0x5, MAX_FRAME_SIZE + 1);
+                }
+            )
+        );
+        expect(nothrow(
+            [&]
+            {
+                settings.apply(0x5, MIN_FRAME_SIZE);
+            }
+        ));
     };
 
-    "records unknown setting ids as vendor settings instead of rejecting"_test = [] {
+    "records unknown setting ids as vendor settings instead of rejecting"_test = []
+    {
         Settings settings;
         settings.apply(0x8, 1);
 
@@ -648,35 +696,39 @@ suite<"Settings::apply"> settings_apply_suite = [] {
     };
 };
 
-suite<"Settings::apply_all"> settings_apply_all_suite = [] {
+suite<"Settings::apply_all"> settings_apply_all_suite = []
+{
     "copies the six negotiable fields and vendor settings, leaving lifecycle state untouched"_test =
-        [] {
-            Settings source;
-            source.apply(0x1, 8'192);
-            source.apply(0x3, 10);
-            source.apply(0x9, 42);
+        []
+    {
+        Settings source;
+        source.apply(0x1, 8'192);
+        source.apply(0x3, 10);
+        source.apply(0x9, 42);
 
-            Settings target;
-            target.set_last_stream_id(7);
-            target.set_state(SettingsState::ACKNOWLEDGED);
-            target.set_delta_window_on_settings(5);
+        Settings target;
+        target.set_last_stream_id(7);
+        target.set_state(SettingsState::ACKNOWLEDGED);
+        target.set_delta_window_on_settings(5);
 
-            target.apply_all(source);
+        target.apply_all(source);
 
-            expect(target.get_header_table_size() == 8'192U);
-            expect(target.get_max_concurrent_streams() == 10U);
-            expect(target.get_vendor_settings().size() == 1U);
-            expect(target.get_vendor_settings()[0].first == 0x9);
+        expect(target.get_header_table_size() == 8'192U);
+        expect(target.get_max_concurrent_streams() == 10U);
+        expect(target.get_vendor_settings().size() == 1U);
+        expect(target.get_vendor_settings()[0].first == 0x9);
 
-            // Lifecycle state deliberately untouched by apply_all().
-            expect(target.get_last_stream_id() == 7U);
-            expect(target.is_acknowledged());
-            expect(target.get_delta_window_on_settings() == 5);
-        };
+        // Lifecycle state deliberately untouched by apply_all().
+        expect(target.get_last_stream_id() == 7U);
+        expect(target.is_acknowledged());
+        expect(target.get_delta_window_on_settings() == 5);
+    };
 };
 
-suite<"Settings local overrides / lifecycle"> settings_lifecycle_suite = [] {
-    "add_local_setting_override records a vendor id/value pair"_test = [] {
+suite<"Settings local overrides / lifecycle"> settings_lifecycle_suite = []
+{
+    "add_local_setting_override records a vendor id/value pair"_test = []
+    {
         Settings settings;
         settings.add_local_setting_override(0x8, 1);
 
@@ -686,19 +738,22 @@ suite<"Settings local overrides / lifecycle"> settings_lifecycle_suite = [] {
         );
     };
 
-    "set_last_stream_id / get_last_stream_id round-trip"_test = [] {
+    "set_last_stream_id / get_last_stream_id round-trip"_test = []
+    {
         Settings settings;
         settings.set_last_stream_id(99);
         expect(settings.get_last_stream_id() == 99U);
     };
 
-    "set_delta_window_on_settings / get_delta_window_on_settings round-trip"_test = [] {
+    "set_delta_window_on_settings / get_delta_window_on_settings round-trip"_test = []
+    {
         Settings settings;
         settings.set_delta_window_on_settings(-500);
         expect(settings.get_delta_window_on_settings() == -500);
     };
 
-    "set_state drives is_finished/is_acknowledged"_test = [] {
+    "set_state drives is_finished/is_acknowledged"_test = []
+    {
         Settings settings;
         expect(not settings.is_finished());
         expect(not settings.is_acknowledged());
@@ -711,7 +766,8 @@ suite<"Settings local overrides / lifecycle"> settings_lifecycle_suite = [] {
         expect(settings.is_finished());
     };
 
-    "next_stream_id bumps by 2 and stays odd-parity"_test = [] {
+    "next_stream_id bumps by 2 and stays odd-parity"_test = []
+    {
         Settings settings;
         settings.set_last_stream_id(1);
 
@@ -721,8 +777,10 @@ suite<"Settings local overrides / lifecycle"> settings_lifecycle_suite = [] {
     };
 };
 
-suite<"Settings::generate_ack"> settings_generate_ack_suite = [] {
-    "builds a bare SETTINGS ACK frame with no payload"_test = [] {
+suite<"Settings::generate_ack"> settings_generate_ack_suite = []
+{
+    "builds a bare SETTINGS ACK frame with no payload"_test = []
+    {
         auto ack = Settings::generate_ack();
 
         expect(ack.get_type() == shared_layer::FrameType::SETTINGS);
@@ -732,8 +790,10 @@ suite<"Settings::generate_ack"> settings_generate_ack_suite = [] {
     };
 };
 
-suite<"SettingsState formatter"> settings_state_formatter_suite = [] {
-    "formats every known state by name, unknown as UNKNOWN"_test = [] {
+suite<"SettingsState formatter"> settings_state_formatter_suite = []
+{
+    "formats every known state by name, unknown as UNKNOWN"_test = []
+    {
         expect(std::format("{}", SettingsState::UNACKNOWLEDGED) == "UNACKNOWLEDGED");
         expect(std::format("{}", SettingsState::ACKNOWLEDGED) == "ACKNOWLEDGED");
         expect(std::format("{}", SettingsState::IMPLEMENTED) == "IMPLEMENTED");
@@ -743,11 +803,14 @@ suite<"SettingsState formatter"> settings_state_formatter_suite = [] {
     };
 };
 
-suite<"ReadSettingsAdaptor / WriteSettingsAdaptor"> settings_codec_suite = [] {
-    "decodes 6-byte id/value pairs, dropping a trailing partial chunk"_test = [] {
+suite<"ReadSettingsAdaptor / WriteSettingsAdaptor"> settings_codec_suite = []
+{
+    "decodes 6-byte id/value pairs, dropping a trailing partial chunk"_test = []
+    {
         std::vector<std::byte> bytes;
 
-        auto append_pair = [&](std::uint16_t setting_id, std::uint32_t value) {
+        auto append_pair = [&](std::uint16_t setting_id, std::uint32_t value)
+        {
             auto entry = std::views::empty<std::byte> |
                          utils::codec::WriteBigEndianAdaptor<std::uint16_t>{setting_id} |
                          utils::codec::WriteBigEndianAdaptor<std::uint32_t>{value} |
@@ -766,7 +829,8 @@ suite<"ReadSettingsAdaptor / WriteSettingsAdaptor"> settings_codec_suite = [] {
         expect(decoded.get_max_concurrent_streams() == 10U);
     };
 
-    "encodes only settings that diverge from spec defaults, round-tripping through Read"_test = [] {
+    "encodes only settings that diverge from spec defaults, round-tripping through Read"_test = []
+    {
         Settings settings;
 
         auto bytes = std::views::empty<std::byte> | WriteSettingsAdaptor{settings} |
@@ -782,7 +846,8 @@ suite<"ReadSettingsAdaptor / WriteSettingsAdaptor"> settings_codec_suite = [] {
         expect(decoded.get_max_frame_size() == settings.get_max_frame_size());
     };
 
-    "emits a changed HEADER_TABLE_SIZE and disabled ENABLE_PUSH"_test = [] {
+    "emits a changed HEADER_TABLE_SIZE and disabled ENABLE_PUSH"_test = []
+    {
         Settings settings;
         settings.apply(0x1, 8'192);
         settings.apply(0x2, 0);
@@ -795,7 +860,8 @@ suite<"ReadSettingsAdaptor / WriteSettingsAdaptor"> settings_codec_suite = [] {
         expect(not decoded.get_enable_push());
     };
 
-    "vendor/extension overrides are appended after the six spec fields"_test = [] {
+    "vendor/extension overrides are appended after the six spec fields"_test = []
+    {
         Settings settings;
         settings.add_local_setting_override(0x8, 1);
 

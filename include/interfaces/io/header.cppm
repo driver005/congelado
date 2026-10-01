@@ -137,7 +137,6 @@ public:
      */
     bool operator==(const HeaderField& other) const noexcept
     {
-
         return m_name == other.m_name && m_value == other.m_value;
     };
 
@@ -156,21 +155,28 @@ using HeaderEntry =
 namespace interfaces::io::tests {
 using namespace boost::ut;
 
-suite<"HeaderField dynamic"> header_field_dynamic_suite = [] {
-    "ctor stores name and value verbatim"_test = [] {
+suite<"HeaderField dynamic"> header_field_dynamic_suite = []
+{
+    "ctor stores name and value verbatim"_test = []
+    {
         HeaderField<false> field{"content-type", "application/json"};
 
         expect(field.get_name() == "content-type");
         expect(field.get_value() == "application/json");
     };
 
-    "ctor throws on an empty name"_test = [] {
-        expect(throws([] {
-            HeaderField<false> field{"", "value"};
-        }));
+    "ctor throws on an empty name"_test = []
+    {
+        expect(throws(
+            []
+            {
+                HeaderField<false> field{"", "value"};
+            }
+        ));
     };
 
-    "is_empty reflects whether the value is blank"_test = [] {
+    "is_empty reflects whether the value is blank"_test = []
+    {
         HeaderField<false> blank{"x-custom", ""};
         HeaderField<false> filled{"x-custom", "yes"};
 
@@ -178,7 +184,8 @@ suite<"HeaderField dynamic"> header_field_dynamic_suite = [] {
         expect(not filled.is_empty());
     };
 
-    "size adds name + value + entry overhead"_test = [] {
+    "size adds name + value + entry overhead"_test = []
+    {
         HeaderField<false> field{"host", "example.com"};
 
         expect(
@@ -187,7 +194,8 @@ suite<"HeaderField dynamic"> header_field_dynamic_suite = [] {
         );
     };
 
-    "set_name/set_value overwrite in place"_test = [] {
+    "set_name/set_value overwrite in place"_test = []
+    {
         HeaderField<false> field{"host", "example.com"};
         field.set_name("x-host");
         field.set_value("other.example.com");
@@ -196,15 +204,20 @@ suite<"HeaderField dynamic"> header_field_dynamic_suite = [] {
         expect(field.get_value() == "other.example.com");
     };
 
-    "set_name throws on an empty name"_test = [] {
+    "set_name throws on an empty name"_test = []
+    {
         HeaderField<false> field{"host", "example.com"};
 
-        expect(throws([&field] {
-            field.set_name("");
-        }));
+        expect(throws(
+            [&field]
+            {
+                field.set_name("");
+            }
+        ));
     };
 
-    "operator== requires both name and value to match"_test = [] {
+    "operator== requires both name and value to match"_test = []
+    {
         HeaderField<false> lhs{"host", "example.com"};
         HeaderField<false> same{"host", "example.com"};
         HeaderField<false> diff_value{"host", "other.com"};
@@ -216,15 +229,18 @@ suite<"HeaderField dynamic"> header_field_dynamic_suite = [] {
     };
 };
 
-suite<"HeaderField static"> header_field_static_suite = [] {
-    "ctor stores the interned token and value"_test = [] {
+suite<"HeaderField static"> header_field_static_suite = []
+{
+    "ctor stores the interned token and value"_test = []
+    {
         HeaderField<true> field{types::Token::HOST, "example.com"};
 
         expect(field.get_name() == types::Token::HOST);
         expect(field.get_value() == "example.com");
     };
 
-    "size uses the token's fixed size instead of a string length"_test = [] {
+    "size uses the token's fixed size instead of a string length"_test = []
+    {
         HeaderField<true> field{types::Token::HOST, "example.com"};
 
         expect(

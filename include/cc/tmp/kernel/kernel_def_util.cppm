@@ -27,7 +27,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // Returns whether the attrs satisfy the constraints in the kernel_def. Returns
@@ -81,8 +80,10 @@ export {
                 if (value_type_num == 0) {
                     return absl::UnimplementedError(
                         absl::StrCat(
-                            "KernelDef '", kernel_def.ShortDebugString(),
-                            " has constraint on attr '", constraint.name(),
+                            "KernelDef '",
+                            kernel_def.ShortDebugString(),
+                            " has constraint on attr '",
+                            constraint.name(),
                             "' with unsupported type: ",
                             SummarizeAttrValue(constraint.allowed_values())
                         )
@@ -91,8 +92,10 @@ export {
                 if (value_type_num > 1) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "KernelDef '", kernel_def.ShortDebugString(),
-                            " has constraint on attr '", constraint.name(),
+                            "KernelDef '",
+                            kernel_def.ShortDebugString(),
+                            " has constraint on attr '",
+                            constraint.name(),
                             "' with more than one value type: ",
                             SummarizeAttrValue(constraint.allowed_values())
                         )
@@ -103,9 +106,15 @@ export {
                 if (attr_value == nullptr) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "OpKernel '", kernel_def.op(), "' has constraint on attr '",
-                            constraint.name(), "' not in NodeDef '", attrs.SummarizeNode(),
-                            "', KernelDef: '", kernel_def.ShortDebugString(), "'"
+                            "OpKernel '",
+                            kernel_def.op(),
+                            "' has constraint on attr '",
+                            constraint.name(),
+                            "' not in NodeDef '",
+                            attrs.SummarizeNode(),
+                            "', KernelDef: '",
+                            kernel_def.ShortDebugString(),
+                            "'"
                         )
                     );
                 }
@@ -116,11 +125,16 @@ export {
             Status s = AttrValueHasType(*attr_value, type_str);                                    \
             if (!s.ok()) {                                                                         \
                 return errors::InvalidArgument(                                                    \
-                    "KernelDef '", kernel_def.ShortDebugString(), "' has constraint on attr '",    \
-                    constraint.name(), "' that has value '", SummarizeAttrValue(*attr_value),      \
+                    "KernelDef '",                                                                 \
+                    kernel_def.ShortDebugString(),                                                 \
+                    "' has constraint on attr '",                                                  \
+                    constraint.name(),                                                             \
+                    "' that has value '",                                                          \
+                    SummarizeAttrValue(*attr_value),                                               \
                     "' that does not have the same type in NodeDef "                               \
                     "'",                                                                           \
-                    attrs.SummarizeNode(), "'"                                                     \
+                    attrs.SummarizeNode(),                                                         \
+                    "'"                                                                            \
                 );                                                                                 \
             }                                                                                      \
             bool found = false;                                                                    \
@@ -154,12 +168,16 @@ export {
                     if (!AttrValueHasType(*attr_value, "list(type)").ok()) {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                "KernelDef '", kernel_def.ShortDebugString(),
-                                "' has constraint on attr '", constraint.name(),
-                                "' that has value '", SummarizeAttrValue(*attr_value),
+                                "KernelDef '",
+                                kernel_def.ShortDebugString(),
+                                "' has constraint on attr '",
+                                constraint.name(),
+                                "' that has value '",
+                                SummarizeAttrValue(*attr_value),
                                 "' that does not have type 'type' or 'list(type)' in NodeDef "
                                 "'",
-                                attrs.SummarizeNode(), "'"
+                                attrs.SummarizeNode(),
+                                "'"
                             )
                         );
                     }

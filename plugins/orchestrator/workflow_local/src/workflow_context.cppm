@@ -1,6 +1,6 @@
 module;
 #ifdef CONGELADO_TEST
-#    include "core/manager/abi.h"
+    #include "core/manager/abi.h"
 #endif
 
 export module workflow_engine:context;
@@ -97,7 +97,9 @@ public:
     }
 
     void remove(
-        std::string_view /*collection*/, std::string_view /*id*/, shared::QueryReadFn&& callback
+        std::string_view /*collection*/,
+        std::string_view /*id*/,
+        shared::QueryReadFn&& callback
     ) noexcept override
     {
         callback("ok");
@@ -129,7 +131,8 @@ public:
     }
 
     void install_method(
-        std::unique_ptr<FnContext> /*ctx*/, const std::string& /*lang_name*/
+        std::unique_ptr<FnContext> /*ctx*/,
+        const std::string& /*lang_name*/
     ) override
     {
     }
@@ -150,21 +153,25 @@ public:
     }
 };
 
-suite<"WorkflowContext"> workflow_context_suite = [] {
-    "defaults every slot to nullptr"_test = [] {
+suite<"WorkflowContext"> workflow_context_suite = []
+{
+    "defaults every slot to nullptr"_test = []
+    {
         WorkflowContext ctx;
         expect(ctx.get_lua_bridge() == nullptr);
         expect(ctx.get_search() == nullptr);
     };
 
-    "set_connector/get_connector round-trips"_test = [] {
+    "set_connector/get_connector round-trips"_test = []
+    {
         WorkflowContext ctx;
         connector::Connector connector;
         ctx.set_connector(&connector);
         expect(&ctx.get_connector() == &connector);
     };
 
-    "set_lua_bridge/get_lua_bridge round-trips, including clearing back to nullptr"_test = [] {
+    "set_lua_bridge/get_lua_bridge round-trips, including clearing back to nullptr"_test = []
+    {
         WorkflowContext ctx;
         FakeBridge bridge;
         ctx.set_lua_bridge(&bridge);
@@ -174,7 +181,8 @@ suite<"WorkflowContext"> workflow_context_suite = [] {
         expect(ctx.get_lua_bridge() == nullptr);
     };
 
-    "set_search/get_search round-trips, including clearing back to nullptr"_test = [] {
+    "set_search/get_search round-trips, including clearing back to nullptr"_test = []
+    {
         WorkflowContext ctx;
         FakeSearchProvider provider;
         ctx.set_search(&provider);

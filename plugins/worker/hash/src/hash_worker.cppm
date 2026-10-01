@@ -97,7 +97,11 @@ public:
         std::array<unsigned char, EVP_MAX_MD_SIZE> out{};
         unsigned int length = 0;
         if (EVP_Digest(
-                parsed->getData().data(), parsed->getData().size(), out.data(), &length, digest,
+                parsed->getData().data(),
+                parsed->getData().size(),
+                out.data(),
+                &length,
+                digest,
                 nullptr
             ) != 1) {
             return std::unexpected{interfaces::WorkerError{"digest failed"}};
@@ -118,20 +122,24 @@ public:
 namespace worker_hash::hash_worker_tests {
 using namespace boost::ut;
 
-suite<"HashInput"> hash_input_suite = [] {
-    "setData/getData round-trips"_test = [] {
+suite<"HashInput"> hash_input_suite = []
+{
+    "setData/getData round-trips"_test = []
+    {
         HashInput input;
         input.setData("payload");
         expect(input.getData() == "payload");
     };
 
-    "setAlgo/getAlgo round-trips"_test = [] {
+    "setAlgo/getAlgo round-trips"_test = []
+    {
         HashInput input;
         input.setAlgo("md5");
         expect(input.getAlgo() == "md5");
     };
 
-    "default-constructed algo is sha256"_test = [] {
+    "default-constructed algo is sha256"_test = []
+    {
         HashInput input;
         expect(input.getAlgo() == "sha256");
     };
@@ -144,21 +152,24 @@ suite<"HashInput"> hash_input_suite = [] {
     // caller relying on the documented "algo defaults to sha256 when omitted" behavior gets a
     // hard parse error instead.
     "BUG: from_value fails entirely when 'algo' is omitted, despite its documented default"_test =
-        [] {
-            auto value = rfl::json::read<rfl::Generic>(R"({"data":"abc"})").value();
-            auto parsed = serde::Ser::from_value<HashInput>(value);
-            expect(!parsed.has_value()) << fatal;
-            expect(parsed.error().contains("algo")) << parsed.error();
-        };
+        []
+    {
+        auto value = rfl::json::read<rfl::Generic>(R"({"data":"abc"})").value();
+        auto parsed = serde::Ser::from_value<HashInput>(value);
+        expect(!parsed.has_value()) << fatal;
+        expect(parsed.error().contains("algo")) << parsed.error();
+    };
 
-    "from_value fails entirely when 'data' is omitted"_test = [] {
+    "from_value fails entirely when 'data' is omitted"_test = []
+    {
         auto value = rfl::json::read<rfl::Generic>(R"({"algo":"sha256"})").value();
         auto parsed = serde::Ser::from_value<HashInput>(value);
         expect(!parsed.has_value()) << fatal;
         expect(parsed.error().contains("data")) << parsed.error();
     };
 
-    "from_value succeeds when every declared field is present"_test = [] {
+    "from_value succeeds when every declared field is present"_test = []
+    {
         auto value = rfl::json::read<rfl::Generic>(R"({"data":"abc","algo":"sha256"})").value();
         auto parsed = serde::Ser::from_value<HashInput>(value);
         expect(parsed.has_value()) << fatal;
@@ -167,13 +178,16 @@ suite<"HashInput"> hash_input_suite = [] {
     };
 };
 
-suite<"HashWorker"> hash_worker_suite = [] {
-    "get_task_type reports 'hash'"_test = [] {
+suite<"HashWorker"> hash_worker_suite = []
+{
+    "get_task_type reports 'hash'"_test = []
+    {
         HashWorker worker;
         expect(worker.get_task_type() == "hash");
     };
 
-    "execute computes the correct sha256 hex digest"_test = [] {
+    "execute computes the correct sha256 hex digest"_test = []
+    {
         HashWorker worker;
         auto value = rfl::json::read<rfl::Generic>(R"({"data":"abc","algo":"sha256"})").value();
         auto result = worker.execute(value);
@@ -185,7 +199,8 @@ suite<"HashWorker"> hash_worker_suite = [] {
         );
     };
 
-    "execute computes the correct md5 hex digest for a different algo"_test = [] {
+    "execute computes the correct md5 hex digest for a different algo"_test = []
+    {
         HashWorker worker;
         auto value = rfl::json::read<rfl::Generic>(R"({"data":"abc","algo":"md5"})").value();
         auto result = worker.execute(value);
@@ -194,7 +209,8 @@ suite<"HashWorker"> hash_worker_suite = [] {
         expect(result->at("hash") == "900150983cd24fb0d6963f7d28e17f72");
     };
 
-    "execute hashes an empty data string cleanly"_test = [] {
+    "execute hashes an empty data string cleanly"_test = []
+    {
         HashWorker worker;
         auto value = rfl::json::read<rfl::Generic>(R"({"data":"","algo":"sha256"})").value();
         auto result = worker.execute(value);
@@ -204,7 +220,8 @@ suite<"HashWorker"> hash_worker_suite = [] {
         );
     };
 
-    "execute falls back to sha256 for an unrecognized algo name"_test = [] {
+    "execute falls back to sha256 for an unrecognized algo name"_test = []
+    {
         HashWorker worker;
         auto value =
             rfl::json::read<rfl::Generic>(R"({"data":"abc","algo":"not-a-real-digest"})").value();
@@ -216,7 +233,8 @@ suite<"HashWorker"> hash_worker_suite = [] {
         );
     };
 
-    "execute falls back to sha256 for an empty algo name"_test = [] {
+    "execute falls back to sha256 for an empty algo name"_test = []
+    {
         HashWorker worker;
         auto value = rfl::json::read<rfl::Generic>(R"({"data":"abc","algo":""})").value();
         auto result = worker.execute(value);
@@ -224,7 +242,8 @@ suite<"HashWorker"> hash_worker_suite = [] {
         expect(result->at("algo") == "sha256");
     };
 
-    "execute propagates the from_value error when a required field is missing"_test = [] {
+    "execute propagates the from_value error when a required field is missing"_test = []
+    {
         HashWorker worker;
         auto value = rfl::json::read<rfl::Generic>(R"({"algo":"sha256"})").value();
         auto result = worker.execute(value);
@@ -233,7 +252,8 @@ suite<"HashWorker"> hash_worker_suite = [] {
 
     // Adversarial: attacker-controlled `data` is arbitrary bytes handed straight to
     // EVP_Digest — a long input exercises the digest path with no length cap in this worker.
-    "execute handles a large data payload without truncation"_test = [] {
+    "execute handles a large data payload without truncation"_test = []
+    {
         HashWorker worker;
         std::string large(100'000, 'x');
         auto value =

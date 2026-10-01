@@ -47,7 +47,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // Implements the basic logic of matching Send and Recv operations. See
@@ -317,7 +316,9 @@ export {
                 std::string ToString() const
                 {
                     return absl::StrFormat(
-                        "bucket_hash: %#x, table_hash: %#x", bucket_hash_, table_hash_
+                        "bucket_hash: %#x, table_hash: %#x",
+                        bucket_hash_,
+                        table_hash_
                     );
                 }
 
@@ -340,7 +341,8 @@ export {
             if (is_dead) {
                 static auto* rendezvous_dead_values_sent = monitoring::Counter<2>::New(
                     "/tensorflow/core/rendezvous_dead_values_sent",
-                    "The number of dead values sent between a pair of devices.", "send_device",
+                    "The number of dead values sent between a pair of devices.",
+                    "send_device",
                     "recv_device"
                 );
                 rendezvous_dead_values_sent
@@ -368,7 +370,8 @@ export {
                 auto rc_owner = tsl::core::GetNewRef(rc_owner_);
                 DVLOG(2) << "Enqueue Send Item (key:" << key.FullKey() << "). ";
                 activity_watcher::ActivityScope activity_scope(
-                    [&]() {
+                    [&]()
+                    {
                         return std::make_unique<activity_watcher::Activity>(
                             "LocalRendezvous::Send",
                             activity_watcher::ActivityCategory::kRendezvous,
@@ -382,7 +385,11 @@ export {
                     /*level=*/1
                 );
                 queue->push_back(new Item(
-                    std::move(rc_owner), send_args, val, is_dead, std::move(activity_scope)
+                    std::move(rc_owner),
+                    send_args,
+                    val,
+                    is_dead,
+                    std::move(activity_scope)
                 ));
                 bucket.mu.unlock();
                 return absl::OkStatus();
@@ -455,8 +462,10 @@ export {
                         rc_owner_->Ref();
                     }
                     token = cm->get_cancellation_token();
-                    already_cancelled =
-                        !cm->RegisterCallback(token, [this, token, key_hash, &bucket] {
+                    already_cancelled = !cm->RegisterCallback(
+                        token,
+                        [this, token, key_hash, &bucket]
+                        {
                             tsl::core::RefCountPtr<Rendezvous> rc_owner(rc_owner_);
                             Item* item = nullptr;
                             {
@@ -470,7 +479,8 @@ export {
                                     if (queue->head != nullptr &&
                                         queue->head->type == Item::kRecv) {
                                         for (Item *prev = nullptr, *curr = queue->head;
-                                             curr != nullptr; prev = curr, curr = curr->next) {
+                                             curr != nullptr;
+                                             prev = curr, curr = curr->next) {
                                             if (curr->recv_state.cancellation_token == token) {
                                                 item = curr;
                                                 if (queue->head->next == nullptr) {
@@ -502,11 +512,15 @@ export {
                                     StatusGroup::MakeDerived(
                                         absl::CancelledError("RecvAsync is cancelled.")
                                     ),
-                                    Rendezvous::Args(), item->args, Tensor(), /*is_dead=*/false
+                                    Rendezvous::Args(),
+                                    item->args,
+                                    Tensor(),
+                                    /*is_dead=*/false
                                 );
                                 delete item;
                             }
-                        });
+                        }
+                    );
                 }
                 if (already_cancelled) {
                     if (queue->head == nullptr) {
@@ -515,7 +529,10 @@ export {
                     bucket.mu.unlock();
                     done(
                         StatusGroup::MakeDerived(absl::CancelledError("RecvAsync is cancelled.")),
-                        Rendezvous::Args(), recv_args, Tensor(), /*is_dead=*/false
+                        Rendezvous::Args(),
+                        recv_args,
+                        Tensor(),
+                        /*is_dead=*/false
                     );
                     if (rc_owner_) {
                         rc_owner_->Unref();
@@ -528,7 +545,8 @@ export {
                 // TODO(b/143786186): Investigate moving the allocation of `Item` outside
                 // the lock.
                 activity_watcher::ActivityScope activity_scope(
-                    [&]() {
+                    [&]()
+                    {
                         return std::make_unique<activity_watcher::Activity>(
                             "LocalRendezvous::RecvAsync",
                             activity_watcher::ActivityCategory::kRendezvous,
@@ -547,11 +565,16 @@ export {
                     // cancellation callback before calling the `done` callback, because the
                     // cancellation manager may no longer be live after `done` is called.
                     queue->push_back(new Item(
-                        std::move(rc_owner), recv_args,
+                        std::move(rc_owner),
+                        recv_args,
                         [this, cm, token, done = std::move(done)](
-                            const absl::Status& s, const Rendezvous::Args& send_args,
-                            const Rendezvous::Args& recv_args, const Tensor& v, bool dead
-                        ) {
+                            const absl::Status& s,
+                            const Rendezvous::Args& send_args,
+                            const Rendezvous::Args& recv_args,
+                            const Tensor& v,
+                            bool dead
+                        )
+                        {
                             // TryDeregisterCallback returns true when the cancellation callback
                             // is successfully deregistered. If it fails because the CM already
                             // StartAbort, Unref will happen inside the cancellation callback
@@ -563,11 +586,15 @@ export {
                             }
                             done(s, send_args, recv_args, v, dead);
                         },
-                        token, std::move(activity_scope)
+                        token,
+                        std::move(activity_scope)
                     ));
                 } else {
                     queue->push_back(new Item(
-                        std::move(rc_owner), recv_args, std::move(done), token,
+                        std::move(rc_owner),
+                        recv_args,
+                        std::move(done),
+                        token,
                         std::move(activity_scope)
                     ));
                 }
@@ -594,7 +621,10 @@ export {
 
             DCHECK_EQ(item->type, Item::kSend);
             done(
-                absl::OkStatus(), item->args, recv_args, *item->send_state.value,
+                absl::OkStatus(),
+                item->args,
+                recv_args,
+                *item->send_state.value,
                 item->send_state.is_dead
             );
             {
@@ -653,7 +683,11 @@ export {
                         switch (item->type) {
                             case Item::kRecv:
                                 (*item->recv_state.waiter)(
-                                    status, Rendezvous::Args(), Rendezvous::Args(), Tensor(), false
+                                    status,
+                                    Rendezvous::Args(),
+                                    Rendezvous::Args(),
+                                    Tensor(),
+                                    false
                                 );
                                 LOG(INFO) << "Local rendezvous recv item cancelled. Key hash: "
                                           << p.first;

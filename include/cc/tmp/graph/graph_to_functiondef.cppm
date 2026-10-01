@@ -43,7 +43,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // Graph to FunctionDef conversion. This code is closely modeled on the Python
@@ -230,7 +229,8 @@ export {
                 if (iter != used_names_.end()) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Cannot have duplicate output names. Name '", name,
+                            "Cannot have duplicate output names. Name '",
+                            name,
                             "' appears more than once in 'output_names' array."
                         )
                     );
@@ -328,8 +328,10 @@ export {
                         }
                     }
                     std::sort(
-                        control_edges.begin(), control_edges.end(),
-                        [](const Edge* a, const Edge* b) {
+                        control_edges.begin(),
+                        control_edges.end(),
+                        [](const Edge* a, const Edge* b)
+                        {
                             return a->src()->name() < b->src()->name();
                         }
                     );
@@ -346,7 +348,10 @@ export {
                                     absl::StrCat(
                                         "Graph to be converted to function appears to be "
                                         "malformed. ",
-                                        "Node ", node->name(), " is missing input edge ", i
+                                        "Node ",
+                                        node->name(),
+                                        " is missing input edge ",
+                                        i
                                     )
                                 );
                             }
@@ -361,8 +366,14 @@ export {
                         if (iter == tensor_renaming.end()) {
                             return absl::InvalidArgumentError(
                                 absl::StrCat(
-                                    "Input ", i, ", '", original_input_name, "', of node '",
-                                    node->name(), "' in function '", fn_name,
+                                    "Input ",
+                                    i,
+                                    ", '",
+                                    original_input_name,
+                                    "', of node '",
+                                    node->name(),
+                                    "' in function '",
+                                    fn_name,
                                     "' is not available. You might need to include it in inputs "
                                     "or include its source node in the body"
                                 )
@@ -381,9 +392,11 @@ export {
                         if (normalized.empty()) {
                             return absl::InvalidArgumentError(
                                 absl::StrCat(
-                                    "The source of control edge ", edge->DebugString(),
+                                    "The source of control edge ",
+                                    edge->DebugString(),
                                     " is not in the body. Encountered while creating function '",
-                                    fn_name, "'"
+                                    fn_name,
+                                    "'"
                                 )
                             );
                         }
@@ -426,7 +439,9 @@ export {
                                     "Placeholder value is not supported for attributes not in "
                                     "OpDef. "
                                     "Attribute: ",
-                                    node_attr_name, ", OpDef: ", node->op_def().DebugString()
+                                    node_attr_name,
+                                    ", OpDef: ",
+                                    node->op_def().DebugString()
                                 )
                             );
                         }
@@ -583,8 +598,14 @@ export {
                 }
 
                 TF_RETURN_IF_ERROR(FillFunctionBody(
-                    fn_name, node_names, body_nodes, tensor_renaming, set_stateful_from_nodes,
-                    copy_placeholder_attrs_from_nodes, allow_destructive_reads, fdef
+                    fn_name,
+                    node_names,
+                    body_nodes,
+                    tensor_renaming,
+                    set_stateful_from_nodes,
+                    copy_placeholder_attrs_from_nodes,
+                    allow_destructive_reads,
+                    fdef
                 ));
 
                 // Remap return values.
@@ -604,9 +625,12 @@ export {
                     if (iter == tensor_renaming.end()) {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                "TF_Output ", return_value, " is neither in the function body ",
+                                "TF_Output ",
+                                return_value,
+                                " is neither in the function body ",
                                 "nor among function inputs. Encountered while creating function '",
-                                fn_name, "'"
+                                fn_name,
+                                "'"
                             )
                         );
                     }
@@ -636,9 +660,11 @@ export {
                     (control_outputs.size() != control_output_names.size())) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Expected number of control outputs (", control_outputs.size(),
+                            "Expected number of control outputs (",
+                            control_outputs.size(),
                             ") and the number of control output names (",
-                            control_output_names.size(), ") to match but they do not."
+                            control_output_names.size(),
+                            ") to match but they do not."
                         )
                     );
                 }
@@ -683,8 +709,8 @@ export {
                 FunctionDef* fdef
             )
             {
-                auto add_arg_or_retval = [](Node* node,
-                                            std::vector<OutputTensor>* args_or_retvals) {
+                auto add_arg_or_retval = [](Node* node, std::vector<OutputTensor>* args_or_retvals)
+                {
                     int index;
                     TF_RETURN_IF_ERROR(GetNodeAttr(node->attrs(), "index", &index));
                     if (index >= args_or_retvals->size()) {
@@ -695,9 +721,13 @@ export {
                     } else {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                "Multiple '", node->type_string(), "' nodes found with index ",
-                                index, "; originally we already have:\n",
-                                (*args_or_retvals)[index].node->DebugString(), "\nNow we have:\n",
+                                "Multiple '",
+                                node->type_string(),
+                                "' nodes found with index ",
+                                index,
+                                "; originally we already have:\n",
+                                (*args_or_retvals)[index].node->DebugString(),
+                                "\nNow we have:\n",
                                 node->DebugString()
                             )
                         );
@@ -732,8 +762,9 @@ export {
                     body_nodes.push_back(node);
                 }
 
-                auto validate_args_retvals = [](const std::vector<OutputTensor>& args_or_retvals,
-                                                const std::string& op_type) {
+                auto validate_args_retvals =
+                    [](const std::vector<OutputTensor>& args_or_retvals, const std::string& op_type)
+                {
                     for (int i = 0, e = args_or_retvals.size(); i < e; ++i) {
                         if (args_or_retvals[i].node == nullptr) {
                             return absl::InvalidArgumentError(
@@ -748,11 +779,20 @@ export {
                 TF_RETURN_IF_ERROR(validate_args_retvals(outputs, "_Retval"));
 
                 return GraphToFunctionDefHelper(
-                    graph, name, /*append_hash_to_fn_name=*/false,
+                    graph,
+                    name,
+                    /*append_hash_to_fn_name=*/false,
                     /*set_stateful_from_nodes=*/false,
-                    /*copy_placeholder_attrs_from_nodes=*/false, body_nodes, inputs, outputs,
-                    output_names, control_outputs, control_output_names,
-                    /*description=*/nullptr, allow_destructive_reads, fdef
+                    /*copy_placeholder_attrs_from_nodes=*/false,
+                    body_nodes,
+                    inputs,
+                    outputs,
+                    output_names,
+                    control_outputs,
+                    control_output_names,
+                    /*description=*/nullptr,
+                    allow_destructive_reads,
+                    fdef
                 );
             }
 
@@ -775,10 +815,20 @@ export {
         )
         {
             return GraphToFunctionDefHelper(
-                fn_body, fn_name, append_hash_to_fn_name, set_stateful_from_nodes,
-                copy_placeholder_attrs_from_nodes, body_nodes, inputs, outputs, output_names,
-                control_outputs, control_output_names, description,
-                /*allow_destructive_reads=*/false, fdef
+                fn_body,
+                fn_name,
+                append_hash_to_fn_name,
+                set_stateful_from_nodes,
+                copy_placeholder_attrs_from_nodes,
+                body_nodes,
+                inputs,
+                outputs,
+                output_names,
+                control_outputs,
+                control_output_names,
+                description,
+                /*allow_destructive_reads=*/false,
+                fdef
             );
         }
 
@@ -790,9 +840,12 @@ export {
         )
         {
             return GraphToFunctionDefHelper(
-                graph, name, control_ret,
+                graph,
+                name,
+                control_ret,
                 /*output_names=*/{},
-                /*allow_destructive_reads=*/false, fdef
+                /*allow_destructive_reads=*/false,
+                fdef
             );
         }
 
@@ -810,8 +863,12 @@ export {
         )
         {
             return GraphToFunctionDefHelper(
-                graph, name, /*control_ret=*/nullptr, output_names,
-                /*allow_destructive_reads=*/false, fdef
+                graph,
+                name,
+                /*control_ret=*/nullptr,
+                output_names,
+                /*allow_destructive_reads=*/false,
+                fdef
             );
         }
 
@@ -823,9 +880,12 @@ export {
         )
         {
             return GraphToFunctionDefHelper(
-                *graph, name, control_ret,
+                *graph,
+                name,
+                control_ret,
                 /*output_names=*/{},
-                /*allow_destructive_reads=*/true, fdef
+                /*allow_destructive_reads=*/true,
+                fdef
             );
         }
 

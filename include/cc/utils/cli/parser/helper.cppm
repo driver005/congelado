@@ -220,12 +220,12 @@ public:
         return m_allowed_values;
     }
 
-    [[nodiscard]]  std::span<const std::string>  get_requires_flags() const noexcept
+    [[nodiscard]] std::span<const std::string> get_requires_flags() const noexcept
     {
         return m_requires_flags;
     }
 
-    [[nodiscard]]  std::span<const std::string>  get_conflicts_with() const noexcept
+    [[nodiscard]] std::span<const std::string> get_conflicts_with() const noexcept
     {
         return m_conflicts_with;
     }

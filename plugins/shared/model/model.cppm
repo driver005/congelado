@@ -45,8 +45,10 @@ using AllModels = std::tuple<
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"AllModels"> model_all_models_suite = [] {
-    "lists every persisted model type exactly once"_test = [] {
+suite<"AllModels"> model_all_models_suite = []
+{
+    "lists every persisted model type exactly once"_test = []
+    {
         expect(std::tuple_size_v<model::AllModels> == 8);
     };
 };

@@ -33,7 +33,7 @@ public:
 
         auto cmd = cc_utils::cli::Command(std::move(executable));
         cmd.add_arguments(cc_utils::cli::Arguments{"-u", real_path.string(), "-"})
-           .add_input(std::string(generated_text));
+            .add_input(std::string(generated_text));
 
         auto run_result = m_runner.execute(std::move(cmd));
 

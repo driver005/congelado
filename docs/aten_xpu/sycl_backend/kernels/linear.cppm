@@ -9,8 +9,9 @@
 
 module;
 
-#include "include/c/extern/kernel/builder.h"
 #include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
+#include "include/c/extern/kernel/builder.h"
+
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_sycl.hpp>
 
@@ -142,16 +143,19 @@ private:
             dnnl::memory::dims{1, in_features}
         };
         dnnl::memory::desc dst_md{{rows, out_features}, data_type, dnnl::memory::format_tag::ab};
-        dnnl::memory::desc bias_md = bias_data != nullptr
-            ? dnnl::memory::desc{{out_features}, data_type, dnnl::memory::format_tag::x}
-            : dnnl::memory::desc{};
+        dnnl::memory::desc bias_md =
+            bias_data != nullptr
+                ? dnnl::memory::desc{{out_features}, data_type, dnnl::memory::format_tag::x}
+                : dnnl::memory::desc{};
 
         dnnl::primitive_attr attributes;
         attributes.set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
-        dnnl::matmul::primitive_desc primitive_desc = bias_data != nullptr
-            ? dnnl::matmul::primitive_desc{engine, input_md, weight_md, bias_md, dst_md, attributes}
-            : dnnl::matmul::primitive_desc{engine, input_md, weight_md, dst_md, attributes};
+        dnnl::matmul::primitive_desc primitive_desc =
+            bias_data != nullptr
+                ? dnnl::matmul::
+                      primitive_desc{engine, input_md, weight_md, bias_md, dst_md, attributes}
+                : dnnl::matmul::primitive_desc{engine, input_md, weight_md, dst_md, attributes};
 
         dnnl::matmul matmul{primitive_desc};
 

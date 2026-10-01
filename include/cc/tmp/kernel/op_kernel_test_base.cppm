@@ -50,7 +50,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         static std::vector<DeviceType> DeviceTypes()
@@ -95,7 +94,12 @@ export {
 
                 // Test CreateOpKernel()
                 std::unique_ptr<OpKernel> op(CreateOpKernel(
-                    device_type, &device, cpu_allocator(), def, TF_GRAPH_DEF_VERSION, &status
+                    device_type,
+                    &device,
+                    cpu_allocator(),
+                    def,
+                    TF_GRAPH_DEF_VERSION,
+                    &status
                 ));
                 EXPECT_TRUE(status.ok()) << status;
                 EXPECT_TRUE(op != nullptr);
@@ -134,7 +138,12 @@ export {
 
                 // Test CreateOpKernel().
                 std::unique_ptr<OpKernel> op(CreateOpKernel(
-                    device_type, &device, cpu_allocator(), def, TF_GRAPH_DEF_VERSION, &status
+                    device_type,
+                    &device,
+                    cpu_allocator(),
+                    def,
+                    TF_GRAPH_DEF_VERSION,
+                    &status
                 ));
                 EXPECT_TRUE(op == nullptr);
                 EXPECT_FALSE(status.ok());

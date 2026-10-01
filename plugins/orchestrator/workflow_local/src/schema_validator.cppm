@@ -140,20 +140,24 @@ using namespace boost::ut;
     return serde::Value{std::move(object)};
 }
 
-suite<"SchemaValidator::validate happy paths"> schema_validator_happy_suite = [] {
-    "a schema with no 'required' array passes regardless of data"_test = [] {
+suite<"SchemaValidator::validate happy paths"> schema_validator_happy_suite = []
+{
+    "a schema with no 'required' array passes regardless of data"_test = []
+    {
         auto result = SchemaValidator::validate(R"({"type":"object"})", make_object({}));
         expect(bool(result));
     };
 
-    "every required key present passes"_test = [] {
+    "every required key present passes"_test = []
+    {
         auto schema = R"({"required":["order_id","amount"]})";
         auto result =
             SchemaValidator::validate(schema, make_object({{"order_id", "1"}, {"amount", "5"}}));
         expect(bool(result));
     };
 
-    "extra keys beyond 'required' are fine, only presence of required ones matters"_test = [] {
+    "extra keys beyond 'required' are fine, only presence of required ones matters"_test = []
+    {
         auto schema = R"({"required":["order_id"]})";
         auto result =
             SchemaValidator::validate(schema, make_object({{"order_id", "1"}, {"unrelated", "x"}}));
@@ -161,22 +165,26 @@ suite<"SchemaValidator::validate happy paths"> schema_validator_happy_suite = []
     };
 };
 
-suite<"SchemaValidator::validate rejects missing fields"> schema_validator_missing_suite = [] {
-    "a missing required key fails, naming that key"_test = [] {
+suite<"SchemaValidator::validate rejects missing fields"> schema_validator_missing_suite = []
+{
+    "a missing required key fails, naming that key"_test = []
+    {
         auto schema = R"({"required":["order_id","amount"]})";
         auto result = SchemaValidator::validate(schema, make_object({{"order_id", "1"}}));
         expect(!result.has_value()) << fatal;
         expect(result.error() == "missing required field 'amount'");
     };
 
-    "the first missing key wins, in required-array order"_test = [] {
+    "the first missing key wins, in required-array order"_test = []
+    {
         auto schema = R"({"required":["first","second"]})";
         auto result = SchemaValidator::validate(schema, make_object({}));
         expect(!result.has_value()) << fatal;
         expect(result.error() == "missing required field 'first'");
     };
 
-    "non-object data with a non-empty required list fails on the first name"_test = [] {
+    "non-object data with a non-empty required list fails on the first name"_test = []
+    {
         auto schema = R"({"required":["order_id"]})";
         auto result = SchemaValidator::validate(schema, serde::Value{std::string{"not an object"}});
         expect(!result.has_value()) << fatal;
@@ -187,35 +195,41 @@ suite<"SchemaValidator::validate rejects missing fields"> schema_validator_missi
     // not real JSON-schema semantics): non-object data with an EMPTY required list still
     // passes, since there's nothing to check presence of — validate() never confirms `data` is
     // even an object shape at all when required is empty.
-    "non-object data with an empty required list still passes"_test = [] {
+    "non-object data with an empty required list still passes"_test = []
+    {
         auto result =
             SchemaValidator::validate(R"({"required":[]})", serde::Value{std::int64_t{42}});
         expect(bool(result));
     };
 };
 
-suite<"SchemaValidator hand-rolled bracket scan"> schema_validator_scan_suite = [] {
-    "an escaped quote inside a required name parses without truncating"_test = [] {
+suite<"SchemaValidator hand-rolled bracket scan"> schema_validator_scan_suite = []
+{
+    "an escaped quote inside a required name parses without truncating"_test = []
+    {
         auto schema = R"({"required":["a\"b"]})";
         auto result = SchemaValidator::validate(schema, make_object({}));
         expect(!result.has_value()) << fatal;
         expect(result.error() == R"(missing required field 'a"b')");
     };
 
-    "literal bracket characters inside a quoted required name don't confuse the scan"_test = [] {
+    "literal bracket characters inside a quoted required name don't confuse the scan"_test = []
+    {
         auto schema = R"({"required":["weird[0]name"]})";
         auto result = SchemaValidator::validate(schema, make_object({}));
         expect(!result.has_value()) << fatal;
         expect(result.error() == "missing required field 'weird[0]name'");
     };
 
-    "an unterminated required array is treated as no required fields, no crash"_test = [] {
+    "an unterminated required array is treated as no required fields, no crash"_test = []
+    {
         auto schema = R"({"required":["order_id")";
         auto result = SchemaValidator::validate(schema, make_object({}));
         expect(bool(result));
     };
 
-    "malformed JSON with no closing brace at all still doesn't crash"_test = [] {
+    "malformed JSON with no closing brace at all still doesn't crash"_test = []
+    {
         auto result = SchemaValidator::validate(R"({"required": [)", make_object({}));
         expect(bool(result));
     };
@@ -225,17 +239,17 @@ suite<"SchemaValidator hand-rolled bracket scan"> schema_validator_scan_suite = 
     // required — but the scan latches onto the unrelated "other_field" array later in the
     // document and treats ITS entries as required field names instead.
     "BUG: a non-array 'required' value spuriously adopts a later unrelated array's entries"_test =
-        [] {
-            auto schema = R"({"required": "nope", "other_field": ["x", "y"]})";
-            auto result = SchemaValidator::validate(schema, make_object({}));
-            expect(!result.has_value()) << fatal;
-            expect(result.error() == "missing required field 'x'");
+        []
+    {
+        auto schema = R"({"required": "nope", "other_field": ["x", "y"]})";
+        auto result = SchemaValidator::validate(schema, make_object({}));
+        expect(!result.has_value()) << fatal;
+        expect(result.error() == "missing required field 'x'");
 
-            // Providing the spuriously-adopted names satisfies the (bogus) check.
-            auto satisfied =
-                SchemaValidator::validate(schema, make_object({{"x", "1"}, {"y", "2"}}));
-            expect(bool(satisfied));
-        };
+        // Providing the spuriously-adopted names satisfies the (bogus) check.
+        auto satisfied = SchemaValidator::validate(schema, make_object({{"x", "1"}, {"y", "2"}}));
+        expect(bool(satisfied));
+    };
 };
 
 } // namespace engine::schema_validator_tests

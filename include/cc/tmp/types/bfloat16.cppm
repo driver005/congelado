@@ -25,7 +25,6 @@ import std;
 import cc_abi;
 
 export {
-
     // Compact 16-bit encoding of floating point numbers. This representation uses
     // 1 bit for the sign, 8 bits for the exponent and 7 bits for the mantissa.  It
     // is assumed that floats are in IEEE 754 format so the representation is just
@@ -85,7 +84,8 @@ export {
                 memcpy(dst, src, sizeof(bfloat16));
 #else
                 memcpy(
-                    dst, reinterpret_cast<const char*>(src) + sizeof(float) - sizeof(bfloat16),
+                    dst,
+                    reinterpret_cast<const char*>(src) + sizeof(float) - sizeof(bfloat16),
                     sizeof(bfloat16)
                 );
 #endif

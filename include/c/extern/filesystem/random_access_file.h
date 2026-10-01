@@ -1,9 +1,9 @@
 #ifndef CONGELADO_C_FILESYSTEM_RANDOM_ACCESS_FILE_H_
 #define CONGELADO_C_FILESYSTEM_RANDOM_ACCESS_FILE_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -24,13 +24,23 @@ extern "C"
         void (*create)(TF_RandomAccessFile* out_handle);
         void (*destroy)(TF_RandomAccessFile* handle);
         void (*get_name)(TF_RandomAccessFile* file, TF_String* out_name);
-        void (*read)(TF_RandomAccessFile* file, uint64_t offset, size_t n, char* buffer, int64_t* out_bytes_read, TF_Status* out_status);
+        void (*read)(
+            TF_RandomAccessFile* file,
+            uint64_t offset,
+            size_t n,
+            char* buffer,
+            int64_t* out_bytes_read,
+            TF_Status* out_status
+        );
     } TF_RandomAccessFileOps;
 
 #define TF_RANDOM_ACCESS_FILE_STRUCT_SIZE TF_OFFSET_OF_END(TF_RandomAccessFileOps, read)
 
-    TF_CAPI_EXPORT void
-    create_random_access_file(TF_RandomAccessFileOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void create_random_access_file(
+        TF_RandomAccessFileOps** ops,
+        void** plugin_context,
+        TF_Status* out_status
+    );
     TF_CAPI_EXPORT void destroy_random_access_file(void* plugin_context);
 
 #ifdef __cplusplus

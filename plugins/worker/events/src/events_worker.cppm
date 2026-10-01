@@ -44,8 +44,8 @@ struct serde::Serializable<worker_events::EventsInput>
     {
         using worker_events::EventsInput;
         return std::tuple{
-            serde::FieldDesc<
-                "event_name", &EventsInput::getEventName, &EventsInput::setEventName>{},
+            serde::
+                FieldDesc<"event_name", &EventsInput::getEventName, &EventsInput::setEventName>{},
         };
     }
 };
@@ -125,26 +125,31 @@ public:
     int m_publish_count{0};
 };
 
-suite<"EventsInput"> events_input_suite = [] {
-    "setEventName/getEventName round-trips"_test = [] {
+suite<"EventsInput"> events_input_suite = []
+{
+    "setEventName/getEventName round-trips"_test = []
+    {
         EventsInput input;
         input.setEventName("app.started");
         expect(input.getEventName() == "app.started");
     };
 
-    "default-constructed event_name is empty"_test = [] {
+    "default-constructed event_name is empty"_test = []
+    {
         EventsInput input;
         expect(input.getEventName().empty());
     };
 
-    "from_value fails when 'event_name' is omitted"_test = [] {
+    "from_value fails when 'event_name' is omitted"_test = []
+    {
         auto value = rfl::json::read<rfl::Generic>(R"({})").value();
         auto parsed = serde::Ser::from_value<EventsInput>(value);
         expect(!parsed.has_value()) << fatal;
         expect(parsed.error().contains("event_name")) << parsed.error();
     };
 
-    "from_value succeeds when 'event_name' is present"_test = [] {
+    "from_value succeeds when 'event_name' is present"_test = []
+    {
         auto value = rfl::json::read<rfl::Generic>(R"({"event_name":"x"})").value();
         auto parsed = serde::Ser::from_value<EventsInput>(value);
         expect(parsed.has_value()) << fatal;
@@ -152,20 +157,24 @@ suite<"EventsInput"> events_input_suite = [] {
     };
 };
 
-suite<"EventsWorker"> events_worker_suite = [] {
-    "get_task_type reports 'events'"_test = [] {
+suite<"EventsWorker"> events_worker_suite = []
+{
+    "get_task_type reports 'events'"_test = []
+    {
         EventsWorker worker;
         expect(worker.get_task_type() == "events");
     };
 
-    "execute fails with an empty 'event_name'"_test = [] {
+    "execute fails with an empty 'event_name'"_test = []
+    {
         EventsWorker worker;
         auto value = rfl::json::read<rfl::Generic>(R"({"event_name":""})").value();
         auto result = worker.execute(value);
         expect(!result.has_value());
     };
 
-    "execute fails when no event sink is injected"_test = [] {
+    "execute fails when no event sink is injected"_test = []
+    {
         auto* previous = core::events::EventBusRegistry::get_active();
         core::events::EventBusRegistry::set_active(nullptr);
 
@@ -177,7 +186,8 @@ suite<"EventsWorker"> events_worker_suite = [] {
         core::events::EventBusRegistry::set_active(previous);
     };
 
-    "execute publishes the event_name and JSON payload to every registered sink"_test = [] {
+    "execute publishes the event_name and JSON payload to every registered sink"_test = []
+    {
         auto* previous = core::events::EventBusRegistry::get_active();
         core::events::EventBusRegistry registry;
         auto sink = std::make_shared<EventsWorkerFakeSink>();
@@ -198,7 +208,8 @@ suite<"EventsWorker"> events_worker_suite = [] {
         core::events::EventBusRegistry::set_active(previous);
     };
 
-    "execute excludes 'event_name' from the published payload"_test = [] {
+    "execute excludes 'event_name' from the published payload"_test = []
+    {
         auto* previous = core::events::EventBusRegistry::get_active();
         core::events::EventBusRegistry registry;
         auto sink = std::make_shared<EventsWorkerFakeSink>();
@@ -215,7 +226,8 @@ suite<"EventsWorker"> events_worker_suite = [] {
         core::events::EventBusRegistry::set_active(previous);
     };
 
-    "execute JSON-encodes a non-string payload field"_test = [] {
+    "execute JSON-encodes a non-string payload field"_test = []
+    {
         auto* previous = core::events::EventBusRegistry::get_active();
         core::events::EventBusRegistry registry;
         auto sink = std::make_shared<EventsWorkerFakeSink>();
@@ -232,7 +244,8 @@ suite<"EventsWorker"> events_worker_suite = [] {
         core::events::EventBusRegistry::set_active(previous);
     };
 
-    "execute propagates the from_value error when 'event_name' is missing"_test = [] {
+    "execute propagates the from_value error when 'event_name' is missing"_test = []
+    {
         EventsWorker worker;
         auto value = rfl::json::read<rfl::Generic>(R"({})").value();
         auto result = worker.execute(value);

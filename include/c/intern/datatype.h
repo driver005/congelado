@@ -16,9 +16,9 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_DATATYPE_H_
 #define TENSORFLOW_C_TF_DATATYPE_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -27,7 +27,8 @@ extern "C"
 {
 #endif
 
-    // TFDataTypeEnum — scalar element type for tensors. Values are identical to the corresponding entries in types.proto.
+    // TFDataTypeEnum — scalar element type for tensors. Values are identical to the corresponding
+    // entries in types.proto.
     typedef enum TFDataTypeEnum
     {
         TF_FLOAT = 1,
@@ -82,14 +83,16 @@ extern "C"
 
         void (*get_name)(TF_DataType* datatype, TF_String* out_name);
 
-        // Return the byte size of one scalar element of the given type. Returns 0 for variable-length types (e.g. TF_STRING) or on failure.
+        // Return the byte size of one scalar element of the given type. Returns 0 for
+        // variable-length types (e.g. TF_STRING) or on failure.
         void (*datatype_size)(TF_DataType* datatype, TFDataTypeEnum dt, size_t* out_size);
 
     } TF_DataTypeOps;
 
 #define TF_DATATYPE_STRUCT_SIZE TF_OFFSET_OF_END(TF_DataTypeOps, datatype_size)
 
-    TF_CAPI_EXPORT void create_datatype(TF_DataTypeOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void
+    create_datatype(TF_DataTypeOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_datatype(void* plugin_context);
 
 #ifdef __cplusplus

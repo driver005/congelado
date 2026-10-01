@@ -17,7 +17,9 @@ void post(
     auto request = congelado::client::ClientRuntime::new_request();
     std::move(*request).with_method("POST").with_path(std::format("/api/v1/worker/ack/{}", id));
     congelado::client::ClientRuntime::send(
-        std::move(request), std::move(onResponse), std::move(onError)
+        std::move(request),
+        std::move(onResponse),
+        std::move(onError)
     );
 }
 
@@ -36,7 +38,9 @@ void delete_(
         std::format("/api/v1/worker/executions/{}", id)
     );
     congelado::client::ClientRuntime::send(
-        std::move(request), std::move(onResponse), std::move(onError)
+        std::move(request),
+        std::move(onResponse),
+        std::move(onError)
     );
 }
 
@@ -51,18 +55,23 @@ void get(
         std::format("/api/v1/worker/executions/{}", id)
     );
     congelado::client::ClientRuntime::send(
-        std::move(request), std::move(onResponse), std::move(onError)
+        std::move(request),
+        std::move(onResponse),
+        std::move(onError)
     );
 }
 
 void get(
-    std::function<void()> onResponse, std::function<void(std::string)> onError = [](std::string) {}
+    std::function<void()> onResponse,
+    std::function<void(std::string)> onError = [](std::string) {}
 )
 {
     auto request = congelado::client::ClientRuntime::new_request();
     std::move(*request).with_method("GET").with_path("/api/v1/worker/executions");
     congelado::client::ClientRuntime::send(
-        std::move(request), std::move(onResponse), std::move(onError)
+        std::move(request),
+        std::move(onResponse),
+        std::move(onError)
     );
 }
 
@@ -71,13 +80,16 @@ void get(
 export namespace congelado_worker_api::health {
 
 void get(
-    std::function<void()> onResponse, std::function<void(std::string)> onError = [](std::string) {}
+    std::function<void()> onResponse,
+    std::function<void(std::string)> onError = [](std::string) {}
 )
 {
     auto request = congelado::client::ClientRuntime::new_request();
     std::move(*request).with_method("GET").with_path("/api/v1/worker/health");
     congelado::client::ClientRuntime::send(
-        std::move(request), std::move(onResponse), std::move(onError)
+        std::move(request),
+        std::move(onResponse),
+        std::move(onError)
     );
 }
 
@@ -86,13 +98,16 @@ void get(
 export namespace congelado_worker_api::info {
 
 void get(
-    std::function<void()> onResponse, std::function<void(std::string)> onError = [](std::string) {}
+    std::function<void()> onResponse,
+    std::function<void(std::string)> onError = [](std::string) {}
 )
 {
     auto request = congelado::client::ClientRuntime::new_request();
     std::move(*request).with_method("GET").with_path("/api/v1/worker/info");
     congelado::client::ClientRuntime::send(
-        std::move(request), std::move(onResponse), std::move(onError)
+        std::move(request),
+        std::move(onResponse),
+        std::move(onError)
     );
 }
 
@@ -109,7 +124,9 @@ void post(
     auto request = congelado::client::ClientRuntime::new_request();
     std::move(*request).with_method("POST").with_path(std::format("/api/v1/worker/poll/{}", type));
     congelado::client::ClientRuntime::send(
-        std::move(request), std::move(onResponse), std::move(onError)
+        std::move(request),
+        std::move(onResponse),
+        std::move(onError)
     );
 }
 

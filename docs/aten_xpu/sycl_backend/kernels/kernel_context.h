@@ -10,8 +10,9 @@
 // hands in. This class calls the ops table directly instead, the same way real TF C-API plugin
 // kernels do.
 //
-// The ops table itself is obtained once (create_op_kernel_context hands back a TF_OpKernelContextOps*
-// shared by every call, same convention as create_status/create_string) and cached here.
+// The ops table itself is obtained once (create_op_kernel_context hands back a
+// TF_OpKernelContextOps* shared by every call, same convention as create_status/create_string) and
+// cached here.
 #pragma once
 
 #include "include/c/extern/kernel/context.h"
@@ -63,7 +64,16 @@ public:
     ) const noexcept
     {
         TF_Tensor* tensor = nullptr;
-        ops().allocate_output(m_context, index, dtype, dims, num_dims, byte_size, &tensor, out_status);
+        ops().allocate_output(
+            m_context,
+            index,
+            dtype,
+            dims,
+            num_dims,
+            byte_size,
+            &tensor,
+            out_status
+        );
         return tensor;
     }
 

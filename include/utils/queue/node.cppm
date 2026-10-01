@@ -46,8 +46,10 @@ export struct Node
 namespace {
 using namespace boost::ut;
 
-suite<"Node"> node_suite = [] {
-    "default-constructed node has no next link and a zeroed refcount"_test = [] {
+suite<"Node"> node_suite = []
+{
+    "default-constructed node has no next link and a zeroed refcount"_test = []
+    {
         Node node;
         expect(node.m_next.load() == nullptr);
         expect(node.m_refs.load() == 0);

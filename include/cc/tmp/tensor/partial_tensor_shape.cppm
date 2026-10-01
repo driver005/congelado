@@ -23,7 +23,6 @@ import std;
 import cc_abi;
 
 export {
-
     // TODO(irving): Remove this forwarding header
 
 } // export

@@ -28,7 +28,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // Forward declare proto so that kernels don't need to depend on it
@@ -133,7 +132,8 @@ export {
 
         template<>
         KernelDefBuilder& KernelDefBuilder::AttrConstraint<int64_t>(
-            const char* attr_name, absl::Span<const int64_t> allowed
+            const char* attr_name,
+            absl::Span<const int64_t> allowed
         )
         {
             auto* constraint = kernel_def_->add_constraint();
@@ -150,13 +150,15 @@ export {
         KernelDefBuilder::AttrConstraint<int64_t>(const char* attr_name, int64_t allowed)
         {
             return AttrConstraint(
-                attr_name, absl::Span<const int64_t>(std::initializer_list<int64_t>({allowed}))
+                attr_name,
+                absl::Span<const int64_t>(std::initializer_list<int64_t>({allowed}))
             );
         }
 
         template<>
         KernelDefBuilder& KernelDefBuilder::AttrConstraint<std::string>(
-            const char* attr_name, absl::Span<const std::string> allowed
+            const char* attr_name,
+            absl::Span<const std::string> allowed
         )
         {
             auto* constraint = kernel_def_->add_constraint();
@@ -180,7 +182,8 @@ export {
 
         template<>
         KernelDefBuilder& KernelDefBuilder::AttrConstraint<const char*>(
-            const char* attr_name, absl::Span<const char* const> allowed
+            const char* attr_name,
+            absl::Span<const char* const> allowed
         )
         {
             auto* constraint = kernel_def_->add_constraint();

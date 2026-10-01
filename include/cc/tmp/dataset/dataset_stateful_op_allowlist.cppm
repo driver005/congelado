@@ -25,7 +25,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
         namespace data {
             // Registry for stateful ops that need to be used in dataset functions.

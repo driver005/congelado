@@ -207,14 +207,17 @@ private:
 namespace core::generator::tests {
 using namespace boost::ut;
 
-suite<"Namespace"> namespace_suite = [] {
-    "getName returns the namespace's own name"_test = [] {
+suite<"Namespace"> namespace_suite = []
+{
+    "getName returns the namespace's own name"_test = []
+    {
         Namespace ns{"my_ns"};
 
         expect(ns.getName() == "my_ns");
     };
 
-    "render opens/closes the namespace and emits classes before functions"_test = [] {
+    "render opens/closes the namespace and emits classes before functions"_test = []
+    {
         Namespace ns{"my_ns"};
         ns.addClass("Widget");
         ns.addFunction("void", "helper");
@@ -232,14 +235,17 @@ suite<"Namespace"> namespace_suite = [] {
     };
 };
 
-suite<"Module"> module_suite = [] {
-    "getName returns the module's own name"_test = [] {
+suite<"Module"> module_suite = []
+{
+    "getName returns the module's own name"_test = []
+    {
         Module mod{"my_module"};
 
         expect(mod.getName() == "my_module");
     };
 
-    "render emits module decl, imports, namespaces, then raw blocks in order"_test = [] {
+    "render emits module decl, imports, namespaces, then raw blocks in order"_test = []
+    {
         Module mod{"my_module"};
         mod.addImport("std");
         mod.addNamespace("my_ns").addClass("Widget");

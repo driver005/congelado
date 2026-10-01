@@ -61,7 +61,8 @@ public:
      * no match within the backend's horizon.
      */
     [[nodiscard]] virtual std::optional<std::chrono::system_clock::time_point> next_after(
-        std::string_view cron_expression, std::chrono::system_clock::time_point base
+        std::string_view cron_expression,
+        std::chrono::system_clock::time_point base
     ) const noexcept = 0;
 
     /**
@@ -119,8 +120,10 @@ public:
 
 using namespace boost::ut;
 
-suite<"ICron"> cron_suite = [] {
-    "required() defaults to true when not overridden"_test = [] {
+suite<"ICron"> cron_suite = []
+{
+    "required() defaults to true when not overridden"_test = []
+    {
         MockCron cron;
         expect(cron.required());
     };

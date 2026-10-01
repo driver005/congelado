@@ -18,79 +18,97 @@ export namespace io::codec::hpack {
 // initialized function-local static without a wider API change across this module.
 inline const std::array<std::shared_ptr<interfaces::io::HeaderField<true>>, 61> STATIC_TABLE = {
     /* 0  */ std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::AUTHORITY, ""
+        interfaces::io::types::Token::AUTHORITY,
+        ""
     ),
     /* 1  */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::METHOD, "GET"
+        interfaces::io::types::Token::METHOD,
+        "GET"
     ),
     /* 2  */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::METHOD, "POST"
+        interfaces::io::types::Token::METHOD,
+        "POST"
     ),
     /* 3  */
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::PATH, "/"),
     /* 4  */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::PATH, "/index.html"
+        interfaces::io::types::Token::PATH,
+        "/index.html"
     ),
     /* 5  */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::SCHEME, "http"
+        interfaces::io::types::Token::SCHEME,
+        "http"
     ),
     /* 6  */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::SCHEME, "https"
+        interfaces::io::types::Token::SCHEME,
+        "https"
     ),
     /* 7  */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "200"
+        interfaces::io::types::Token::STATUS,
+        "200"
     ),
     /* 8  */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "204"
+        interfaces::io::types::Token::STATUS,
+        "204"
     ),
     /* 9  */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "206"
+        interfaces::io::types::Token::STATUS,
+        "206"
     ),
     /* 10 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "304"
+        interfaces::io::types::Token::STATUS,
+        "304"
     ),
     /* 11 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "400"
+        interfaces::io::types::Token::STATUS,
+        "400"
     ),
     /* 12 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "404"
+        interfaces::io::types::Token::STATUS,
+        "404"
     ),
     /* 13 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "500"
+        interfaces::io::types::Token::STATUS,
+        "500"
     ),
     /* 14 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCEPT_CHARSET, ""
+        interfaces::io::types::Token::ACCEPT_CHARSET,
+        ""
     ),
     /* 15 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCEPT_ENCODING, "gzip, deflate"
+        interfaces::io::types::Token::ACCEPT_ENCODING,
+        "gzip, deflate"
     ),
     /* 16 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCEPT_LANGUAGE, ""
+        interfaces::io::types::Token::ACCEPT_LANGUAGE,
+        ""
     ),
     /* 17 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCEPT_RANGES, ""
+        interfaces::io::types::Token::ACCEPT_RANGES,
+        ""
     ),
     /* 18 */
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::ACCEPT, ""),
     /* 19 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_ORIGIN, ""
+        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_ORIGIN,
+        ""
     ),
     /* 20 */
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::AGE, ""),
@@ -98,39 +116,48 @@ inline const std::array<std::shared_ptr<interfaces::io::HeaderField<true>>, 61> 
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::ALLOW, ""),
     /* 22 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::AUTHORIZATION, ""
+        interfaces::io::types::Token::AUTHORIZATION,
+        ""
     ),
     /* 23 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CACHE_CONTROL, ""
+        interfaces::io::types::Token::CACHE_CONTROL,
+        ""
     ),
     /* 24 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_DISPOSITION, ""
+        interfaces::io::types::Token::CONTENT_DISPOSITION,
+        ""
     ),
     /* 25 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_ENCODING, ""
+        interfaces::io::types::Token::CONTENT_ENCODING,
+        ""
     ),
     /* 26 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_LANGUAGE, ""
+        interfaces::io::types::Token::CONTENT_LANGUAGE,
+        ""
     ),
     /* 27 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_LENGTH, ""
+        interfaces::io::types::Token::CONTENT_LENGTH,
+        ""
     ),
     /* 28 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_LOCATION, ""
+        interfaces::io::types::Token::CONTENT_LOCATION,
+        ""
     ),
     /* 29 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_RANGE, ""
+        interfaces::io::types::Token::CONTENT_RANGE,
+        ""
     ),
     /* 30 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_TYPE, ""
+        interfaces::io::types::Token::CONTENT_TYPE,
+        ""
     ),
     /* 31 */
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::COOKIE, ""),
@@ -150,21 +177,25 @@ inline const std::array<std::shared_ptr<interfaces::io::HeaderField<true>>, 61> 
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::IF_MATCH, ""),
     /* 39 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::IF_MODIFIED_SINCE, ""
+        interfaces::io::types::Token::IF_MODIFIED_SINCE,
+        ""
     ),
     /* 40 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::IF_NONE_MATCH, ""
+        interfaces::io::types::Token::IF_NONE_MATCH,
+        ""
     ),
     /* 41 */
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::IF_RANGE, ""),
     /* 42 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::IF_UNMODIFIED_SINCE, ""
+        interfaces::io::types::Token::IF_UNMODIFIED_SINCE,
+        ""
     ),
     /* 43 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::LAST_MODIFIED, ""
+        interfaces::io::types::Token::LAST_MODIFIED,
+        ""
     ),
     /* 44 */
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::LINK, ""),
@@ -172,15 +203,18 @@ inline const std::array<std::shared_ptr<interfaces::io::HeaderField<true>>, 61> 
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::LOCATION, ""),
     /* 46 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::MAX_FORWARDS, ""
+        interfaces::io::types::Token::MAX_FORWARDS,
+        ""
     ),
     /* 47 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::PROXY_AUTHENTICATE, ""
+        interfaces::io::types::Token::PROXY_AUTHENTICATE,
+        ""
     ),
     /* 48 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::PROXY_AUTHORIZATION, ""
+        interfaces::io::types::Token::PROXY_AUTHORIZATION,
+        ""
     ),
     /* 49 */
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::RANGE, ""),
@@ -190,25 +224,30 @@ inline const std::array<std::shared_ptr<interfaces::io::HeaderField<true>>, 61> 
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::REFRESH, ""),
     /* 52 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::RETRY_AFTER, ""
+        interfaces::io::types::Token::RETRY_AFTER,
+        ""
     ),
     /* 53 */
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::SERVER, ""),
     /* 54 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::SET_COOKIE, ""
+        interfaces::io::types::Token::SET_COOKIE,
+        ""
     ),
     /* 55 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STRICT_TRANSPORT_SECURITY, ""
+        interfaces::io::types::Token::STRICT_TRANSPORT_SECURITY,
+        ""
     ),
     /* 56 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::TRANSFER_ENCODING, ""
+        interfaces::io::types::Token::TRANSFER_ENCODING,
+        ""
     ),
     /* 57 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::USER_AGENT, ""
+        interfaces::io::types::Token::USER_AGENT,
+        ""
     ),
     /* 58 */
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::VARY, ""),
@@ -216,7 +255,8 @@ inline const std::array<std::shared_ptr<interfaces::io::HeaderField<true>>, 61> 
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::VIA, ""),
     /* 60 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::WWW_AUTHENTICATE, ""
+        interfaces::io::types::Token::WWW_AUTHENTICATE,
+        ""
     ),
 };
 
@@ -315,7 +355,9 @@ public:
                 m_dyn.search_full_match<shared_codec::IndexCalculation::H_PACK>(name, value);
             result.found()) {
             return shared_codec::SearchResult{
-                result.index() + HPackStatic::STATIC_SIZE + 1, true, true
+                result.index() + HPackStatic::STATIC_SIZE + 1,
+                true,
+                true
             };
         }
 
@@ -330,7 +372,9 @@ public:
         if (auto result = m_dyn.search_name_only<shared_codec::IndexCalculation::H_PACK>(name);
             result.found()) {
             return shared_codec::SearchResult{
-                result.index() + HPackStatic::STATIC_SIZE + 1, true, false
+                result.index() + HPackStatic::STATIC_SIZE + 1,
+                true,
+                false
             };
         }
 
@@ -424,14 +468,17 @@ private:
 namespace io::codec::hpack::tests {
 using namespace boost::ut;
 
-suite<"HPackTable static lookups"> hpack_table_static_suite = [] {
-    "index 0 is always invalid"_test = [] {
+suite<"HPackTable static lookups"> hpack_table_static_suite = []
+{
+    "index 0 is always invalid"_test = []
+    {
         HPackTable table;
 
         expect(not table[0].has_value());
     };
 
-    "index 1 resolves the first static entry (:authority)"_test = [] {
+    "index 1 resolves the first static entry (:authority)"_test = []
+    {
         HPackTable table;
         auto entry = table[1];
 
@@ -441,7 +488,8 @@ suite<"HPackTable static lookups"> hpack_table_static_suite = [] {
         expect(field->get_value() == "");
     };
 
-    "index 2 resolves :method GET"_test = [] {
+    "index 2 resolves :method GET"_test = []
+    {
         HPackTable table;
         auto entry = table[2];
 
@@ -451,13 +499,15 @@ suite<"HPackTable static lookups"> hpack_table_static_suite = [] {
         expect(field->get_value() == "GET");
     };
 
-    "index past the static table misses on an empty dynamic table"_test = [] {
+    "index past the static table misses on an empty dynamic table"_test = []
+    {
         HPackTable table;
 
         expect(not table[HPackStatic::STATIC_SIZE + 1].has_value());
     };
 
-    "at() mirrors operator[] for a valid index"_test = [] {
+    "at() mirrors operator[] for a valid index"_test = []
+    {
         HPackTable table;
 
         expect(
@@ -466,18 +516,30 @@ suite<"HPackTable static lookups"> hpack_table_static_suite = [] {
         );
     };
 
-    "at() throws for an invalid index"_test = [] {
+    "at() throws for an invalid index"_test = []
+    {
         HPackTable table;
 
-        expect(throws<std::out_of_range>([&] {
-            std::ignore = table.at(0);
-        }));
-        expect(throws<std::out_of_range>([&] {
-            std::ignore = table.at(HPackStatic::STATIC_SIZE + 1);
-        }));
+        expect(
+            throws<std::out_of_range>(
+                [&]
+                {
+                    std::ignore = table.at(0);
+                }
+            )
+        );
+        expect(
+            throws<std::out_of_range>(
+                [&]
+                {
+                    std::ignore = table.at(HPackStatic::STATIC_SIZE + 1);
+                }
+            )
+        );
     };
 
-    "search finds a static full match"_test = [] {
+    "search finds a static full match"_test = []
+    {
         HPackTable table;
         auto result = table.search("content-type", "");
 
@@ -487,7 +549,8 @@ suite<"HPackTable static lookups"> hpack_table_static_suite = [] {
         expect(result.index() == 31);
     };
 
-    "search falls back to a static name-only match"_test = [] {
+    "search falls back to a static name-only match"_test = []
+    {
         HPackTable table;
         auto result = table.search("content-type", "text/html");
 
@@ -497,7 +560,8 @@ suite<"HPackTable static lookups"> hpack_table_static_suite = [] {
         expect(result.index() == 31);
     };
 
-    "search misses entirely for an unknown header"_test = [] {
+    "search misses entirely for an unknown header"_test = []
+    {
         HPackTable table;
         auto result = table.search("x-does-not-exist", "value");
 
@@ -505,8 +569,10 @@ suite<"HPackTable static lookups"> hpack_table_static_suite = [] {
     };
 };
 
-suite<"HPackTable dynamic inserts"> hpack_table_dynamic_suite = [] {
-    "insert grows the dynamic table and is resolvable at its unified index"_test = [] {
+suite<"HPackTable dynamic inserts"> hpack_table_dynamic_suite = []
+{
+    "insert grows the dynamic table and is resolvable at its unified index"_test = []
+    {
         HPackTable table;
         std::size_t position = table.insert("x-custom", "value1");
 
@@ -522,7 +588,8 @@ suite<"HPackTable dynamic inserts"> hpack_table_dynamic_suite = [] {
         expect(field->get_value() == "value1");
     };
 
-    "insert accepts a well-known Token name"_test = [] {
+    "insert accepts a well-known Token name"_test = []
+    {
         HPackTable table;
         std::size_t position = table.insert(interfaces::io::types::Token::HOST, "example.com");
 
@@ -532,7 +599,8 @@ suite<"HPackTable dynamic inserts"> hpack_table_dynamic_suite = [] {
         expect(field->get_value() == "example.com");
     };
 
-    "search finds a dynamic full match at its unified index"_test = [] {
+    "search finds a dynamic full match at its unified index"_test = []
+    {
         HPackTable table;
         table.insert("x-custom", "value1");
         auto result = table.search("x-custom", "value1");
@@ -543,7 +611,8 @@ suite<"HPackTable dynamic inserts"> hpack_table_dynamic_suite = [] {
         expect(result.index() == HPackStatic::STATIC_SIZE + 1);
     };
 
-    "inserting past the byte budget evicts the oldest entry"_test = [] {
+    "inserting past the byte budget evicts the oldest entry"_test = []
+    {
         HPackTable table{50};
         table.insert("k1", "v1"); // size 36, fits alone
         table.insert("k2", "v2"); // size 36, forces eviction of k1 (36+36 > 50)
@@ -554,7 +623,8 @@ suite<"HPackTable dynamic inserts"> hpack_table_dynamic_suite = [] {
         expect(table.search("k2", "v2").found());
     };
 
-    "set_max_size shrinks the table, evicting down to fit"_test = [] {
+    "set_max_size shrinks the table, evicting down to fit"_test = []
+    {
         HPackTable table{100};
         table.insert("k1", "v1");
         table.insert("k2", "v2");

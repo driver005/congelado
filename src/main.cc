@@ -1,4 +1,5 @@
 #include "backward.hpp"
+
 #include <csignal>
 
 import std;
@@ -20,7 +21,8 @@ import congelado_heart;
  * the external (user-provided, custom) plugins directory, the intended user-facing knob.
  * @return whatever `ServerRunner::run` returns.
  */
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[])
+{
     // Everything here can throw (SignalHandling's ctor, filesystem::path construction,
     // std::format, ServerRunner::run itself) and none of it was previously caught — an
     // uncaught exception escaping main() terminates the process the same way a noexcept
@@ -47,9 +49,10 @@ int main(int argc, char *argv[]) {
             argc > 1 ? std::optional<std::filesystem::path>{argv[1]} : std::nullopt;
 
         // Hand off to ServerRunner for the actual server main loop.
-        return congelado::heart::ServerRunner{external_plugin_dir, internal_plugin_dir}
-            .run("~/cc/congelado/config/congelado.toml");
-    } catch (const std::exception &exception) {
+        return congelado::heart::ServerRunner{external_plugin_dir, internal_plugin_dir}.run(
+            "~/cc/congelado/config/congelado.toml"
+        );
+    } catch (const std::exception& exception) {
         try {
             std::println(stderr, "fatal: {}", exception.what());
         } catch (...) { // NOLINT(bugprone-empty-catch) — best-effort diagnostic only

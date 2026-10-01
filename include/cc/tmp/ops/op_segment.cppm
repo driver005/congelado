@@ -35,7 +35,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // OpSegment keeps track of OpKernels registered for sessions running

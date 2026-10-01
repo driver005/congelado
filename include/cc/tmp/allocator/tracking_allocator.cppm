@@ -31,7 +31,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // TrackingAllocator is a wrapper for an Allocator. It keeps a running
@@ -84,7 +83,9 @@ export {
             }
 
             void* AllocateRaw(
-                size_t alignment, size_t num_bytes, const AllocationAttributes& allocation_attr
+                size_t alignment,
+                size_t num_bytes,
+                const AllocationAttributes& allocation_attr
             ) override;
             void DeallocateRaw(void* ptr) override;
             bool TracksAllocationSizes() const override;
@@ -181,7 +182,9 @@ export {
         }
 
         void* TrackingAllocator::AllocateRaw(
-            size_t alignment, size_t num_bytes, const AllocationAttributes& allocation_attr
+            size_t alignment,
+            size_t num_bytes,
+            const AllocationAttributes& allocation_attr
         )
         {
             void* ptr = allocator_->AllocateRaw(alignment, num_bytes, allocation_attr);

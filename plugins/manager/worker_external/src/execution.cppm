@@ -55,7 +55,9 @@ public:
      * line.
      */
     static void list_executions(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     ) noexcept
     {
         // Build the engine query — this worker's own in-progress tasks, no more no less.
@@ -81,7 +83,8 @@ public:
         } else {
             core::logger::error("worker/executions", "list failed status={}", engine_res.m_status);
             core::events::publish(
-                "worker.executions.list_failed", {{"status", std::to_string(engine_res.m_status)}}
+                "worker.executions.list_failed",
+                {{"status", std::to_string(engine_res.m_status)}}
             );
             res.set_status(interfaces::io::types::Status::INTERNAL_SERVER_ERROR);
         }
@@ -100,7 +103,9 @@ public:
      * but don't expect it to handle trailing slashes or query strings gracefully.
      */
     static void get_execution(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     ) noexcept
     {
         // Pull :id off the tail of the path — plain rfind, no query-string handling.
@@ -127,7 +132,10 @@ public:
         // Anything else that's not a clean 200 is treated as a server-side L.
         if (engine_res.m_status != 200) {
             core::logger::error(
-                "worker/executions", "get {} failed status={}", task_id, engine_res.m_status
+                "worker/executions",
+                "get {} failed status={}",
+                task_id,
+                engine_res.m_status
             );
             core::events::publish(
                 "worker.executions.get_failed",
@@ -152,7 +160,9 @@ public:
      * 404, INTERNAL_SERVER_ERROR on anything else (including transport exceptions).
      */
     static void cancel_execution(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     ) noexcept
     {
         // Pull :id off the tail of the path, same deal as get_execution().
@@ -235,7 +245,8 @@ public:
     }
 
     void set_header(
-        std::variant<std::string_view, interfaces::io::types::Token>, std::string_view
+        std::variant<std::string_view, interfaces::io::types::Token>,
+        std::string_view
     ) & override
     {
     }
@@ -291,8 +302,10 @@ void install_throwing_client(WorkerContext& ctx)
     ctx.set_runtime(client);
 }
 
-suite<"ExecutionHandler"> execution_handler_suite = [] {
-    "list_executions replies 500 when the engine call throws"_test = [] {
+suite<"ExecutionHandler"> execution_handler_suite = []
+{
+    "list_executions replies 500 when the engine call throws"_test = []
+    {
         WorkerContext ctx;
         install_throwing_client(ctx);
         ctx.set_worker_id("worker-1");
@@ -301,15 +314,21 @@ suite<"ExecutionHandler"> execution_handler_suite = [] {
         io::layer::http2::HttpResponse res{1};
         bool sent = false;
 
-        ExecutionHandler::list_executions(req, res, [&sent] {
-            sent = true;
-        });
+        ExecutionHandler::list_executions(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::INTERNAL_SERVER_ERROR);
     };
 
-    "get_execution replies 500 when the engine call throws"_test = [] {
+    "get_execution replies 500 when the engine call throws"_test = []
+    {
         WorkerContext ctx;
         install_throwing_client(ctx);
         ExecutionHandler::bind(ctx);
@@ -318,15 +337,21 @@ suite<"ExecutionHandler"> execution_handler_suite = [] {
         req.set_header(interfaces::io::types::Token::PATH, "/api/v1/worker/executions/task-1");
         bool sent = false;
 
-        ExecutionHandler::get_execution(req, res, [&sent] {
-            sent = true;
-        });
+        ExecutionHandler::get_execution(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::INTERNAL_SERVER_ERROR);
     };
 
-    "cancel_execution replies 500 when the engine call throws"_test = [] {
+    "cancel_execution replies 500 when the engine call throws"_test = []
+    {
         WorkerContext ctx;
         install_throwing_client(ctx);
         ExecutionHandler::bind(ctx);
@@ -335,9 +360,14 @@ suite<"ExecutionHandler"> execution_handler_suite = [] {
         req.set_header(interfaces::io::types::Token::PATH, "/api/v1/worker/executions/task-1");
         bool sent = false;
 
-        ExecutionHandler::cancel_execution(req, res, [&sent] {
-            sent = true;
-        });
+        ExecutionHandler::cancel_execution(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::INTERNAL_SERVER_ERROR);

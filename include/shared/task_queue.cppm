@@ -51,7 +51,8 @@ public:
 
     WorkerFunction on_execute() override
     {
-        return [this] {
+        return [this]
+        {
             std::move_only_function<void()> job;
             {
                 std::lock_guard lock{m_mutex};
@@ -117,33 +118,43 @@ public:
 
 using namespace boost::ut;
 
-suite<"TaskQueue"> task_queue_suite = [] {
-    "get_name returns the constructor-provided name"_test = [] {
+suite<"TaskQueue"> task_queue_suite = []
+{
+    "get_name returns the constructor-provided name"_test = []
+    {
         TaskQueue queue{"my-queue"};
         expect(queue.get_name() == "my-queue");
     };
 
-    "push on an idle queue wakes it; push while running does not"_test = [] {
+    "push on an idle queue wakes it; push while running does not"_test = []
+    {
         TaskQueue queue{"wake-test"};
         int wake_count = 0;
-        queue.set_wake([&] {
-            ++wake_count;
-        });
+        queue.set_wake(
+            [&]
+            {
+                ++wake_count;
+            }
+        );
 
         queue.push([] {}); // idle -> running is still false, so this wakes.
         expect(wake_count == 1);
     };
 
-    "on_execute runs the oldest queued job and reschedules via this_handler"_test = [] {
+    "on_execute runs the oldest queued job and reschedules via this_handler"_test = []
+    {
         MockHandlerInterface mock;
         this_handler::current = &mock;
         this_handler::current_id = 7;
 
         TaskQueue queue{"run-test"};
         bool job_ran = false;
-        queue.push([&] {
-            job_ran = true;
-        });
+        queue.push(
+            [&]
+            {
+                job_ran = true;
+            }
+        );
 
         auto worker = queue.on_execute();
         worker();
@@ -154,28 +165,39 @@ suite<"TaskQueue"> task_queue_suite = [] {
         this_handler::current = nullptr;
     };
 
-    "on_execute with an empty queue parks without touching this_handler"_test = [] {
+    "on_execute with an empty queue parks without touching this_handler"_test = []
+    {
         TaskQueue queue{"empty-test"};
         auto worker = queue.on_execute();
-        expect(nothrow([&] {
-            worker();
-        }));
+        expect(nothrow(
+            [&]
+            {
+                worker();
+            }
+        ));
     };
 
-    "a job that throws is swallowed, not propagated"_test = [] {
+    "a job that throws is swallowed, not propagated"_test = []
+    {
         MockHandlerInterface mock;
         this_handler::current = &mock;
         this_handler::current_id = 1;
 
         TaskQueue queue{"throw-test"};
-        queue.push([] {
-            throw std::runtime_error{"boom"};
-        });
+        queue.push(
+            []
+            {
+                throw std::runtime_error{"boom"};
+            }
+        );
 
         auto worker = queue.on_execute();
-        expect(nothrow([&] {
-            worker();
-        }));
+        expect(nothrow(
+            [&]
+            {
+                worker();
+            }
+        ));
 
         this_handler::current = nullptr;
     };

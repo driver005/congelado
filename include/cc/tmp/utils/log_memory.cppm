@@ -25,7 +25,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // LogMemory contains methods for recording memory allocations and
@@ -77,7 +76,9 @@ export {
             // op_kernel.h, e.g. Op Kernel construction or an optimization pass
             // such as constant folding.
             static void RecordTensorAllocation(
-                const std::string& kernel_name, int64_t step_id, const Tensor& tensor
+                const std::string& kernel_name,
+                int64_t step_id,
+                const Tensor& tensor
             );
 
             // Log a tensor buffer deallocation. The deallocation is triggered
@@ -91,7 +92,10 @@ export {
 
             // Log the use of a tensor as an output from a kernel.
             static void RecordTensorOutput(
-                const std::string& kernel_name, int64_t step_id, int index, const Tensor& tensor
+                const std::string& kernel_name,
+                int64_t step_id,
+                int index,
+                const Tensor& tensor
             );
 
             // Log a "raw" allocation, which is just a buffer sized in
@@ -166,7 +170,9 @@ export {
         }
 
         void LogMemory::RecordTensorAllocation(
-            const std::string& kernel_name, const int64_t step_id, const Tensor& tensor
+            const std::string& kernel_name,
+            const int64_t step_id,
+            const Tensor& tensor
         )
         {
             MemoryLogTensorAllocation allocation;
@@ -177,7 +183,8 @@ export {
         }
 
         void LogMemory::RecordTensorDeallocation(
-            const int64_t allocation_id, const std::string& allocator_name
+            const int64_t allocation_id,
+            const std::string& allocator_name
         )
         {
             MemoryLogTensorDeallocation deallocation;

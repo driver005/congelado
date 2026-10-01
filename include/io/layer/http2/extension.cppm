@@ -283,15 +283,18 @@ private:
     std::uint32_t m_last_stream_opened{0};
 };
 
-suite<"HttpExtensionRegistry"> http_extension_registry_suite = [] {
-    "starts with no extensions registered"_test = [] {
+suite<"HttpExtensionRegistry"> http_extension_registry_suite = []
+{
+    "starts with no extensions registered"_test = []
+    {
         HttpExtensionRegistry registry;
 
         expect(not registry.has_extensions());
         expect(registry.get_extensions().empty());
     };
 
-    "add_extension registers it in order, and skips a null pointer"_test = [] {
+    "add_extension registers it in order, and skips a null pointer"_test = []
+    {
         HttpExtensionRegistry registry;
         registry.add_extension(std::make_shared<RecordingExtension>("first"));
         registry.add_extension(nullptr);
@@ -303,59 +306,78 @@ suite<"HttpExtensionRegistry"> http_extension_registry_suite = [] {
         expect(registry.get_extensions()[1]->name() == "second");
     };
 
-    "for_each invokes the functor on every registered extension, in order"_test = [] {
+    "for_each invokes the functor on every registered extension, in order"_test = []
+    {
         HttpExtensionRegistry registry;
         registry.add_extension(std::make_shared<RecordingExtension>("a"));
         registry.add_extension(std::make_shared<RecordingExtension>("b"));
 
         std::vector<std::string> visited;
-        registry.for_each([&](auto& extension) {
-            visited.emplace_back(extension->name());
-        });
+        registry.for_each(
+            [&](auto& extension)
+            {
+                visited.emplace_back(extension->name());
+            }
+        );
 
         expect(visited.size() == 2U);
         expect(visited[0] == "a");
         expect(visited[1] == "b");
     };
 
-    "for_each is a zero-iteration no-op on an empty registry"_test = [] {
+    "for_each is a zero-iteration no-op on an empty registry"_test = []
+    {
         HttpExtensionRegistry registry;
 
         int calls = 0;
-        registry.for_each([&](auto&) {
-            ++calls;
-        });
+        registry.for_each(
+            [&](auto&)
+            {
+                ++calls;
+            }
+        );
 
         expect(calls == 0);
     };
 
-    "hooks fire through the registry against the concrete extension's state"_test = [] {
+    "hooks fire through the registry against the concrete extension's state"_test = []
+    {
         HttpExtensionRegistry registry;
         auto extension = std::make_shared<RecordingExtension>("tracker");
         registry.add_extension(extension);
 
-        registry.for_each([](auto& ext) {
-            ext->on_connection_open();
-        });
-        registry.for_each([](auto& ext) {
-            ext->on_stream_open(11);
-        });
+        registry.for_each(
+            [](auto& ext)
+            {
+                ext->on_connection_open();
+            }
+        );
+        registry.for_each(
+            [](auto& ext)
+            {
+                ext->on_stream_open(11);
+            }
+        );
 
         expect(extension->get_connection_open_count() == 1);
         expect(extension->get_last_stream_opened() == 11U);
     };
 
-    "default hook implementations on the base class are inert no-ops"_test = [] {
+    "default hook implementations on the base class are inert no-ops"_test = []
+    {
         RecordingExtension extension{"noop"};
 
-        expect(nothrow([&] {
-            extension.on_connection_close(0);
-            extension.on_ping(true);
-            extension.on_window_update(0, 100);
-            extension.on_settings_ack();
-            extension.on_stream_reset(1, 8);
-            extension.on_stream_close(1);
-        }));
+        expect(nothrow(
+            [&]
+            {
+                extension.on_connection_close(0);
+                extension.on_ping(true);
+                extension.on_window_update(0, 100);
+                extension.on_settings_ack();
+                extension.on_stream_reset(1, 8);
+                extension.on_stream_close(1);
+            }
+        ));
     };
 };
 

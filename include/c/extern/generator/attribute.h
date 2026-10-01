@@ -1,9 +1,9 @@
 #ifndef CONGELADO_C_GENERATOR_ATTRIBUTE_H_
 #define CONGELADO_C_GENERATOR_ATTRIBUTE_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #include <stdbool.h>
 
@@ -38,8 +38,11 @@ extern "C"
 
 #define TF_GENERATOR_ATTRIBUTE_STRUCT_SIZE TF_OFFSET_OF_END(TFGeneratorAttributeOps, is_list)
 
-    TF_CAPI_EXPORT void
-    create_generator_attribute(TFGeneratorAttributeOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void create_generator_attribute(
+        TFGeneratorAttributeOps** ops,
+        void** plugin_context,
+        TF_Status* out_status
+    );
     TF_CAPI_EXPORT void destroy_generator_attribute(void* plugin_context);
 
 #ifdef __cplusplus

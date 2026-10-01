@@ -29,7 +29,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // Forward declaration to avoid introducing a dependency on headers in

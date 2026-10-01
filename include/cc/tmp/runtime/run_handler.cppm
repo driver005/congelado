@@ -43,7 +43,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace Eigen {
         struct ThreadPoolDevice;
     }
@@ -156,7 +155,9 @@ export {
                 };
 
                 RunHandlerEnvironment(
-                    Env* env, const ThreadOptions& thread_options, const std::string& name
+                    Env* env,
+                    const ThreadOptions& thread_options,
+                    const std::string& name
                 );
 
                 EnvThread* CreateThread(std::function<void()> f, const std::string& thread_name);
@@ -278,7 +279,9 @@ export {
                 void StartOneThreadForTesting();
 
                 void AddWorkToQueue(
-                    ThreadWorkSource* tws, bool is_blocking, std::function<void()> fn
+                    ThreadWorkSource* tws,
+                    bool is_blocking,
+                    std::function<void()> fn
                 );
 
                 // Set work queues from which the thread 'tid' can steal its work.
@@ -385,7 +388,9 @@ export {
 
         namespace internal {
             RunHandlerEnvironment::RunHandlerEnvironment(
-                Env* env, const ThreadOptions& thread_options, const string& name
+                Env* env,
+                const ThreadOptions& thread_options,
+                const string& name
             ) :
                 env_(env),
                 thread_options_(thread_options),
@@ -394,19 +399,25 @@ export {
             }
 
             RunHandlerEnvironment::EnvThread* RunHandlerEnvironment::CreateThread(
-                std::function<void()> f, const std::string& thread_name
+                std::function<void()> f,
+                const std::string& thread_name
             )
             {
-                return env_->StartThread(thread_options_, thread_name, [=]() {
-                    // Set the processor flag to flush denormals to zero.
-                    port::ScopedFlushDenormal flush;
-                    // Set the processor rounding mode to ROUND TO NEAREST.
-                    port::ScopedSetRound round(FE_TONEAREST);
-                    if (thread_options_.numa_node != port::kNUMANoAffinity) {
-                        port::NUMASetThreadNodeAffinity(thread_options_.numa_node);
+                return env_->StartThread(
+                    thread_options_,
+                    thread_name,
+                    [=]()
+                    {
+                        // Set the processor flag to flush denormals to zero.
+                        port::ScopedFlushDenormal flush;
+                        // Set the processor rounding mode to ROUND TO NEAREST.
+                        port::ScopedSetRound round(FE_TONEAREST);
+                        if (thread_options_.numa_node != port::kNUMANoAffinity) {
+                            port::NUMASetThreadNodeAffinity(thread_options_.numa_node);
+                        }
+                        f();
                     }
-                    f();
-                });
+                );
             }
 
             RunHandlerEnvironment::Task RunHandlerEnvironment::CreateTask(std::function<void()> f)
@@ -433,7 +444,10 @@ export {
             }
 
             void WaitOnWaiter(
-                Waiter* waiter, Waiter* queue_head, mutex* mutex, int max_sleep_micros
+                Waiter* waiter,
+                Waiter* queue_head,
+                mutex* mutex,
+                int max_sleep_micros
             )
             {
                 {
@@ -668,10 +682,16 @@ export {
             std::string ThreadWorkSource::ToString()
             {
                 return strings::StrCat(
-                    "traceme_id = ", GetTracemeId(), ", inter queue size = ", TaskQueueSize(true),
-                    ", inter inflight = ", GetInflightTaskCount(true),
-                    ", intra queue size = ", TaskQueueSize(false),
-                    ", intra inflight = ", GetInflightTaskCount(false)
+                    "traceme_id = ",
+                    GetTracemeId(),
+                    ", inter queue size = ",
+                    TaskQueueSize(true),
+                    ", inter inflight = ",
+                    GetInflightTaskCount(true),
+                    ", intra queue size = ",
+                    TaskQueueSize(false),
+                    ", intra inflight = ",
+                    GetInflightTaskCount(false)
                 );
             }
 
@@ -749,7 +769,8 @@ export {
                     // sub thread pool is only provided for blocking threads.
                     // Name the threads accordingly.
                     thread_data_[i].thread.reset(env_.CreateThread(
-                        [this, is_blocking_thread, i, sub_thread_pool_id]() {
+                        [this, is_blocking_thread, i, sub_thread_pool_id]()
+                        {
                             WorkerLoop(i, is_blocking_thread);
                         },
                         is_blocking_thread
@@ -764,7 +785,8 @@ export {
                 cancelled_ = false;
                 thread_data_[0].sub_thread_pool_id = 0;
                 thread_data_[0].thread.reset(env_.CreateThread(
-                    [this]() {
+                    [this]()
+                    {
                         WorkerLoop(0, true);
                     },
                     name_
@@ -772,7 +794,9 @@ export {
             }
 
             void RunHandlerThreadPool::AddWorkToQueue(
-                ThreadWorkSource* tws, bool is_blocking, std::function<void()> fn
+                ThreadWorkSource* tws,
+                bool is_blocking,
+                std::function<void()> fn
             )
             {
                 Task t = env_.CreateTask(std::move(fn));
@@ -876,13 +900,15 @@ export {
                 current_index(0),
                 new_thread_work_sources(new Eigen::MaxSizeVector<ThreadWorkSource*>(
                     static_cast<int32>(ParamFromEnvWithDefault(
-                        "TF_RUN_HANDLER_MAX_CONCURRENT_HANDLERS", kMaxConcurrentHandlers
+                        "TF_RUN_HANDLER_MAX_CONCURRENT_HANDLERS",
+                        kMaxConcurrentHandlers
                     ))
                 )),
                 current_version(0),
                 current_thread_work_sources(new Eigen::MaxSizeVector<ThreadWorkSource*>(
                     static_cast<int32>(ParamFromEnvWithDefault(
-                        "TF_RUN_HANDLER_MAX_CONCURRENT_HANDLERS", kMaxConcurrentHandlers
+                        "TF_RUN_HANDLER_MAX_CONCURRENT_HANDLERS",
+                        kMaxConcurrentHandlers
                     ))
                 ))
             {
@@ -972,33 +998,49 @@ export {
                                 active_requests *
                                 sub_thread_pool_end_request_percentage_[sub_thread_pool_id];
                             search_range_end = std::min(
-                                active_requests, std::max(search_range_end, search_range_start + 1)
+                                active_requests,
+                                std::max(search_range_end, search_range_start + 1)
                             );
 
                             t = FindTask(
-                                search_range_start, search_range_end, thread_id, sub_thread_pool_id,
+                                search_range_start,
+                                search_range_end,
+                                thread_id,
+                                sub_thread_pool_id,
                                 kMaxBlockingInflight,
-                                /*may_steal_blocking_work=*/true, *thread_work_sources,
-                                &task_from_blocking_queue, &tws
+                                /*may_steal_blocking_work=*/true,
+                                *thread_work_sources,
+                                &task_from_blocking_queue,
+                                &tws
                             );
                             if (!t.f) {
                                 // Search from all requests if the thread cannot find tasks from
                                 // requests that belong to its own sub thread pool.
                                 t = FindTask(
-                                    0, active_requests, thread_id, sub_thread_pool_id,
+                                    0,
+                                    active_requests,
+                                    thread_id,
+                                    sub_thread_pool_id,
                                     kMaxBlockingInflight,
-                                    /*may_steal_blocking_work=*/true, *thread_work_sources,
-                                    &task_from_blocking_queue, &tws
+                                    /*may_steal_blocking_work=*/true,
+                                    *thread_work_sources,
+                                    &task_from_blocking_queue,
+                                    &tws
                                 );
                             }
                         } else {
                             // For non-blocking threads, it will always search from all pending
                             // requests.
                             t = FindTask(
-                                0, active_requests, thread_id, sub_thread_pool_id,
+                                0,
+                                active_requests,
+                                thread_id,
+                                sub_thread_pool_id,
                                 kMaxBlockingInflight,
-                                /*may_steal_blocking_work=*/false, *thread_work_sources,
-                                &task_from_blocking_queue, &tws
+                                /*may_steal_blocking_work=*/false,
+                                *thread_work_sources,
+                                &task_from_blocking_queue,
+                                &tws
                             );
                         }
                     } else {
@@ -1039,10 +1081,15 @@ export {
                     }
                     if (t.f) {
                         profiler::TraceMe activity(
-                            [=] {
+                            [=]
+                            {
                                 return strings::StrCat(
                                     task_from_blocking_queue ? "inter" : "intra",
-                                    " #id = ", tws->GetTracemeId(), " ", thread_id, "#"
+                                    " #id = ",
+                                    tws->GetTracemeId(),
+                                    " ",
+                                    thread_id,
+                                    "#"
                                 );
                             },
                             profiler::TraceMeLevel::kInfo
@@ -1054,7 +1101,8 @@ export {
                         tws->DecrementInflightTaskCount(task_from_blocking_queue);
                     } else {
                         profiler::TraceMe activity(
-                            [=] {
+                            [=]
+                            {
                                 return strings::StrCat("Sleeping#thread_id=", thread_id, "#");
                             },
                             profiler::TraceMeLevel::kInfo
@@ -1075,7 +1123,8 @@ export {
             }
 
             void RunHandlerThreadPool::WaitForWorkInSubThreadPool(
-                bool is_blocking, int sub_thread_pool_id
+                bool is_blocking,
+                int sub_thread_pool_id
             )
             {
                 const int kMaxSleepMicros = 250;
@@ -1088,13 +1137,17 @@ export {
 
                 thread_local Waiter waiter;
                 WaitOnWaiter(
-                    &waiter, &(*queue_waiters_)[sub_thread_pool_id],
-                    &(*waiters_mu_)[sub_thread_pool_id], kMaxSleepMicros
+                    &waiter,
+                    &(*queue_waiters_)[sub_thread_pool_id],
+                    &(*waiters_mu_)[sub_thread_pool_id],
+                    kMaxSleepMicros
                 );
             }
 
             void RunHandlerThreadPool::WaitForWork(
-                bool is_blocking, int thread_id, int32_t max_blocking_inflight
+                bool is_blocking,
+                int thread_id,
+                int32_t max_blocking_inflight
             )
             {
                 const int kMaxSleepMicros = 250;
@@ -1177,7 +1230,8 @@ export {
             void ScheduleIntraOpClosure(std::function<void()> fn);
 
             void Reset(
-                int64_t step_id, const RunOptions::Experimental::RunHandlerPoolOptions& options
+                int64_t step_id,
+                const RunOptions::Experimental::RunHandlerPoolOptions& options
             );
 
             RunHandlerPool::Impl* pool_impl()
@@ -1231,7 +1285,8 @@ export {
             explicit Impl(int num_inter_op_threads, int num_intra_op_threads) :
                 max_handlers_(
                     static_cast<int32>(ParamFromEnvWithDefault(
-                        "TF_RUN_HANDLER_MAX_CONCURRENT_HANDLERS", kMaxConcurrentHandlers
+                        "TF_RUN_HANDLER_MAX_CONCURRENT_HANDLERS",
+                        kMaxConcurrentHandlers
                     ))
                 ),
                 waiters_mu_(ParamFromEnvWithDefault("TF_RUN_HANDLER_NUM_SUB_THREAD_POOL", 2)),
@@ -1306,7 +1361,8 @@ export {
                         std::unique_ptr<Eigen::MaxSizeVector<internal::ThreadWorkSource*>>(
                             new Eigen::MaxSizeVector<internal::ThreadWorkSource*>(
                                 static_cast<int32>(ParamFromEnvWithDefault(
-                                    "TF_RUN_HANDLER_MAX_CONCURRENT_HANDLERS", kMaxConcurrentHandlers
+                                    "TF_RUN_HANDLER_MAX_CONCURRENT_HANDLERS",
+                                    kMaxConcurrentHandlers
                                 ))
                             )
                         );
@@ -1317,7 +1373,8 @@ export {
                     mutex_lock l(mu_);
                     if (!has_free_handler()) {
                         profiler::TraceMe activity(
-                            [&] {
+                            [&]
+                            {
                                 return strings::StrCat("WaitingForHandler#step_id=", step_id, "#");
                             },
                             profiler::TraceMeLevel::kInfo
@@ -1381,7 +1438,9 @@ export {
                 // Erase from and update sorted_active_handlers_. Add it to the end of
                 // free_handlers_.
                 auto iter = std::find(
-                    sorted_active_handlers_.begin(), sorted_active_handlers_.end(), handler
+                    sorted_active_handlers_.begin(),
+                    sorted_active_handlers_.end(),
+                    handler
                 );
                 DCHECK(iter != sorted_active_handlers_.end())
                     << "Unexpected handler: " << handler << " is being requested for release";
@@ -1464,7 +1523,9 @@ export {
                     sub_thread_pool_id++;
                 }
                 thread_work_sources[i]->SetWaiter(
-                    version, &queue_waiters_[sub_thread_pool_id], &waiters_mu_[sub_thread_pool_id]
+                    version,
+                    &queue_waiters_[sub_thread_pool_id],
+                    &waiters_mu_[sub_thread_pool_id]
                 );
             }
 
@@ -1473,24 +1534,28 @@ export {
             int num_non_blocking_threads = num_threads - num_blocking_threads;
 
             std::vector<int> request_idx_list = ChooseRequestsWithExponentialDistribution(
-                num_active_requests, num_blocking_threads
+                num_active_requests,
+                num_blocking_threads
             );
             for (int i = 0; i < num_blocking_threads; ++i) {
                 VLOG(2) << "Set work for tid=" << i
                         << " with start_request_idx=" << request_idx_list[i];
-                run_handler_thread_pool()->SetThreadWorkSources(
-                    i, request_idx_list[i], version, thread_work_sources
-                );
+                run_handler_thread_pool()
+                    ->SetThreadWorkSources(i, request_idx_list[i], version, thread_work_sources);
             }
 
             request_idx_list = ChooseRequestsWithExponentialDistribution(
-                num_active_requests, num_non_blocking_threads
+                num_active_requests,
+                num_non_blocking_threads
             );
             for (int i = 0; i < num_non_blocking_threads; ++i) {
                 VLOG(2) << "Set work for tid=" << (i + num_blocking_threads)
                         << " with start_request_idx=" << request_idx_list[i];
                 run_handler_thread_pool()->SetThreadWorkSources(
-                    i + num_blocking_threads, request_idx_list[i], version, thread_work_sources
+                    i + num_blocking_threads,
+                    request_idx_list[i],
+                    version,
+                    thread_work_sources
                 );
             }
         }
@@ -1557,7 +1622,8 @@ export {
         }
 
         void RunHandler::Impl::Reset(
-            int64_t step_id, const RunOptions::Experimental::RunHandlerPoolOptions& options
+            int64_t step_id,
+            const RunOptions::Experimental::RunHandlerPoolOptions& options
         )
         {
             start_time_us_ = tensorflow::Env::Default()->NowMicros();

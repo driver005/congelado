@@ -1,7 +1,7 @@
 module;
 #ifdef CONGELADO_TEST
-#    include <rfl/Generic.hpp>
-#    include <rfl/json.hpp>
+    #include <rfl/Generic.hpp>
+    #include <rfl/json.hpp>
 #endif
 
 export module engine:schedule_handler;
@@ -66,13 +66,17 @@ public:
     }
 
     void list_schedules(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     ) noexcept
     {
         auto accept = req.find_header("accept");
         m_ctx.get().get_connector().find_all<model::WorkflowSchedule>(
-            [&res, accept,
-             send = std::move(send)](const std::vector<model::WorkflowSchedule>& schedules) {
+            [&res,
+             accept,
+             send = std::move(send)](const std::vector<model::WorkflowSchedule>& schedules)
+            {
                 reply(res, serde::Ser::serialize(accept, schedules));
                 send();
             }
@@ -80,17 +84,21 @@ public:
     }
 
     void get_schedule(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     ) noexcept
     {
         auto accept = req.find_header("accept");
         auto name = last_segment(req);
         m_ctx.get().get_connector().find<model::WorkflowSchedule>(
             name,
-            [&res, accept, send = std::move(send)](std::optional<model::WorkflowSchedule> result) {
+            [&res, accept, send = std::move(send)](std::optional<model::WorkflowSchedule> result)
+            {
                 if (!result) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not found"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not found"),
                         interfaces::io::types::Status::NOT_FOUND
                     );
                     send();
@@ -103,7 +111,9 @@ public:
     }
 
     void create_schedule(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         auto accept = req.find_header("accept");
@@ -113,7 +123,8 @@ public:
         if (!parsed) {
             core::logger::warning("engine", "schedule/create bad request: {}", parsed.error());
             reply(
-                res, serde::Ser::serialize_error(accept, parsed.error()),
+                res,
+                serde::Ser::serialize_error(accept, parsed.error()),
                 interfaces::io::types::Status::BAD_REQUEST
             );
             send();
@@ -121,7 +132,8 @@ public:
         }
         if (auto validate = parsed->validate(); !validate) {
             reply(
-                res, serde::Ser::serialize_error(accept, validate.error()),
+                res,
+                serde::Ser::serialize_error(accept, validate.error()),
                 interfaces::io::types::Status::UNPROCESSABLE_CONTENT
             );
             send();
@@ -130,7 +142,8 @@ public:
         auto* cron = m_ctx.get().get_cron();
         if (cron == nullptr) {
             reply(
-                res, serde::Ser::serialize_error(accept, "no cron backend configured"),
+                res,
+                serde::Ser::serialize_error(accept, "no cron backend configured"),
                 interfaces::io::types::Status::SERVICE_UNAVAILABLE
             );
             send();
@@ -138,7 +151,8 @@ public:
         }
         if (!cron->validate(parsed->get_cron_expression())) {
             reply(
-                res, serde::Ser::serialize_error(accept, "cron_expression does not parse"),
+                res,
+                serde::Ser::serialize_error(accept, "cron_expression does not parse"),
                 interfaces::io::types::Status::UNPROCESSABLE_CONTENT
             );
             send();
@@ -146,10 +160,13 @@ public:
         }
         model::WorkflowSchedule schedule = *parsed;
         m_ctx.get().get_connector().upsert<model::WorkflowSchedule>(
-            schedule, [&res, accept, schedule, cron, send = std::move(send)](bool oke) {
+            schedule,
+            [&res, accept, schedule, cron, send = std::move(send)](bool oke)
+            {
                 if (!oke) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "upsert failed"),
+                        res,
+                        serde::Ser::serialize_error(accept, "upsert failed"),
                         interfaces::io::types::Status::INTERNAL_SERVER_ERROR
                     );
                     send();
@@ -161,7 +178,8 @@ public:
                 core::logger::info("engine", "schedule created: '{}'", schedule.get_name());
                 core::events::publish("engine.schedule.created", {{"name", schedule.get_name()}});
                 reply(
-                    res, serde::Ser::serialize(accept, schedule),
+                    res,
+                    serde::Ser::serialize(accept, schedule),
                     interfaces::io::types::Status::CREATED
                 );
                 send();
@@ -170,7 +188,9 @@ public:
     }
 
     void update_schedule(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         auto accept = req.find_header("accept");
@@ -179,7 +199,8 @@ public:
         auto parsed = serde::Ser::deserialize<model::WorkflowSchedule>(content_type, body);
         if (!parsed) {
             reply(
-                res, serde::Ser::serialize_error(accept, parsed.error()),
+                res,
+                serde::Ser::serialize_error(accept, parsed.error()),
                 interfaces::io::types::Status::BAD_REQUEST
             );
             send();
@@ -187,7 +208,8 @@ public:
         }
         if (auto validate = parsed->validate(); !validate) {
             reply(
-                res, serde::Ser::serialize_error(accept, validate.error()),
+                res,
+                serde::Ser::serialize_error(accept, validate.error()),
                 interfaces::io::types::Status::UNPROCESSABLE_CONTENT
             );
             send();
@@ -196,7 +218,8 @@ public:
         auto* cron = m_ctx.get().get_cron();
         if (cron == nullptr) {
             reply(
-                res, serde::Ser::serialize_error(accept, "no cron backend configured"),
+                res,
+                serde::Ser::serialize_error(accept, "no cron backend configured"),
                 interfaces::io::types::Status::SERVICE_UNAVAILABLE
             );
             send();
@@ -204,7 +227,8 @@ public:
         }
         if (!cron->validate(parsed->get_cron_expression())) {
             reply(
-                res, serde::Ser::serialize_error(accept, "cron_expression does not parse"),
+                res,
+                serde::Ser::serialize_error(accept, "cron_expression does not parse"),
                 interfaces::io::types::Status::UNPROCESSABLE_CONTENT
             );
             send();
@@ -212,10 +236,13 @@ public:
         }
         model::WorkflowSchedule schedule = *parsed;
         m_ctx.get().get_connector().update<model::WorkflowSchedule>(
-            schedule, [&res, accept, schedule, cron, send = std::move(send)](bool oke) {
+            schedule,
+            [&res, accept, schedule, cron, send = std::move(send)](bool oke)
+            {
                 if (!oke) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not found"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not found"),
                         interfaces::io::types::Status::NOT_FOUND
                     );
                     send();
@@ -235,17 +262,22 @@ public:
     }
 
     void remove_schedule(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     ) noexcept
     {
         auto accept = req.find_header("accept");
         auto name = last_segment(req);
         auto* cron = m_ctx.get().get_cron();
         m_ctx.get().get_connector().remove<model::WorkflowSchedule>(
-            name, [&res, accept, name, cron, send = std::move(send)](bool oke) {
+            name,
+            [&res, accept, name, cron, send = std::move(send)](bool oke)
+            {
                 if (!oke) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not found"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not found"),
                         interfaces::io::types::Status::NOT_FOUND
                     );
                     send();
@@ -261,14 +293,18 @@ public:
     }
 
     void pause_schedule(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         set_paused(req, res, std::move(send), true);
     }
 
     void resume_schedule(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         set_paused(req, res, std::move(send), false);
@@ -287,7 +323,9 @@ public:
      * found, 422 if its cron_expression doesn't parse.
      */
     void next_few_runs(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         auto accept = req.find_header("accept");
@@ -299,18 +337,23 @@ public:
         auto* cron = m_ctx.get().get_cron();
         if (cron == nullptr) {
             reply(
-                res, serde::Ser::serialize_error(accept, "no cron backend configured"),
+                res,
+                serde::Ser::serialize_error(accept, "no cron backend configured"),
                 interfaces::io::types::Status::SERVICE_UNAVAILABLE
             );
             send();
             return;
         }
         m_ctx.get().get_connector().find<model::WorkflowSchedule>(
-            name, [&res, accept, cron,
-                   send = std::move(send)](std::optional<model::WorkflowSchedule> schedule) {
+            name,
+            [&res, accept, cron, send = std::move(send)](
+                std::optional<model::WorkflowSchedule> schedule
+            )
+            {
                 if (!schedule) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not found"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not found"),
                         interfaces::io::types::Status::NOT_FOUND
                     );
                     send();
@@ -318,7 +361,8 @@ public:
                 }
                 if (!cron->validate(schedule->get_cron_expression())) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "cron_expression does not parse"),
+                        res,
+                        serde::Ser::serialize_error(accept, "cron_expression does not parse"),
                         interfaces::io::types::Status::UNPROCESSABLE_CONTENT
                     );
                     send();
@@ -354,11 +398,15 @@ private:
         auto name = second_to_last_segment(req);
         auto* cron = m_ctx.get().get_cron();
         m_ctx.get().get_connector().find<model::WorkflowSchedule>(
-            name, [this, &res, accept, paused, cron,
-                   send = std::move(send)](std::optional<model::WorkflowSchedule> schedule) {
+            name,
+            [this, &res, accept, paused, cron, send = std::move(send)](
+                std::optional<model::WorkflowSchedule> schedule
+            )
+            {
                 if (!schedule) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not found"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not found"),
                         interfaces::io::types::Status::NOT_FOUND
                     );
                     send();
@@ -367,10 +415,13 @@ private:
                 schedule->set_paused(paused);
                 model::WorkflowSchedule updated = *schedule;
                 m_ctx.get().get_connector().update<model::WorkflowSchedule>(
-                    updated, [&res, accept, updated, cron, send = std::move(send)](bool oke) {
+                    updated,
+                    [&res, accept, updated, cron, send = std::move(send)](bool oke)
+                    {
                         if (!oke) {
                             reply(
-                                res, serde::Ser::serialize_error(accept, "not found"),
+                                res,
+                                serde::Ser::serialize_error(accept, "not found"),
                                 interfaces::io::types::Status::NOT_FOUND
                             );
                             send();
@@ -436,7 +487,9 @@ struct serde::Serializable<engine::ScheduleNextRun>
     {
         return std::tuple{
             serde::FieldDesc<
-                "at", &engine::ScheduleNextRun::get_at, &engine::ScheduleNextRun::set_at>{},
+                "at",
+                &engine::ScheduleNextRun::get_at,
+                &engine::ScheduleNextRun::set_at>{},
         };
     }
 };
@@ -445,19 +498,23 @@ struct serde::Serializable<engine::ScheduleNextRun>
 namespace engine::schedule_dto_tests {
 using namespace boost::ut;
 
-suite<"ScheduleNextRun"> schedule_next_run_suite = [] {
-    "default-constructs at the epoch"_test = [] {
+suite<"ScheduleNextRun"> schedule_next_run_suite = []
+{
+    "default-constructs at the epoch"_test = []
+    {
         engine::ScheduleNextRun run;
         expect(run.get_at() == std::chrono::system_clock::time_point{});
     };
 
-    "value ctor sets the time point"_test = [] {
+    "value ctor sets the time point"_test = []
+    {
         auto now = std::chrono::system_clock::now();
         engine::ScheduleNextRun run{now};
         expect(run.get_at() == now);
     };
 
-    "set_at/get_at round-trip"_test = [] {
+    "set_at/get_at round-trip"_test = []
+    {
         engine::ScheduleNextRun run;
         auto later = std::chrono::system_clock::now() + std::chrono::hours{1};
         run.set_at(later);
@@ -487,7 +544,9 @@ public:
     }
 
     void set(
-        std::string_view key, std::string_view value, shared::QueryReadFn&& result
+        std::string_view key,
+        std::string_view value,
+        shared::QueryReadFn&& result
     ) noexcept override
     {
         m_store[std::string{key}] = std::string{value};
@@ -550,23 +609,31 @@ public:
     return out;
 }
 
-suite<"ScheduleHandler"> schedule_handler_suite = [] {
-    "list_schedules replies 200 with an empty list on a freshly-constructed context"_test = [] {
+suite<"ScheduleHandler"> schedule_handler_suite = []
+{
+    "list_schedules replies 200 with an empty list on a freshly-constructed context"_test = []
+    {
         engine::EngineContext ctx;
         engine::ScheduleHandler handler{ctx};
         io::layer::http2::HttpRequest req{1};
         io::layer::http2::HttpResponse res{1};
         bool sent = false;
 
-        handler.list_schedules(req, res, [&sent] {
-            sent = true;
-        });
+        handler.list_schedules(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::OK);
     };
 
-    "list_schedules returns every seeded record with no pagination limit applied"_test = [] {
+    "list_schedules returns every seeded record with no pagination limit applied"_test = []
+    {
         engine::EngineContext ctx;
         FakeCache cache;
         ctx.set_cache(&cache);
@@ -581,9 +648,13 @@ suite<"ScheduleHandler"> schedule_handler_suite = [] {
             seeded.set_workflow_name("order_flow");
             seeded.set_cron_expression("* * * * *");
             bool upserted = false;
-            ctx.get_connector().upsert<model::WorkflowSchedule>(seeded, [&upserted](bool oke) {
-                upserted = oke;
-            });
+            ctx.get_connector().upsert<model::WorkflowSchedule>(
+                seeded,
+                [&upserted](bool oke)
+                {
+                    upserted = oke;
+                }
+            );
             expect(upserted) << fatal;
         }
 
@@ -598,9 +669,14 @@ suite<"ScheduleHandler"> schedule_handler_suite = [] {
         req.set_header("accept", "application/json");
         bool sent = false;
 
-        handler.list_schedules(req, res, [&sent] {
-            sent = true;
-        });
+        handler.list_schedules(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::OK);
@@ -615,19 +691,26 @@ suite<"ScheduleHandler"> schedule_handler_suite = [] {
         serde::SerdeFormatRegistry::set_active(nullptr);
     };
 
-    "next_few_runs replies 503 when no cron backend is configured"_test = [] {
+    "next_few_runs replies 503 when no cron backend is configured"_test = []
+    {
         engine::EngineContext ctx;
         engine::ScheduleHandler handler{ctx};
         io::layer::http2::HttpRequest req{1};
         io::layer::http2::HttpResponse res{1};
         req.set_header(
-            interfaces::io::types::Token::PATH, "/api/v1/schedules/nightly/next_few_runs"
+            interfaces::io::types::Token::PATH,
+            "/api/v1/schedules/nightly/next_few_runs"
         );
         bool sent = false;
 
-        handler.next_few_runs(req, res, [&sent] {
-            sent = true;
-        });
+        handler.next_few_runs(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::SERVICE_UNAVAILABLE);

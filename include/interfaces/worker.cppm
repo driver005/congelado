@@ -96,9 +96,12 @@ public:
     {
         m_contract_group = static_cast<void*>(&controller);
         auto contract = m_queue.create(controller, std::forward<Args>(args)...);
-        m_queue.set_wake([contract]() mutable {
-            contract.schedule();
-        });
+        m_queue.set_wake(
+            [contract]() mutable
+            {
+                contract.schedule();
+            }
+        );
     }
 
     /**
@@ -122,9 +125,12 @@ public:
      */
     void execute_async(const Value& input, WorkerCompletion on_complete)
     {
-        m_queue.push([this, input = input, on_complete = std::move(on_complete)]() mutable {
-            run(input, std::move(on_complete));
-        });
+        m_queue.push(
+            [this, input = input, on_complete = std::move(on_complete)]() mutable
+            {
+                run(input, std::move(on_complete));
+            }
+        );
     }
 
     /**
@@ -397,14 +403,17 @@ public:
 namespace interfaces::tests {
 using namespace boost::ut;
 
-suite<"WorkerError"> worker_error_suite = [] {
-    "getMessage returns exactly what the ctor stored"_test = [] {
+suite<"WorkerError"> worker_error_suite = []
+{
+    "getMessage returns exactly what the ctor stored"_test = []
+    {
         WorkerError error{"task timed out"};
 
         expect(error.getMessage() == "task timed out");
     };
 
-    "empty message round-trips as empty"_test = [] {
+    "empty message round-trips as empty"_test = []
+    {
         WorkerError error{""};
 
         expect(error.getMessage().empty());

@@ -1,25 +1,26 @@
 #ifndef CONGELADO_C_PARSER_H_
 #define CONGELADO_C_PARSER_H_
 
-#include "include/c/macros.h"
-#include "include/c/intern/status.h"
-#include "include/c/intern/tstring.h"
-
+#include "include/c/extern/parser/attribute.h"
+#include "include/c/extern/parser/block.h"
 #include "include/c/extern/parser/catalog.h"
-#include "include/c/extern/parser/module.h"
+#include "include/c/extern/parser/definition.h"
 #include "include/c/extern/parser/function.h"
+#include "include/c/extern/parser/module.h"
+#include "include/c/extern/parser/node.h"
 #include "include/c/extern/parser/parameter.h"
 #include "include/c/extern/parser/typeinfo.h"
-#include "include/c/extern/parser/attribute.h"
-#include "include/c/extern/parser/definition.h"
-#include "include/c/extern/parser/block.h"
-#include "include/c/extern/parser/node.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-    typedef struct TF_Parser {
+    typedef struct TF_Parser
+    {
         void* plugin_data;
         const TFParserCatalogOps* catalog_ops;
         const TFParserModuleOps* module_ops;
@@ -32,18 +33,22 @@ extern "C" {
         const TFParserNodeOps* node_ops;
     } TF_Parser;
 
-    typedef struct TF_ParserOps {
+    typedef struct TF_ParserOps
+    {
         size_t struct_size;
         void (*create)(TF_Parser* out_handle);
         void (*destroy)(TF_Parser* handle);
         void (*get_name)(TF_Parser* parser, TF_String* out_name);
     } TF_ParserOps;
-    #define TF_PARSER_STRUCT_SIZE TF_OFFSET_OF_END(TF_ParserOps, get_name)
 
-    TF_CAPI_EXPORT void create_parser(TF_ParserOps** ops, void** plugin_context, TF_Status* out_status);
+#define TF_PARSER_STRUCT_SIZE TF_OFFSET_OF_END(TF_ParserOps, get_name)
+
+    TF_CAPI_EXPORT void
+    create_parser(TF_ParserOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_parser(void* plugin_context);
 
-    static inline void init_parser(TF_ParserOps** ops, TF_Parser* parser, TF_Status* out_status) {
+    static inline void init_parser(TF_ParserOps** ops, TF_Parser* parser, TF_Status* out_status)
+    {
         create_parser(ops, &parser->plugin_data, out_status);
 
         TFParserCatalogOps* catalog_ops = NULL;

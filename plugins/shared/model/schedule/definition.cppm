@@ -145,28 +145,37 @@ struct serde::Serializable<model::WorkflowSchedule>
     {
         return std::tuple{
             serde::FieldDesc<
-                "name", &model::WorkflowSchedule::get_name, &model::WorkflowSchedule::set_name,
+                "name",
+                &model::WorkflowSchedule::get_name,
+                &model::WorkflowSchedule::set_name,
                 serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
             serde::FieldDesc<
-                "workflow_name", &model::WorkflowSchedule::get_workflow_name,
+                "workflow_name",
+                &model::WorkflowSchedule::get_workflow_name,
                 &model::WorkflowSchedule::set_workflow_name>{},
             serde::FieldDesc<
-                "workflow_version", &model::WorkflowSchedule::get_workflow_version,
+                "workflow_version",
+                &model::WorkflowSchedule::get_workflow_version,
                 &model::WorkflowSchedule::set_workflow_version>{},
             serde::FieldDesc<
-                "cron_expression", &model::WorkflowSchedule::get_cron_expression,
+                "cron_expression",
+                &model::WorkflowSchedule::get_cron_expression,
                 &model::WorkflowSchedule::set_cron_expression>{},
             serde::FieldDesc<
-                "seed_variables", &model::WorkflowSchedule::get_seed_variables,
+                "seed_variables",
+                &model::WorkflowSchedule::get_seed_variables,
                 &model::WorkflowSchedule::set_seed_variables>{},
             serde::FieldDesc<
-                "enabled", &model::WorkflowSchedule::get_enabled,
+                "enabled",
+                &model::WorkflowSchedule::get_enabled,
                 &model::WorkflowSchedule::set_enabled>{},
             serde::FieldDesc<
-                "paused", &model::WorkflowSchedule::get_paused,
+                "paused",
+                &model::WorkflowSchedule::get_paused,
                 &model::WorkflowSchedule::set_paused>{},
             serde::FieldDesc<
-                "last_fired_at", &model::WorkflowSchedule::get_last_fired_at,
+                "last_fired_at",
+                &model::WorkflowSchedule::get_last_fired_at,
                 &model::WorkflowSchedule::set_last_fired_at>{},
         };
     }
@@ -176,8 +185,10 @@ struct serde::Serializable<model::WorkflowSchedule>
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"WorkflowSchedule"> workflow_schedule_suite = [] {
-    "defaults to enabled, not paused, version 1, and fails validation"_test = [] {
+suite<"WorkflowSchedule"> workflow_schedule_suite = []
+{
+    "defaults to enabled, not paused, version 1, and fails validation"_test = []
+    {
         WorkflowSchedule schedule;
 
         expect(schedule.get_enabled());
@@ -185,7 +196,8 @@ suite<"WorkflowSchedule"> workflow_schedule_suite = [] {
         expect(schedule.get_workflow_version() == 1);
         expect(not schedule.validate().has_value());
     };
-    "requires name, workflow_name, and cron_expression"_test = [] {
+    "requires name, workflow_name, and cron_expression"_test = []
+    {
         WorkflowSchedule schedule;
         schedule.set_name("nightly_report");
         schedule.set_workflow_name("report_pipeline");
@@ -194,7 +206,8 @@ suite<"WorkflowSchedule"> workflow_schedule_suite = [] {
         schedule.set_cron_expression("0 0 * * *");
         expect(bool(schedule.validate()));
     };
-    "setters round-trip through their getters"_test = [] {
+    "setters round-trip through their getters"_test = []
+    {
         WorkflowSchedule schedule;
         schedule.set_seed_variables({{"region", "eu"}});
         schedule.set_enabled(false);

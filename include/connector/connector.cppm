@@ -33,8 +33,9 @@ import boost.ut;
 
 export namespace connector {
 
-class QueryOptions {
-  public:
+class QueryOptions
+{
+public:
     /**
      * @brief Adds a raw JOIN clause fragment to the query — appended verbatim after the base
      * `FROM table`, so it needs to be a complete `JOIN ... ON ...` string.
@@ -44,10 +45,12 @@ class QueryOptions {
      * raw user input, or it's an instant SQL-injection L.
      * @return `*this`, for chaining.
      */
-    QueryOptions &add_join(std::string join) noexcept {
+    QueryOptions& add_join(std::string join) noexcept
+    {
         m_joins.push_back(std::move(join));
         return *this;
     }
+
     /**
      * @brief Adds a raw WHERE condition — multiple conditions get joined with `AND` by
      * Sql::build_inner_query.
@@ -56,10 +59,12 @@ class QueryOptions {
      * bet.
      * @return `*this`, for chaining.
      */
-    QueryOptions &add_where(std::string condition) noexcept {
+    QueryOptions& add_where(std::string condition) noexcept
+    {
         m_where_conditions.push_back(std::move(condition));
         return *this;
     }
+
     /**
      * @brief Adds an ORDER BY clause on `column`, defaulting to ascending — multiple calls
      * stack as comma-separated clauses in the order added.
@@ -67,40 +72,54 @@ class QueryOptions {
      * @param ascending true for `ASC`, false for `DESC`.
      * @return `*this`, for chaining.
      */
-    QueryOptions &add_order_by(std::string column, bool ascending = true) noexcept {
+    QueryOptions& add_order_by(std::string column, bool ascending = true) noexcept
+    {
         m_order_by_clauses.emplace_back(std::move(column), ascending);
         return *this;
     }
+
     /**
      * @brief Sets a `LIMIT` on the query — only the last call before build wins, this isn't
      * cumulative like the adders.
      * @param limit the max row count to cap the query at.
      * @return `*this`, for chaining.
      */
-    QueryOptions &set_limit(std::size_t limit) noexcept {
+    QueryOptions& set_limit(std::size_t limit) noexcept
+    {
         m_limit = limit;
         return *this;
     }
 
     /// @brief Gets the accumulated JOIN fragments, in add order.
     /// @return the JOIN clauses added so far.
-    [[nodiscard]] const std::vector<std::string> &get_joins() const noexcept { return m_joins; }
+    [[nodiscard]] const std::vector<std::string>& get_joins() const noexcept
+    {
+        return m_joins;
+    }
+
     /// @brief Gets the accumulated WHERE conditions, in add order.
     /// @return the WHERE conditions added so far — joined with `AND` at build time.
-    [[nodiscard]] const std::vector<std::string> &get_where_conditions() const noexcept {
+    [[nodiscard]] const std::vector<std::string>& get_where_conditions() const noexcept
+    {
         return m_where_conditions;
     }
+
     /// @brief Gets the accumulated ORDER BY clauses, in add order.
     /// @return each clause as a `(column, ascending)` pair.
-    [[nodiscard]] const std::vector<std::pair<std::string, bool>> &
-    get_order_by_clauses() const noexcept {
+    [[nodiscard]] const std::vector<std::pair<std::string, bool>>&
+    get_order_by_clauses() const noexcept
+    {
         return m_order_by_clauses;
     }
+
     /// @brief Gets the configured row limit, if any.
     /// @return the limit set via `set_limit`, or `nullopt` if never set.
-    [[nodiscard]] const std::optional<std::size_t> &get_limit() const noexcept { return m_limit; }
+    [[nodiscard]] const std::optional<std::size_t>& get_limit() const noexcept
+    {
+        return m_limit;
+    }
 
-  private:
+private:
     std::vector<std::string> m_joins;
     std::vector<std::string> m_where_conditions;
     std::vector<std::pair<std::string, bool>> m_order_by_clauses;
@@ -118,7 +137,8 @@ class QueryOptions {
 
 namespace connector {
 
-struct SqlColumnDesc {
+struct SqlColumnDesc
+{
     std::string name;
     serde::ValueKind kind{serde::ValueKind::OTHER};
     bool primary_key = false;
@@ -129,14 +149,16 @@ struct SqlColumnDesc {
     std::string ref_column;
 };
 
-struct SqlQueryOptions {
+struct SqlQueryOptions
+{
     std::vector<std::string> joins;
     std::vector<std::string> where_conditions;
     std::vector<std::pair<std::string, bool>> order_by_clauses;
     std::optional<std::size_t> limit;
 };
 
-struct SqlRequest {
+struct SqlRequest
+{
     std::string op;
     std::string table_name;
     std::vector<SqlColumnDesc> columns;
@@ -158,8 +180,9 @@ inline constexpr std::string_view SQL_DIALECT_CONTENT_TYPE = "application/sql+po
 
 export namespace connector {
 
-class Sql {
-  public:
+class Sql
+{
+public:
     /**
      * @brief Generates a `CREATE TABLE IF NOT EXISTS` statement for T from its reflected
      * fields — column kinds come from `serde::value_kind_of`, constraints (PK/NOT NULL/UNIQUE/
@@ -168,31 +191,40 @@ class Sql {
      * @tparam T the connectable type to generate DDL for.
      * @return the generated `CREATE TABLE` SQL string.
      */
-    template <serde::IConnectable T>
-    [[nodiscard]] static std::string build_create_sql() {
+    template<serde::IConnectable T>
+    [[nodiscard]] static std::string build_create_sql()
+    {
         std::vector<SqlColumnDesc> columns;
         std::apply(
-            [&](auto... fields) {
-                (columns.push_back(SqlColumnDesc{
-                     .name = std::string{fields.name.string_view()},
-                     .kind = serde::value_kind_of<typename decltype(fields)::ValueType>(),
-                     .primary_key = fields.options.m_db.m_primary_key,
-                     .nullable = fields.options.m_db.m_nullable,
-                     .unique = fields.options.m_db.m_unique,
-                     .skip_update = fields.options.m_db.m_skip_update,
-                     .ref_table = fields.options.m_db.m_ref_table != nullptr
-                                      ? std::string{fields.options.m_db.m_ref_table}
-                                      : std::string{},
-                     .ref_column = fields.options.m_db.m_ref_column != nullptr
-                                       ? std::string{fields.options.m_db.m_ref_column}
-                                       : std::string{},
-                 }),
+            [&](auto... fields)
+            {
+                (columns.push_back(
+                     SqlColumnDesc{
+                         .name = std::string{fields.name.string_view()},
+                         .kind = serde::value_kind_of<typename decltype(fields)::ValueType>(),
+                         .primary_key = fields.options.m_db.m_primary_key,
+                         .nullable = fields.options.m_db.m_nullable,
+                         .unique = fields.options.m_db.m_unique,
+                         .skip_update = fields.options.m_db.m_skip_update,
+                         .ref_table = fields.options.m_db.m_ref_table != nullptr
+                                          ? std::string{fields.options.m_db.m_ref_table}
+                                          : std::string{},
+                         .ref_column = fields.options.m_db.m_ref_column != nullptr
+                                           ? std::string{fields.options.m_db.m_ref_column}
+                                           : std::string{},
+                     }
+                 ),
                  ...);
             },
-            serde::Serializable<T>::fields());
-        return dispatch(SqlRequest{.op = "create_table",
-                                   .table_name = std::string{serde::Serializable<T>::table_name()},
-                                   .columns = std::move(columns)});
+            serde::Serializable<T>::fields()
+        );
+        return dispatch(
+            SqlRequest{
+                .op = "create_table",
+                .table_name = std::string{serde::Serializable<T>::table_name()},
+                .columns = std::move(columns)
+            }
+        );
     }
 
     /**
@@ -204,12 +236,17 @@ class Sql {
      * external input; escaping/parameterization is the dialect plugin's responsibility.
      * @return the generated `SELECT` SQL string.
      */
-    template <serde::IConnectable T>
-    [[nodiscard]] static std::string build_select_sql(std::string_view key) {
-        return dispatch(SqlRequest{.op = "select",
-                                   .table_name = std::string{serde::Serializable<T>::table_name()},
-                                   .pk_column = std::string{serde::pk_column_name<T>()},
-                                   .key = std::string{key}});
+    template<serde::IConnectable T>
+    [[nodiscard]] static std::string build_select_sql(std::string_view key)
+    {
+        return dispatch(
+            SqlRequest{
+                .op = "select",
+                .table_name = std::string{serde::Serializable<T>::table_name()},
+                .pk_column = std::string{serde::pk_column_name<T>()},
+                .key = std::string{key}
+            }
+        );
     }
 
     /**
@@ -218,12 +255,17 @@ class Sql {
      * @param keys the primary-key values to match against.
      * @return the generated `SELECT ... IN (...)` SQL string.
      */
-    template <serde::IConnectable T>
-    [[nodiscard]] static std::string build_select_many_sql(std::span<const std::string> keys) {
-        return dispatch(SqlRequest{.op = "select_many",
-                                   .table_name = std::string{serde::Serializable<T>::table_name()},
-                                   .pk_column = std::string{serde::pk_column_name<T>()},
-                                   .keys = {keys.begin(), keys.end()}});
+    template<serde::IConnectable T>
+    [[nodiscard]] static std::string build_select_many_sql(std::span<const std::string> keys)
+    {
+        return dispatch(
+            SqlRequest{
+                .op = "select_many",
+                .table_name = std::string{serde::Serializable<T>::table_name()},
+                .pk_column = std::string{serde::pk_column_name<T>()},
+                .keys = {keys.begin(), keys.end()}
+            }
+        );
     }
 
     /**
@@ -231,10 +273,15 @@ class Sql {
      * @tparam T the connectable type being queried.
      * @return the generated `SELECT` SQL string.
      */
-    template <serde::IConnectable T>
-    [[nodiscard]] static std::string build_select_all_sql() {
-        return dispatch(SqlRequest{
-            .op = "select_all", .table_name = std::string{serde::Serializable<T>::table_name()}});
+    template<serde::IConnectable T>
+    [[nodiscard]] static std::string build_select_all_sql()
+    {
+        return dispatch(
+            SqlRequest{
+                .op = "select_all",
+                .table_name = std::string{serde::Serializable<T>::table_name()}
+            }
+        );
     }
 
     /**
@@ -246,11 +293,16 @@ class Sql {
      * fields).
      * @return the generated `INSERT` SQL string.
      */
-    template <serde::IConnectable T>
-    [[nodiscard]] static std::string build_insert_sql(const T &value) {
-        return dispatch(SqlRequest{.op = "insert",
-                                   .table_name = std::string{serde::Serializable<T>::table_name()},
-                                   .json_payload = serde::Ser::encode_json(value)});
+    template<serde::IConnectable T>
+    [[nodiscard]] static std::string build_insert_sql(const T& value)
+    {
+        return dispatch(
+            SqlRequest{
+                .op = "insert",
+                .table_name = std::string{serde::Serializable<T>::table_name()},
+                .json_payload = serde::Ser::encode_json(value)
+            }
+        );
     }
 
     /**
@@ -259,20 +311,26 @@ class Sql {
      * @param values the instances to insert, in order.
      * @return the generated bulk `INSERT` SQL string.
      */
-    template <serde::IConnectable T>
-    [[nodiscard]] static std::string build_insert_many_sql(std::span<const T> values) {
+    template<serde::IConnectable T>
+    [[nodiscard]] static std::string build_insert_many_sql(std::span<const T> values)
+    {
         std::string rows = "[";
         for (std::size_t index = 0; index < values.size(); ++index) {
             if (index > 0) {
                 rows += ',';
             }
             rows += serde::Ser::encode_json(
-                values[index]); // FIXME(clang-tidy): unchecked operator[], consider .at()
+                values[index]
+            ); // FIXME(clang-tidy): unchecked operator[], consider .at()
         }
         rows += ']';
-        return dispatch(SqlRequest{.op = "insert_many",
-                                   .table_name = std::string{serde::Serializable<T>::table_name()},
-                                   .json_array_payload = std::move(rows)});
+        return dispatch(
+            SqlRequest{
+                .op = "insert_many",
+                .table_name = std::string{serde::Serializable<T>::table_name()},
+                .json_array_payload = std::move(rows)
+            }
+        );
     }
 
     /**
@@ -282,23 +340,30 @@ class Sql {
      * @param value the instance whose fields (and PK, for the WHERE match) drive the update.
      * @return the generated `UPDATE` SQL string.
      */
-    template <serde::IConnectable T>
-    [[nodiscard]] static std::string build_update_sql(const T &value) {
+    template<serde::IConnectable T>
+    [[nodiscard]] static std::string build_update_sql(const T& value)
+    {
         std::vector<std::string> set_columns;
         std::apply(
-            [&](auto... fields) {
+            [&](auto... fields)
+            {
                 ((fields.options.m_db.m_primary_key || fields.options.m_db.m_skip_update
                       ? void()
                       : void(set_columns.emplace_back(fields.name.string_view()))),
                  ...);
             },
-            serde::Serializable<T>::fields());
+            serde::Serializable<T>::fields()
+        );
         auto pk_column = std::string{serde::pk_column_name<T>()};
-        return dispatch(SqlRequest{.op = "update",
-                                   .table_name = std::string{serde::Serializable<T>::table_name()},
-                                   .pk_column = pk_column,
-                                   .json_payload = serde::Ser::encode_json(value),
-                                   .set_columns = std::move(set_columns)});
+        return dispatch(
+            SqlRequest{
+                .op = "update",
+                .table_name = std::string{serde::Serializable<T>::table_name()},
+                .pk_column = pk_column,
+                .json_payload = serde::Ser::encode_json(value),
+                .set_columns = std::move(set_columns)
+            }
+        );
     }
 
     /**
@@ -307,22 +372,29 @@ class Sql {
      * @param value the instance to insert or update.
      * @return the generated upsert SQL string.
      */
-    template <serde::IConnectable T>
-    [[nodiscard]] static std::string build_upsert_sql(const T &value) {
+    template<serde::IConnectable T>
+    [[nodiscard]] static std::string build_upsert_sql(const T& value)
+    {
         std::vector<std::string> update_columns;
         std::apply(
-            [&](auto... fields) {
+            [&](auto... fields)
+            {
                 ((fields.options.m_db.m_primary_key
                       ? void()
                       : void(update_columns.emplace_back(fields.name.string_view()))),
                  ...);
             },
-            serde::Serializable<T>::fields());
-        return dispatch(SqlRequest{.op = "upsert",
-                                   .table_name = std::string{serde::Serializable<T>::table_name()},
-                                   .pk_column = std::string{serde::pk_column_name<T>()},
-                                   .json_payload = serde::Ser::encode_json(value),
-                                   .update_columns = std::move(update_columns)});
+            serde::Serializable<T>::fields()
+        );
+        return dispatch(
+            SqlRequest{
+                .op = "upsert",
+                .table_name = std::string{serde::Serializable<T>::table_name()},
+                .pk_column = std::string{serde::pk_column_name<T>()},
+                .json_payload = serde::Ser::encode_json(value),
+                .update_columns = std::move(update_columns)
+            }
+        );
     }
 
     /**
@@ -331,12 +403,17 @@ class Sql {
      * @param key the primary-key value to match.
      * @return the generated `DELETE` SQL string.
      */
-    template <serde::IConnectable T>
-    [[nodiscard]] static std::string build_delete_sql(std::string_view key) {
-        return dispatch(SqlRequest{.op = "delete",
-                                   .table_name = std::string{serde::Serializable<T>::table_name()},
-                                   .pk_column = std::string{serde::pk_column_name<T>()},
-                                   .key = std::string{key}});
+    template<serde::IConnectable T>
+    [[nodiscard]] static std::string build_delete_sql(std::string_view key)
+    {
+        return dispatch(
+            SqlRequest{
+                .op = "delete",
+                .table_name = std::string{serde::Serializable<T>::table_name()},
+                .pk_column = std::string{serde::pk_column_name<T>()},
+                .key = std::string{key}
+            }
+        );
     }
 
     /**
@@ -345,12 +422,17 @@ class Sql {
      * @param keys the primary-key values to match against.
      * @return the generated `DELETE ... IN (...)` SQL string.
      */
-    template <serde::IConnectable T>
-    [[nodiscard]] static std::string build_delete_many_sql(std::span<const std::string> keys) {
-        return dispatch(SqlRequest{.op = "delete_many",
-                                   .table_name = std::string{serde::Serializable<T>::table_name()},
-                                   .pk_column = std::string{serde::pk_column_name<T>()},
-                                   .keys = {keys.begin(), keys.end()}});
+    template<serde::IConnectable T>
+    [[nodiscard]] static std::string build_delete_many_sql(std::span<const std::string> keys)
+    {
+        return dispatch(
+            SqlRequest{
+                .op = "delete_many",
+                .table_name = std::string{serde::Serializable<T>::table_name()},
+                .pk_column = std::string{serde::pk_column_name<T>()},
+                .keys = {keys.begin(), keys.end()}
+            }
+        );
     }
 
     /**
@@ -361,11 +443,16 @@ class Sql {
      * @param options the joins/conditions/ordering/limit to compose the query from.
      * @return the generated `SELECT` SQL string, rows aggregated.
      */
-    template <serde::IConnectable T>
-    [[nodiscard]] static std::string build_query_sql(const QueryOptions &options) {
-        return dispatch(SqlRequest{.op = "query",
-                                   .table_name = std::string{serde::Serializable<T>::table_name()},
-                                   .options = to_sql_query_options(options)});
+    template<serde::IConnectable T>
+    [[nodiscard]] static std::string build_query_sql(const QueryOptions& options)
+    {
+        return dispatch(
+            SqlRequest{
+                .op = "query",
+                .table_name = std::string{serde::Serializable<T>::table_name()},
+                .options = to_sql_query_options(options)
+            }
+        );
     }
 
     /**
@@ -376,23 +463,31 @@ class Sql {
      * `LIMIT 1` for this operation.
      * @return the generated `SELECT ... LIMIT 1` SQL string.
      */
-    template <serde::IConnectable T>
-    [[nodiscard]] static std::string build_query_first_sql(const QueryOptions &options) {
-        return dispatch(SqlRequest{.op = "query_first",
-                                   .table_name = std::string{serde::Serializable<T>::table_name()},
-                                   .options = to_sql_query_options(options)});
+    template<serde::IConnectable T>
+    [[nodiscard]] static std::string build_query_first_sql(const QueryOptions& options)
+    {
+        return dispatch(
+            SqlRequest{
+                .op = "query_first",
+                .table_name = std::string{serde::Serializable<T>::table_name()},
+                .options = to_sql_query_options(options)
+            }
+        );
     }
 
-  private:
+private:
     /// @brief Snapshots a `QueryOptions` builder into the plain-data shape that crosses to the
     /// dialect plugin.
     /// @param options the builder to snapshot.
     /// @return the equivalent plain `SqlQueryOptions`.
-    [[nodiscard]] static SqlQueryOptions to_sql_query_options(const QueryOptions &options) {
-        return SqlQueryOptions{.joins = options.get_joins(),
-                               .where_conditions = options.get_where_conditions(),
-                               .order_by_clauses = options.get_order_by_clauses(),
-                               .limit = options.get_limit()};
+    [[nodiscard]] static SqlQueryOptions to_sql_query_options(const QueryOptions& options)
+    {
+        return SqlQueryOptions{
+            .joins = options.get_joins(),
+            .where_conditions = options.get_where_conditions(),
+            .order_by_clauses = options.get_order_by_clauses(),
+            .limit = options.get_limit()
+        };
     }
 
     /**
@@ -405,12 +500,15 @@ class Sql {
      * a caller tries to execute it as SQL, rather than corrupting a query silently.
      * @return the generated SQL text, or an error-shaped JSON payload if no dialect is loaded.
      */
-    [[nodiscard]] static std::string dispatch(const SqlRequest &request) {
+    [[nodiscard]] static std::string dispatch(const SqlRequest& request)
+    {
         auto encoded = serde::Ser::serialize(SQL_DIALECT_CONTENT_TYPE, request);
-        return {reinterpret_cast<const char *>(encoded.data()),
-                encoded.size()}; // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast) —
-                                 // byte-vector-to-string is the standard shape Ser::serialize's
-                                 // callers use to get text back out
+        return {
+            reinterpret_cast<const char*>(encoded.data()),
+            encoded.size()
+        }; // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast) —
+           // byte-vector-to-string is the standard shape Ser::serialize's
+           // callers use to get text back out
     }
 };
 
@@ -418,13 +516,15 @@ class Sql {
 
 export namespace connector {
 
-class Connector : public shared::HandlerBase {
-  public:
+class Connector : public shared::HandlerBase
+{
+public:
     /**
      * @brief Default ctor — no cache, no database, nothing wired up yet. Every op runs fully
      * local until someone calls set_cache()/set_database().
      */
     Connector() = default;
+
     /**
      * @brief Builds a connector already pointed at a cache and a database backend.
      * @note Both pointers are non-owning — this class never deletes them, whoever owns the
@@ -432,8 +532,11 @@ class Connector : public shared::HandlerBase {
      * @param cache the cache backend to read/write through, or nullptr for cache-less mode.
      * @param database the database backend to read/write through, or nullptr for local-only mode.
      */
-    Connector(interfaces::ICache *cache, interfaces::IDatabase *database)
-        : m_cache{cache}, m_database{database} {}
+    Connector(interfaces::ICache* cache, interfaces::IDatabase* database) :
+        m_cache{cache},
+        m_database{database}
+    {
+    }
 
     /**
      * @brief Swaps in a new cache backend pointer.
@@ -441,7 +544,11 @@ class Connector : public shared::HandlerBase {
      * operation runs — there's no built-in fallback anymore (the `local` cache plugin is the
      * default backend the host resolves); passing nullptr leaves cache ops with nothing to call.
      */
-    void set_cache(interfaces::ICache *cache) noexcept { m_cache = cache; }
+    void set_cache(interfaces::ICache* cache) noexcept
+    {
+        m_cache = cache;
+    }
+
     /**
      * @brief Swaps in a new database backend pointer.
      * @warning Flipping this from set to null (or vice versa) mid-flight changes whether
@@ -449,31 +556,47 @@ class Connector : public shared::HandlerBase {
      * unless you know exactly what you're doing.
      * @param database the database backend to use going forward, or nullptr for local-only mode.
      */
-    void set_database(interfaces::IDatabase *database) noexcept { m_database = database; }
+    void set_database(interfaces::IDatabase* database) noexcept
+    {
+        m_database = database;
+    }
 
     /**
      * @brief Gets the currently configured cache backend.
      * @return the cache pointer, or nullptr if none's wired up.
      */
-    [[nodiscard]] interfaces::ICache *get_cache() const noexcept { return m_cache; }
+    [[nodiscard]] interfaces::ICache* get_cache() const noexcept
+    {
+        return m_cache;
+    }
+
     /**
      * @brief Gets the currently configured database backend.
      * @return the database pointer, or nullptr if this connector's running local-only.
      */
-    [[nodiscard]] interfaces::IDatabase *get_database() const noexcept { return m_database; }
+    [[nodiscard]] interfaces::IDatabase* get_database() const noexcept
+    {
+        return m_database;
+    }
 
     /**
      * @brief Installs a callback enqueue() fires after pushing an async operation, so the
      * owner can schedule this handler when it was idle. No-op if left unset.
      * @param wake the callback to invoke under the pending-queue mutex.
      */
-    void set_wake(std::move_only_function<void()> wake) noexcept { m_wake = std::move(wake); }
+    void set_wake(std::move_only_function<void()> wake) noexcept
+    {
+        m_wake = std::move(wake);
+    }
 
     /**
      * @brief Identifies this handler for the controller's registry.
      * @return the fixed string "connector" — that's the whole identity, no cap.
      */
-    [[nodiscard]] std::string_view get_name() const noexcept override { return "connector"; }
+    [[nodiscard]] std::string_view get_name() const noexcept override
+    {
+        return "connector";
+    }
 
     /**
      * @brief The handler's per-tick work: drains one pending op off the queue, runs it, then
@@ -484,8 +607,10 @@ class Connector : public shared::HandlerBase {
      * runs ops immediately, synchronously, whenever m_database is null.
      * @return the per-execution callable the controller invokes on schedule.
      */
-    shared::WorkerFunction on_execute() override {
-        return [this]() {
+    shared::WorkerFunction on_execute() override
+    {
+        return [this]()
+        {
             std::move_only_function<void()> pending_operation;
             {
                 std::lock_guard lock{m_pending_mutex};
@@ -531,21 +656,28 @@ class Connector : public shared::HandlerBase {
      * @param callback gets `true` if the create succeeded (or there was no database to begin
      * with), `false` if the database came back empty-handed.
      */
-    template <serde::IConnectable T>
-    void create_table(std::move_only_function<void(bool)> callback) noexcept {
-        enqueue("create_table", [this, callback = std::move(callback)]() mutable {
-            // No database wired up — nothing to create, just say it worked.
-            if (!m_database) {
-                callback(true);
-                return;
+    template<serde::IConnectable T>
+    void create_table(std::move_only_function<void(bool)> callback) noexcept
+    {
+        enqueue(
+            "create_table",
+            [this, callback = std::move(callback)]() mutable
+            {
+                // No database wired up — nothing to create, just say it worked.
+                if (!m_database) {
+                    callback(true);
+                    return;
+                }
+                // Otherwise fire the CREATE TABLE statement and report whether it landed.
+                active_database().query(
+                    Sql::template build_create_sql<T>(),
+                    [callback = std::move(callback)](std::string_view result) mutable
+                    {
+                        callback(!result.empty());
+                    }
+                );
             }
-            // Otherwise fire the CREATE TABLE statement and report whether it landed.
-            active_database().query(
-                Sql::template build_create_sql<T>(),
-                [callback = std::move(callback)](std::string_view result) mutable {
-                    callback(!result.empty());
-                });
-        });
+        );
     }
 
     /**
@@ -557,63 +689,84 @@ class Connector : public shared::HandlerBase {
      * @param callback gets the decoded value if found, std::nullopt if it's nowhere to be
      * found (cache miss, store miss, or a decode that fails).
      */
-    template <serde::IConnectable T>
-    void find(std::string_view key,
-              std::move_only_function<void(std::optional<T>)> callback) noexcept {
-        enqueue("find", [this, owned_key = std::string{key},
-                         callback = std::move(callback)]() mutable {
-            // Build the cache key up front, then check the cache before anything slower.
-            auto cache_key_string = serde::Cache::template cache_key<T>(owned_key);
-            active_cache().get(cache_key_string, [this, owned_key, cache_key_string,
-                                                  callback = std::move(callback)](
-                                                     std::string_view cached_value) mutable {
-                // Cache hit — decode it straight up, no need to go any further. A decode failure
-                // (e.g. no "application/json" format plugin registered, the normal case for a
-                // local-only/test connector that never loaded one) falls through exactly like a
-                // cache miss instead of reporting a false negative — write_through() caches
-                // unconditionally even with no database, so without this fallthrough every
-                // find() after an insert()/update() would wrongly report nullopt.
-                if (!cached_value.empty()) {
-                    auto decoded = serde::Ser::deserialize<T>("application/json", cached_value);
-                    if (decoded) {
-                        callback(std::optional<T>{std::move(*decoded)});
-                        return;
+    template<serde::IConnectable T>
+    void find(
+        std::string_view key,
+        std::move_only_function<void(std::optional<T>)> callback
+    ) noexcept
+    {
+        enqueue(
+            "find",
+            [this, owned_key = std::string{key}, callback = std::move(callback)]() mutable
+            {
+                // Build the cache key up front, then check the cache before anything slower.
+                auto cache_key_string = serde::Cache::template cache_key<T>(owned_key);
+                active_cache().get(
+                    cache_key_string,
+                    [this, owned_key, cache_key_string, callback = std::move(callback)](
+                        std::string_view cached_value
+                    ) mutable
+                    {
+                        // Cache hit — decode it straight up, no need to go any further. A decode
+                        // failure (e.g. no "application/json" format plugin registered, the normal
+                        // case for a local-only/test connector that never loaded one) falls through
+                        // exactly like a cache miss instead of reporting a false negative —
+                        // write_through() caches unconditionally even with no database, so without
+                        // this fallthrough every find() after an insert()/update() would wrongly
+                        // report nullopt.
+                        if (!cached_value.empty()) {
+                            auto decoded =
+                                serde::Ser::deserialize<T>("application/json", cached_value);
+                            if (decoded) {
+                                callback(std::optional<T>{std::move(*decoded)});
+                                return;
+                            }
+                        }
+                        // Cache miss (or an undecodable cache hit) and no database configured —
+                        // fall through to the local store.
+                        if (!m_database) {
+                            auto& store = get_local_store<T>();
+                            auto local_iterator = store.find(owned_key);
+                            callback(
+                                local_iterator != store.end()
+                                    ? std::optional<T>{local_iterator->second}
+                                    : std::nullopt
+                            );
+                            return;
+                        }
+                        // Cache miss with a real database — go fetch it there.
+                        active_database().query(
+                            Sql::template build_select_sql<T>(owned_key),
+                            [this,
+                             cache_key_string,
+                             callback = std::move(callback)](std::string_view db_result) mutable
+                            {
+                                // Nothing came back — treat it as a full miss.
+                                if (db_result.empty()) {
+                                    callback(std::nullopt);
+                                    return;
+                                }
+                                // Got a row but it failed to decode — same deal, a miss.
+                                auto decoded =
+                                    serde::Ser::deserialize<T>("application/json", db_result);
+                                if (!decoded) {
+                                    callback(std::nullopt);
+                                    return;
+                                }
+                                // Found and decoded — warm the cache before handing it
+                                // back, classic cache-aside, no cap.
+                                active_cache().set(
+                                    cache_key_string,
+                                    serde::Cache::cache_value(*decoded),
+                                    [](std::string_view) {}
+                                );
+                                callback(std::optional<T>{std::move(*decoded)});
+                            }
+                        );
                     }
-                }
-                // Cache miss (or an undecodable cache hit) and no database configured — fall
-                // through to the local store.
-                if (!m_database) {
-                    auto &store = get_local_store<T>();
-                    auto local_iterator = store.find(owned_key);
-                    callback(local_iterator != store.end()
-                                 ? std::optional<T>{local_iterator->second}
-                                 : std::nullopt);
-                    return;
-                }
-                // Cache miss with a real database — go fetch it there.
-                active_database().query(
-                    Sql::template build_select_sql<T>(owned_key),
-                    [this, cache_key_string,
-                     callback = std::move(callback)](std::string_view db_result) mutable {
-                        // Nothing came back — treat it as a full miss.
-                        if (db_result.empty()) {
-                            callback(std::nullopt);
-                            return;
-                        }
-                        // Got a row but it failed to decode — same deal, a miss.
-                        auto decoded = serde::Ser::deserialize<T>("application/json", db_result);
-                        if (!decoded) {
-                            callback(std::nullopt);
-                            return;
-                        }
-                        // Found and decoded — warm the cache before handing it
-                        // back, classic cache-aside, no cap.
-                        active_cache().set(cache_key_string, serde::Cache::cache_value(*decoded),
-                                           [](std::string_view) {});
-                        callback(std::optional<T>{std::move(*decoded)});
-                    });
-            });
-        });
+                );
+            }
+        );
     }
 
     /**
@@ -626,39 +779,49 @@ class Connector : public shared::HandlerBase {
      * @param callback gets every row that was actually found — missing keys just get skipped,
      * no placeholder, no error.
      */
-    template <serde::IConnectable T>
-    void find_many(std::span<const std::string_view> keys,
-                   std::move_only_function<void(std::vector<T>)> callback) noexcept {
-        enqueue("find_many", [this, owned_keys = std::vector<std::string>{keys.begin(), keys.end()},
-                              callback = std::move(callback)]() mutable {
-            // No database — walk the local store and collect whatever keys actually hit, bet.
-            if (!m_database) {
-                auto &store = get_local_store<T>();
-                std::vector<T> results;
-                for (const auto &key : owned_keys) {
-                    auto iterator = store.find(key);
-                    if (iterator != store.end()) {
-                        results.push_back(iterator->second);
+    template<serde::IConnectable T>
+    void find_many(
+        std::span<const std::string_view> keys,
+        std::move_only_function<void(std::vector<T>)> callback
+    ) noexcept
+    {
+        enqueue(
+            "find_many",
+            [this,
+             owned_keys = std::vector<std::string>{keys.begin(), keys.end()},
+             callback = std::move(callback)]() mutable
+            {
+                // No database — walk the local store and collect whatever keys actually hit, bet.
+                if (!m_database) {
+                    auto& store = get_local_store<T>();
+                    std::vector<T> results;
+                    for (const auto& key: owned_keys) {
+                        auto iterator = store.find(key);
+                        if (iterator != store.end()) {
+                            results.push_back(iterator->second);
+                        }
                     }
+                    callback(std::move(results));
+                    return;
                 }
-                callback(std::move(results));
-                return;
-            }
-            // Database configured — one query for the whole batch instead of looping.
-            active_database().query(
-                Sql::template build_select_many_sql<T>(owned_keys),
-                [callback = std::move(callback)](std::string_view db_result) mutable {
-                    // Empty result means nothing matched; otherwise decode the array and
-                    // hand back whatever came through.
-                    if (db_result.empty()) {
-                        callback({});
-                        return;
+                // Database configured — one query for the whole batch instead of looping.
+                active_database().query(
+                    Sql::template build_select_many_sql<T>(owned_keys),
+                    [callback = std::move(callback)](std::string_view db_result) mutable
+                    {
+                        // Empty result means nothing matched; otherwise decode the array and
+                        // hand back whatever came through.
+                        if (db_result.empty()) {
+                            callback({});
+                            return;
+                        }
+                        auto decoded =
+                            serde::Ser::deserialize<std::vector<T>>("application/json", db_result);
+                        callback(decoded ? std::move(*decoded) : std::vector<T>{});
                     }
-                    auto decoded =
-                        serde::Ser::deserialize<std::vector<T>>("application/json", db_result);
-                    callback(decoded ? std::move(*decoded) : std::vector<T>{});
-                });
-        });
+                );
+            }
+        );
     }
 
     /**
@@ -673,45 +836,64 @@ class Connector : public shared::HandlerBase {
      * @param sorter ordering comparator used only in the local-store (no-database) branch.
      * @param callback gets the first matching row, or std::nullopt if nothing matched.
      */
-    template <serde::IConnectable T>
-    void find_first(QueryOptions options, std::move_only_function<bool(const T &)> predicate,
-                    std::move_only_function<bool(const T &, const T &)> sorter,
-                    std::move_only_function<void(std::optional<T>)> callback) noexcept {
-        enqueue("find_first", [this, options = std::move(options), predicate = std::move(predicate),
-                               sorter = std::move(sorter),
-                               callback = std::move(callback)]() mutable {
-            // No database — lowkey just filter the local store by hand with the caller's predicate.
-            if (!m_database) {
-                auto &store = get_local_store<T>();
-                std::vector<const T *> candidates;
-                for (const auto &[key, value] : store) {
-                    if (predicate(value)) {
-                        candidates.push_back(&value);
+    template<serde::IConnectable T>
+    void find_first(
+        QueryOptions options,
+        std::move_only_function<bool(const T&)> predicate,
+        std::move_only_function<bool(const T&, const T&)> sorter,
+        std::move_only_function<void(std::optional<T>)> callback
+    ) noexcept
+    {
+        enqueue(
+            "find_first",
+            [this,
+             options = std::move(options),
+             predicate = std::move(predicate),
+             sorter = std::move(sorter),
+             callback = std::move(callback)]() mutable
+            {
+                // No database — lowkey just filter the local store by hand with the caller's
+                // predicate.
+                if (!m_database) {
+                    auto& store = get_local_store<T>();
+                    std::vector<const T*> candidates;
+                    for (const auto& [key, value]: store) {
+                        if (predicate(value)) {
+                            candidates.push_back(&value);
+                        }
                     }
-                }
-                // Nothing matched, nothing to sort or return.
-                if (candidates.empty()) {
-                    callback(std::nullopt);
-                    return;
-                }
-                // Sort the matches with the caller's comparator and hand back the front one.
-                std::sort(candidates.begin(), candidates.end(),
-                          [&](const T *lhs, const T *rhs) { return sorter(*lhs, *rhs); });
-                callback(std::optional<T>{*candidates.front()});
-                return;
-            }
-            // Database configured — trust `options` already encodes filter/order server-side.
-            active_database().query(
-                Sql::template build_query_first_sql<T>(options),
-                [callback = std::move(callback)](std::string_view db_result) mutable {
-                    if (db_result.empty()) {
+                    // Nothing matched, nothing to sort or return.
+                    if (candidates.empty()) {
                         callback(std::nullopt);
                         return;
                     }
-                    auto decoded = serde::Ser::deserialize<T>("application/json", db_result);
-                    callback(decoded ? std::optional<T>{std::move(*decoded)} : std::nullopt);
-                });
-        });
+                    // Sort the matches with the caller's comparator and hand back the front one.
+                    std::sort(
+                        candidates.begin(),
+                        candidates.end(),
+                        [&](const T* lhs, const T* rhs)
+                        {
+                            return sorter(*lhs, *rhs);
+                        }
+                    );
+                    callback(std::optional<T>{*candidates.front()});
+                    return;
+                }
+                // Database configured — trust `options` already encodes filter/order server-side.
+                active_database().query(
+                    Sql::template build_query_first_sql<T>(options),
+                    [callback = std::move(callback)](std::string_view db_result) mutable
+                    {
+                        if (db_result.empty()) {
+                            callback(std::nullopt);
+                            return;
+                        }
+                        auto decoded = serde::Ser::deserialize<T>("application/json", db_result);
+                        callback(decoded ? std::optional<T>{std::move(*decoded)} : std::nullopt);
+                    }
+                );
+            }
+        );
     }
 
     /**
@@ -720,33 +902,40 @@ class Connector : public shared::HandlerBase {
      * @tparam T the connectable type being fetched, must satisfy serde::IConnectable.
      * @param callback gets every row currently stored, empty vector if there's nothing there.
      */
-    template <serde::IConnectable T>
-    void find_all(std::move_only_function<void(std::vector<T>)> callback) noexcept {
-        enqueue("find_all", [this, callback = std::move(callback)]() mutable {
-            // No database — just dump every row out of the local store.
-            if (!m_database) {
-                auto &store = get_local_store<T>();
-                std::vector<T> results;
-                results.reserve(store.size());
-                for (const auto &[key, value] : store) {
-                    results.push_back(value);
-                }
-                callback(std::move(results));
-                return;
-            }
-            // Database configured — pull the whole table in one query and decode the array.
-            active_database().query(
-                Sql::template build_select_all_sql<T>(),
-                [callback = std::move(callback)](std::string_view db_result) mutable {
-                    if (db_result.empty()) {
-                        callback({});
-                        return;
+    template<serde::IConnectable T>
+    void find_all(std::move_only_function<void(std::vector<T>)> callback) noexcept
+    {
+        enqueue(
+            "find_all",
+            [this, callback = std::move(callback)]() mutable
+            {
+                // No database — just dump every row out of the local store.
+                if (!m_database) {
+                    auto& store = get_local_store<T>();
+                    std::vector<T> results;
+                    results.reserve(store.size());
+                    for (const auto& [key, value]: store) {
+                        results.push_back(value);
                     }
-                    auto decoded =
-                        serde::Ser::deserialize<std::vector<T>>("application/json", db_result);
-                    callback(decoded ? std::move(*decoded) : std::vector<T>{});
-                });
-        });
+                    callback(std::move(results));
+                    return;
+                }
+                // Database configured — pull the whole table in one query and decode the array.
+                active_database().query(
+                    Sql::template build_select_all_sql<T>(),
+                    [callback = std::move(callback)](std::string_view db_result) mutable
+                    {
+                        if (db_result.empty()) {
+                            callback({});
+                            return;
+                        }
+                        auto decoded =
+                            serde::Ser::deserialize<std::vector<T>>("application/json", db_result);
+                        callback(decoded ? std::move(*decoded) : std::vector<T>{});
+                    }
+                );
+            }
+        );
     }
 
     /**
@@ -757,12 +946,21 @@ class Connector : public shared::HandlerBase {
      * @param value the row to insert.
      * @param callback gets the insert outcome, W or L.
      */
-    template <serde::IConnectable T>
-    void insert(const T &value, std::move_only_function<void(bool)> callback) noexcept {
-        enqueue("insert", [this, value, callback = std::move(callback)]() mutable {
-            write_through("insert", value, Sql::template build_insert_sql<T>(value),
-                          std::move(callback));
-        });
+    template<serde::IConnectable T>
+    void insert(const T& value, std::move_only_function<void(bool)> callback) noexcept
+    {
+        enqueue(
+            "insert",
+            [this, value, callback = std::move(callback)]() mutable
+            {
+                write_through(
+                    "insert",
+                    value,
+                    Sql::template build_insert_sql<T>(value),
+                    std::move(callback)
+                );
+            }
+        );
     }
 
     /**
@@ -775,27 +973,37 @@ class Connector : public shared::HandlerBase {
      * @param callback gets `true` on success (always true for the local-store branch), `false`
      * if the database came back empty-handed.
      */
-    template <serde::IConnectable T>
-    void insert_many(std::span<const T> values,
-                     std::move_only_function<void(bool)> callback) noexcept {
-        enqueue("insert_many", [this, owned_values = std::vector<T>{values.begin(), values.end()},
-                                callback = std::move(callback)]() mutable {
-            // No database — upsert every value straight into the local store, always a W.
-            if (!m_database) {
-                auto &store = get_local_store<T>();
-                for (const auto &value : owned_values) {
-                    store.insert_or_assign(serde::Cache::pk_string(value), value);
+    template<serde::IConnectable T>
+    void insert_many(
+        std::span<const T> values,
+        std::move_only_function<void(bool)> callback
+    ) noexcept
+    {
+        enqueue(
+            "insert_many",
+            [this,
+             owned_values = std::vector<T>{values.begin(), values.end()},
+             callback = std::move(callback)]() mutable
+            {
+                // No database — upsert every value straight into the local store, always a W.
+                if (!m_database) {
+                    auto& store = get_local_store<T>();
+                    for (const auto& value: owned_values) {
+                        store.insert_or_assign(serde::Cache::pk_string(value), value);
+                    }
+                    callback(true);
+                    return;
                 }
-                callback(true);
-                return;
+                // Database configured — one batched INSERT for the whole set.
+                active_database().query(
+                    Sql::template build_insert_many_sql<T>(owned_values),
+                    [callback = std::move(callback)](std::string_view result) mutable
+                    {
+                        callback(!result.empty());
+                    }
+                );
             }
-            // Database configured — one batched INSERT for the whole set.
-            active_database().query(
-                Sql::template build_insert_many_sql<T>(owned_values),
-                [callback = std::move(callback)](std::string_view result) mutable {
-                    callback(!result.empty());
-                });
-        });
+        );
     }
 
     /**
@@ -805,12 +1013,21 @@ class Connector : public shared::HandlerBase {
      * @param value the row to update, keyed by its own primary key.
      * @param callback gets the update outcome.
      */
-    template <serde::IConnectable T>
-    void update(const T &value, std::move_only_function<void(bool)> callback) noexcept {
-        enqueue("update", [this, value, callback = std::move(callback)]() mutable {
-            write_through("update", value, Sql::template build_update_sql<T>(value),
-                          std::move(callback));
-        });
+    template<serde::IConnectable T>
+    void update(const T& value, std::move_only_function<void(bool)> callback) noexcept
+    {
+        enqueue(
+            "update",
+            [this, value, callback = std::move(callback)]() mutable
+            {
+                write_through(
+                    "update",
+                    value,
+                    Sql::template build_update_sql<T>(value),
+                    std::move(callback)
+                );
+            }
+        );
     }
 
     /**
@@ -820,12 +1037,21 @@ class Connector : public shared::HandlerBase {
      * @param value the row to upsert.
      * @param callback gets the upsert outcome.
      */
-    template <serde::IConnectable T>
-    void upsert(const T &value, std::move_only_function<void(bool)> callback) noexcept {
-        enqueue("upsert", [this, value, callback = std::move(callback)]() mutable {
-            write_through("upsert", value, Sql::template build_upsert_sql<T>(value),
-                          std::move(callback));
-        });
+    template<serde::IConnectable T>
+    void upsert(const T& value, std::move_only_function<void(bool)> callback) noexcept
+    {
+        enqueue(
+            "upsert",
+            [this, value, callback = std::move(callback)]() mutable
+            {
+                write_through(
+                    "upsert",
+                    value,
+                    Sql::template build_upsert_sql<T>(value),
+                    std::move(callback)
+                );
+            }
+        );
     }
 
     /**
@@ -836,26 +1062,34 @@ class Connector : public shared::HandlerBase {
      * @param key the primary-key value to remove.
      * @param callback gets the removal outcome (always true for the local-store branch).
      */
-    template <serde::IConnectable T>
-    void remove(std::string_view key, std::move_only_function<void(bool)> callback) noexcept {
-        enqueue("remove",
-                [this, owned_key = std::string{key}, callback = std::move(callback)]() mutable {
-                    // Cache entry goes first, unconditionally, fire-and-forget.
-                    active_cache().remove(serde::Cache::template cache_key<T>(owned_key),
-                                          [](std::string_view) {});
-                    // No database — erasing it from the local store is the whole delete.
-                    if (!m_database) {
-                        get_local_store<T>().erase(owned_key);
-                        callback(true);
-                        return;
+    template<serde::IConnectable T>
+    void remove(std::string_view key, std::move_only_function<void(bool)> callback) noexcept
+    {
+        enqueue(
+            "remove",
+            [this, owned_key = std::string{key}, callback = std::move(callback)]() mutable
+            {
+                // Cache entry goes first, unconditionally, fire-and-forget.
+                active_cache().remove(
+                    serde::Cache::template cache_key<T>(owned_key),
+                    [](std::string_view) {}
+                );
+                // No database — erasing it from the local store is the whole delete.
+                if (!m_database) {
+                    get_local_store<T>().erase(owned_key);
+                    callback(true);
+                    return;
+                }
+                // Database configured — fire the DELETE and report whether it hit.
+                active_database().remove(
+                    Sql::template build_delete_sql<T>(owned_key),
+                    [callback = std::move(callback)](std::string_view result) mutable
+                    {
+                        callback(!result.empty());
                     }
-                    // Database configured — fire the DELETE and report whether it hit.
-                    active_database().remove(
-                        Sql::template build_delete_sql<T>(owned_key),
-                        [callback = std::move(callback)](std::string_view result) mutable {
-                            callback(!result.empty());
-                        });
-                });
+                );
+            }
+        );
     }
 
     /**
@@ -865,37 +1099,48 @@ class Connector : public shared::HandlerBase {
      * @param keys the primary-key values to remove.
      * @param callback gets the removal outcome (always true for the local-store branch).
      */
-    template <serde::IConnectable T>
-    void remove_many(std::span<const std::string_view> keys,
-                     std::move_only_function<void(bool)> callback) noexcept {
-        enqueue("remove_many",
-                [this, owned_keys = std::vector<std::string>{keys.begin(), keys.end()},
-                 callback = std::move(callback)]() mutable {
-                    // Clear every key out of the cache first, same fire-and-forget deal as
-                    // remove().
-                    for (const auto &key : owned_keys) {
-                        active_cache().remove(serde::Cache::template cache_key<T>(key),
-                                              [](std::string_view) {});
+    template<serde::IConnectable T>
+    void remove_many(
+        std::span<const std::string_view> keys,
+        std::move_only_function<void(bool)> callback
+    ) noexcept
+    {
+        enqueue(
+            "remove_many",
+            [this,
+             owned_keys = std::vector<std::string>{keys.begin(), keys.end()},
+             callback = std::move(callback)]() mutable
+            {
+                // Clear every key out of the cache first, same fire-and-forget deal as
+                // remove().
+                for (const auto& key: owned_keys) {
+                    active_cache().remove(
+                        serde::Cache::template cache_key<T>(key),
+                        [](std::string_view) {}
+                    );
+                }
+                // No database — erase the whole batch from the local store.
+                if (!m_database) {
+                    auto& store = get_local_store<T>();
+                    for (const auto& key: owned_keys) {
+                        store.erase(key);
                     }
-                    // No database — erase the whole batch from the local store.
-                    if (!m_database) {
-                        auto &store = get_local_store<T>();
-                        for (const auto &key : owned_keys) {
-                            store.erase(key);
-                        }
-                        callback(true);
-                        return;
+                    callback(true);
+                    return;
+                }
+                // Database configured — one batched DELETE for the whole set.
+                active_database().remove(
+                    Sql::template build_delete_many_sql<T>(owned_keys),
+                    [callback = std::move(callback)](std::string_view result) mutable
+                    {
+                        callback(!result.empty());
                     }
-                    // Database configured — one batched DELETE for the whole set.
-                    active_database().remove(
-                        Sql::template build_delete_many_sql<T>(owned_keys),
-                        [callback = std::move(callback)](std::string_view result) mutable {
-                            callback(!result.empty());
-                        });
-                });
+                );
+            }
+        );
     }
 
-  private:
+private:
     /**
      * @brief Runs `operation` right now if there's no database configured (local-only mode is
      * fully synchronous), otherwise queues it up to be drained one-at-a-time by on_execute().
@@ -909,8 +1154,11 @@ class Connector : public shared::HandlerBase {
      * @param operation_name the operation's name for the span (e.g. `"find"`, `"insert"`).
      * @param operation the unit of work to run or queue.
      */
-    void enqueue(std::string_view operation_name,
-                 std::move_only_function<void()> operation) noexcept {
+    void enqueue(
+        std::string_view operation_name,
+        std::move_only_function<void()> operation
+    ) noexcept
+    {
         auto span_name = std::format("db.{}", operation_name);
         // No database means fully synchronous — the calling thread is still right here when
         // `operation()` returns, so an ordinary ambient ScopedSpan is accurate and simplest.
@@ -930,10 +1178,13 @@ class Connector : public shared::HandlerBase {
             // currently executing and will reschedule itself, so calling wake again would
             // double-schedule the contract and trip `core/contract`'s "already scheduled" guard.
             const bool was_idle = m_pending.empty();
-            m_pending.push([operation = std::move(operation), span = std::move(span)]() mutable {
-                operation();
-                span.end();
-            });
+            m_pending.push(
+                [operation = std::move(operation), span = std::move(span)]() mutable
+                {
+                    operation();
+                    span.end();
+                }
+            );
             // Skip the wake if this push landed while on_execute() is mid-operation (m_executing)
             // — that happens when the operation just run reentrantly enqueues its own next step
             // (e.g. a migration's create_table<T> chaining into create_table<T+1> from inside a
@@ -957,9 +1208,13 @@ class Connector : public shared::HandlerBase {
      * fails loud with a reason instead of silently corrupting memory.
      * @return a reference to the configured cache backend.
      */
-    interfaces::ICache &active_cache() noexcept {
+    interfaces::ICache& active_cache() noexcept
+    {
         if (m_cache == nullptr) {
-            core::logger::error("connector", "active_cache() called with no cache backend configured");
+            core::logger::error(
+                "connector",
+                "active_cache() called with no cache backend configured"
+            );
             std::abort();
         }
         return *m_cache;
@@ -972,10 +1227,13 @@ class Connector : public shared::HandlerBase {
      * skipped that guard; logs and aborts instead of an unguarded deref.
      * @return a reference to the configured database backend.
      */
-    interfaces::IDatabase &active_database() noexcept {
+    interfaces::IDatabase& active_database() noexcept
+    {
         if (m_database == nullptr) {
-            core::logger::error("connector",
-                                "active_database() called with no database backend configured");
+            core::logger::error(
+                "connector",
+                "active_database() called with no database backend configured"
+            );
             std::abort();
         }
         return *m_database;
@@ -992,30 +1250,44 @@ class Connector : public shared::HandlerBase {
      * @param sql the pre-built SQL statement to run when a database is configured.
      * @param callback gets the write outcome.
      */
-    template <typename T>
-    void write_through(std::string_view operation_name, const T &value, const std::string &sql,
-                       std::move_only_function<void(bool)> callback) {
+    template<typename T>
+    void write_through(
+        std::string_view operation_name,
+        const T& value,
+        const std::string& sql,
+        std::move_only_function<void(bool)> callback
+    )
+    {
         // Cache gets the write unconditionally — insert/update/upsert all funnel through here.
-        active_cache().set(serde::Cache::cache_key(value), serde::Cache::cache_value(value),
-                           [](std::string_view) {});
+        active_cache().set(
+            serde::Cache::cache_key(value),
+            serde::Cache::cache_value(value),
+            [](std::string_view) {}
+        );
         // No database — the local store is the source of truth, upsert it there.
         if (!m_database) {
             get_local_store<T>().insert_or_assign(serde::Cache::pk_string(value), value);
             core::events::publish(
                 "connector.write.completed",
-                {{"operation", std::string{operation_name}}, {"backend", "local"}});
+                {{"operation", std::string{operation_name}}, {"backend", "local"}}
+            );
             callback(true);
             return;
         }
         // Database configured — run the pre-built SQL and report whether it landed.
         active_database().query(
-            sql, [callback = std::move(callback),
-                  operation_name = std::string{operation_name}](std::string_view result) mutable {
-                bool const ok = !result.empty();
-                core::events::publish(ok ? "connector.write.completed" : "connector.write.failed",
-                                      {{"operation", operation_name}, {"backend", "database"}});
+            sql,
+            [callback = std::move(callback),
+             operation_name = std::string{operation_name}](std::string_view result) mutable
+            {
+                const bool ok = !result.empty();
+                core::events::publish(
+                    ok ? "connector.write.completed" : "connector.write.failed",
+                    {{"operation", operation_name}, {"backend", "database"}}
+                );
                 callback(ok);
-            });
+            }
+        );
     }
 
     /**
@@ -1028,14 +1300,15 @@ class Connector : public shared::HandlerBase {
     // Every call site is inside a lambda handed to enqueue(), which is itself the actual
     // noexcept boundary for the local-only (synchronous) path — dropping noexcept here doesn't
     // change behavior, an exception thrown from within still terminates at that boundary.
-    template <typename T>
-    std::unordered_map<std::string, T> &get_local_store() {
-        auto &slot = m_local_stores[std::type_index(typeid(T))];
+    template<typename T>
+    std::unordered_map<std::string, T>& get_local_store()
+    {
+        auto& slot = m_local_stores[std::type_index(typeid(T))];
         // First touch for this type — lazily spin up an empty store.
         if (!slot.has_value()) {
             slot = std::unordered_map<std::string, T>{};
         }
-        return std::any_cast<std::unordered_map<std::string, T> &>(slot);
+        return std::any_cast<std::unordered_map<std::string, T>&>(slot);
     }
 
     std::queue<std::move_only_function<void()>> m_pending;
@@ -1045,8 +1318,8 @@ class Connector : public shared::HandlerBase {
     /// reentrant push (from within that op's own completion callback) apart from an external one,
     /// so it can defer to on_execute()'s trailing reschedule instead of waking twice.
     bool m_executing{false};
-    interfaces::ICache *m_cache{nullptr};
-    interfaces::IDatabase *m_database{nullptr};
+    interfaces::ICache* m_cache{nullptr};
+    interfaces::IDatabase* m_database{nullptr};
     std::unordered_map<std::type_index, std::any> m_local_stores;
 };
 
@@ -1057,41 +1330,69 @@ namespace connector::tests {
 
 // Minimal serde::IConnectable fixture — one PK field, one plain field — just enough to drive
 // Sql's reflection walk and Connector's cache/local-store paths without a real database.
-class SqlTestRecord {
-  public:
+class SqlTestRecord
+{
+public:
     SqlTestRecord() = default;
 
-    void set_id(std::string id) { m_id = std::move(id); }
-    void set_label(std::string label) { m_label = std::move(label); }
+    void set_id(std::string id)
+    {
+        m_id = std::move(id);
+    }
 
-    [[nodiscard]] const std::string &get_id() const noexcept { return m_id; }
-    [[nodiscard]] const std::string &get_label() const noexcept { return m_label; }
+    void set_label(std::string label)
+    {
+        m_label = std::move(label);
+    }
 
-  private:
+    [[nodiscard]] const std::string& get_id() const noexcept
+    {
+        return m_id;
+    }
+
+    [[nodiscard]] const std::string& get_label() const noexcept
+    {
+        return m_label;
+    }
+
+private:
     std::string m_id;
     std::string m_label;
 };
 
 // Trivial synchronous in-memory ICache — every call resolves its callback immediately, no
 // network/socket involved, just enough for Connector's write-through/cache-aside paths.
-class InMemoryCache : public interfaces::ICache {
-  public:
-    [[nodiscard]] std::string_view backend_name() const noexcept override { return "test_cache"; }
+class InMemoryCache : public interfaces::ICache
+{
+public:
+    [[nodiscard]] std::string_view backend_name() const noexcept override
+    {
+        return "test_cache";
+    }
 
-    void get(std::string_view key, shared::QueryReadFn &&result) noexcept override {
+    void get(std::string_view key, shared::QueryReadFn&& result) noexcept override
+    {
         auto found = m_store.find(std::string{key});
         result(found != m_store.end() ? std::string_view{found->second} : std::string_view{});
     }
-    void set(std::string_view key, std::string_view value, shared::QueryReadFn &&result) noexcept override {
+
+    void set(
+        std::string_view key,
+        std::string_view value,
+        shared::QueryReadFn&& result
+    ) noexcept override
+    {
         m_store[std::string{key}] = std::string{value};
         result("ok");
     }
-    void remove(std::string_view key, shared::QueryReadFn &&result) noexcept override {
+
+    void remove(std::string_view key, shared::QueryReadFn&& result) noexcept override
+    {
         m_store.erase(std::string{key});
         result("ok");
     }
 
-  private:
+private:
     std::unordered_map<std::string, std::string> m_store;
 };
 
@@ -1099,51 +1400,76 @@ class InMemoryCache : public interfaces::ICache {
 // it, simulating a slow backend whose async op is still in flight when the caller moves on. Used
 // to demonstrate — structurally, via this mock's own state — that Connector has no way to cancel
 // or invalidate a pending callback when it's destroyed mid-flight.
-class DeferredCache : public interfaces::ICache {
-  public:
-    [[nodiscard]] std::string_view backend_name() const noexcept override { return "deferred_cache"; }
+class DeferredCache : public interfaces::ICache
+{
+public:
+    [[nodiscard]] std::string_view backend_name() const noexcept override
+    {
+        return "deferred_cache";
+    }
 
-    void get(std::string_view /*key*/, shared::QueryReadFn &&result) noexcept override {
+    void get(std::string_view /*key*/, shared::QueryReadFn&& result) noexcept override
+    {
         m_pending_get = std::move(result);
     }
-    void set(std::string_view /*key*/, std::string_view /*value*/,
-             shared::QueryReadFn &&result) noexcept override {
+
+    void set(
+        std::string_view /*key*/,
+        std::string_view /*value*/,
+        shared::QueryReadFn&& result
+    ) noexcept override
+    {
         result("ok");
     }
-    void remove(std::string_view /*key*/, shared::QueryReadFn &&result) noexcept override {
+
+    void remove(std::string_view /*key*/, shared::QueryReadFn&& result) noexcept override
+    {
         result("ok");
     }
 
     /** @brief Whether an async get() completion is still sitting here, unresolved. */
-    [[nodiscard]] bool has_pending_get() const noexcept {
+    [[nodiscard]] bool has_pending_get() const noexcept
+    {
         return static_cast<bool>(m_pending_get);
     }
 
-  private:
+private:
     shared::QueryReadFn m_pending_get;
 };
 
 } // namespace connector::tests
 
-template <>
-struct serde::Serializable<connector::tests::SqlTestRecord> {
-    static constexpr auto fields() {
+template<>
+struct serde::Serializable<connector::tests::SqlTestRecord>
+{
+    static constexpr auto fields()
+    {
         return std::tuple{
-            serde::FieldDesc<"id", &connector::tests::SqlTestRecord::get_id,
-                             &connector::tests::SqlTestRecord::set_id,
-                             serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
-            serde::FieldDesc<"label", &connector::tests::SqlTestRecord::get_label,
-                             &connector::tests::SqlTestRecord::set_label>{},
+            serde::FieldDesc<
+                "id",
+                &connector::tests::SqlTestRecord::get_id,
+                &connector::tests::SqlTestRecord::set_id,
+                serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
+            serde::FieldDesc<
+                "label",
+                &connector::tests::SqlTestRecord::get_label,
+                &connector::tests::SqlTestRecord::set_label>{},
         };
     }
-    static constexpr std::string_view table_name() { return "sql_test_records"; }
+
+    static constexpr std::string_view table_name()
+    {
+        return "sql_test_records";
+    }
 };
 
 namespace connector::tests {
 using namespace boost::ut;
 
-suite<"QueryOptions"> query_options_suite = [] {
-    "starts empty"_test = [] {
+suite<"QueryOptions"> query_options_suite = []
+{
+    "starts empty"_test = []
+    {
         QueryOptions options;
 
         expect(options.get_joins().empty());
@@ -1152,7 +1478,8 @@ suite<"QueryOptions"> query_options_suite = [] {
         expect(not options.get_limit().has_value());
     };
 
-    "add_join/add_where/add_order_by accumulate in call order"_test = [] {
+    "add_join/add_where/add_order_by accumulate in call order"_test = []
+    {
         QueryOptions options;
         options.add_join("JOIN b ON a.id = b.a_id");
         options.add_where("a.active = true");
@@ -1170,7 +1497,8 @@ suite<"QueryOptions"> query_options_suite = [] {
         expect(options.get_order_by_clauses()[1].second == false);
     };
 
-    "set_limit is not cumulative — only the last call wins"_test = [] {
+    "set_limit is not cumulative — only the last call wins"_test = []
+    {
         QueryOptions options;
         options.set_limit(10);
         options.set_limit(5);
@@ -1178,7 +1506,8 @@ suite<"QueryOptions"> query_options_suite = [] {
         expect(options.get_limit().value() == 5);
     };
 
-    "every adder returns *this for chaining"_test = [] {
+    "every adder returns *this for chaining"_test = []
+    {
         QueryOptions options;
         options.add_join("JOIN x").add_where("y = 1").add_order_by("z").set_limit(3);
 
@@ -1189,9 +1518,11 @@ suite<"QueryOptions"> query_options_suite = [] {
     };
 };
 
-suite<"Sql"> sql_suite = [] {
-    "build_*_sql reports a clean error when no dialect plugin is registered"_test = [] {
-        auto *previous = serde::SerdeFormatRegistry::get_active();
+suite<"Sql"> sql_suite = []
+{
+    "build_*_sql reports a clean error when no dialect plugin is registered"_test = []
+    {
+        auto* previous = serde::SerdeFormatRegistry::get_active();
         serde::SerdeFormatRegistry::set_active(nullptr);
 
         auto create_sql = Sql::build_create_sql<SqlTestRecord>();
@@ -1205,8 +1536,10 @@ suite<"Sql"> sql_suite = [] {
     };
 };
 
-suite<"Connector"> connector_suite = [] {
-    "insert then find round-trips through the local store and cache"_test = [] {
+suite<"Connector"> connector_suite = []
+{
+    "insert then find round-trips through the local store and cache"_test = []
+    {
         InMemoryCache cache;
         Connector connector{&cache, nullptr};
 
@@ -1215,18 +1548,30 @@ suite<"Connector"> connector_suite = [] {
         record.set_label("hello");
 
         bool insert_ok = false;
-        connector.insert(record, [&insert_ok](bool ok) { insert_ok = ok; });
+        connector.insert(
+            record,
+            [&insert_ok](bool ok)
+            {
+                insert_ok = ok;
+            }
+        );
 
         std::optional<SqlTestRecord> found;
         connector.find<SqlTestRecord>(
-            "abc-1", [&found](std::optional<SqlTestRecord> result) { found = std::move(result); });
+            "abc-1",
+            [&found](std::optional<SqlTestRecord> result)
+            {
+                found = std::move(result);
+            }
+        );
 
         expect(insert_ok);
         expect(found.has_value()) << fatal;
         expect(found->get_label() == "hello");
     };
 
-    "remove clears a previously inserted row from the local store"_test = [] {
+    "remove clears a previously inserted row from the local store"_test = []
+    {
         InMemoryCache cache;
         Connector connector{&cache, nullptr};
 
@@ -1236,17 +1581,29 @@ suite<"Connector"> connector_suite = [] {
         connector.insert(record, [](bool) {});
 
         bool remove_ok = false;
-        connector.remove<SqlTestRecord>("abc-2", [&remove_ok](bool ok) { remove_ok = ok; });
+        connector.remove<SqlTestRecord>(
+            "abc-2",
+            [&remove_ok](bool ok)
+            {
+                remove_ok = ok;
+            }
+        );
 
         std::optional<SqlTestRecord> found;
         connector.find<SqlTestRecord>(
-            "abc-2", [&found](std::optional<SqlTestRecord> result) { found = std::move(result); });
+            "abc-2",
+            [&found](std::optional<SqlTestRecord> result)
+            {
+                found = std::move(result);
+            }
+        );
 
         expect(remove_ok);
         expect(not found.has_value());
     };
 
-    "find_all reflects every inserted row when there is no database"_test = [] {
+    "find_all reflects every inserted row when there is no database"_test = []
+    {
         InMemoryCache cache;
         Connector connector{&cache, nullptr};
 
@@ -1261,12 +1618,17 @@ suite<"Connector"> connector_suite = [] {
 
         std::vector<SqlTestRecord> all;
         connector.find_all<SqlTestRecord>(
-            [&all](std::vector<SqlTestRecord> results) { all = std::move(results); });
+            [&all](std::vector<SqlTestRecord> results)
+            {
+                all = std::move(results);
+            }
+        );
 
         expect(all.size() == 2);
     };
 
-    "get_name identifies this handler as 'connector'"_test = [] {
+    "get_name identifies this handler as 'connector'"_test = []
+    {
         Connector connector;
         expect(connector.get_name() == "connector");
     };
@@ -1279,24 +1641,29 @@ suite<"Connector"> connector_suite = [] {
     // mock's own state — it deliberately NEVER invokes the stored callback after the Connector
     // is destroyed, since actually doing so would be a real use-after-free.
     "destroying a Connector leaves an in-flight cache callback dangling with no cancellation hook"_test =
-        [] {
-            DeferredCache cache;
-            {
-                Connector connector{&cache, nullptr};
-                connector.find<SqlTestRecord>("some-id", [](std::optional<SqlTestRecord>) {
+        []
+    {
+        DeferredCache cache;
+        {
+            Connector connector{&cache, nullptr};
+            connector.find<SqlTestRecord>(
+                "some-id",
+                [](std::optional<SqlTestRecord>)
+                {
                     // Never reached in this test — the mock never resolves the callback.
-                });
-                // No database configured, so enqueue() ran find()'s body synchronously; by now
-                // active_cache().get() has already handed its `this`-capturing callback to the
-                // mock, which stashed it instead of calling it.
-                expect(cache.has_pending_get()) << fatal;
-            } // `connector` destroyed here — nothing reaches into `cache` to cancel anything.
+                }
+            );
+            // No database configured, so enqueue() ran find()'s body synchronously; by now
+            // active_cache().get() has already handed its `this`-capturing callback to the
+            // mock, which stashed it instead of calling it.
+            expect(cache.has_pending_get()) << fatal;
+        } // `connector` destroyed here — nothing reaches into `cache` to cancel anything.
 
-            // The callback is still sitting there, fully intact, capturing a `this` that now
-            // points at a destroyed Connector. Nothing in Connector's or ICache's API could have
-            // invalidated it even if it wanted to.
-            expect(cache.has_pending_get());
-        };
+        // The callback is still sitting there, fully intact, capturing a `this` that now
+        // points at a destroyed Connector. Nothing in Connector's or ICache's API could have
+        // invalidated it even if it wanted to.
+        expect(cache.has_pending_get());
+    };
 };
 
 } // namespace connector::tests

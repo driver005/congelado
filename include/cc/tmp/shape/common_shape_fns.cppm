@@ -42,7 +42,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         namespace shape_inference {
@@ -311,7 +310,8 @@ export {
             );
 
             absl::Status ValidateVariableResourceHandle(
-                InferenceContext* c, std::vector<ShapeAndType>* shape_and_type
+                InferenceContext* c,
+                std::vector<ShapeAndType>* shape_and_type
             );
 
             // Shape function for GatherNd operations.
@@ -415,15 +415,19 @@ export {
                         }
                         TF_RETURN_IF_ERROR(c->Add(*output_size, stride, output_size));
                         TF_RETURN_IF_ERROR(c->Divide(
-                            *output_size, stride,
-                            /*evenly_divisible=*/false, output_size
+                            *output_size,
+                            stride,
+                            /*evenly_divisible=*/false,
+                            output_size
                         ));
                         break;
                     case Padding::SAME:
                         TF_RETURN_IF_ERROR(c->Add(input_size, stride - 1, output_size));
                         TF_RETURN_IF_ERROR(c->Divide(
-                            *output_size, stride,
-                            /*evenly_divisible=*/false, output_size
+                            *output_size,
+                            stride,
+                            /*evenly_divisible=*/false,
+                            output_size
                         ));
                         break;
                 }
@@ -446,12 +450,18 @@ export {
                     );
                 }
                 return GetWindowedOutputSizeFromDimsV2(
-                    c, input_size, filter_size,
-                    /*dilation_rate=*/1, stride, padding_type,
+                    c,
+                    input_size,
+                    filter_size,
+                    /*dilation_rate=*/1,
+                    stride,
+                    padding_type,
                     // Give dummy values of -1 to
                     // padding_before and padding_after,
                     // since explicit padding is not used.
-                    -1, -1, output_size
+                    -1,
+                    -1,
+                    output_size
                 );
             }
 
@@ -505,15 +515,18 @@ export {
                     if (num_periods != 0 && num_periods != 3) {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                "Expected at most one ellipsis (...), but found ", num_periods,
-                                " periods (.) in the input subscript: ", subscript
+                                "Expected at most one ellipsis (...), but found ",
+                                num_periods,
+                                " periods (.) in the input subscript: ",
+                                subscript
                             )
                         );
                     }
                     if (num_periods == 3 && !absl::StrContains(subscript, "...")) {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                "Periods found outside of ellipsis in subscript: ", subscript
+                                "Periods found outside of ellipsis in subscript: ",
+                                subscript
                             )
                         );
                     }
@@ -543,8 +556,12 @@ export {
                 if (c->num_inputs() != input_labels_size) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Expected ", input_labels.size(), " inputs for equation ", equation,
-                            " but got: ", c->num_inputs()
+                            "Expected ",
+                            input_labels.size(),
+                            " inputs for equation ",
+                            equation,
+                            " but got: ",
+                            c->num_inputs()
                         )
                     );
                 }
@@ -565,13 +582,19 @@ export {
                                 static_cast<int>(input_labels[i].size()) - 3;
                             TF_RETURN_WITH_CONTEXT_IF_ERROR(
                                 c->WithRankAtLeast(input_shape, num_named_labels, &input_shape),
-                                " for ", i, "th input and equation: ", equation
+                                " for ",
+                                i,
+                                "th input and equation: ",
+                                equation
                             );
                         } else {
                             const int num_named_labels = static_cast<int>(input_labels[i].size());
                             TF_RETURN_WITH_CONTEXT_IF_ERROR(
-                                c->WithRank(input_shape, num_named_labels, &input_shape), " for ",
-                                i, "th input and equation: ", equation
+                                c->WithRank(input_shape, num_named_labels, &input_shape),
+                                " for ",
+                                i,
+                                "th input and equation: ",
+                                equation
                             );
                         }
                     }
@@ -600,7 +623,9 @@ export {
                                 // The broadcast shape runs till the named label right after the
                                 // ellipsis, the label with index (label_idx + 3).
                                 TF_RETURN_IF_ERROR(c->Subshape(
-                                    input_shape, axis_before_ellipsis, axis_after_ellipsis + 3,
+                                    input_shape,
+                                    axis_before_ellipsis,
+                                    axis_after_ellipsis + 3,
                                     &input_bcast_shapes[i]
                                 ));
                             }
@@ -634,7 +659,11 @@ export {
                     output_bcast_shape = input_bcast_shapes[0];
                 } else if (input_bcast_shapes.size() == 2) {
                     TF_RETURN_IF_ERROR(BroadcastBinaryOpOutputShapeFnHelper(
-                        c, input_bcast_shapes[0], input_bcast_shapes[1], true, &output_bcast_shape
+                        c,
+                        input_bcast_shapes[0],
+                        input_bcast_shapes[1],
+                        true,
+                        &output_bcast_shape
                     ));
                 }
 
@@ -652,7 +681,8 @@ export {
                     // broadcasting shape is empty.
                     TF_RETURN_WITH_CONTEXT_IF_ERROR(
                         c->WithRankAtMost(output_bcast_shape, 0, &output_bcast_shape),
-                        " for einsum equation '", equation,
+                        " for einsum equation '",
+                        equation,
                         "' without ellipsis (...) in the output subscripts where input(s) have "
                         "non-empty broadcasting shape"
                     );
@@ -674,8 +704,11 @@ export {
                     auto dimension_it = label_to_dimension.find(label);
                     if (dimension_it == label_to_dimension.end()) {
                         return errors::InvalidArgument(
-                            "Einsum output subscripts for equation '", equation, "' has label '",
-                            label, "' which is not present in the input subscripts"
+                            "Einsum output subscripts for equation '",
+                            equation,
+                            "' has label '",
+                            label,
+                            "' which is not present in the input subscripts"
                         );
                     }
                     output_dims.push_back(dimension_it->second);
@@ -702,7 +735,8 @@ export {
                 // Inner dimensions should be compatible.
                 DimensionHandle inner_merged;
                 TF_RETURN_IF_ERROR(c->Merge(
-                    c->Dim(a_shape, adj_x ? -2 : -1), c->Dim(b_shape, adj_y ? -1 : -2),
+                    c->Dim(a_shape, adj_x ? -2 : -1),
+                    c->Dim(b_shape, adj_y ? -1 : -2),
                     &inner_merged
                 ));
 
@@ -714,12 +748,18 @@ export {
                 TF_RETURN_IF_ERROR(c->Subshape(b_shape, 0, -2, &b_batch_shape));
 
                 TF_RETURN_IF_ERROR(BroadcastBinaryOpOutputShapeFnHelper(
-                    c, a_batch_shape, b_batch_shape, true, &output_batch_shape
+                    c,
+                    a_batch_shape,
+                    b_batch_shape,
+                    true,
+                    &output_batch_shape
                 ));
 
                 ShapeHandle output_shape;
                 TF_RETURN_IF_ERROR(c->Concatenate(
-                    output_batch_shape, c->Matrix(output_rows, output_cols), &output_shape
+                    output_batch_shape,
+                    c->Matrix(output_rows, output_cols),
+                    &output_shape
                 ));
 
                 c->set_output(0, output_shape);
@@ -752,7 +792,9 @@ export {
                 // Assert inner dims match.
                 DimensionHandle unused;
                 TF_RETURN_IF_ERROR(c->Merge(
-                    c->Dim(a_shape, adj_x ? -2 : -1), c->Dim(b_shape, adj_y ? -1 : -2), &unused
+                    c->Dim(a_shape, adj_x ? -2 : -1),
+                    c->Dim(b_shape, adj_y ? -1 : -2),
+                    &unused
                 ));
 
                 ShapeHandle out;
@@ -853,7 +895,8 @@ export {
                     // Check that the vect dim has size 4 or 32.
                     const int num_dims = c->Rank(shape_handle);
                     DimensionHandle vect_dim = c->Dim(
-                        shape_handle, GetTensorInnerFeatureDimIndex(num_dims, tensor_format)
+                        shape_handle,
+                        GetTensorInnerFeatureDimIndex(num_dims, tensor_format)
                     );
                     int64_t vect_dim_val = c->Value(vect_dim);
                     if (vect_dim_val != 4 && vect_dim_val != 32) {
@@ -877,7 +920,9 @@ export {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
                             "`output_shapes` must be the same length as `output_types` (",
-                            output_shapes.size(), " vs. ", c->num_outputs()
+                            output_shapes.size(),
+                            " vs. ",
+                            c->num_outputs()
                         )
                     );
                 }
@@ -936,7 +981,8 @@ export {
                 for (int spatial_dim_index = 0, end = spatial_dims.size(); spatial_dim_index < end;
                      ++spatial_dim_index) {
                     spatial_dims[spatial_dim_index] = context->Dim(
-                        shape, GetTensorSpatialDimIndex(rank, format, spatial_dim_index)
+                        shape,
+                        GetTensorSpatialDimIndex(rank, format, spatial_dim_index)
                     );
                 }
                 // Channel.
@@ -944,7 +990,8 @@ export {
                 if (format == FORMAT_NCHW_VECT_C) {
                     TF_RETURN_IF_ERROR(context->Multiply(
                         *filter_dim,
-                        context->Dim(shape, GetTensorInnerFeatureDimIndex(rank, format)), filter_dim
+                        context->Dim(shape, GetTensorInnerFeatureDimIndex(rank, format)),
+                        filter_dim
                     ));
                 }
                 return absl::OkStatus();
@@ -969,9 +1016,9 @@ export {
                 // Spatial.
                 for (int spatial_dim_index = 0, end = spatial_dims.size(); spatial_dim_index < end;
                      ++spatial_dim_index) {
-                    out_dims[tensorflow::GetTensorSpatialDimIndex(
-                        rank, format, spatial_dim_index
-                    )] = spatial_dims[spatial_dim_index];
+                    out_dims
+                        [tensorflow::GetTensorSpatialDimIndex(rank, format, spatial_dim_index)] =
+                            spatial_dims[spatial_dim_index];
                 }
                 // Channel.
                 if (format == tensorflow::FORMAT_NCHW_VECT_C) {
@@ -979,7 +1026,9 @@ export {
                     // feature count and the inner feature count (4 or 32).
                     CHECK(vect_size.has_value()); // Crash ok.
                     TF_RETURN_IF_ERROR(context->Divide(
-                        filter_dim, *vect_size, /*evenly_divisible=*/true,
+                        filter_dim,
+                        *vect_size,
+                        /*evenly_divisible=*/true,
                         &out_dims[tensorflow::GetTensorFeatureDimIndex(rank, format)]
                     ));
                     out_dims[GetTensorInnerFeatureDimIndex(rank, format)] = *vect_size;
@@ -994,7 +1043,8 @@ export {
             namespace {
 
                 absl::Status Conv2DShapeImpl(
-                    shape_inference::InferenceContext* c, bool supports_explicit_padding
+                    shape_inference::InferenceContext* c,
+                    bool supports_explicit_padding
                 )
                 {
                     std::string data_format_str, filter_format_str;
@@ -1024,7 +1074,10 @@ export {
                     ShapeHandle conv_input_shape;
                     TF_RETURN_IF_ERROR(c->WithRank(c->input(0), rank, &conv_input_shape));
                     TF_RETURN_IF_ERROR(CheckFormatConstraintsOnShape(
-                        data_format, conv_input_shape, "conv_input", c
+                        data_format,
+                        conv_input_shape,
+                        "conv_input",
+                        c
                     ));
 
                     // The filter rank should match the input (4 for NCHW, 5 for NCHW_VECT_C).
@@ -1054,7 +1107,8 @@ export {
                     if (strides.size() != 4) {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                "Conv2D on data format ", data_format_str,
+                                "Conv2D on data format ",
+                                data_format_str,
                                 " requires the stride attribute to contain"
                                 " 4 values, but got: ",
                                 strides.size()
@@ -1071,18 +1125,25 @@ export {
                     DimensionHandle input_depth_dim;
                     absl::InlinedVector<DimensionHandle, 2> input_spatial_dims(2);
                     TF_RETURN_IF_ERROR(DimensionsFromShape(
-                        conv_input_shape, data_format, &batch_size_dim,
-                        absl::MakeSpan(input_spatial_dims), &input_depth_dim, c
+                        conv_input_shape,
+                        data_format,
+                        &batch_size_dim,
+                        absl::MakeSpan(input_spatial_dims),
+                        &input_depth_dim,
+                        c
                     ));
 
                     DimensionHandle output_depth_dim = c->Dim(
-                        filter_shape, GetFilterDimIndex<num_spatial_dims>(filter_format, 'O')
+                        filter_shape,
+                        GetFilterDimIndex<num_spatial_dims>(filter_format, 'O')
                     );
                     DimensionHandle filter_rows_dim = c->Dim(
-                        filter_shape, GetFilterDimIndex<num_spatial_dims>(filter_format, 'H')
+                        filter_shape,
+                        GetFilterDimIndex<num_spatial_dims>(filter_format, 'H')
                     );
                     DimensionHandle filter_cols_dim = c->Dim(
-                        filter_shape, GetFilterDimIndex<num_spatial_dims>(filter_format, 'W')
+                        filter_shape,
+                        GetFilterDimIndex<num_spatial_dims>(filter_format, 'W')
                     );
                     DimensionHandle filter_input_depth_dim;
                     if (filter_format == FORMAT_OIHW_VECT_I) {
@@ -1099,7 +1160,8 @@ export {
                         ));
                     } else {
                         filter_input_depth_dim = c->Dim(
-                            filter_shape, GetFilterDimIndex<num_spatial_dims>(filter_format, 'I')
+                            filter_shape,
+                            GetFilterDimIndex<num_spatial_dims>(filter_format, 'I')
                         );
                     }
 
@@ -1114,9 +1176,11 @@ export {
                         if (input_depth_value % filter_input_depth_value != 0) {
                             return absl::InvalidArgumentError(
                                 absl::StrCat(
-                                    "Depth of input (", input_depth_value,
+                                    "Depth of input (",
+                                    input_depth_value,
                                     ") is not a multiple of input depth of filter (",
-                                    filter_input_depth_value, ")"
+                                    filter_input_depth_value,
+                                    ")"
                                 )
                             );
                         }
@@ -1132,9 +1196,11 @@ export {
                                 if (output_depth_value % num_groups != 0) {
                                     return absl::InvalidArgumentError(
                                         absl::StrCat(
-                                            "Depth of output (", output_depth_value,
+                                            "Depth of output (",
+                                            output_depth_value,
                                             ") is not a multiple of the number of groups (",
-                                            num_groups, ")"
+                                            num_groups,
+                                            ")"
                                         )
                                     );
                                 }
@@ -1153,8 +1219,10 @@ export {
                             return s;
                         }
                         TF_RETURN_IF_ERROR(CheckValidPadding(
-                            padding, explicit_paddings,
-                            /*num_dims=*/4, data_format
+                            padding,
+                            explicit_paddings,
+                            /*num_dims=*/4,
+                            data_format
                         ));
                     } else {
                         if (padding == Padding::EXPLICIT) {
@@ -1173,8 +1241,10 @@ export {
                             padding = Padding::EXPLICIT;
                             explicit_paddings = p_list;
                             TF_RETURN_IF_ERROR(CheckValidPadding(
-                                padding, explicit_paddings,
-                                /*num_dims=*/4, data_format
+                                padding,
+                                explicit_paddings,
+                                /*num_dims=*/4,
+                                data_format
                             ));
                         }
                     }
@@ -1184,31 +1254,59 @@ export {
                     int64_t pad_cols_before = -1, pad_cols_after = -1;
                     if (padding == Padding::EXPLICIT) {
                         GetExplicitPaddingForDim(
-                            explicit_paddings, data_format, 'H', &pad_rows_before, &pad_rows_after
+                            explicit_paddings,
+                            data_format,
+                            'H',
+                            &pad_rows_before,
+                            &pad_rows_after
                         );
                         GetExplicitPaddingForDim(
-                            explicit_paddings, data_format, 'W', &pad_cols_before, &pad_cols_after
+                            explicit_paddings,
+                            data_format,
+                            'W',
+                            &pad_cols_before,
+                            &pad_cols_after
                         );
                     }
                     TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDimsV2(
-                        c, input_spatial_dims[0], filter_rows_dim, dilation_rows, stride_rows,
-                        padding, pad_rows_before, pad_rows_after, &output_rows
+                        c,
+                        input_spatial_dims[0],
+                        filter_rows_dim,
+                        dilation_rows,
+                        stride_rows,
+                        padding,
+                        pad_rows_before,
+                        pad_rows_after,
+                        &output_rows
                     ));
                     TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDimsV2(
-                        c, input_spatial_dims[1], filter_cols_dim, dilation_cols, stride_cols,
-                        padding, pad_cols_before, pad_cols_after, &output_cols
+                        c,
+                        input_spatial_dims[1],
+                        filter_cols_dim,
+                        dilation_cols,
+                        stride_cols,
+                        padding,
+                        pad_cols_before,
+                        pad_cols_after,
+                        &output_cols
                     ));
 
                     std::optional<DimensionHandle> vect_size;
                     if (data_format == FORMAT_NCHW_VECT_C) {
                         vect_size.emplace(c->Dim(
-                            conv_input_shape, GetTensorInnerFeatureDimIndex(rank, data_format)
+                            conv_input_shape,
+                            GetTensorInnerFeatureDimIndex(rank, data_format)
                         ));
                     }
                     ShapeHandle output_shape;
                     TF_RETURN_IF_ERROR(ShapeFromDimensions(
-                        batch_size_dim, {output_rows, output_cols}, output_depth_dim, data_format,
-                        vect_size, c, &output_shape
+                        batch_size_dim,
+                        {output_rows, output_cols},
+                        output_depth_dim,
+                        data_format,
+                        vect_size,
+                        c,
+                        &output_shape
                     ));
                     c->set_output(0, output_shape);
                     return absl::OkStatus();
@@ -1254,7 +1352,8 @@ export {
                 if (filter_rank != 4 && filter_rank != 5) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Filter tensor must be rank 4 or 5, but got: ", standard_input_rank
+                            "Filter tensor must be rank 4 or 5, but got: ",
+                            standard_input_rank
                         )
                     );
                 }
@@ -1298,8 +1397,10 @@ export {
                 if (dilations.size() != standard_input_rank) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Conv requires the dilation attribute to contain ", standard_input_rank,
-                            " values, but got: ", dilations.size()
+                            "Conv requires the dilation attribute to contain ",
+                            standard_input_rank,
+                            " values, but got: ",
+                            dilations.size()
                         )
                     );
                 }
@@ -1309,13 +1410,16 @@ export {
                 if (strides.size() != standard_input_rank) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Stride attribute should contain ", standard_input_rank,
-                            " values, but got: ", strides.size()
+                            "Stride attribute should contain ",
+                            standard_input_rank,
+                            " values, but got: ",
+                            strides.size()
                         )
                     );
                 }
 
-                auto dim_index = [&](char dimension) {
+                auto dim_index = [&](char dimension)
+                {
                     if (spatial_dims == 2) {
                         return GetTensorDimIndex<2>(data_format, dimension);
                     } else {
@@ -1336,13 +1440,15 @@ export {
                 std::vector<DimensionHandle> in_spatial_dims(spatial_dims);
                 for (int i = 0; i < spatial_dims; ++i) {
                     in_spatial_dims[i] = c->Dim(
-                        input_shape, (batch_dims - 1) + dim_index(static_cast<char>('0' + i))
+                        input_shape,
+                        (batch_dims - 1) + dim_index(static_cast<char>('0' + i))
                     );
                 }
                 DimensionHandle input_depth_dim =
                     c->Dim(input_shape, (batch_dims - 1) + dim_index('C'));
 
-                auto filter_dim_index = [&](char dimension) {
+                auto filter_dim_index = [&](char dimension)
+                {
                     if (spatial_dims == 2) {
                         return GetFilterDimIndex<2>(filter_format, dimension);
                     } else {
@@ -1387,9 +1493,11 @@ export {
                     if (input_depth_value % filter_input_depth_value != 0) {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                "Depth of input (", input_depth_value,
+                                "Depth of input (",
+                                input_depth_value,
                                 ") is not a multiple of input depth of filter (",
-                                filter_input_depth_value, ")"
+                                filter_input_depth_value,
+                                ")"
                             )
                         );
                     }
@@ -1398,7 +1506,8 @@ export {
                             absl::StrCat(
                                 "Input depth divided by filter input depth does not "
                                 "match with groups parameter (",
-                                groups, ")"
+                                groups,
+                                ")"
                             )
                         );
                     }
@@ -1420,25 +1529,41 @@ export {
                     return s;
                 }
                 TF_RETURN_IF_ERROR(CheckValidPadding(
-                    padding, explicit_paddings,
-                    /*num_dims=*/4, data_format
+                    padding,
+                    explicit_paddings,
+                    /*num_dims=*/4,
+                    data_format
                 ));
                 std::vector<DimensionHandle> output_spatial_dims(spatial_dims);
                 std::vector<int64_t> pad_before(spatial_dims, -1);
                 std::vector<int64_t> pad_after(spatial_dims, -1);
                 if (padding == Padding::EXPLICIT) {
                     GetExplicitPaddingForDim(
-                        explicit_paddings, data_format, 'H', &pad_before[0], &pad_after[0]
+                        explicit_paddings,
+                        data_format,
+                        'H',
+                        &pad_before[0],
+                        &pad_after[0]
                     );
                     GetExplicitPaddingForDim(
-                        explicit_paddings, data_format, 'W', &pad_before[1], &pad_after[1]
+                        explicit_paddings,
+                        data_format,
+                        'W',
+                        &pad_before[1],
+                        &pad_after[1]
                     );
                 }
 
                 for (int i = 0; i < spatial_dims; ++i) {
                     TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDimsV2(
-                        c, in_spatial_dims[i], filter_spatial_dims[i], dilation_dims[i],
-                        stride_dims[i], padding, pad_before[i], pad_after[i],
+                        c,
+                        in_spatial_dims[i],
+                        filter_spatial_dims[i],
+                        dilation_dims[i],
+                        stride_dims[i],
+                        padding,
+                        pad_before[i],
+                        pad_after[i],
                         &output_spatial_dims[i]
                     ));
                 }
@@ -1520,7 +1645,8 @@ export {
                 int32_t dilation_planes, dilation_rows, dilation_cols;
                 if (s.ok() && data_format == "NCDHW") {
                     // Convert input_shape to NDHWC.
-                    auto dim = [&](char dimension) {
+                    auto dim = [&](char dimension)
+                    {
                         return c->Dim(input_shape, GetTensorDimIndex<3>(FORMAT_NCHW, dimension));
                     };
                     input_shape =
@@ -1563,9 +1689,11 @@ export {
                     if (input_depth_value % filter_input_depth_value != 0) {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                "Depth of input (", input_depth_value,
+                                "Depth of input (",
+                                input_depth_value,
                                 ") is not a multiple of input depth of filter (",
-                                filter_input_depth_value, ")"
+                                filter_input_depth_value,
+                                ")"
                             )
                         );
                     }
@@ -1579,8 +1707,10 @@ export {
                             if (output_depth_value % num_groups != 0) {
                                 return absl::InvalidArgumentError(
                                     absl::StrCat(
-                                        "Depth of output (", output_depth_value,
-                                        ") is not a multiple of the number of groups (", num_groups,
+                                        "Depth of output (",
+                                        output_depth_value,
+                                        ") is not a multiple of the number of groups (",
+                                        num_groups,
                                         ")"
                                     )
                                 );
@@ -1594,15 +1724,36 @@ export {
                 DimensionHandle output_planes, output_rows, output_cols;
 
                 TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDimsV2(
-                    c, in_planes_dim, filter_planes_dim, dilation_planes, stride_planes, padding,
-                    -1, -1, &output_planes
+                    c,
+                    in_planes_dim,
+                    filter_planes_dim,
+                    dilation_planes,
+                    stride_planes,
+                    padding,
+                    -1,
+                    -1,
+                    &output_planes
                 ));
                 TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDimsV2(
-                    c, in_rows_dim, filter_rows_dim, dilation_rows, stride_rows, padding, -1, -1,
+                    c,
+                    in_rows_dim,
+                    filter_rows_dim,
+                    dilation_rows,
+                    stride_rows,
+                    padding,
+                    -1,
+                    -1,
                     &output_rows
                 ));
                 TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDimsV2(
-                    c, in_cols_dim, filter_cols_dim, dilation_cols, stride_cols, padding, -1, -1,
+                    c,
+                    in_cols_dim,
+                    filter_cols_dim,
+                    dilation_cols,
+                    stride_cols,
+                    padding,
+                    -1,
+                    -1,
                     &output_cols
                 ));
 
@@ -1644,8 +1795,12 @@ export {
                 DimensionHandle output_grad_depth_dim;
                 absl::InlinedVector<DimensionHandle, 2> output_grad_spatial_dims(2);
                 TF_RETURN_IF_ERROR(DimensionsFromShape(
-                    output_grad_shape, data_format, &batch_size_dim,
-                    absl::MakeSpan(output_grad_spatial_dims), &output_grad_depth_dim, c
+                    output_grad_shape,
+                    data_format,
+                    &batch_size_dim,
+                    absl::MakeSpan(output_grad_spatial_dims),
+                    &output_grad_depth_dim,
+                    c
                 ));
                 DimensionHandle unused;
                 TF_RETURN_IF_ERROR(
@@ -1670,8 +1825,12 @@ export {
                 if (specified_input_grad_rank == 4) {
                     DimensionHandle specified_batch_size_dim;
                     TF_RETURN_IF_ERROR(DimensionsFromShape(
-                        specified_input_grad_shape, data_format, &specified_batch_size_dim,
-                        absl::MakeSpan(specified_input_grad_spatial_dims), &input_grad_depth_dim, c
+                        specified_input_grad_shape,
+                        data_format,
+                        &specified_batch_size_dim,
+                        absl::MakeSpan(specified_input_grad_spatial_dims),
+                        &input_grad_depth_dim,
+                        c
                     ));
                     TF_RETURN_IF_ERROR(c->Merge(specified_batch_size_dim, batch_size_dim, &unused));
                 } else if (specified_input_grad_rank == 2) {
@@ -1690,8 +1849,13 @@ export {
 
                 ShapeHandle input_grad_shape;
                 TF_RETURN_IF_ERROR(ShapeFromDimensions(
-                    batch_size_dim, specified_input_grad_spatial_dims, input_grad_depth_dim,
-                    data_format, /*vect_size=*/std::nullopt, c, &input_grad_shape
+                    batch_size_dim,
+                    specified_input_grad_spatial_dims,
+                    input_grad_depth_dim,
+                    data_format,
+                    /*vect_size=*/std::nullopt,
+                    c,
+                    &input_grad_shape
                 ));
                 c->set_output(0, input_grad_shape);
                 return absl::OkStatus();
@@ -1720,7 +1884,8 @@ export {
             namespace {
 
                 absl::Status DepthwiseConv2DNativeShapeImpl(
-                    shape_inference::InferenceContext* c, bool supports_explicit_padding
+                    shape_inference::InferenceContext* c,
+                    bool supports_explicit_padding
                 )
                 {
                     ShapeHandle input_shape;
@@ -1772,8 +1937,10 @@ export {
                         // Canonicalize input shape to NHWC so the shape inference code below can
                         // process it.
                         input_shape = c->MakeShape(
-                            {{c->Dim(input_shape, 0), c->Dim(input_shape, 2),
-                              c->Dim(input_shape, 3), c->Dim(input_shape, 1)}}
+                            {{c->Dim(input_shape, 0),
+                              c->Dim(input_shape, 2),
+                              c->Dim(input_shape, 3),
+                              c->Dim(input_shape, 1)}}
                         );
                         stride_rows = strides[2];
                         stride_cols = strides[3];
@@ -1813,8 +1980,10 @@ export {
                             return status;
                         }
                         TF_RETURN_IF_ERROR(CheckValidPadding(
-                            padding, explicit_paddings,
-                            /*num_dims=*/4, data_format
+                            padding,
+                            explicit_paddings,
+                            /*num_dims=*/4,
+                            data_format
                         ));
                     } else {
                         DCHECK(padding != Padding::EXPLICIT);
@@ -1828,19 +1997,41 @@ export {
                     int64_t pad_cols_before = -1, pad_cols_after = -1;
                     if (padding == Padding::EXPLICIT) {
                         GetExplicitPaddingForDim(
-                            explicit_paddings, data_format, 'H', &pad_rows_before, &pad_rows_after
+                            explicit_paddings,
+                            data_format,
+                            'H',
+                            &pad_rows_before,
+                            &pad_rows_after
                         );
                         GetExplicitPaddingForDim(
-                            explicit_paddings, data_format, 'W', &pad_cols_before, &pad_cols_after
+                            explicit_paddings,
+                            data_format,
+                            'W',
+                            &pad_cols_before,
+                            &pad_cols_after
                         );
                     }
                     TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDimsV2(
-                        c, in_rows_dim, filter_rows_dim, dilation_rows, stride_rows, padding,
-                        pad_rows_before, pad_rows_after, &output_rows
+                        c,
+                        in_rows_dim,
+                        filter_rows_dim,
+                        dilation_rows,
+                        stride_rows,
+                        padding,
+                        pad_rows_before,
+                        pad_rows_after,
+                        &output_rows
                     ));
                     TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDimsV2(
-                        c, in_cols_dim, filter_cols_dim, dilation_cols, stride_cols, padding,
-                        pad_cols_before, pad_cols_after, &output_cols
+                        c,
+                        in_cols_dim,
+                        filter_cols_dim,
+                        dilation_cols,
+                        stride_cols,
+                        padding,
+                        pad_cols_before,
+                        pad_cols_after,
+                        &output_cols
                     ));
 
                     ShapeHandle output_shape;
@@ -1933,16 +2124,30 @@ export {
 
                 DimensionHandle output_rows, output_cols;
                 TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDims(
-                    c, in_rows_dim, kernel_rows, stride_rows, padding, &output_rows
+                    c,
+                    in_rows_dim,
+                    kernel_rows,
+                    stride_rows,
+                    padding,
+                    &output_rows
                 ));
                 TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDims(
-                    c, in_cols_dim, kernel_cols, stride_cols, padding, &output_cols
+                    c,
+                    in_cols_dim,
+                    kernel_cols,
+                    stride_cols,
+                    padding,
+                    &output_cols
                 ));
 
                 ShapeHandle output_shape;
                 TF_RETURN_IF_ERROR(MakeShapeFromFormat(
-                    data_format, batch_size_dim, {output_rows, output_cols}, depth_dim,
-                    &output_shape, c
+                    data_format,
+                    batch_size_dim,
+                    {output_rows, output_cols},
+                    depth_dim,
+                    &output_shape,
+                    c
                 ));
                 c->set_output(0, output_shape);
                 return absl::OkStatus();
@@ -2141,7 +2346,8 @@ export {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
                                 "diag_index must be a vector with one or two elements. It has ",
-                                num_elements, " elements."
+                                num_elements,
+                                " elements."
                             )
                         );
                     }
@@ -2247,8 +2453,16 @@ export {
                             absl::StrCat(
                                 "The number of rows of `diagonal` doesn't match the number of "
                                 "diagonals implied from `d_lower` and `d_upper`.\n",
-                                "num_diags = ", num_diags, ", d_lower = ", lower_diag_index,
-                                ", d_upper = ", upper_diag_index, " ", input_rank, " ", other_dim
+                                "num_diags = ",
+                                num_diags,
+                                ", d_lower = ",
+                                lower_diag_index,
+                                ", d_upper = ",
+                                upper_diag_index,
+                                " ",
+                                input_rank,
+                                " ",
+                                other_dim
                             )
                         );
                     }
@@ -2292,8 +2506,14 @@ export {
                         absl::StrCat(
                             "num_rows and num_cols are not consistent with lower_diag_index, "
                             "upper_diag_index, and the length of the given diagonals.\n",
-                            "num_rows = ", num_rows, " != min_num_rows = ", min_num_rows,
-                            ", num_cols = ", num_cols, " != min_num_cols = ", min_num_cols
+                            "num_rows = ",
+                            num_rows,
+                            " != min_num_rows = ",
+                            min_num_rows,
+                            ", num_cols = ",
+                            num_cols,
+                            " != min_num_cols = ",
+                            min_num_cols
                         )
                     );
                 }
@@ -2383,7 +2603,9 @@ export {
                     // Try to infer parts of shape from diag.
                     ShapeHandle diag_prefix;
                     TF_RETURN_IF_ERROR(c->Subshape(
-                        diag_shape, 0, (lower_diag_index == upper_diag_index) ? -1 : -2,
+                        diag_shape,
+                        0,
+                        (lower_diag_index == upper_diag_index) ? -1 : -2,
                         &diag_prefix
                     ));
 
@@ -2470,8 +2692,10 @@ export {
                         return status;
                     }
                     TF_RETURN_IF_ERROR(CheckValidPadding(
-                        padding, explicit_paddings,
-                        /*num_dims=*/4, data_format
+                        padding,
+                        explicit_paddings,
+                        /*num_dims=*/4,
+                        data_format
                     ));
                 } else {
                     DCHECK(padding != Padding::EXPLICIT);
@@ -2483,28 +2707,61 @@ export {
                 int64_t pad_cols_before = -1, pad_cols_after = -1;
                 if (padding == Padding::EXPLICIT) {
                     GetExplicitPaddingForDim(
-                        explicit_paddings, data_format, 'H', &pad_rows_before, &pad_rows_after
+                        explicit_paddings,
+                        data_format,
+                        'H',
+                        &pad_rows_before,
+                        &pad_rows_after
                     );
                     GetExplicitPaddingForDim(
-                        explicit_paddings, data_format, 'W', &pad_cols_before, &pad_cols_after
+                        explicit_paddings,
+                        data_format,
+                        'W',
+                        &pad_cols_before,
+                        &pad_cols_after
                     );
                 }
                 TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDimsV2(
-                    c, in_rows_dim, kernel_rows, /*dilation_rate=*/1, stride_rows, padding,
-                    pad_rows_before, pad_rows_after, &output_rows
+                    c,
+                    in_rows_dim,
+                    kernel_rows,
+                    /*dilation_rate=*/1,
+                    stride_rows,
+                    padding,
+                    pad_rows_before,
+                    pad_rows_after,
+                    &output_rows
                 ));
                 TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDimsV2(
-                    c, in_cols_dim, kernel_cols, /*dilation_rate=*/1, stride_cols, padding,
-                    pad_cols_before, pad_cols_after, &output_cols
+                    c,
+                    in_cols_dim,
+                    kernel_cols,
+                    /*dilation_rate=*/1,
+                    stride_cols,
+                    padding,
+                    pad_cols_before,
+                    pad_cols_after,
+                    &output_cols
                 ));
                 TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDimsV2(
-                    c, in_depth_dim, kernel_depth, /*dilation_rate=*/1, stride_depth, padding,
-                    /*pad_before*/ 0, /*pad_after*/ 0, &output_depth
+                    c,
+                    in_depth_dim,
+                    kernel_depth,
+                    /*dilation_rate=*/1,
+                    stride_depth,
+                    padding,
+                    /*pad_before*/ 0,
+                    /*pad_after*/ 0,
+                    &output_depth
                 ));
 
                 TF_RETURN_IF_ERROR(MakeShapeFromFormat(
-                    data_format, batch_size_dim, {output_rows, output_cols}, output_depth,
-                    &output_shape, c
+                    data_format,
+                    batch_size_dim,
+                    {output_rows, output_cols},
+                    output_depth,
+                    &output_shape,
+                    c
                 ));
 
                 c->set_output(0, output_shape);
@@ -2621,18 +2878,37 @@ export {
                 ShapeHandle output_shape;
                 DimensionHandle output_rows, output_cols, output_depth;
                 TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDims(
-                    c, in_rows_dim, kernel_rows, stride_rows, padding, &output_rows
+                    c,
+                    in_rows_dim,
+                    kernel_rows,
+                    stride_rows,
+                    padding,
+                    &output_rows
                 ));
                 TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDims(
-                    c, in_cols_dim, kernel_cols, stride_cols, padding, &output_cols
+                    c,
+                    in_cols_dim,
+                    kernel_cols,
+                    stride_cols,
+                    padding,
+                    &output_cols
                 ));
                 TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDims(
-                    c, in_depth_dim, kernel_depth, stride_depth, padding, &output_depth
+                    c,
+                    in_depth_dim,
+                    kernel_depth,
+                    stride_depth,
+                    padding,
+                    &output_depth
                 ));
 
                 TF_RETURN_IF_ERROR(MakeShapeFromFormat(
-                    data_format, batch_size_dim, {output_rows, output_cols}, output_depth,
-                    &output_shape, c
+                    data_format,
+                    batch_size_dim,
+                    {output_rows, output_cols},
+                    output_depth,
+                    &output_shape,
+                    c
                 ));
 
                 c->set_output(0, output_shape);
@@ -2675,7 +2951,8 @@ export {
 
                 if (s.ok() && data_format == "NCDHW") {
                     // Convert input_shape to NDHWC.
-                    auto dim = [&](char dimension) {
+                    auto dim = [&](char dimension)
+                    {
                         return c->Dim(input_shape, GetTensorDimIndex<3>(FORMAT_NCHW, dimension));
                     };
                     input_shape =
@@ -2709,13 +2986,28 @@ export {
                 // in the kernel implementation.
                 DimensionHandle output_planes, output_rows, output_cols;
                 TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDims(
-                    c, in_planes_dim, kernel_planes, stride_planes, padding, &output_planes
+                    c,
+                    in_planes_dim,
+                    kernel_planes,
+                    stride_planes,
+                    padding,
+                    &output_planes
                 ));
                 TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDims(
-                    c, in_rows_dim, kernel_rows, stride_rows, padding, &output_rows
+                    c,
+                    in_rows_dim,
+                    kernel_rows,
+                    stride_rows,
+                    padding,
+                    &output_rows
                 ));
                 TF_RETURN_IF_ERROR(GetWindowedOutputSizeFromDims(
-                    c, in_cols_dim, kernel_cols, stride_cols, padding, &output_cols
+                    c,
+                    in_cols_dim,
+                    kernel_cols,
+                    stride_cols,
+                    padding,
+                    &output_cols
                 ));
 
                 ShapeHandle output_shape;
@@ -2769,8 +3061,11 @@ export {
                     const T reduction_index = reduction_indices(i);
                     if (reduction_index < -input_rank || reduction_index >= input_rank) {
                         return errors::InvalidArgument(
-                            "Invalid reduction dimension ", reduction_index, " for input with ",
-                            input_rank, " dimensions."
+                            "Invalid reduction dimension ",
+                            reduction_index,
+                            " for input with ",
+                            input_rank,
+                            " dimensions."
                         );
                     }
 
@@ -2819,13 +3114,17 @@ export {
                 if (reduction_indices_t->dtype() == DataType::DT_INT32) {
                     TF_RETURN_IF_ERROR(
                         ReductionShapeHelper<int32_t>(
-                            reduction_indices_t, input_rank, &true_indices
+                            reduction_indices_t,
+                            input_rank,
+                            &true_indices
                         )
                     );
                 } else if (reduction_indices_t->dtype() == DataType::DT_INT64) {
                     TF_RETURN_IF_ERROR(
                         ReductionShapeHelper<int64_t>(
-                            reduction_indices_t, input_rank, &true_indices
+                            reduction_indices_t,
+                            input_rank,
+                            &true_indices
                         )
                     );
                 } else {
@@ -2850,7 +3149,10 @@ export {
             }
 
             absl::Status ConcatShapeHelper(
-                InferenceContext* c, int start_value_index, int end_value_index, int dim_index
+                InferenceContext* c,
+                int start_value_index,
+                int end_value_index,
+                int dim_index
             )
             {
                 ShapeHandle unused;
@@ -2946,7 +3248,9 @@ export {
             absl::Status ConcatShape(InferenceContext* c, int num_inputs_to_concat)
             {
                 return ConcatShapeHelper(
-                    c, 1 /* start_value_index */, 1 + num_inputs_to_concat /* end_value_index */,
+                    c,
+                    1 /* start_value_index */,
+                    1 + num_inputs_to_concat /* end_value_index */,
                     0 /* dim_index */
                 );
             }
@@ -2954,7 +3258,9 @@ export {
             absl::Status ConcatV2Shape(InferenceContext* c)
             {
                 return ConcatShapeHelper(
-                    c, 0 /* start_value_index */, c->num_inputs() - 1 /* end_value_index */,
+                    c,
+                    0 /* start_value_index */,
+                    c->num_inputs() - 1 /* end_value_index */,
                     c->num_inputs() - 1 /* dim_index */
                 );
             }
@@ -2962,7 +3268,9 @@ export {
             absl::Status QuantizedConcatV2Shape(InferenceContext* c, int num_inputs_to_concat)
             {
                 return ConcatShapeHelper(
-                    c, 0 /* start_value_index */, num_inputs_to_concat /* end_value_index */,
+                    c,
+                    0 /* start_value_index */,
+                    num_inputs_to_concat /* end_value_index */,
                     num_inputs_to_concat /* dim_index */
                 );
             }
@@ -3123,8 +3431,12 @@ export {
                             auto dim_val = c->Value(dim);
                             if (sizes_vec(i) < 0) {
                                 return errors::InvalidArgument(
-                                    "Out of bounds slicing on dimension ", i, " of length ",
-                                    dim_val, ": sizes vector cannot be < -1, but was ", sizes_vec(i)
+                                    "Out of bounds slicing on dimension ",
+                                    i,
+                                    " of length ",
+                                    dim_val,
+                                    ": sizes vector cannot be < -1, but was ",
+                                    sizes_vec(i)
                                 );
                             }
 
@@ -3244,8 +3556,11 @@ export {
                         if (num_index_elements != num_values_elements) {
                             return absl::InvalidArgumentError(
                                 absl::StrCat(
-                                    "Number of elements in index (", num_index_elements,
-                                    ") and values (", num_values_elements, ") do not match."
+                                    "Number of elements in index (",
+                                    num_index_elements,
+                                    ") and values (",
+                                    num_values_elements,
+                                    ") do not match."
                                 )
                             );
                         }
@@ -3262,7 +3577,10 @@ export {
                         if (index_rank != shape_rank) {
                             return absl::InvalidArgumentError(
                                 absl::StrCat(
-                                    "Index rank (", index_rank, ") and shape rank (", shape_rank,
+                                    "Index rank (",
+                                    index_rank,
+                                    ") and shape rank (",
+                                    shape_rank,
                                     ") do not match."
                                 )
                             );
@@ -3274,7 +3592,8 @@ export {
             }
 
             absl::Status ValidateVariableResourceHandle(
-                InferenceContext* c, std::vector<ShapeAndType>* shape_and_type
+                InferenceContext* c,
+                std::vector<ShapeAndType>* shape_and_type
             )
             {
                 auto* handle_data = c->input_handle_shapes_and_types(0);
@@ -3289,7 +3608,8 @@ export {
                             absl::StrCat(
                                 "Trying to read variable with wrong dtype. "
                                 "Expected ",
-                                DataTypeString(shape_and_type->at(0).dtype), " got ",
+                                DataTypeString(shape_and_type->at(0).dtype),
+                                " got ",
                                 DataTypeString(value_dtype)
                             )
                         );
@@ -3321,7 +3641,9 @@ export {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
                             "indices.shape[-1] must be <= params.rank, but saw indices shape: ",
-                            c->DebugString(indices), " and params shape: ", c->DebugString(params)
+                            c->DebugString(indices),
+                            " and params shape: ",
+                            c->DebugString(params)
                         )
                     );
                 }
@@ -3374,12 +3696,20 @@ export {
                         absl::Status s = c->Merge(prefix_indices, prefix_updates, &unused);
                         if (!s.ok()) {
                             return errors::InvalidArgument(
-                                "Dimensions [0,", outer_dims,
-                                ") of indices[shape=", c->DebugString(indices_shape),
-                                "] = ", c->DebugString(prefix_indices),
-                                " must match dimensions [0,", outer_dims,
-                                ") of updates[shape=", c->DebugString(updates_shape),
-                                "] = ", c->DebugString(prefix_updates), ": ", s.message()
+                                "Dimensions [0,",
+                                outer_dims,
+                                ") of indices[shape=",
+                                c->DebugString(indices_shape),
+                                "] = ",
+                                c->DebugString(prefix_indices),
+                                " must match dimensions [0,",
+                                outer_dims,
+                                ") of updates[shape=",
+                                c->DebugString(updates_shape),
+                                "] = ",
+                                c->DebugString(prefix_updates),
+                                ": ",
+                                s.message()
                             );
                         }
 
@@ -3390,12 +3720,24 @@ export {
                         s = c->Merge(suffix_output, suffix_updates, &unused);
                         if (!s.ok()) {
                             return errors::InvalidArgument(
-                                "Dimensions [", ix, ",", c->Rank(input_shape),
-                                ") of input[shape=", c->DebugString(input_shape),
-                                "] = ", c->DebugString(suffix_output), " must match dimensions [",
-                                outer_dims, ",", c->Rank(updates_shape),
-                                ") of updates[shape=", c->DebugString(updates_shape),
-                                "] = ", c->DebugString(suffix_updates), ": ", s.message()
+                                "Dimensions [",
+                                ix,
+                                ",",
+                                c->Rank(input_shape),
+                                ") of input[shape=",
+                                c->DebugString(input_shape),
+                                "] = ",
+                                c->DebugString(suffix_output),
+                                " must match dimensions [",
+                                outer_dims,
+                                ",",
+                                c->Rank(updates_shape),
+                                ") of updates[shape=",
+                                c->DebugString(updates_shape),
+                                "] = ",
+                                c->DebugString(suffix_updates),
+                                ": ",
+                                s.message()
                             );
                         }
                     }
@@ -3525,18 +3867,23 @@ export {
                     min_input_filter_offset = 2;
                 }
                 TF_RETURN_IF_ERROR(c->WithRank(
-                    c->input(kMinInputBaseIdx + min_input_filter_offset), 0,
+                    c->input(kMinInputBaseIdx + min_input_filter_offset),
+                    0,
                     &unused
                 )); // min_input
                 TF_RETURN_IF_ERROR(c->WithRank(
-                    c->input(kMinInputBaseIdx + min_input_filter_offset + 1), 0,
+                    c->input(kMinInputBaseIdx + min_input_filter_offset + 1),
+                    0,
                     &unused
                 )); // max_input
                 TF_RETURN_IF_ERROR(c->WithRankAtMost(
-                    c->input(kMinFilterBaseIdx + min_input_filter_offset), 1, &channel
+                    c->input(kMinFilterBaseIdx + min_input_filter_offset),
+                    1,
+                    &channel
                 )); // min_filter
                 TF_RETURN_IF_ERROR(c->WithRankAtMost(
-                    c->input(kMinFilterBaseIdx + min_input_filter_offset + 1), 1,
+                    c->input(kMinFilterBaseIdx + min_input_filter_offset + 1),
+                    1,
                     &channel
                 )); // max_filter
                 if (fused_requantize) {
@@ -3635,8 +3982,10 @@ export {
                         shape_inference::DimensionHandle dim = c->Dim(in, i);
                         shape_inference::DimensionHandle out_dim;
                         TF_RETURN_IF_ERROR(c->Divide(
-                            dim, c->Dim(group_assignment_shape, 1),
-                            /*evenly_divisible=*/true, &out_dim
+                            dim,
+                            c->Dim(group_assignment_shape, 1),
+                            /*evenly_divisible=*/true,
+                            &out_dim
                         ));
                         out_dims.push_back(out_dim);
                     } else {

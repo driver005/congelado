@@ -1,8 +1,8 @@
 #ifndef TENSORFLOW_C_TF_MAP_H_
 #define TENSORFLOW_C_TF_MAP_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -27,7 +27,12 @@ extern "C"
         void (*destroy)(TF_Map* handle);
 
         void (*insert)(TF_Map* map, const void* key, const void* value, TF_Status* out_status);
-        void (*find)(const TF_Map* map, const void* key, const void** out_value, TF_Status* out_status);
+        void (*find)(
+            const TF_Map* map,
+            const void* key,
+            const void** out_value,
+            TF_Status* out_status
+        );
         void (*erase)(TF_Map* map, const void* key, TF_Status* out_status);
         void (*contains)(TF_Map* map, const void* key, int* out_found, TF_Status* out_status);
         void (*size)(const TF_Map* map, size_t* out_size);

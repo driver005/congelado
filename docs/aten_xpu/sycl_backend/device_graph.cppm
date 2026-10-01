@@ -37,9 +37,9 @@ public:
     ) noexcept override
     {
         if (m_has_graph_exec) {
-            return std::unexpected{
-                ice::sonic::Status::from_message("SyclDeviceGraph: instance already owns a captured graph")
-            };
+            return std::unexpected{ice::sonic::Status::from_message(
+                "SyclDeviceGraph: instance already owns a captured graph"
+            )};
         }
 
         if (mode != TF_CAPTURE_MODE_GLOBAL) {
@@ -50,9 +50,9 @@ public:
 
         auto* native_stream = dynamic_cast<SyclStream*>(&capture_stream);
         if (native_stream == nullptr) {
-            return std::unexpected{
-                ice::sonic::Status::from_message("SyclDeviceGraph: capture stream was not created by this plugin")
-            };
+            return std::unexpected{ice::sonic::Status::from_message(
+                "SyclDeviceGraph: capture stream was not created by this plugin"
+            )};
         }
 
         m_capture_stream = native_stream;
@@ -75,9 +75,9 @@ public:
     [[nodiscard]] std::expected<void, ice::sonic::Status> capture_end() noexcept override
     {
         if (!m_graph.has_value() || m_capture_stream == nullptr) {
-            return std::unexpected{
-                ice::sonic::Status::from_message("SyclDeviceGraph: capture_end without capture_begin")
-            };
+            return std::unexpected{ice::sonic::Status::from_message(
+                "SyclDeviceGraph: capture_end without capture_begin"
+            )};
         }
 
         try {
@@ -112,9 +112,9 @@ public:
     [[nodiscard]] std::expected<void, ice::sonic::Status> replay() noexcept override
     {
         if (!m_capture_ended) {
-            return std::unexpected{
-                ice::sonic::Status::from_message("SyclDeviceGraph: replay without a preceding capture")
-            };
+            return std::unexpected{ice::sonic::Status::from_message(
+                "SyclDeviceGraph: replay without a preceding capture"
+            )};
         }
 
         if (!m_has_graph_exec) {

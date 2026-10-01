@@ -30,7 +30,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // All implementations must be thread-safe.

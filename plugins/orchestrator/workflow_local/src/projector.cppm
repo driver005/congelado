@@ -61,10 +61,16 @@ public:
         auto exec_id = std::format("{}", exec.get_exec_id());
         auto json = to_json(summary);
         provider->index(
-            WORKFLOW_SUMMARY_COLLECTION, exec_id, json, [exec_id](std::string_view result) {
+            WORKFLOW_SUMMARY_COLLECTION,
+            exec_id,
+            json,
+            [exec_id](std::string_view result)
+            {
                 if (result.empty()) {
                     core::logger::warning(
-                        "engine", "search index failed for workflow '{}'", exec_id
+                        "engine",
+                        "search index failed for workflow '{}'",
+                        exec_id
                     );
                     core::events::publish(
                         "engine.search.index_failed",
@@ -114,15 +120,21 @@ public:
 
         auto task_id = std::format("{}", instance.get_task_id());
         auto json = to_json(summary);
-        provider->index(TASK_SUMMARY_COLLECTION, task_id, json, [task_id](std::string_view result) {
-            if (result.empty()) {
-                core::logger::warning("engine", "search index failed for task '{}'", task_id);
-                core::events::publish(
-                    "engine.search.index_failed",
-                    {{"collection", std::string{TASK_SUMMARY_COLLECTION}}, {"id", task_id}}
-                );
+        provider->index(
+            TASK_SUMMARY_COLLECTION,
+            task_id,
+            json,
+            [task_id](std::string_view result)
+            {
+                if (result.empty()) {
+                    core::logger::warning("engine", "search index failed for task '{}'", task_id);
+                    core::events::publish(
+                        "engine.search.index_failed",
+                        {{"collection", std::string{TASK_SUMMARY_COLLECTION}}, {"id", task_id}}
+                    );
+                }
             }
-        });
+        );
     }
 
 private:
@@ -172,7 +184,9 @@ public:
     }
 
     void remove(
-        std::string_view /*collection*/, std::string_view /*id*/, shared::QueryReadFn&& callback
+        std::string_view /*collection*/,
+        std::string_view /*id*/,
+        shared::QueryReadFn&& callback
     ) noexcept override
     {
         callback("ok");
@@ -228,19 +242,25 @@ public:
     }
 };
 
-suite<"SummaryProjector::project_workflow"> project_workflow_suite = [] {
-    "no-ops when no search provider is configured"_test = [] {
+suite<"SummaryProjector::project_workflow"> project_workflow_suite = []
+{
+    "no-ops when no search provider is configured"_test = []
+    {
         WorkflowContext ctx;
         SummaryProjector projector{ctx};
         model::WorkflowExecution exec;
         exec.set_exec_id(model::generate_id());
 
-        expect(nothrow([&] {
-            projector.project_workflow(exec);
-        }));
+        expect(nothrow(
+            [&]
+            {
+                projector.project_workflow(exec);
+            }
+        ));
     };
 
-    "indexes into the workflow_summaries collection, keyed by the formatted exec_id"_test = [] {
+    "indexes into the workflow_summaries collection, keyed by the formatted exec_id"_test = []
+    {
         WorkflowContext ctx;
         SpySearchProvider provider;
         ctx.set_search(&provider);
@@ -264,7 +284,8 @@ suite<"SummaryProjector::project_workflow"> project_workflow_suite = [] {
         serde::SerdeFormatRegistry::set_active(nullptr);
     };
 
-    "collects only FAILED/TIMED_OUT instance def_names into failed_task_names"_test = [] {
+    "collects only FAILED/TIMED_OUT instance def_names into failed_task_names"_test = []
+    {
         WorkflowContext ctx;
         SpySearchProvider provider;
         ctx.set_search(&provider);
@@ -300,37 +321,46 @@ suite<"SummaryProjector::project_workflow"> project_workflow_suite = [] {
         serde::SerdeFormatRegistry::set_active(nullptr);
     };
 
-    "logs a warning and publishes engine.search.index_failed when index() reports failure"_test =
-        [] {
-            WorkflowContext ctx;
-            SpySearchProvider provider;
-            provider.m_fail_next = true;
-            ctx.set_search(&provider);
-            SummaryProjector projector{ctx};
+    "logs a warning and publishes engine.search.index_failed when index() reports failure"_test = []
+    {
+        WorkflowContext ctx;
+        SpySearchProvider provider;
+        provider.m_fail_next = true;
+        ctx.set_search(&provider);
+        SummaryProjector projector{ctx};
 
-            model::WorkflowExecution exec;
-            exec.set_exec_id(model::generate_id());
+        model::WorkflowExecution exec;
+        exec.set_exec_id(model::generate_id());
 
-            expect(nothrow([&] {
+        expect(nothrow(
+            [&]
+            {
                 projector.project_workflow(exec);
-            }));
-            expect(provider.m_index_calls == 1);
-        };
+            }
+        ));
+        expect(provider.m_index_calls == 1);
+    };
 };
 
-suite<"SummaryProjector::project_task"> project_task_suite = [] {
-    "no-ops when no search provider is configured"_test = [] {
+suite<"SummaryProjector::project_task"> project_task_suite = []
+{
+    "no-ops when no search provider is configured"_test = []
+    {
         WorkflowContext ctx;
         SummaryProjector projector{ctx};
         model::TaskInstance instance;
         instance.set_task_id(model::generate_id());
 
-        expect(nothrow([&] {
-            projector.project_task(instance);
-        }));
+        expect(nothrow(
+            [&]
+            {
+                projector.project_task(instance);
+            }
+        ));
     };
 
-    "indexes into the task_summaries collection, keyed by the formatted task_id"_test = [] {
+    "indexes into the task_summaries collection, keyed by the formatted task_id"_test = []
+    {
         WorkflowContext ctx;
         SpySearchProvider provider;
         ctx.set_search(&provider);
@@ -352,7 +382,8 @@ suite<"SummaryProjector::project_task"> project_task_suite = [] {
         serde::SerdeFormatRegistry::set_active(nullptr);
     };
 
-    "computes queue_wait_time_ms only when both scheduled_at and started_at are set"_test = [] {
+    "computes queue_wait_time_ms only when both scheduled_at and started_at are set"_test = []
+    {
         WorkflowContext ctx;
         SpySearchProvider provider;
         ctx.set_search(&provider);
@@ -380,7 +411,8 @@ suite<"SummaryProjector::project_task"> project_task_suite = [] {
     // reject, but this projector never calls validate() — it just casts the negative duration
     // straight to uint64_t, which wraps around to a huge value instead of erroring or clamping.
     "BUG: started_at before scheduled_at wraps queue_wait_time_ms to a huge value instead of "
-    "erroring"_test = [] {
+    "erroring"_test = []
+    {
         WorkflowContext ctx;
         SpySearchProvider provider;
         ctx.set_search(&provider);

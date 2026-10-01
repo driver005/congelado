@@ -40,7 +40,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         class Device;
@@ -66,7 +65,9 @@ export {
             )
             {
                 Register(
-                    device_type, std::unique_ptr<DeviceFactory>(factory), priority,
+                    device_type,
+                    std::unique_ptr<DeviceFactory>(factory),
+                    priority,
                     is_pluggable_device
                 );
             }
@@ -112,7 +113,8 @@ export {
             // Get details for a specific device among all device factories.
             // 'device_index' indexes into devices from ListAllPhysicalDevices.
             static absl::Status GetAnyDeviceDetails(
-                int device_index, std::unordered_map<std::string, std::string>* details
+                int device_index,
+                std::unordered_map<std::string, std::string>* details
             );
 
             // For a specific device factory list all possible physical devices.
@@ -122,7 +124,8 @@ export {
             // can store arbitrary device information in the map. 'device_index' indexes
             // into devices from ListPhysicalDevices.
             virtual absl::Status GetDeviceDetails(
-                int device_index, std::unordered_map<std::string, std::string>* details
+                int device_index,
+                std::unordered_map<std::string, std::string>* details
             )
             {
                 return absl::OkStatus();
@@ -193,7 +196,9 @@ export {
                 explicit Registrar(const std::string& device_type, int priority = 50)
                 {
                     DeviceFactory::Register(
-                        device_type, std::make_unique<Factory>(), priority,
+                        device_type,
+                        std::make_unique<Factory>(),
+                        priority,
                         /*is_pluggable_device*/ false
                     );
                 }
@@ -246,7 +251,8 @@ export {
                 std::vector<std::string> enabled_devices;
                 TF_CHECK_OK(
                     tensorflow::ReadStringsFromEnvVar(
-                        /*env_var_name=*/"TF_ENABLED_DEVICE_TYPES", /*default_val=*/"",
+                        /*env_var_name=*/"TF_ENABLED_DEVICE_TYPES",
+                        /*default_val=*/"",
                         &enabled_devices
                     )
                 );
@@ -367,7 +373,8 @@ export {
         }
 
         absl::Status DeviceFactory::GetAnyDeviceDetails(
-            int device_index, std::unordered_map<std::string, std::string>* details
+            int device_index,
+            std::unordered_map<std::string, std::string>* details
         )
         {
             if (device_index < 0) {
@@ -475,7 +482,9 @@ export {
         }
 
         std::unique_ptr<Device> DeviceFactory::NewDevice(
-            const std::string& type, const SessionOptions& options, const std::string& name_prefix
+            const std::string& type,
+            const SessionOptions& options,
+            const std::string& name_prefix
         )
         {
             auto device_factory = GetFactory(type);

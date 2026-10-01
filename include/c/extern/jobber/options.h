@@ -1,10 +1,10 @@
 #ifndef CONGELADO_C_EXTERN_JOB_OPTIONS_H_
 #define CONGELADO_C_EXTERN_JOB_OPTIONS_H_
 
-#include "include/c/macros.h"
+#include "include/c/extern/jobber/job.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
-#include "include/c/extern/jobber/job.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -37,19 +37,26 @@ extern "C"
         void (*destroy)(TF_Options* handle);
 
 
-        void (*get_options)(TF_Options* options, TF_Job* job, TFJobOptions* out_options, TF_Status* out_status);
-        void (*update_options)(TF_Options* options, TF_Job* job, const TFJobOptions* new_options, TF_Status* out_status);
+        void (*get_options)(
+            TF_Options* options,
+            TF_Job* job,
+            TFJobOptions* out_options,
+            TF_Status* out_status
+        );
+        void (*update_options)(
+            TF_Options* options,
+            TF_Job* job,
+            const TFJobOptions* new_options,
+            TF_Status* out_status
+        );
         void (*set_priority)(TF_Options* options, TF_Job* job, int priority, TF_Status* out_status);
 
     } TF_OptionsOps;
 
 #define TF_OPTIONS_STRUCT_SIZE TF_OFFSET_OF_END(TF_OptionsOps, set_priority)
 
-    TF_CAPI_EXPORT void create_options(
-        TF_OptionsOps** ops,
-        void** plugin_context,
-        TF_Status* out_status
-    );
+    TF_CAPI_EXPORT void
+    create_options(TF_OptionsOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_options(void* plugin_context);
 
 #ifdef __cplusplus

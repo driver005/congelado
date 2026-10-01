@@ -234,8 +234,10 @@ private:
 namespace core::generator::tests {
 using namespace boost::ut;
 
-suite<"Function"> function_suite = [] {
-    "block render includes the params, body, and trailing blank line"_test = [] {
+suite<"Function"> function_suite = []
+{
+    "block render includes the params, body, and trailing blank line"_test = []
+    {
         Function func{"void", "doThing"};
         func.add_param(Param{"int", "value"});
         func.add_statement(Stmt::return_stmt());
@@ -245,7 +247,8 @@ suite<"Function"> function_suite = [] {
         expect(func.render(0) == "void doThing(int value) {\n    return;\n}\n\n");
     };
 
-    "nodiscard/static/const/noexcept qualifiers render in order"_test = [] {
+    "nodiscard/static/const/noexcept qualifiers render in order"_test = []
+    {
         Function func{"int", "getCount"};
         func.set_nodiscard().set_static().set_const().set_noexcept();
 
@@ -253,13 +256,15 @@ suite<"Function"> function_suite = [] {
         expect(func.render(0) == "[[nodiscard]] static int getCount() const noexcept {\n}\n\n");
     };
 
-    "reference return type skips the extra space before the name"_test = [] {
+    "reference return type skips the extra space before the name"_test = []
+    {
         Function func{"const std::string &", "getName"};
 
         expect(func.render(0) == "const std::string &getName() {\n}\n\n");
     };
 
-    "inline mode squashes statements onto a single line"_test = [] {
+    "inline mode squashes statements onto a single line"_test = []
+    {
         Function func{"void", "setX"};
         func.set_inline();
         func.add_param(Param{"int", "value"});

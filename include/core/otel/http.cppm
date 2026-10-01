@@ -87,7 +87,9 @@ export namespace core::otel {
 inline std::string format_traceparent(const interfaces::SpanContext& ctx)
 {
     return std::format(
-        "00-{}-{}-{:02x}", detail::to_hex(ctx.trace_id), detail::to_hex(ctx.span_id),
+        "00-{}-{}-{:02x}",
+        detail::to_hex(ctx.trace_id),
+        detail::to_hex(ctx.span_id),
         ctx.sampled ? 1 : 0
     );
 }
@@ -142,8 +144,10 @@ inline std::optional<interfaces::SpanContext> parse_traceparent(std::string_view
 namespace core::otel::tests {
 using namespace boost::ut;
 
-suite<"otel::traceparent"> traceparent_suite = [] {
-    "an all-zero unsampled context formats to the expected traceparent string"_test = [] {
+suite<"otel::traceparent"> traceparent_suite = []
+{
+    "an all-zero unsampled context formats to the expected traceparent string"_test = []
+    {
         interfaces::SpanContext ctx;
         ctx.sampled = false;
 
@@ -152,7 +156,8 @@ suite<"otel::traceparent"> traceparent_suite = [] {
         expect(header == "00-00000000000000000000000000000000-0000000000000000-00");
     };
 
-    "a sampled context sets the trailing flags byte to 01"_test = [] {
+    "a sampled context sets the trailing flags byte to 01"_test = []
+    {
         interfaces::SpanContext ctx;
         ctx.sampled = true;
 
@@ -161,7 +166,8 @@ suite<"otel::traceparent"> traceparent_suite = [] {
         expect(header.ends_with("-01"));
     };
 
-    "format then parse round-trips trace id, span id, and sampled flag"_test = [] {
+    "format then parse round-trips trace id, span id, and sampled flag"_test = []
+    {
         interfaces::SpanContext ctx;
         for (std::size_t i = 0; i < ctx.trace_id.size(); ++i) {
             ctx.trace_id[i] = static_cast<std::byte>(i + 1);
@@ -179,21 +185,25 @@ suite<"otel::traceparent"> traceparent_suite = [] {
         expect(parsed->sampled == ctx.sampled);
     };
 
-    "parse rejects a header that's too short"_test = [] {
+    "parse rejects a header that's too short"_test = []
+    {
         expect(not parse_traceparent("00-abcd").has_value());
     };
 
-    "parse rejects an unsupported version prefix"_test = [] {
+    "parse rejects an unsupported version prefix"_test = []
+    {
         expect(not parse_traceparent("01-00000000000000000000000000000000-0000000000000000-00")
                        .has_value());
     };
 
-    "parse rejects a header with misplaced separators"_test = [] {
+    "parse rejects a header with misplaced separators"_test = []
+    {
         expect(not parse_traceparent("00x00000000000000000000000000000000-0000000000000000-00")
                        .has_value());
     };
 
-    "parse rejects invalid hex digits"_test = [] {
+    "parse rejects invalid hex digits"_test = []
+    {
         expect(not parse_traceparent("00-zz000000000000000000000000000000-0000000000000000-00")
                        .has_value());
     };

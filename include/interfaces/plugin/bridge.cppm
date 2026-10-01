@@ -139,8 +139,10 @@ public:
 
 using namespace boost::ut;
 
-suite<"IBridge"> bridge_suite = [] {
-    "native_handle() defaults to nullptr when not overridden"_test = [] {
+suite<"IBridge"> bridge_suite = []
+{
+    "native_handle() defaults to nullptr when not overridden"_test = []
+    {
         MockBridge bridge;
         expect(bridge.native_handle() == nullptr);
     };

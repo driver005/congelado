@@ -1,7 +1,7 @@
 module;
 
 #ifndef WIN32_LEAN_AND_MEAN
-#    define WIN32_LEAN_AND_MEAN
+    #define WIN32_LEAN_AND_MEAN
 #endif
 #include <mswsock.h>
 #include <windows.h>
@@ -145,7 +145,11 @@ public:
 
         while (true) {
             BOOL result = GetQueuedCompletionStatus(
-                m_iocp_handle, &bytes_transferred, &completion_key, &overlapped, timeout_ms
+                m_iocp_handle,
+                &bytes_transferred,
+                &completion_key,
+                &overlapped,
+                timeout_ms
             );
 
             // no completion and no overlapped pointer means the wait itself timed out/failed
@@ -269,15 +273,29 @@ private:
         GUID guid_connect_ex = WSAID_CONNECTEX;
         DWORD bytes;
         WSAIoctl(
-            dummy, SIO_GET_EXTENSION_FUNCTION_POINTER, &guid_connect_ex, sizeof(guid_connect_ex),
-            &m_connect_ex_ptr, sizeof(m_connect_ex_ptr), &bytes, nullptr, nullptr
+            dummy,
+            SIO_GET_EXTENSION_FUNCTION_POINTER,
+            &guid_connect_ex,
+            sizeof(guid_connect_ex),
+            &m_connect_ex_ptr,
+            sizeof(m_connect_ex_ptr),
+            &bytes,
+            nullptr,
+            nullptr
         );
 
         // same motion for AcceptEx
         GUID guid_accept_ex = WSAID_ACCEPTEX;
         WSAIoctl(
-            dummy, SIO_GET_EXTENSION_FUNCTION_POINTER, &guid_accept_ex, sizeof(guid_accept_ex),
-            &m_accept_ex_ptr, sizeof(m_accept_ex_ptr), &bytes, nullptr, nullptr
+            dummy,
+            SIO_GET_EXTENSION_FUNCTION_POINTER,
+            &guid_accept_ex,
+            sizeof(guid_accept_ex),
+            &m_accept_ex_ptr,
+            sizeof(m_accept_ex_ptr),
+            &bytes,
+            nullptr,
+            nullptr
         );
 
         // the dummy socket was only ever a lookup vehicle, done with it now
@@ -293,7 +311,9 @@ private:
  */
 template<>
 Leverager<Context>::Leverager(
-    int entries, [[maybe_unused]] std::uint32_t flags, [[maybe_unused]] std::uint32_t wq_fd
+    int entries,
+    [[maybe_unused]] std::uint32_t flags,
+    [[maybe_unused]] std::uint32_t wq_fd
 ) :
     m_context{Context{entries}} {};
 
@@ -471,7 +491,11 @@ void Leverager<Context>::async_readv(
 
     // no real vectored read here, just forward the first buffer
     async_read(
-        fd, iovecs[0].iov_base, static_cast<unsigned>(iovecs[0].iov_len), offset, std::move(cb),
+        fd,
+        iovecs[0].iov_base,
+        static_cast<unsigned>(iovecs[0].iov_len),
+        offset,
+        std::move(cb),
         iflags
     );
 }
@@ -504,7 +528,11 @@ void Leverager<Context>::async_writev(
 
     // no real vectored write here, just forward the first buffer
     async_write(
-        fd, iovecs[0].iov_base, static_cast<unsigned>(iovecs[0].iov_len), offset, std::move(cb),
+        fd,
+        iovecs[0].iov_base,
+        static_cast<unsigned>(iovecs[0].iov_len),
+        offset,
+        std::move(cb),
         iflags
     );
 }
@@ -759,15 +787,23 @@ void Leverager<Context>::async_send(
  */
 template<>
 void Leverager<Context>::async_recvmsg(
-    int sockfd, msghdr* msg, std::uint32_t flags, completion_callback cb, std::uint8_t iflags
+    int sockfd,
+    msghdr* msg,
+    std::uint32_t flags,
+    completion_callback cb,
+    std::uint8_t iflags
 )
 {
     // only the first iovec is real here — forward to async_recv() if there's one, otherwise
     // there's nothing to receive into
     if (msg->msg_iovlen > 0) {
         async_recv(
-            sockfd, msg->msg_iov[0].iov_base, static_cast<unsigned>(msg->msg_iov[0].iov_len), flags,
-            std::move(cb), iflags
+            sockfd,
+            msg->msg_iov[0].iov_base,
+            static_cast<unsigned>(msg->msg_iov[0].iov_len),
+            flags,
+            std::move(cb),
+            iflags
         );
     } else {
         cb(0);
@@ -786,15 +822,23 @@ void Leverager<Context>::async_recvmsg(
  */
 template<>
 void Leverager<Context>::async_sendmsg(
-    int sockfd, const msghdr* msg, std::uint32_t flags, completion_callback cb, std::uint8_t iflags
+    int sockfd,
+    const msghdr* msg,
+    std::uint32_t flags,
+    completion_callback cb,
+    std::uint8_t iflags
 )
 {
     // only the first iovec is real here — forward to async_send() if there's one, otherwise
     // there's nothing to send
     if (msg->msg_iovlen > 0) {
         async_send(
-            sockfd, msg->msg_iov[0].iov_base, static_cast<unsigned>(msg->msg_iov[0].iov_len), flags,
-            std::move(cb), iflags
+            sockfd,
+            msg->msg_iov[0].iov_base,
+            static_cast<unsigned>(msg->msg_iov[0].iov_len),
+            flags,
+            std::move(cb),
+            iflags
         );
     } else {
         cb(0);
@@ -905,8 +949,14 @@ void Leverager<Context>::async_accept(
 
     // fire the overlapped accept — a non-pending failure completes inline right here
     BOOL result = m_context.get_accept_ex()(
-        listen_socket, accept_socket, accept_buffer, 0, sizeof(sockaddr_in) + 16,
-        sizeof(sockaddr_in) + 16, &bytes_received, &op->overlapped
+        listen_socket,
+        accept_socket,
+        accept_buffer,
+        0,
+        sizeof(sockaddr_in) + 16,
+        sizeof(sockaddr_in) + 16,
+        &bytes_received,
+        &op->overlapped
     );
 
     if (!result && WSAGetLastError() != WSA_IO_PENDING) {
@@ -989,7 +1039,9 @@ void Leverager<Context>::async_connect(
  */
 template<>
 void Leverager<Context>::async_timeout(
-    __kernel_timespec* ts, completion_callback cb, [[maybe_unused]] std::uint8_t iflags
+    __kernel_timespec* ts,
+    completion_callback cb,
+    [[maybe_unused]] std::uint8_t iflags
 )
 {
     HANDLE timer = CreateWaitableTimer(nullptr, TRUE, nullptr);
@@ -1064,8 +1116,13 @@ void Leverager<Context>::async_openat(
     // the open itself is synchronous — FILE_FLAG_OVERLAPPED only affects subsequent I/O on
     // the handle, not this call
     HANDLE h = CreateFileA(
-        path, access, FILE_SHARE_READ | FILE_SHARE_WRITE, nullptr, disposition,
-        FILE_FLAG_OVERLAPPED, nullptr
+        path,
+        access,
+        FILE_SHARE_READ | FILE_SHARE_WRITE,
+        nullptr,
+        disposition,
+        FILE_FLAG_OVERLAPPED,
+        nullptr
     );
 
     if (h == INVALID_HANDLE_VALUE) {
@@ -1087,7 +1144,9 @@ void Leverager<Context>::async_openat(
  */
 template<>
 void Leverager<Context>::async_close(
-    int fd, completion_callback cb, [[maybe_unused]] std::uint8_t iflags
+    int fd,
+    completion_callback cb,
+    [[maybe_unused]] std::uint8_t iflags
 )
 {
     HANDLE h = m_context.fd_to_handle(fd);
@@ -1205,7 +1264,10 @@ void Leverager<Context>::async_tee(
  */
 template<>
 void Leverager<Context>::async_shutdown(
-    int fd, int how, completion_callback cb, [[maybe_unused]] std::uint8_t iflags
+    int fd,
+    int how,
+    completion_callback cb,
+    [[maybe_unused]] std::uint8_t iflags
 )
 {
     SOCKET sock = static_cast<SOCKET>(fd);
@@ -1404,8 +1466,12 @@ int Leverager<Context>::readv(int fd, const iovec* iovecs, unsigned nr_vecs, off
     // completion pass, then hand back whatever landed (see the doxygen warning re: timing)
     int result = -1;
     async_readv(
-        fd, iovecs, nr_vecs, offset,
-        [&](int res) {
+        fd,
+        iovecs,
+        nr_vecs,
+        offset,
+        [&](int res)
+        {
             result = res;
         },
         0
@@ -1430,8 +1496,12 @@ int Leverager<Context>::writev(int fd, const iovec* iovecs, unsigned nr_vecs, of
     // same one-pump-and-hope pattern as readv()
     int result = -1;
     async_writev(
-        fd, iovecs, nr_vecs, offset,
-        [&](int res) {
+        fd,
+        iovecs,
+        nr_vecs,
+        offset,
+        [&](int res)
+        {
             result = res;
         },
         0
@@ -1455,8 +1525,12 @@ int Leverager<Context>::read(int fd, void* buf, unsigned nbytes, off_t offset)
     // same one-pump-and-hope pattern as readv()
     int result = -1;
     async_read(
-        fd, buf, nbytes, offset,
-        [&](int res) {
+        fd,
+        buf,
+        nbytes,
+        offset,
+        [&](int res)
+        {
             result = res;
         },
         0
@@ -1479,8 +1553,12 @@ int Leverager<Context>::write(int fd, const void* buf, unsigned nbytes, off_t of
     // same one-pump-and-hope pattern as readv()
     int result = -1;
     async_write(
-        fd, buf, nbytes, offset,
-        [&](int res) {
+        fd,
+        buf,
+        nbytes,
+        offset,
+        [&](int res)
+        {
             result = res;
         },
         0
@@ -1504,8 +1582,10 @@ int Leverager<Context>::fsync(int fd, unsigned fsync_flags)
     // completes inline (no real overlapped flush op to dangle-capture against)
     int result = -1;
     async_fsync(
-        fd, fsync_flags,
-        [&](int res) {
+        fd,
+        fsync_flags,
+        [&](int res)
+        {
             result = res;
         },
         0
@@ -1527,7 +1607,8 @@ int Leverager<Context>::close(int fd)
     int result = -1;
     async_close(
         fd,
-        [&](int res) {
+        [&](int res)
+        {
             result = res;
         },
         0
@@ -1551,8 +1632,12 @@ int Leverager<Context>::openat(int dfd, const char* path, int flags, mode_t mode
     // same pattern as close(), safe since async_openat() always completes inline
     int result = -1;
     async_openat(
-        dfd, path, flags, mode,
-        [&](int res) {
+        dfd,
+        path,
+        flags,
+        mode,
+        [&](int res)
+        {
             result = res;
         },
         0
@@ -1581,8 +1666,12 @@ int Leverager<Context>::accept(int fd, sockaddr* addr, socklen_t* addrlen, int f
     // so it inherits readv()'s dangling-capture risk if it doesn't land in one run_once() pass
     int result = -1;
     async_accept(
-        fd, addr, addrlen, flags,
-        [&](int res) {
+        fd,
+        addr,
+        addrlen,
+        flags,
+        [&](int res)
+        {
             result = res;
         },
         0
@@ -1606,9 +1695,15 @@ int Leverager<Context>::connect(int fd, sockaddr* addr, socklen_t addrlen)
 {
     // same real-overlapped-op caveats as accept()
     int result = -1;
-    async_connect(fd, addr, addrlen, [&](int res) {
-        result = res;
-    });
+    async_connect(
+        fd,
+        addr,
+        addrlen,
+        [&](int res)
+        {
+            result = res;
+        }
+    );
     run_once();
     return result;
 }
@@ -1645,7 +1740,8 @@ void Leverager<Context>::register_files([[maybe_unused]] std::span<const int> fd
  */
 template<>
 void Leverager<Context>::register_files_update(
-    [[maybe_unused]] unsigned off, [[maybe_unused]] std::span<int> files
+    [[maybe_unused]] unsigned off,
+    [[maybe_unused]] std::span<int> files
 )
 {
 }

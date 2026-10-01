@@ -114,7 +114,10 @@ public:
                 desired |= (static_cast<std::uint64_t>(COUNT + 1) << (BRANCH_IDX * 8));
 
                 if (m_value.compare_exchange_weak(
-                        expected, desired, std::memory_order_acq_rel, std::memory_order_acquire
+                        expected,
+                        desired,
+                        std::memory_order_acq_rel,
+                        std::memory_order_acquire
                     )) {
                     break;
                 }
@@ -160,7 +163,10 @@ public:
                 desired |= (static_cast<std::uint64_t>(COUNT - 1) << (BRANCH_IDX * 8));
 
                 if (m_value.compare_exchange_weak(
-                        expected, desired, std::memory_order_acq_rel, std::memory_order_acquire
+                        expected,
+                        desired,
+                        std::memory_order_acq_rel,
+                        std::memory_order_acquire
                     )) {
                     break;
                 }
@@ -189,7 +195,9 @@ public:
      * scheduled here.
      */
     [[nodiscard]] std::optional<std::uint32_t> select_child_index(
-        std::uint64_t& bias, std::uint32_t accumulator = 0, std::uint64_t bias_bit = BIAS_FLAG
+        std::uint64_t& bias,
+        std::uint32_t accumulator = 0,
+        std::uint64_t bias_bit = BIAS_FLAG
     ) const noexcept
     {
         // Nothing scheduled anywhere under this node — dead end, nothing to find.
@@ -204,7 +212,9 @@ public:
             auto idx = calculate_bias(VAL, bias, bias_bit);
 
             if (auto result = m_children[idx].select_child_index(
-                    bias, (accumulator << 3) | idx, bias_bit >> 1
+                    bias,
+                    (accumulator << 3) | idx,
+                    bias_bit >> 1
                 )) { // FIXME(clang-tidy): unchecked operator[], consider .at()
                 return result;
             }
@@ -219,7 +229,9 @@ public:
                 auto count = static_cast<std::uint8_t>((VAL >> (i * 8)) & 0xFF);
                 if (count > 0) {
                     if (auto result = m_children[i].select_child_index(
-                            bias, (accumulator << 3) | i, bias_bit >> 1
+                            bias,
+                            (accumulator << 3) | i,
+                            bias_bit >> 1
                         )) { // FIXME(clang-tidy): unchecked operator[], consider .at()
                         return result;
                     }
@@ -403,7 +415,10 @@ public:
                 throw std::runtime_error("Maximum capacity reached");
             }
             if (m_next_id.compare_exchange_weak(
-                    current, current + 1U, std::memory_order_relaxed, std::memory_order_relaxed
+                    current,
+                    current + 1U,
+                    std::memory_order_relaxed,
+                    std::memory_order_relaxed
                 )) {
                 return current;
             }
@@ -427,7 +442,9 @@ public:
         for (std::size_t i = 0; i < NUM_ROUTERS; ++i) {
             const std::size_t IDX = PREFER_RIGHT ? (NUM_ROUTERS - 1 - i) : i;
             if (auto result = m_routers[IDX].select_child_index(
-                    bias, IDX, BIAS_FLAG >> 1
+                    bias,
+                    IDX,
+                    BIAS_FLAG >> 1
                 )) { // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant
                      // array index
                 // Found one — flip the top bias bit so next call favors the other end.
@@ -449,21 +466,25 @@ private:
 namespace core::contract::tests {
 using namespace boost::ut;
 
-suite<"Node_leaf"> node_leaf_suite = [] {
-    "starts with an empty value"_test = [] {
+suite<"Node_leaf"> node_leaf_suite = []
+{
+    "starts with an empty value"_test = []
+    {
         Node<false> leaf;
 
         expect(leaf.get_value() == 0U);
     };
 
-    "schedule sets the matching bit"_test = [] {
+    "schedule sets the matching bit"_test = []
+    {
         Node<false> leaf;
         leaf.schedule(3);
 
         expect(leaf.get_value() == (1ULL << 3));
     };
 
-    "deschedule clears the matching bit"_test = [] {
+    "deschedule clears the matching bit"_test = []
+    {
         Node<false> leaf;
         leaf.schedule(3);
         leaf.deschedule(3);
@@ -471,7 +492,8 @@ suite<"Node_leaf"> node_leaf_suite = [] {
         expect(leaf.get_value() == 0U);
     };
 
-    "select_child_index finds the single scheduled bit"_test = [] {
+    "select_child_index finds the single scheduled bit"_test = []
+    {
         Node<false> leaf;
         leaf.schedule(7);
 
@@ -482,7 +504,8 @@ suite<"Node_leaf"> node_leaf_suite = [] {
         expect(*found == 7U);
     };
 
-    "select_child_index returns nullopt when nothing is scheduled"_test = [] {
+    "select_child_index returns nullopt when nothing is scheduled"_test = []
+    {
         Node<false> leaf;
 
         std::uint64_t bias = 0;
@@ -490,8 +513,10 @@ suite<"Node_leaf"> node_leaf_suite = [] {
     };
 };
 
-suite<"SignalTree"> signal_tree_suite = [] {
-    "free_contract_id hands out sequential ids"_test = [] {
+suite<"SignalTree"> signal_tree_suite = []
+{
+    "free_contract_id hands out sequential ids"_test = []
+    {
         SignalTree<512> tree;
 
         expect(tree.free_contract_id() == 0U);
@@ -499,29 +524,47 @@ suite<"SignalTree"> signal_tree_suite = [] {
         expect(tree.free_contract_id() == 2U);
     };
 
-    "free_contract_id throws once capacity is exhausted"_test = [] {
+    "free_contract_id throws once capacity is exhausted"_test = []
+    {
         SignalTree<512> tree;
         for (std::size_t i = 0; i < 512; ++i) {
             [[maybe_unused]] auto id = tree.free_contract_id();
         }
 
-        expect(throws<std::runtime_error>([&] {
-            [[maybe_unused]] auto id = tree.free_contract_id();
-        }));
+        expect(
+            throws<std::runtime_error>(
+                [&]
+                {
+                    [[maybe_unused]] auto id = tree.free_contract_id();
+                }
+            )
+        );
     };
 
-    "schedule/deschedule past capacity throws out_of_range"_test = [] {
+    "schedule/deschedule past capacity throws out_of_range"_test = []
+    {
         SignalTree<512> tree;
 
-        expect(throws<std::out_of_range>([&] {
-            tree.schedule(512);
-        }));
-        expect(throws<std::out_of_range>([&] {
-            tree.deschedule(512);
-        }));
+        expect(
+            throws<std::out_of_range>(
+                [&]
+                {
+                    tree.schedule(512);
+                }
+            )
+        );
+        expect(
+            throws<std::out_of_range>(
+                [&]
+                {
+                    tree.deschedule(512);
+                }
+            )
+        );
     };
 
-    "next finds a scheduled id and nullopt once nothing remains"_test = [] {
+    "next finds a scheduled id and nullopt once nothing remains"_test = []
+    {
         SignalTree<512> tree;
         tree.schedule(42);
 

@@ -1,8 +1,8 @@
 #ifndef TENSORFLOW_C_TF_SPAN_H_
 #define TENSORFLOW_C_TF_SPAN_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -22,10 +22,21 @@ extern "C"
         void (*create)(TF_Span* out_handle);
         void (*destroy)(TF_Span* handle);
 
-        void (*get)(const TF_Span* span, size_t index, const void** out_value, TF_Status* out_status);
+        void (*get)(
+            const TF_Span* span,
+            size_t index,
+            const void** out_value,
+            TF_Status* out_status
+        );
         void (*size)(const TF_Span* span, size_t* out_size);
         void (*data)(const TF_Span* span, void** out_data);
-        void (*subspan)(const TF_Span* span, size_t offset, size_t count, TF_Span* out_span, TF_Status* out_status);
+        void (*subspan)(
+            const TF_Span* span,
+            size_t offset,
+            size_t count,
+            TF_Span* out_span,
+            TF_Status* out_status
+        );
 
     } TF_SpanOps;
 

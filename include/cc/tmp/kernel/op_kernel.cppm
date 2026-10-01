@@ -13,7 +13,6 @@ import :tensor_tensor_shape;
 import :tensor_tensor;
 
 export {
-
     namespace tensorflow {
 
         using OpKernelConstruction = ice::OpKernelConstruction;

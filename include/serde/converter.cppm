@@ -768,7 +768,8 @@ struct FieldConverter<std::unordered_map<std::string, std::string>>
      * key/value-level error otherwise.
      */
     static simdjson::error_code from_simdjson(
-        simdjson::ondemand::value& json_value, std::unordered_map<std::string, std::string>& out
+        simdjson::ondemand::value& json_value,
+        std::unordered_map<std::string, std::string>& out
     )
     {
         // Must be a JSON object before iterating its key/value pairs.
@@ -863,7 +864,8 @@ auto build_named_tuple(const T& object, std::tuple<Fds...> field_descriptors)
     // Fold over every FieldDesc: call its getter, run the result through the matching
     // FieldConverter::to_rfl, and pack it into a named rfl field — one per Fd, in order.
     return std::apply(
-        [&](auto... fields) {
+        [&](auto... fields)
+        {
             return rfl::NamedTuple(
                 rfl::make_field<decltype(fields)::name>(
                     FieldConverter<typename decltype(fields)::ValueType>::to_rfl(
@@ -891,7 +893,8 @@ void apply_named_tuple_to(T& object, const NT& named_tuple, std::tuple<Fds...> f
     // The inverse fold: pull each named field back out of the tuple, run it through
     // FieldConverter::from_rfl, and write it onto `object` via that field's setter.
     std::apply(
-        [&](auto... fields) {
+        [&](auto... fields)
+        {
             ((object.*decltype(fields)::setter)(
                  FieldConverter<typename decltype(fields)::ValueType>::from_rfl(
                      rfl::get<decltype(fields)::name>(named_tuple)
@@ -1197,7 +1200,9 @@ namespace serde {
  */
 template<typename Fd>
 simdjson::error_code extract_simdjson_field(
-    simdjson::ondemand::object& json_object, typename Fd::ClassType& out, Fd field_descriptor
+    simdjson::ondemand::object& json_object,
+    typename Fd::ClassType& out,
+    Fd field_descriptor
 )
 {
     using VT = Fd::ValueType;
@@ -1286,7 +1291,8 @@ std::expected<void, std::string> TomlParser::from_toml_impl(const toml::table& t
     // fails, `result` latches onto that first error and every remaining field is skipped
     // entirely rather than attempted.
     std::apply(
-        [&](auto... fields) {
+        [&](auto... fields)
+        {
             ((result ? (result = extract_toml_field(table, object, fields)) : result), ...);
         },
         Serializable<T>::fields()
@@ -1371,7 +1377,8 @@ error_code tag_invoke(deserialize_tag tag, V& json_value, T& object)
     // stops being SUCCESS, remaining fields are skipped entirely rather than attempted.
     error_code result = SUCCESS;
     std::apply(
-        [&](auto... fields) {
+        [&](auto... fields)
+        {
             ((result == SUCCESS
                   ? (result = serde::extract_simdjson_field(json_object, object, fields))
                   : SUCCESS),

@@ -37,7 +37,8 @@ public:
         m_values.clear();
     }
 
-    std::expected<std::string, std::string> render(const RuntimeSpec& spec, std::string_view module_name)
+    std::expected<std::string, std::string>
+    render(const RuntimeSpec& spec, std::string_view module_name)
     {
         m_scratch_variables = m_values;
         m_scratch_variables.emplace_back("module_name", std::string{module_name});

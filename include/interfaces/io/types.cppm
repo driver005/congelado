@@ -827,16 +827,20 @@ constexpr std::string_view token_to_string(const Token& tkst) noexcept
 namespace interfaces::io::types::tests {
 using namespace boost::ut;
 
-suite<"status_code"> status_code_suite = [] {
-    "status_code unwraps the underlying numeric code"_test = [] {
+suite<"status_code"> status_code_suite = []
+{
+    "status_code unwraps the underlying numeric code"_test = []
+    {
         expect(status_code(Status::OK) == 200);
         expect(status_code(Status::NOT_FOUND) == 404);
         expect(status_code(Status::INTERNAL_SERVER_ERROR) == 500);
     };
 };
 
-suite<"method_str"> method_str_suite = [] {
-    "method_str maps every known method to its wire name"_test = [] {
+suite<"method_str"> method_str_suite = []
+{
+    "method_str maps every known method to its wire name"_test = []
+    {
         expect(method_str(Method::GET) == "GET");
         expect(method_str(Method::HEAD) == "HEAD");
         expect(method_str(Method::POST) == "POST");
@@ -848,13 +852,16 @@ suite<"method_str"> method_str_suite = [] {
         expect(method_str(Method::TRACE) == "TRACE");
     };
 
-    "method_str returns empty for UNKNOWN"_test = [] {
+    "method_str returns empty for UNKNOWN"_test = []
+    {
         expect(method_str(Method::UNKNOWN).empty());
     };
 };
 
-suite<"parse_method"> parse_method_suite = [] {
-    "parse_method recognizes every known verb"_test = [] {
+suite<"parse_method"> parse_method_suite = []
+{
+    "parse_method recognizes every known verb"_test = []
+    {
         expect(parse_method("GET") == Method::GET);
         expect(parse_method("HEAD") == Method::HEAD);
         expect(parse_method("POST") == Method::POST);
@@ -866,24 +873,35 @@ suite<"parse_method"> parse_method_suite = [] {
         expect(parse_method("TRACE") == Method::TRACE);
     };
 
-    "parse_method rejects empty, garbage and near-miss strings"_test = [] {
+    "parse_method rejects empty, garbage and near-miss strings"_test = []
+    {
         expect(parse_method("") == Method::UNKNOWN);
         expect(parse_method("get") == Method::UNKNOWN);
         expect(parse_method("PUTT") == Method::UNKNOWN);
         expect(parse_method("POS") == Method::UNKNOWN);
     };
 
-    "parse_method and method_str round-trip for every method"_test = [] {
+    "parse_method and method_str round-trip for every method"_test = []
+    {
         for (auto method:
-             {Method::GET, Method::HEAD, Method::POST, Method::PUT, Method::DELETE, Method::PATCH,
-              Method::CONNECT, Method::OPTIONS, Method::TRACE}) {
+             {Method::GET,
+              Method::HEAD,
+              Method::POST,
+              Method::PUT,
+              Method::DELETE,
+              Method::PATCH,
+              Method::CONNECT,
+              Method::OPTIONS,
+              Method::TRACE}) {
             expect(parse_method(method_str(method)) == method);
         }
     };
 };
 
-suite<"tokenize"> tokenize_suite = [] {
-    "tokenize resolves pseudo-headers and common field names"_test = [] {
+suite<"tokenize"> tokenize_suite = []
+{
+    "tokenize resolves pseudo-headers and common field names"_test = []
+    {
         expect(tokenize(":authority") == Token::AUTHORITY);
         expect(tokenize(":method") == Token::METHOD);
         expect(tokenize(":path") == Token::PATH);
@@ -898,25 +916,39 @@ suite<"tokenize"> tokenize_suite = [] {
         );
     };
 
-    "tokenize returns nullopt for names it doesn't recognize, even at a known length"_test = [] {
+    "tokenize returns nullopt for names it doesn't recognize, even at a known length"_test = []
+    {
         expect(tokenize("") == std::nullopt);
         expect(tokenize("not-a-real-header") == std::nullopt);
         // Same length bucket as "host" (4) but not a real match.
         expect(tokenize("zzzz") == std::nullopt);
     };
 
-    "tokenize and token_to_string round-trip for every named token"_test = [] {
+    "tokenize and token_to_string round-trip for every named token"_test = []
+    {
         for (auto token:
-             {Token::AUTHORITY, Token::METHOD, Token::PATH, Token::SCHEME, Token::STATUS,
-              Token::CONTENT_TYPE, Token::CONTENT_LENGTH, Token::COOKIE, Token::SET_COOKIE,
-              Token::USER_AGENT, Token::HOST, Token::VIA, Token::AGE}) {
+             {Token::AUTHORITY,
+              Token::METHOD,
+              Token::PATH,
+              Token::SCHEME,
+              Token::STATUS,
+              Token::CONTENT_TYPE,
+              Token::CONTENT_LENGTH,
+              Token::COOKIE,
+              Token::SET_COOKIE,
+              Token::USER_AGENT,
+              Token::HOST,
+              Token::VIA,
+              Token::AGE}) {
             expect(tokenize(token_to_string(token)) == token);
         }
     };
 };
 
-suite<"token_to_string"> token_to_string_suite = [] {
-    "token_to_string renders the wire-format header name"_test = [] {
+suite<"token_to_string"> token_to_string_suite = []
+{
+    "token_to_string renders the wire-format header name"_test = []
+    {
         expect(token_to_string(Token::CONTENT_TYPE) == "content-type");
         expect(token_to_string(Token::PATH) == ":path");
         expect(token_to_string(Token::NONE).empty());

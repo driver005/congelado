@@ -2,8 +2,8 @@
 module;
 
 #define CONGELADO_GUEST
-#include <congelado/plugin.h>
 #include <Python.h>
+#include <congelado/plugin.h>
 #include <cstdio>
 
 export module python_bridge_plugin;
@@ -22,9 +22,10 @@ using InvokeFn = std::function<core::plugin::Value(std::span<const core::plugin:
 
 namespace {
 
-struct PyFnBridge {
+struct PyFnBridge
+{
     FnContext m_fn;
-    class PythonBridgePlugin *m_bridge;
+    class PythonBridgePlugin* m_bridge;
 };
 
 // The Python FFI bridge as a genuine plugin — formats/bridges are just plugins, no special
@@ -33,11 +34,21 @@ struct PyFnBridge {
 // they ever touched FFI); now Python is only linked into this one .so. Owns its own
 // HandleTable (was previously shared with FfiRuntime via reference — HandleTable has no
 // other consumers, safe to make self-contained per bridge instance).
-class PythonBridgePlugin : public congelado::Plugin, public interfaces::IBridge {
-  public:
-    [[nodiscard]] std::string_view get_name() const noexcept override { return "python_bridge"; }
-    [[nodiscard]] std::string_view get_version() const noexcept override { return "0.1.0"; }
-    [[nodiscard]] std::uint32_t capabilities() const noexcept override {
+class PythonBridgePlugin : public congelado::Plugin, public interfaces::IBridge
+{
+public:
+    [[nodiscard]] std::string_view get_name() const noexcept override
+    {
+        return "python_bridge";
+    }
+
+    [[nodiscard]] std::string_view get_version() const noexcept override
+    {
+        return "0.1.0";
+    }
+
+    [[nodiscard]] std::uint32_t capabilities() const noexcept override
+    {
         return CONGELADO_CAP_BRIDGE;
     }
 
@@ -45,13 +56,22 @@ class PythonBridgePlugin : public congelado::Plugin, public interfaces::IBridge 
      * @brief Capability hook the host calls to get at this plugin's `IBridge` surface.
      * @return this instance, upcast to `interfaces::IBridge*`.
      */
-    void *bridge_get() noexcept { return static_cast<interfaces::IBridge *>(this); }
+    void* bridge_get() noexcept
+    {
+        return static_cast<interfaces::IBridge*>(this);
+    }
 
     /// @brief The runtime this bridge implements. @return `"python"`.
-    [[nodiscard]] std::string_view runtime_name() const noexcept override { return "python"; }
+    [[nodiscard]] std::string_view runtime_name() const noexcept override
+    {
+        return "python";
+    }
 
     /// @brief The script file extension this bridge runs. @return `".py"`.
-    [[nodiscard]] std::string_view script_extension() const noexcept override { return ".py"; }
+    [[nodiscard]] std::string_view script_extension() const noexcept override
+    {
+        return ".py";
+    }
 
     /**
      * @brief Runs a Python script file via `PyRun_SimpleFile` — the interpreter is already up
@@ -59,9 +79,10 @@ class PythonBridgePlugin : public congelado::Plugin, public interfaces::IBridge 
      * @param path path to the `.py` file to run.
      * @return the script's exit code, or `1` if `path` couldn't be opened.
      */
-    [[nodiscard]] int run_script(std::string_view path) override {
+    [[nodiscard]] int run_script(std::string_view path) override
+    {
         std::string owned_path{path};
-        FILE *file = std::fopen(owned_path.c_str(), "r");
+        FILE* file = std::fopen(owned_path.c_str(), "r");
         if (file == nullptr) {
             core::logger::warning("python_bridge", "run_script: couldn't open '{}'", owned_path);
             core::events::publish("python_bridge.script_not_found", {{"path", owned_path}});
@@ -79,7 +100,8 @@ class PythonBridgePlugin : public congelado::Plugin, public interfaces::IBridge 
      * `"congelado"`.
      * @param cfg this plugin's config view.
      */
-    void on_load(CongeladoHostCallbacks const & /*host*/, CongeladoConfigView const &cfg) override {
+    void on_load(const CongeladoHostCallbacks& /*host*/, const CongeladoConfigView& cfg) override
+    {
         auto module_name =
             std::string{congelado::config_get(cfg, "module_name").value_or("congelado")};
 
@@ -87,7 +109,7 @@ class PythonBridgePlugin : public congelado::Plugin, public interfaces::IBridge 
             Py_Initialize();
         }
 
-        auto *module = PyImport_AddModule(module_name.c_str());
+        auto* module = PyImport_AddModule(module_name.c_str());
         if (module != nullptr) {
             Py_INCREF(module);
             m_module.reset(module);
@@ -106,49 +128,67 @@ class PythonBridgePlugin : public congelado::Plugin, public interfaces::IBridge 
      * is released first; Py_FinalizeEx() itself runs every registered atexit hook and tears down
      * whatever the interpreter spun up internally.
      */
-    void on_unload() noexcept override {
+    void on_unload() noexcept override
+    {
         m_module.reset();
         if (Py_IsInitialized() != 0) {
             Py_FinalizeEx();
         }
     }
 
-    [[nodiscard]] CongeladoAny from_native(void *native_obj) override {
-        return from_py(static_cast<PyObject *>(native_obj));
+    [[nodiscard]] CongeladoAny from_native(void* native_obj) override
+    {
+        return from_py(static_cast<PyObject*>(native_obj));
     }
 
-    void *to_native(const CongeladoAny &any) override { return to_py(any); }
+    void* to_native(const CongeladoAny& any) override
+    {
+        return to_py(any);
+    }
 
-    void install_method(std::unique_ptr<FnContext> fn_context,
-                        const std::string &lang_name) override {
+    void install_method(
+        std::unique_ptr<FnContext> fn_context,
+        const std::string& lang_name
+    ) override
+    {
         core::logger::debug("python_bridge", "installing method '{}'", lang_name);
         // ml_name previously pointed into this function's own local std::string, which died the
         // instant install_method() returned — dangling the moment the installed Python callable
         // was actually used (e.g. reading its __name__). Persist the name in m_method_names
         // instead, matching PyMethodDef's own real lifetime (found while writing this file's
         // round-trip tests).
-        const auto &method_name = m_method_names.emplace_back(lang_name);
+        const auto& method_name = m_method_names.emplace_back(lang_name);
         auto method_def_ptr = std::make_unique<PyMethodDef>();
-        auto *method_def = method_def_ptr.get();
+        auto* method_def = method_def_ptr.get();
 
         method_def->ml_name = method_name.c_str();
-        method_def->ml_meth = [](PyObject *self_capsule, PyObject *py_args) -> PyObject * {
+        method_def->ml_meth = [](PyObject* self_capsule, PyObject* py_args) -> PyObject*
+        {
             try {
-                auto *fn_bridge =
-                    static_cast<PyFnBridge *>(PyCapsule_GetPointer(self_capsule, "cg.fn"));
+                auto* fn_bridge =
+                    static_cast<PyFnBridge*>(PyCapsule_GetPointer(self_capsule, "cg.fn"));
                 auto py_size = PyTuple_GET_SIZE(py_args);
 
-                auto args = std::views::iota(Py_ssize_t{0}, py_size) |
-                            std::views::transform([&](Py_ssize_t idx) {
-                                return core::plugin::AnyConverter::from_any(
-                                    fn_bridge->m_bridge->from_py(PyTuple_GET_ITEM(py_args, idx)));  // FIXME(clang-tidy): cppcoreguidelines-pro-type-cstyle-cast — CPython's own PyTuple_GET_ITEM macro expands to a C-style cast; switching to the checked PyTuple_GetItem() function would change error behavior (it validates the index and sets a Python exception, GET_ITEM doesn't), not a drop-in swap
-                            }) |
-                            std::ranges::to<std::vector>();
+                auto args =
+                    std::views::iota(Py_ssize_t{0}, py_size) |
+                    std::views::transform(
+                        [&](Py_ssize_t idx)
+                        {
+                            return core::plugin::AnyConverter::from_any(
+                                fn_bridge->m_bridge->from_py(PyTuple_GET_ITEM(py_args, idx))
+                            ); // FIXME(clang-tidy): cppcoreguidelines-pro-type-cstyle-cast —
+                               // CPython's own PyTuple_GET_ITEM macro expands to a C-style cast;
+                               // switching to the checked PyTuple_GetItem() function would change
+                               // error behavior (it validates the index and sets a Python
+                               // exception, GET_ITEM doesn't), not a drop-in swap
+                        }
+                    ) |
+                    std::ranges::to<std::vector>();
 
-                auto result = std::any_cast<const InvokeFn &>(fn_bridge->m_fn.m_invoke)(args);
+                auto result = std::any_cast<const InvokeFn&>(fn_bridge->m_fn.m_invoke)(args);
 
                 return fn_bridge->m_bridge->to_py(core::plugin::AnyConverter::to_any(result));
-            } catch (const std::exception &e) {
+            } catch (const std::exception& e) {
                 core::events::publish("python_bridge.invoke_exception", {{"error", e.what()}});
                 PyErr_SetString(PyExc_RuntimeError, e.what());
                 return nullptr;
@@ -158,20 +198,32 @@ class PythonBridgePlugin : public congelado::Plugin, public interfaces::IBridge 
         method_def->ml_doc = nullptr;
 
         auto py_fn_bridge = std::make_unique<PyFnBridge>(
-            PyFnBridge{.m_fn = std::move(*fn_context), .m_bridge = this});
+            PyFnBridge{.m_fn = std::move(*fn_context), .m_bridge = this}
+        );
 
-        auto *capsule = PyCapsule_New(py_fn_bridge.release(), "cg.fn", [](PyObject *cap) {
-            delete static_cast<PyFnBridge *>(PyCapsule_GetPointer(cap, "cg.fn"));  // NOLINT(cppcoreguidelines-owning-memory)
-        });
+        auto* capsule = PyCapsule_New(
+            py_fn_bridge.release(),
+            "cg.fn",
+            [](PyObject* cap)
+            {
+                delete static_cast<PyFnBridge*>(
+                    PyCapsule_GetPointer(cap, "cg.fn")
+                ); // NOLINT(cppcoreguidelines-owning-memory)
+            }
+        );
 
-        PyModule_AddObject(m_module.get(), method_def->ml_name,
-                           PyCFunction_NewEx(method_def, capsule, nullptr));
+        PyModule_AddObject(
+            m_module.get(),
+            method_def->ml_name,
+            PyCFunction_NewEx(method_def, capsule, nullptr)
+        );
         Py_DECREF(capsule);
 
         m_method_defs.push_back(std::move(method_def_ptr));
     }
 
-    [[nodiscard]] CongeladoAny from_py(PyObject *obj) {
+    [[nodiscard]] CongeladoAny from_py(PyObject* obj)
+    {
         CongeladoAny any{};
         if (obj == Py_None) {
             any.type_index = CG_NONE;
@@ -179,7 +231,11 @@ class PythonBridgePlugin : public congelado::Plugin, public interfaces::IBridge 
         }
         if (PyBool_Check(obj)) {
             any.type_index = CG_BOOL;
-            any.v_int64 = (obj == Py_True) ? 1 : 0;  // FIXME(clang-tidy): cppcoreguidelines-pro-type-cstyle-cast — CPython's Py_True macro expands to a C-style cast on this Python version; not something this codebase can change
+            any.v_int64 = (obj == Py_True)
+                              ? 1
+                              : 0; // FIXME(clang-tidy): cppcoreguidelines-pro-type-cstyle-cast —
+                                   // CPython's Py_True macro expands to a C-style cast on this
+                                   // Python version; not something this codebase can change
             return any;
         }
         if (PyLong_Check(obj)) {
@@ -198,14 +254,14 @@ class PythonBridgePlugin : public congelado::Plugin, public interfaces::IBridge 
             return any;
         }
         if (PyDict_Check(obj)) {
-            PyObject *py_key{};
-            PyObject *py_value{};
+            PyObject* py_key{};
+            PyObject* py_value{};
             Py_ssize_t pos{};
 
             auto handle = m_handles.map_create();
 
             while (PyDict_Next(obj, &pos, &py_key, &py_value) != 0) {
-                const auto *dict_key = PyUnicode_AsUTF8(py_key);
+                const auto* dict_key = PyUnicode_AsUTF8(py_key);
                 auto dict_value = from_py(py_value);
                 m_handles.map_set(handle.v_int64, dict_key, dict_value);
             }
@@ -218,62 +274,75 @@ class PythonBridgePlugin : public congelado::Plugin, public interfaces::IBridge 
         return any;
     }
 
-    [[nodiscard]] PyObject *to_py(const CongeladoAny &any) {
+    [[nodiscard]] PyObject* to_py(const CongeladoAny& any)
+    {
         switch (any.type_index) {
-        case CG_NONE: {
-            Py_RETURN_NONE;
-            break;
-        }
-        case CG_BOOL: {
-            return PyBool_FromLong(any.v_int64);
-        }
-        case CG_INT: {
-            return PyLong_FromLongLong(any.v_int64);
-        }
-        case CG_FLOAT: {
-            return PyFloat_FromDouble(any.v_float64);
-        }
-        case CG_STR: {
-            return PyUnicode_FromString((any.v_cstr != nullptr) ? any.v_cstr : "");
-        }
-        case CG_MAP_HANDLE: {
-            auto *dict = PyDict_New();
-
-            int64_t map_size = m_handles.get_map_size(any.v_int64).v_int64;
-            int64_t keys_handle = m_handles.get_map_keys(any.v_int64).v_int64;
-
-            for (int64_t idx = 0; idx < map_size; ++idx) {
-                CongeladoAny key = m_handles.array_get(keys_handle, idx);
-                CongeladoAny map_value = m_handles.map_get(any.v_int64, key.v_cstr);
-
-                auto *py_value = to_py(map_value);
-                // py_value/key.v_cstr can legitimately come back null (an out-of-range/missing
-                // lookup, or a Python C-API allocation failure) — PyDict_SetItemString/Py_DECREF
-                // on a null PyObject* is undefined behavior, not a safe no-op.
-                if (py_value != nullptr && key.v_cstr != nullptr) {
-                    PyDict_SetItemString(dict, key.v_cstr, py_value);
-                    Py_DECREF(py_value);
+            case CG_NONE:
+                {
+                    Py_RETURN_NONE;
+                    break;
                 }
-            }
+            case CG_BOOL:
+                {
+                    return PyBool_FromLong(any.v_int64);
+                }
+            case CG_INT:
+                {
+                    return PyLong_FromLongLong(any.v_int64);
+                }
+            case CG_FLOAT:
+                {
+                    return PyFloat_FromDouble(any.v_float64);
+                }
+            case CG_STR:
+                {
+                    return PyUnicode_FromString((any.v_cstr != nullptr) ? any.v_cstr : "");
+                }
+            case CG_MAP_HANDLE:
+                {
+                    auto* dict = PyDict_New();
 
-            m_handles.handle_free(keys_handle);
-            return dict;
-        }
-        default: {
-            return PyLong_FromVoidPtr(any.v_ptr);
-        }
+                    int64_t map_size = m_handles.get_map_size(any.v_int64).v_int64;
+                    int64_t keys_handle = m_handles.get_map_keys(any.v_int64).v_int64;
+
+                    for (int64_t idx = 0; idx < map_size; ++idx) {
+                        CongeladoAny key = m_handles.array_get(keys_handle, idx);
+                        CongeladoAny map_value = m_handles.map_get(any.v_int64, key.v_cstr);
+
+                        auto* py_value = to_py(map_value);
+                        // py_value/key.v_cstr can legitimately come back null (an
+                        // out-of-range/missing lookup, or a Python C-API allocation failure) —
+                        // PyDict_SetItemString/Py_DECREF on a null PyObject* is undefined behavior,
+                        // not a safe no-op.
+                        if (py_value != nullptr && key.v_cstr != nullptr) {
+                            PyDict_SetItemString(dict, key.v_cstr, py_value);
+                            Py_DECREF(py_value);
+                        }
+                    }
+
+                    m_handles.handle_free(keys_handle);
+                    return dict;
+                }
+            default:
+                {
+                    return PyLong_FromVoidPtr(any.v_ptr);
+                }
         }
     }
 
-  private:
+private:
     core::plugin::HandleTable m_handles;
-    struct PyDeleter {
-        void operator()(PyObject *obj) const {
+
+    struct PyDeleter
+    {
+        void operator()(PyObject* obj) const
+        {
             if (obj != nullptr) {
                 Py_DECREF(obj);
             }
         }
     };
+
     std::unique_ptr<PyObject, PyDeleter> m_module;
     std::vector<std::unique_ptr<PyMethodDef>> m_method_defs;
     // ml_name is a raw `const char*` with no owning counterpart in PyMethodDef itself — a
@@ -296,15 +365,17 @@ using namespace boost::ut;
 /// even for test scaffolding. `PythonBridgePlugin`'s `congelado::Plugin` base has its copy/move
 /// ctors deleted, so a helper can't construct-and-return a loaded instance by value; instead
 /// this loads an already-constructed instance in place via an out-param.
-class PythonBridgeTestHelper {
-  public:
+class PythonBridgeTestHelper
+{
+public:
     PythonBridgeTestHelper() = delete;
 
     /// @brief Runs `on_load()` against `plugin` with an empty host/config view — exercises the
     /// default `module_name` ("congelado") path. `Py_Initialize()` is a documented no-op once
     /// the interpreter is already up, so this is safe to call repeatedly across test cases.
     /// @param plugin the plugin to load in place.
-    static void load(PythonBridgePlugin &plugin) {
+    static void load(PythonBridgePlugin& plugin)
+    {
         plugin.on_load(CongeladoHostCallbacks{}, CongeladoConfigView{});
     }
 };
@@ -333,79 +404,93 @@ class PythonBridgeTestHelper {
 //   name in `m_method_names` (a std::deque, so growth never invalidates a previously-handed-out
 //   c_str() pointer) alongside `m_method_defs`. The "install_method exposes ... as a callable"
 //   test below reads the installed function's `__name__` to pin the fix.
-suite<"PythonBridgePlugin"> python_bridge_plugin_suite = [] {
-    "on_unload before Python is ever initialized in this process is a safe no-op"_test = [] {
+suite<"PythonBridgePlugin"> python_bridge_plugin_suite = []
+{
+    "on_unload before Python is ever initialized in this process is a safe no-op"_test = []
+    {
         PythonBridgePlugin plugin;
         plugin.on_unload();
         expect(Py_IsInitialized() == 0);
     };
 
-    "get_name reports 'python_bridge'"_test = [] {
+    "get_name reports 'python_bridge'"_test = []
+    {
         PythonBridgePlugin plugin;
         expect(plugin.get_name() == "python_bridge");
     };
 
-    "get_version reports a non-empty version string"_test = [] {
+    "get_version reports a non-empty version string"_test = []
+    {
         PythonBridgePlugin plugin;
         expect(plugin.get_version() == "0.1.0");
     };
 
-    "capabilities reports CONGELADO_CAP_BRIDGE"_test = [] {
+    "capabilities reports CONGELADO_CAP_BRIDGE"_test = []
+    {
         PythonBridgePlugin plugin;
         expect(plugin.capabilities() == CONGELADO_CAP_BRIDGE);
     };
 
-    "bridge_get returns this instance upcast to IBridge*"_test = [] {
+    "bridge_get returns this instance upcast to IBridge*"_test = []
+    {
         PythonBridgePlugin plugin;
-        expect(plugin.bridge_get() == static_cast<interfaces::IBridge *>(&plugin));
+        expect(plugin.bridge_get() == static_cast<interfaces::IBridge*>(&plugin));
     };
 
-    "runtime_name reports 'python'"_test = [] {
+    "runtime_name reports 'python'"_test = []
+    {
         PythonBridgePlugin plugin;
         expect(plugin.runtime_name() == "python");
     };
 
-    "script_extension reports '.py'"_test = [] {
+    "script_extension reports '.py'"_test = []
+    {
         PythonBridgePlugin plugin;
         expect(plugin.script_extension() == ".py");
     };
 
-    "run_script against a missing file reports failure (1), no interpreter needed"_test = [] {
+    "run_script against a missing file reports failure (1), no interpreter needed"_test = []
+    {
         PythonBridgePlugin plugin;
         expect(plugin.run_script("/definitely/does/not/exist/congelado_test_fixture.py") == 1);
     };
 
-    "on_load initializes the interpreter and resolves the default module"_test = [] {
+    "on_load initializes the interpreter and resolves the default module"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
         expect(Py_IsInitialized() != 0);
-        auto *module = PyImport_AddModule("congelado");
+        auto* module = PyImport_AddModule("congelado");
         expect(module != nullptr);
     };
 
-    "to_py converts CG_NONE to Py_None"_test = [] {
+    "to_py converts CG_NONE to Py_None"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
-        auto *result = plugin.to_py(CongeladoAny{.type_index = CG_NONE});
+        auto* result = plugin.to_py(CongeladoAny{.type_index = CG_NONE});
         expect(result == Py_None);
     };
 
-    "from_py converts Py_None to CG_NONE"_test = [] {
+    "from_py converts Py_None to CG_NONE"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
         auto any = plugin.from_py(Py_None);
         expect(any.type_index == CG_NONE);
     };
 
-    "to_py converts CG_BOOL to a Python bool"_test = [] {
+    "to_py converts CG_BOOL to a Python bool"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
-        auto *result = plugin.to_py(CongeladoAny{.type_index = CG_BOOL, .v_int64 = 1});
+        auto* result = plugin.to_py(CongeladoAny{.type_index = CG_BOOL, .v_int64 = 1});
         expect(result == Py_True);
         Py_XDECREF(result);
     };
 
-    "from_py converts a Python bool to CG_BOOL"_test = [] {
+    "from_py converts a Python bool to CG_BOOL"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
         auto any = plugin.from_py(Py_False);
@@ -413,87 +498,95 @@ suite<"PythonBridgePlugin"> python_bridge_plugin_suite = [] {
         expect(any.v_int64 == 0);
     };
 
-    "to_py converts CG_INT to a Python int"_test = [] {
+    "to_py converts CG_INT to a Python int"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
-        auto *result = plugin.to_py(CongeladoAny{.type_index = CG_INT, .v_int64 = 42});
+        auto* result = plugin.to_py(CongeladoAny{.type_index = CG_INT, .v_int64 = 42});
         expect(PyLong_AsLongLong(result) == 42);
         Py_XDECREF(result);
     };
 
-    "from_py converts a Python int to CG_INT"_test = [] {
+    "from_py converts a Python int to CG_INT"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
-        auto *number = PyLong_FromLongLong(42);
+        auto* number = PyLong_FromLongLong(42);
         auto any = plugin.from_py(number);
         expect(any.type_index == CG_INT);
         expect(any.v_int64 == 42);
         Py_XDECREF(number);
     };
 
-    "to_py converts CG_FLOAT to a Python float"_test = [] {
+    "to_py converts CG_FLOAT to a Python float"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
-        auto *result = plugin.to_py(CongeladoAny{.type_index = CG_FLOAT, .v_float64 = 2.5});
+        auto* result = plugin.to_py(CongeladoAny{.type_index = CG_FLOAT, .v_float64 = 2.5});
         expect(PyFloat_AsDouble(result) == 2.5);
         Py_XDECREF(result);
     };
 
-    "from_py converts a Python float to CG_FLOAT"_test = [] {
+    "from_py converts a Python float to CG_FLOAT"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
-        auto *number = PyFloat_FromDouble(2.5);
+        auto* number = PyFloat_FromDouble(2.5);
         auto any = plugin.from_py(number);
         expect(any.type_index == CG_FLOAT);
         expect(any.v_float64 == 2.5);
         Py_XDECREF(number);
     };
 
-    "to_py converts CG_STR to a Python str"_test = [] {
+    "to_py converts CG_STR to a Python str"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
-        auto *result = plugin.to_py(CongeladoAny{.type_index = CG_STR, .v_cstr = "hello"});
+        auto* result = plugin.to_py(CongeladoAny{.type_index = CG_STR, .v_cstr = "hello"});
         expect(std::string_view{PyUnicode_AsUTF8(result)} == "hello");
         Py_XDECREF(result);
     };
 
-    "to_py converts a null CG_STR to an empty Python str"_test = [] {
+    "to_py converts a null CG_STR to an empty Python str"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
-        auto *result = plugin.to_py(CongeladoAny{.type_index = CG_STR, .v_cstr = nullptr});
+        auto* result = plugin.to_py(CongeladoAny{.type_index = CG_STR, .v_cstr = nullptr});
         expect(std::string_view{PyUnicode_AsUTF8(result)}.empty());
         Py_XDECREF(result);
     };
 
-    "from_py converts a Python str to CG_STR"_test = [] {
+    "from_py converts a Python str to CG_STR"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
-        auto *text = PyUnicode_FromString("hello");
+        auto* text = PyUnicode_FromString("hello");
         auto any = plugin.from_py(text);
         expect(any.type_index == CG_STR);
         expect(std::string_view{any.v_cstr} == "hello");
         Py_XDECREF(text);
     };
 
-    "from_py/to_py round-trip a dict through a CG_MAP_HANDLE"_test = [] {
+    "from_py/to_py round-trip a dict through a CG_MAP_HANDLE"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
 
-        auto *dict = PyDict_New();
-        auto *count_value = PyLong_FromLongLong(7);
+        auto* dict = PyDict_New();
+        auto* count_value = PyLong_FromLongLong(7);
         PyDict_SetItemString(dict, "count", count_value);
         Py_DECREF(count_value);
-        auto *foo_value = PyUnicode_FromString("bar");
+        auto* foo_value = PyUnicode_FromString("bar");
         PyDict_SetItemString(dict, "foo", foo_value);
         Py_DECREF(foo_value);
 
         auto any = plugin.from_py(dict);
         expect(any.type_index == CG_MAP_HANDLE);
 
-        auto *rebuilt = plugin.to_py(any);
-        auto *count_result = PyDict_GetItemString(rebuilt, "count");
+        auto* rebuilt = plugin.to_py(any);
+        auto* count_result = PyDict_GetItemString(rebuilt, "count");
         expect(PyLong_AsLongLong(count_result) == 7);
-        auto *foo_result = PyDict_GetItemString(rebuilt, "foo");
+        auto* foo_result = PyDict_GetItemString(rebuilt, "foo");
         expect(std::string_view{PyUnicode_AsUTF8(foo_result)} == "bar");
 
         Py_DECREF(rebuilt);
@@ -501,16 +594,17 @@ suite<"PythonBridgePlugin"> python_bridge_plugin_suite = [] {
     };
 
     "from_py on a Python int outside int64 range leaves PyLong_AsLongLong's overflow "
-    "unchecked — v_int64 silently becomes -1 and Python's error indicator is left set"_test = [] {
+    "unchecked — v_int64 silently becomes -1 and Python's error indicator is left set"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
 
         // 10**30 — far beyond int64 range ([-2^63, 2^63-1]) — built via PyLong_FromString
         // rather than PyLong_FromLongLong so construction itself can't silently truncate.
         std::string huge_digits = "1" + std::string(30, '0');
-        auto *huge_int = PyLong_FromString(huge_digits.c_str(), nullptr, 10);
+        auto* huge_int = PyLong_FromString(huge_digits.c_str(), nullptr, 10);
         expect(huge_int != nullptr) << fatal;
-        expect(PyErr_Occurred() == nullptr) << fatal;  // construction itself must not have failed
+        expect(PyErr_Occurred() == nullptr) << fatal; // construction itself must not have failed
 
         auto any = plugin.from_py(huge_int);
         expect(any.type_index == CG_INT);
@@ -529,7 +623,8 @@ suite<"PythonBridgePlugin"> python_bridge_plugin_suite = [] {
 
     "from_py on a dict whose key fails UTF-8 encoding (lone surrogate) stores it under an "
     "empty-string key — PyUnicode_AsUTF8 returns null unchecked, but the const char* "
-    "map_set() overload happens to null-guard it, so this doesn't crash"_test = [] {
+    "map_set() overload happens to null-guard it, so this doesn't crash"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
 
@@ -538,12 +633,12 @@ suite<"PythonBridgePlugin"> python_bridge_plugin_suite = [] {
         // relies on constructing such strings, e.g. os.fsencode()'s surrogateescape
         // round-tripping), so this construction is safe and can't itself fail or crash.
         // Encoding it to strict UTF-8 afterward (what PyUnicode_AsUTF8 does) is what fails.
-        Py_UCS2 lone_surrogate = 0xD800;
-        auto *bad_key = PyUnicode_FromKindAndData(PyUnicode_2BYTE_KIND, &lone_surrogate, 1);
+        Py_UCS2 lone_surrogate = 0xD8'00;
+        auto* bad_key = PyUnicode_FromKindAndData(PyUnicode_2BYTE_KIND, &lone_surrogate, 1);
         expect(bad_key != nullptr) << fatal;
 
-        auto *value = PyLong_FromLongLong(99);
-        auto *dict = PyDict_New();
+        auto* value = PyLong_FromLongLong(99);
+        auto* dict = PyDict_New();
         expect(dict != nullptr) << fatal;
         int set_rc = PyDict_SetItem(dict, bad_key, value);
         expect(set_rc == 0) << fatal;
@@ -559,9 +654,9 @@ suite<"PythonBridgePlugin"> python_bridge_plugin_suite = [] {
         expect(PyErr_Occurred() != nullptr);
         PyErr_Clear();
 
-        auto *rebuilt = plugin.to_py(any);
+        auto* rebuilt = plugin.to_py(any);
         expect(rebuilt != nullptr) << fatal;
-        auto *empty_key_result = PyDict_GetItemString(rebuilt, "");
+        auto* empty_key_result = PyDict_GetItemString(rebuilt, "");
         expect(empty_key_result != nullptr) << fatal;
         expect(PyLong_AsLongLong(empty_key_result) == 99);
 
@@ -569,75 +664,82 @@ suite<"PythonBridgePlugin"> python_bridge_plugin_suite = [] {
         Py_DECREF(dict);
     };
 
-    "from_py falls back to CG_PTR for an unhandled Python type (list)"_test = [] {
+    "from_py falls back to CG_PTR for an unhandled Python type (list)"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
-        auto *list = PyList_New(0);
+        auto* list = PyList_New(0);
         auto any = plugin.from_py(list);
         expect(any.type_index == CG_PTR);
         expect(any.v_ptr == list);
         Py_DECREF(list);
     };
 
-    "to_py falls back to a Python int-from-pointer for an unhandled type tag"_test = [] {
+    "to_py falls back to a Python int-from-pointer for an unhandled type tag"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
         int marker{};
-        auto *result = plugin.to_py(CongeladoAny{.type_index = CG_PTR, .v_ptr = &marker});
+        auto* result = plugin.to_py(CongeladoAny{.type_index = CG_PTR, .v_ptr = &marker});
         expect(PyLong_AsVoidPtr(result) == &marker);
         Py_XDECREF(result);
     };
 
-    "from_native delegates to from_py"_test = [] {
+    "from_native delegates to from_py"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
-        auto *number = PyLong_FromLongLong(13);
+        auto* number = PyLong_FromLongLong(13);
         auto any = plugin.from_native(number);
         expect(any.type_index == CG_INT);
         expect(any.v_int64 == 13);
         Py_XDECREF(number);
     };
 
-    "to_native delegates to to_py"_test = [] {
+    "to_native delegates to to_py"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
-        auto *result = plugin.to_native(CongeladoAny{.type_index = CG_INT, .v_int64 = 5});
-        expect(PyLong_AsLongLong(static_cast<PyObject *>(result)) == 5);
-        Py_XDECREF(static_cast<PyObject *>(result));
+        auto* result = plugin.to_native(CongeladoAny{.type_index = CG_INT, .v_int64 = 5});
+        expect(PyLong_AsLongLong(static_cast<PyObject*>(result)) == 5);
+        Py_XDECREF(static_cast<PyObject*>(result));
     };
 
-    "install_method exposes an InvokeFn as a callable Python function"_test = [] {
+    "install_method exposes an InvokeFn as a callable Python function"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
 
         auto fn_context = std::make_unique<FnContext>();
         fn_context->m_key = "sum";
-        fn_context->m_invoke =
-            InvokeFn{[](std::span<const core::plugin::Value> args) -> core::plugin::Value {
+        fn_context->m_invoke = InvokeFn{
+            [](std::span<const core::plugin::Value> args) -> core::plugin::Value
+            {
                 std::int64_t total = 0;
-                for (const auto &arg : args) {
-                    if (const auto *value = std::get_if<core::plugin::Int>(&arg)) {
+                for (const auto& arg: args) {
+                    if (const auto* value = std::get_if<core::plugin::Int>(&arg)) {
                         total += value->m_value;
                     }
                 }
                 return core::plugin::Int{total};
-            }};
+            }
+        };
 
         plugin.install_method(std::move(fn_context), "sum");
 
-        auto *module = PyImport_AddModule("congelado");
-        auto *func = PyObject_GetAttrString(module, "sum");
+        auto* module = PyImport_AddModule("congelado");
+        auto* func = PyObject_GetAttrString(module, "sum");
         expect(func != nullptr) << fatal;
 
         // Regression check for the ml_name dangling-pointer fix — reading __name__ dereferences
         // ml_name well after install_method() returned, which is exactly what used to dangle.
-        auto *name_obj = PyObject_GetAttrString(func, "__name__");
+        auto* name_obj = PyObject_GetAttrString(func, "__name__");
         expect(name_obj != nullptr) << fatal;
         expect(std::string_view{PyUnicode_AsUTF8(name_obj)} == "sum");
         Py_DECREF(name_obj);
 
-        auto *args = Py_BuildValue("(LL)", static_cast<long long>(3), static_cast<long long>(4));
-        auto *result = PyObject_CallObject(func, args);
+        auto* args = Py_BuildValue("(LL)", static_cast<long long>(3), static_cast<long long>(4));
+        auto* result = PyObject_CallObject(func, args);
         expect(result != nullptr);
         expect(PyLong_AsLongLong(result) == 7);
 
@@ -646,32 +748,35 @@ suite<"PythonBridgePlugin"> python_bridge_plugin_suite = [] {
         Py_DECREF(func);
     };
 
-    "install_method's installed closure surfaces a C++ exception as a Python error"_test = [] {
+    "install_method's installed closure surfaces a C++ exception as a Python error"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
 
         auto fn_context = std::make_unique<FnContext>();
         fn_context->m_key = "boom";
-        fn_context->m_invoke =
-            InvokeFn{[](std::span<const core::plugin::Value> /*args*/) -> core::plugin::Value {
+        fn_context->m_invoke = InvokeFn{
+            [](std::span<const core::plugin::Value> /*args*/) -> core::plugin::Value
+            {
                 throw std::runtime_error{"kaboom"};
-            }};
+            }
+        };
 
         plugin.install_method(std::move(fn_context), "boom");
 
-        auto *module = PyImport_AddModule("congelado");
-        auto *func = PyObject_GetAttrString(module, "boom");
-        auto *args = PyTuple_New(0);
-        auto *result = PyObject_CallObject(func, args);
+        auto* module = PyImport_AddModule("congelado");
+        auto* func = PyObject_GetAttrString(module, "boom");
+        auto* args = PyTuple_New(0);
+        auto* result = PyObject_CallObject(func, args);
         expect(result == nullptr);
         expect(PyErr_Occurred() != nullptr);
 
-        PyObject *error_type{};
-        PyObject *error_value{};
-        PyObject *error_traceback{};
+        PyObject* error_type{};
+        PyObject* error_value{};
+        PyObject* error_traceback{};
         PyErr_Fetch(&error_type, &error_value, &error_traceback);
         PyErr_NormalizeException(&error_type, &error_value, &error_traceback);
-        auto *message = PyObject_Str(error_value);
+        auto* message = PyObject_Str(error_value);
         expect(std::string_view{PyUnicode_AsUTF8(message)}.contains("kaboom"));
 
         Py_XDECREF(message);
@@ -694,7 +799,8 @@ suite<"PythonBridgePlugin"> python_bridge_plugin_suite = [] {
     // the "before on_load, Py_IsInitialized() is false" test earlier in this suite), which is
     // the part of on_unload()'s contract this test binary can safely observe.
     "on_load initializes the interpreter (on_unload's real finalize path is not safe to "
-    "exercise here — see NOTE above)"_test = [] {
+    "exercise here — see NOTE above)"_test = []
+    {
         PythonBridgePlugin plugin;
         PythonBridgeTestHelper::load(plugin);
         expect(Py_IsInitialized() != 0);

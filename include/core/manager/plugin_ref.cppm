@@ -161,44 +161,56 @@ public:
 namespace core::plugin::types::tests {
 using namespace boost::ut;
 
-suite<"PluginRef"> plugin_ref_suite = [] {
-    "default-constructed ref has no handle and no data"_test = [] {
+suite<"PluginRef"> plugin_ref_suite = []
+{
+    "default-constructed ref has no handle and no data"_test = []
+    {
         PluginRef ref;
         expect(ref.get_handle() == nullptr);
         expect(ref.m_data.empty());
     };
-    "DlDeleter is a safe no-op on a null handle"_test = [] {
+    "DlDeleter is a safe no-op on a null handle"_test = []
+    {
         PluginRef::DlDeleter deleter;
-        expect(nothrow([&] {
-            deleter(nullptr);
-        }));
+        expect(nothrow(
+            [&]
+            {
+                deleter(nullptr);
+            }
+        ));
     };
 };
 
-suite<"shared_symbol_name"> shared_symbol_name_suite = [] {
-    "resolves the documented indices"_test = [] {
+suite<"shared_symbol_name"> shared_symbol_name_suite = []
+{
+    "resolves the documented indices"_test = []
+    {
         expect(PluginRef::shared_symbol_name(0) == "congelado_init");
         expect(PluginRef::shared_symbol_name(1) == "congelado_type");
         expect(PluginRef::shared_symbol_name(2) == "congelado_on_unload");
         expect(PluginRef::shared_symbol_name(3) == "congelado_on_ready");
         expect(PluginRef::shared_symbol_name(4) == "congelado_on_shutdown");
     };
-    "an out-of-range index returns an empty string_view, not a crash"_test = [] {
+    "an out-of-range index returns an empty string_view, not a crash"_test = []
+    {
         expect(PluginRef::shared_symbol_name(999).empty());
     };
 };
 
-suite<"is_shared_lib"> is_shared_lib_suite = [] {
-    "recognizes this platform's shared library extension"_test = [] {
-#    if defined(_WIN32)
+suite<"is_shared_lib"> is_shared_lib_suite = []
+{
+    "recognizes this platform's shared library extension"_test = []
+    {
+    #if defined(_WIN32)
         expect(is_shared_lib(std::filesystem::path{"libfoo.dll"}));
-#    elif defined(__APPLE__)
+    #elif defined(__APPLE__)
         expect(is_shared_lib(std::filesystem::path{"libfoo.dylib"}));
-#    else
+    #else
         expect(is_shared_lib(std::filesystem::path{"libfoo.so"}));
-#    endif
+    #endif
     };
-    "rejects an unrelated extension"_test = [] {
+    "rejects an unrelated extension"_test = []
+    {
         expect(not is_shared_lib(std::filesystem::path{"readme.txt"}));
     };
 };

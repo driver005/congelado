@@ -28,7 +28,6 @@ import std;
 import cc_abi;
 
 export {
-
     // This file provides some common support for 'registration' of e.g. ops and
     // kernels. In particular, it relates to the REGISTER_OP (op registration) and
     // REGISTER_KERNEL_BUILDER (kernel registration) macros.
@@ -44,56 +43,56 @@ export {
     // registries on startup / library load.
 
 #ifndef TENSORFLOW_CORE_FRAMEWORK_REGISTRATION_REGISTRATION_H_
-#    define TENSORFLOW_CORE_FRAMEWORK_REGISTRATION_REGISTRATION_H_
+    #define TENSORFLOW_CORE_FRAMEWORK_REGISTRATION_REGISTRATION_H_
 
 
-#    if !TF_OPTION_REGISTRATION_V2()
+    #if !TF_OPTION_REGISTRATION_V2()
 
-#        ifdef SELECTIVE_REGISTRATION
+        #ifdef SELECTIVE_REGISTRATION
 
-    // Experimental selective registration support to reduce binary size.
-    //
-    // To use selective registration, when building:
-    // 1. define SELECTIVE_REGISTRATION, e.g. in gcc by passing
-    //    -DSELECTIVE_REGISTRATION to compilation.
-    // 2. Provide ops_to_register.h. This file is not included in the repo and must
-    //    be placed by the user or a tool where the compiler can find it.  It must
-    //    define the constants and functions used in the macros below. The
-    //    functions should be defined as valid constexpr functions, so that they are
-    //    evaluated at compile time: this is needed to make symbols referenced by
-    //    un-registered objects unused, and therefore allow the linker to strip them
-    //    out.  See python/tools/print_selective_registration_header.py for a tool
-    //    that can be used to generate ops_to_register.h.
-    //
-    // ops_to_register.h should define macros for:
-    //   // Ops for which this is false will not be registered.
-    //   SHOULD_REGISTER_OP(op)
-    //   // If this is false, then no gradient ops are registered.
-    //   SHOULD_REGISTER_OP_GRADIENT
-    //   // Op kernel classes where this is false won't be registered.
-    //   SHOULD_REGISTER_OP_KERNEL(clz)
-    // The macros should be defined using constexprs.
+            // Experimental selective registration support to reduce binary size.
+            //
+            // To use selective registration, when building:
+            // 1. define SELECTIVE_REGISTRATION, e.g. in gcc by passing
+            //    -DSELECTIVE_REGISTRATION to compilation.
+            // 2. Provide ops_to_register.h. This file is not included in the repo and must
+            //    be placed by the user or a tool where the compiler can find it.  It must
+            //    define the constants and functions used in the macros below. The
+            //    functions should be defined as valid constexpr functions, so that they are
+            //    evaluated at compile time: this is needed to make symbols referenced by
+            //    un-registered objects unused, and therefore allow the linker to strip them
+            //    out.  See python/tools/print_selective_registration_header.py for a tool
+            //    that can be used to generate ops_to_register.h.
+            //
+            // ops_to_register.h should define macros for:
+            //   // Ops for which this is false will not be registered.
+            //   SHOULD_REGISTER_OP(op)
+            //   // If this is false, then no gradient ops are registered.
+            //   SHOULD_REGISTER_OP_GRADIENT
+            //   // Op kernel classes where this is false won't be registered.
+            //   SHOULD_REGISTER_OP_KERNEL(clz)
+            // The macros should be defined using constexprs.
 
 
-#            if (                                                                                  \
+            #if (                                                                                  \
                 !defined(SHOULD_REGISTER_OP) || !defined(SHOULD_REGISTER_OP_GRADIENT) ||           \
                 !defined(SHOULD_REGISTER_OP_KERNEL)                                                \
             )
     static_assert(false, "ops_to_register.h must define SHOULD_REGISTER macros");
-#            endif
-#        else // SELECTIVE_REGISTRATION
-#            define SHOULD_REGISTER_OP(op)         true
-#            define SHOULD_REGISTER_OP_GRADIENT    true
-#            define SHOULD_REGISTER_OP_KERNEL(clz) true
-#        endif // SELECTIVE_REGISTRATION
+            #endif
+        #else // SELECTIVE_REGISTRATION
+            #define SHOULD_REGISTER_OP(op)         true
+            #define SHOULD_REGISTER_OP_GRADIENT    true
+            #define SHOULD_REGISTER_OP_KERNEL(clz) true
+        #endif // SELECTIVE_REGISTRATION
 
-#    else // ! TF_OPTION_REGISTRATION_V2()
+    #else // ! TF_OPTION_REGISTRATION_V2()
 
-#        ifdef SELECTIVE_REGISTRATION
-#            error TF_OPTION_REGISTRATION_V2(): Compile-time selective registration is not supported
-#        endif
+        #ifdef SELECTIVE_REGISTRATION
+            #error TF_OPTION_REGISTRATION_V2(): Compile-time selective registration is not supported
+        #endif
 
-#    endif // ! TF_OPTION_REGISTRATION_V2()
+    #endif // ! TF_OPTION_REGISTRATION_V2()
 
     namespace tensorflow {
 
@@ -126,40 +125,40 @@ export {
             }
         };
 
-// Conditional initializer expressions for InitOnStartupMarker:
-//   TF_INIT_ON_STARTUP_IF(cond) << f
-// If 'cond' is true, 'f' is evaluated (and called, if applicable) on startup.
-// Otherwise, 'f' is *not evaluated*. Note that 'cond' is required to be a
-// constant-expression, and so this approximates #ifdef.
-//
-// The implementation uses the ?: operator (!cond prevents evaluation of 'f').
-// The relative precedence of ?: and << is significant; this effectively expands
-// to (see extra parens):
-//   !cond ? InitOnStartupMarker{} : (InitOnStartupMarker{} << f)
-//
-// Note that although forcing 'cond' to be a constant-expression should not
-// affect binary size (i.e. the same optimizations should apply if it 'happens'
-// to be one), it was found to be necessary (for a recent version of clang;
-// perhaps an optimizer bug).
-//
-// The parens are necessary to hide the ',' from the preprocessor; it could
-// otherwise act as a macro argument separator.
-#    define TF_INIT_ON_STARTUP_IF(cond)                                                            \
+    // Conditional initializer expressions for InitOnStartupMarker:
+    //   TF_INIT_ON_STARTUP_IF(cond) << f
+    // If 'cond' is true, 'f' is evaluated (and called, if applicable) on startup.
+    // Otherwise, 'f' is *not evaluated*. Note that 'cond' is required to be a
+    // constant-expression, and so this approximates #ifdef.
+    //
+    // The implementation uses the ?: operator (!cond prevents evaluation of 'f').
+    // The relative precedence of ?: and << is significant; this effectively expands
+    // to (see extra parens):
+    //   !cond ? InitOnStartupMarker{} : (InitOnStartupMarker{} << f)
+    //
+    // Note that although forcing 'cond' to be a constant-expression should not
+    // affect binary size (i.e. the same optimizations should apply if it 'happens'
+    // to be one), it was found to be necessary (for a recent version of clang;
+    // perhaps an optimizer bug).
+    //
+    // The parens are necessary to hide the ',' from the preprocessor; it could
+    // otherwise act as a macro argument separator.
+    #define TF_INIT_ON_STARTUP_IF(cond)                                                            \
         (::std::integral_constant<bool, !(cond)>::value) ? ::tensorflow::InitOnStartupMarker{}     \
                                                          : ::tensorflow::InitOnStartupMarker       \
         {                                                                                          \
         }
 
-// Wrapper for generating unique IDs (for 'anonymous' InitOnStartup definitions)
-// using __COUNTER__. The new ID (__COUNTER__ already expanded) is provided as a
-// macro argument.
-//
-// Usage:
-//   #define M_IMPL(id, a, b) ...
-//   #define M(a, b) TF_NEW_ID_FOR_INIT(M_IMPL, a, b)
-#    define TF_NEW_ID_FOR_INIT_2(m, c, ...) m(c, __VA_ARGS__)
-#    define TF_NEW_ID_FOR_INIT_1(m, c, ...) TF_NEW_ID_FOR_INIT_2(m, c, __VA_ARGS__)
-#    define TF_NEW_ID_FOR_INIT(m, ...)      TF_NEW_ID_FOR_INIT_1(m, __COUNTER__, __VA_ARGS__)
+    // Wrapper for generating unique IDs (for 'anonymous' InitOnStartup definitions)
+    // using __COUNTER__. The new ID (__COUNTER__ already expanded) is provided as a
+    // macro argument.
+    //
+    // Usage:
+    //   #define M_IMPL(id, a, b) ...
+    //   #define M(a, b) TF_NEW_ID_FOR_INIT(M_IMPL, a, b)
+    #define TF_NEW_ID_FOR_INIT_2(m, c, ...) m(c, __VA_ARGS__)
+    #define TF_NEW_ID_FOR_INIT_1(m, c, ...) TF_NEW_ID_FOR_INIT_2(m, c, __VA_ARGS__)
+    #define TF_NEW_ID_FOR_INIT(m, ...)      TF_NEW_ID_FOR_INIT_1(m, __COUNTER__, __VA_ARGS__)
 
     } // namespace tensorflow
 

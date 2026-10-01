@@ -1,12 +1,12 @@
 module;
 #ifdef CONGELADO_TEST
-// Test-only: Document::at() walks a serde::Value (== rfl::Generic) tree, and no JSON format
-// plugin is registered in this isolated test target, so Document::parse()/load() can never
-// produce one to navigate. Building fixtures directly via rfl::Generic (same pattern
-// plugins/serde/json/bin/json_plugin.cc's own tests already use) is the only way to exercise
-// at() here; guarded so production builds never see this include (this file otherwise
-// deliberately never touches rfl headers directly, see the note below).
-#    include <rfl/Generic.hpp>
+    // Test-only: Document::at() walks a serde::Value (== rfl::Generic) tree, and no JSON format
+    // plugin is registered in this isolated test target, so Document::parse()/load() can never
+    // produce one to navigate. Building fixtures directly via rfl::Generic (same pattern
+    // plugins/serde/json/bin/json_plugin.cc's own tests already use) is the only way to exercise
+    // at() here; guarded so production builds never see this include (this file otherwise
+    // deliberately never touches rfl headers directly, see the note below).
+    #include <rfl/Generic.hpp>
 #endif
 
 export module openapi_generator_plugin:document;
@@ -57,7 +57,8 @@ public:
             return std::unexpected{std::format("failed to open '{}'", path.string())};
         }
         std::string contents{
-            std::istreambuf_iterator<char>{file}, std::istreambuf_iterator<char>{}
+            std::istreambuf_iterator<char>{file},
+            std::istreambuf_iterator<char>{}
         };
         auto result = parse(contents);
         if (!result) {
@@ -102,28 +103,31 @@ namespace openapi_gen_document_tests {
 using namespace boost::ut;
 using congelado::client::Document;
 
-suite<"Document"> document_suite = [] {
-    "parse() always errors in this isolated test target — no JSON format plugin is linked"_test =
-        [] {
-            // See the module-preamble note above: this test target never links a format plugin
-            // (json_plugin is a whole separate runtime-loadable target), so
-            // serde::Ser::decode_generic()'s registry lookup is guaranteed empty here — this is
-            // a deterministic property of the test environment, not something parse() itself
-            // does.
-            auto result = Document::parse(R"({"a": 1})");
+suite<"Document"> document_suite = []
+{
+    "parse() always errors in this isolated test target — no JSON format plugin is linked"_test = []
+    {
+        // See the module-preamble note above: this test target never links a format plugin
+        // (json_plugin is a whole separate runtime-loadable target), so
+        // serde::Ser::decode_generic()'s registry lookup is guaranteed empty here — this is
+        // a deterministic property of the test environment, not something parse() itself
+        // does.
+        auto result = Document::parse(R"({"a": 1})");
 
-            expect(not result.has_value()) << fatal;
-            expect(result.error() == "no format plugin loaded for 'application/json'");
-        };
+        expect(not result.has_value()) << fatal;
+        expect(result.error() == "no format plugin loaded for 'application/json'");
+    };
 
-    "load() on a nonexistent path fails to open"_test = [] {
+    "load() on a nonexistent path fails to open"_test = []
+    {
         auto result = Document::load("/nonexistent/path/does/not/exist.json");
 
         expect(not result.has_value()) << fatal;
         expect(result.error().contains("failed to open"));
     };
 
-    "load() on an existing file still fails, at the parse step (no format plugin)"_test = [] {
+    "load() on an existing file still fails, at the parse step (no format plugin)"_test = []
+    {
         auto path = std::filesystem::temp_directory_path() / "congelado_document_test_load.json";
         {
             std::ofstream out{path};
@@ -139,7 +143,8 @@ suite<"Document"> document_suite = [] {
         std::filesystem::remove(path);
     };
 
-    "at() walks a chained key lookup down to a leaf value"_test = [] {
+    "at() walks a chained key lookup down to a leaf value"_test = []
+    {
         serde::Value::Object leaf_holder;
         leaf_holder.insert(std::string{"schema"}, serde::Value{std::string{"leaf-value"}});
         serde::Value::Object json_holder;
@@ -156,7 +161,8 @@ suite<"Document"> document_suite = [] {
         expect(*leaf == "leaf-value");
     };
 
-    "at() returns nullopt when a key is missing partway through"_test = [] {
+    "at() returns nullopt when a key is missing partway through"_test = []
+    {
         serde::Value::Object object;
         object.insert(std::string{"a"}, serde::Value{std::string{"x"}});
 
@@ -165,7 +171,8 @@ suite<"Document"> document_suite = [] {
         expect(not found.has_value());
     };
 
-    "at() returns nullopt when a hop isn't an object"_test = [] {
+    "at() returns nullopt when a hop isn't an object"_test = []
+    {
         serde::Value::Object object;
         object.insert(std::string{"a"}, serde::Value{std::string{"not an object"}});
 
@@ -174,7 +181,8 @@ suite<"Document"> document_suite = [] {
         expect(not found.has_value());
     };
 
-    "at() with no keys returns the root value unchanged"_test = [] {
+    "at() with no keys returns the root value unchanged"_test = []
+    {
         serde::Value root{std::string{"root-value"}};
 
         auto found = Document::at(root, {});

@@ -134,15 +134,19 @@ public:
         }
         if (!db->is_connected()) {
             core::logger::warning(
-                "migration", "database resolved but not connected, skipping migrations"
+                "migration",
+                "database resolved but not connected, skipping migrations"
             );
             done(true);
             return;
         }
 
         ensure_schema_migrations(
-            *db, [db, connector, dir = std::string{migrations_dir},
-                  done = std::move(done)](bool ok) mutable {
+            *db,
+            [db, connector, dir = std::string{migrations_dir}, done = std::move(done)](
+                bool ok
+            ) mutable
+            {
                 if (!ok) {
                     core::logger::error("migration", "failed to ensure schema_migrations table");
                     done(false);
@@ -150,8 +154,11 @@ public:
                 }
 
                 load_applied(
-                    *db, [db, connector, dir = std::move(dir),
-                          done = std::move(done)](AppliedMap applied) mutable {
+                    *db,
+                    [db, connector, dir = std::move(dir), done = std::move(done)](
+                        AppliedMap applied
+                    ) mutable
+                    {
                         // NOTE: the completion lambda below captures `applied` by copy, not
                         // move — a capture-init like `applied = std::move(applied)` runs while
                         // this lambda argument is being CONSTRUCTED, i.e. before
@@ -159,9 +166,14 @@ public:
                         // 4th argument) ever executes. Moving here would leave run_baselines()
                         // reading an already-emptied map for its whole run.
                         run_baselines(
-                            *db, *connector, Registry::instance().baselines(), applied,
-                            [db, connector, dir = std::move(dir), applied,
-                             done = std::move(done)](bool ok) mutable {
+                            *db,
+                            *connector,
+                            Registry::instance().baselines(),
+                            applied,
+                            [db, connector, dir = std::move(dir), applied, done = std::move(done)](
+                                bool ok
+                            ) mutable
+                            {
                                 if (!ok) {
                                     done(false);
                                     return;
@@ -180,13 +192,21 @@ public:
      * @return true if all migrations applied cleanly.
      */
     [[nodiscard]] static bool run_all_blocking(
-        interfaces::IDatabase* db, connector::Connector* connector, std::string_view migrations_dir
+        interfaces::IDatabase* db,
+        connector::Connector* connector,
+        std::string_view migrations_dir
     )
     {
         std::promise<bool> promise;
-        run_all(db, connector, migrations_dir, [&promise](bool ok) {
-            promise.set_value(ok);
-        });
+        run_all(
+            db,
+            connector,
+            migrations_dir,
+            [&promise](bool ok)
+            {
+                promise.set_value(ok);
+            }
+        );
         return promise.get_future().get();
     }
 
@@ -212,7 +232,8 @@ private:
             "version TEXT PRIMARY KEY, "
             "checksum TEXT NOT NULL DEFAULT '', "
             "applied_at TIMESTAMPTZ NOT NULL DEFAULT now())",
-            [done = std::move(done)](std::string_view result) mutable {
+            [done = std::move(done)](std::string_view result) mutable
+            {
                 done(!result.empty());
             }
         );
@@ -223,7 +244,8 @@ private:
     {
         db.query(
             "SELECT version, checksum FROM schema_migrations ORDER BY version",
-            [done = std::move(done)](std::string_view result) mutable {
+            [done = std::move(done)](std::string_view result) mutable
+            {
                 AppliedMap applied;
                 if (!result.empty()) {
                     auto rows = rfl::json::read<std::vector<VersionRow>>(std::string{result});
@@ -233,7 +255,9 @@ private:
                         }
                     } else {
                         core::logger::warning(
-                            "migration", "failed to parse applied versions: {}", rows.error().what()
+                            "migration",
+                            "failed to parse applied versions: {}",
+                            rows.error().what()
                         );
                     }
                 }
@@ -243,16 +267,24 @@ private:
     }
 
     static void record_applied(
-        interfaces::IDatabase& db, std::string_view version, std::string_view checksum, DoneFn done
+        interfaces::IDatabase& db,
+        std::string_view version,
+        std::string_view checksum,
+        DoneFn done
     )
     {
         auto sql = std::format(
-            "INSERT INTO schema_migrations (version, checksum) VALUES ('{}', '{}')", version,
+            "INSERT INTO schema_migrations (version, checksum) VALUES ('{}', '{}')",
+            version,
             checksum
         );
-        db.query(sql, [done = std::move(done)](std::string_view result) mutable {
-            done(!result.empty());
-        });
+        db.query(
+            sql,
+            [done = std::move(done)](std::string_view result) mutable
+            {
+                done(!result.empty());
+            }
+        );
     }
 
     static void run_baselines(
@@ -269,8 +301,9 @@ private:
         // hold a strong `self` so the chain survives across the async gap.
         std::weak_ptr<std::function<void(std::size_t)>> weak_step = step;
 
-        *step = [&db, &connector, &baselines, &applied, weak_step,
-                 done_ptr](std::size_t index) mutable {
+        *step =
+            [&db, &connector, &baselines, &applied, weak_step, done_ptr](std::size_t index) mutable
+        {
             auto self = weak_step.lock();
             if (!self) {
                 return;
@@ -288,21 +321,33 @@ private:
             }
 
             core::logger::info("migration", "applying baseline {}", name);
-            fn(db, connector, [self, index, done_ptr, &db, version](bool ok) mutable {
-                if (!ok) {
-                    core::logger::error("migration", "baseline {} failed", version);
-                    (*done_ptr)(false);
-                    return;
-                }
-                record_applied(db, version, "", [self, index, done_ptr](bool ok) mutable {
-                    if (!ok) {
-                        core::logger::error("migration", "failed to record applied migration");
-                        (*done_ptr)(false);
-                        return;
-                    }
-                    (*self)(index + 1);
-                });
-            });
+            fn(db,
+               connector,
+               [self, index, done_ptr, &db, version](bool ok) mutable
+               {
+                   if (!ok) {
+                       core::logger::error("migration", "baseline {} failed", version);
+                       (*done_ptr)(false);
+                       return;
+                   }
+                   record_applied(
+                       db,
+                       version,
+                       "",
+                       [self, index, done_ptr](bool ok) mutable
+                       {
+                           if (!ok) {
+                               core::logger::error(
+                                   "migration",
+                                   "failed to record applied migration"
+                               );
+                               (*done_ptr)(false);
+                               return;
+                           }
+                           (*self)(index + 1);
+                       }
+                   );
+               });
         };
 
         (*step)(0);
@@ -340,10 +385,14 @@ private:
 
             const auto timestamp = filename.substr(0, underscore);
             constexpr std::size_t timestamp_width = 14; // YYYYMMDDHHMMSS
-            if (timestamp.size() != timestamp_width ||
-                !std::all_of(timestamp.begin(), timestamp.end(), [](unsigned char c) {
-                    return std::isdigit(c);
-                })) {
+            if (timestamp.size() != timestamp_width || !std::all_of(
+                                                           timestamp.begin(),
+                                                           timestamp.end(),
+                                                           [](unsigned char c)
+                                                           {
+                                                               return std::isdigit(c);
+                                                           }
+                                                       )) {
                 core::logger::warning(
                     "migration",
                     "ignoring malformed migration file (expected "
@@ -359,7 +408,8 @@ private:
                 continue;
             }
             std::string contents(
-                (std::istreambuf_iterator<char>(stream)), std::istreambuf_iterator<char>()
+                (std::istreambuf_iterator<char>(stream)),
+                std::istreambuf_iterator<char>()
             );
             if (contents.empty()) {
                 core::logger::warning("migration", "migration file is empty: {}", filename);
@@ -377,9 +427,14 @@ private:
             );
         }
 
-        std::sort(files.begin(), files.end(), [](const MigrationFile& a, const MigrationFile& b) {
-            return a.version < b.version;
-        });
+        std::sort(
+            files.begin(),
+            files.end(),
+            [](const MigrationFile& a, const MigrationFile& b)
+            {
+                return a.version < b.version;
+            }
+        );
 
         return files;
     }
@@ -388,14 +443,18 @@ private:
     {
         auto sql = std::format("BEGIN; {} COMMIT;", file.contents);
         core::logger::info("migration", "applying migration {}", file.version);
-        db.query(sql, [&db, file, done = std::move(done)](std::string_view result) mutable {
-            if (result.empty()) {
-                core::logger::error("migration", "migration {} failed", file.version);
-                done(false);
-                return;
+        db.query(
+            sql,
+            [&db, file, done = std::move(done)](std::string_view result) mutable
+            {
+                if (result.empty()) {
+                    core::logger::error("migration", "migration {} failed", file.version);
+                    done(false);
+                    return;
+                }
+                record_applied(db, file.version, file.checksum, std::move(done));
             }
-            record_applied(db, file.version, file.checksum, std::move(done));
-        });
+        );
     }
 
     /**
@@ -408,7 +467,10 @@ private:
      * new versioned file instead).
      */
     static void run_sql_files(
-        interfaces::IDatabase& db, const std::filesystem::path& dir, AppliedMap applied, DoneFn done
+        interfaces::IDatabase& db,
+        const std::filesystem::path& dir,
+        AppliedMap applied,
+        DoneFn done
     )
     {
         auto files = scan_migrations(dir);
@@ -431,7 +493,9 @@ private:
                 "on disk now hashes to {} — refusing to continue; migrations must "
                 "be immutable once applied, add a new versioned file for further "
                 "changes instead of editing an applied one",
-                file.version, stored_checksum, file.checksum
+                file.version,
+                stored_checksum,
+                file.checksum
             );
             done(false);
             return;
@@ -448,8 +512,8 @@ private:
         // hold a strong `self` so the chain survives across the async gap.
         std::weak_ptr<std::function<void(std::size_t)>> weak_step = step;
 
-        *step = [&db, pending = std::move(pending), weak_step,
-                 done_ptr](std::size_t index) mutable {
+        *step = [&db, pending = std::move(pending), weak_step, done_ptr](std::size_t index) mutable
+        {
             auto self = weak_step.lock();
             if (!self) {
                 return;
@@ -458,13 +522,18 @@ private:
                 (*done_ptr)(true);
                 return;
             }
-            run_sql_file(db, pending[index], [self, index, done_ptr](bool ok) mutable {
-                if (!ok) {
-                    (*done_ptr)(false);
-                    return;
+            run_sql_file(
+                db,
+                pending[index],
+                [self, index, done_ptr](bool ok) mutable
+                {
+                    if (!ok) {
+                        (*done_ptr)(false);
+                        return;
+                    }
+                    (*self)(index + 1);
                 }
-                (*self)(index + 1);
-            });
+            );
         };
 
         (*step)(0);
@@ -514,29 +583,39 @@ public:
 
 using namespace boost::ut;
 
-suite<"Status"> status_suite = [] {
+suite<"Status"> status_suite = []
+{
     // Status::s_ready is a process-wide, write-once-in-practice flag with no reset — this only
     // checks the "becomes ready" transition, not the (order-dependent) initial state.
-    "mark_ready flips is_ready to true"_test = [] {
+    "mark_ready flips is_ready to true"_test = []
+    {
         Status::mark_ready();
         expect(Status::is_ready());
     };
 };
 
-suite<"Registry"> registry_suite = [] {
-    "add_baseline registers in call order; clear empties it"_test = [] {
+suite<"Registry"> registry_suite = []
+{
+    "add_baseline registers in call order; clear empties it"_test = []
+    {
         auto& registry = Registry::instance();
         registry.clear();
 
         registry.add_baseline(
-            "first", [](interfaces::IDatabase&, connector::Connector&,
-                        std::move_only_function<void(bool)> done) {
+            "first",
+            [](interfaces::IDatabase&,
+               connector::Connector&,
+               std::move_only_function<void(bool)> done)
+            {
                 done(true);
             }
         );
         registry.add_baseline(
-            "second", [](interfaces::IDatabase&, connector::Connector&,
-                         std::move_only_function<void(bool)> done) {
+            "second",
+            [](interfaces::IDatabase&,
+               connector::Connector&,
+               std::move_only_function<void(bool)> done)
+            {
                 done(true);
             }
         );
@@ -550,34 +629,50 @@ suite<"Registry"> registry_suite = [] {
     };
 };
 
-suite<"Runner"> runner_suite = [] {
-    "run_all skips migrations when no database is configured"_test = [] {
+suite<"Runner"> runner_suite = []
+{
+    "run_all skips migrations when no database is configured"_test = []
+    {
         bool done_called = false;
         bool ok_value = false;
 
-        Runner::run_all(nullptr, nullptr, "migrations", [&](bool ok) {
-            done_called = true;
-            ok_value = ok;
-        });
+        Runner::run_all(
+            nullptr,
+            nullptr,
+            "migrations",
+            [&](bool ok)
+            {
+                done_called = true;
+                ok_value = ok;
+            }
+        );
 
         expect(done_called);
         expect(ok_value);
     };
 
-    "run_all_blocking returns true when no database is configured"_test = [] {
+    "run_all_blocking returns true when no database is configured"_test = []
+    {
         expect(Runner::run_all_blocking(nullptr, nullptr, "migrations"));
     };
 
-    "run_all skips migrations when the database is resolved but not connected"_test = [] {
+    "run_all skips migrations when the database is resolved but not connected"_test = []
+    {
         NotConnectedDatabase db;
         connector::Connector connector;
         bool done_called = false;
         bool ok_value = false;
 
-        Runner::run_all(&db, &connector, "migrations", [&](bool ok) {
-            done_called = true;
-            ok_value = ok;
-        });
+        Runner::run_all(
+            &db,
+            &connector,
+            "migrations",
+            [&](bool ok)
+            {
+                done_called = true;
+                ok_value = ok;
+            }
+        );
 
         expect(done_called);
         expect(ok_value);

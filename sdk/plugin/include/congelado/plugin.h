@@ -45,71 +45,75 @@
 // across growth (std::vector<std::string> reallocation + SSO would dangle them).
 #ifdef CONGELADO_GUEST
 
-#    if defined(CONGELADO_TASK_USED)
-#        error                                                                                     \
+    #if defined(CONGELADO_TASK_USED)
+        #error                                                                                     \
             "CONGELADO_PLUGIN cannot be used in the same translation unit as CONGELADO_TASK; move plugin definitions to a separate file."
-#    endif
+    #endif
 
-#    ifndef CONGELADO_PLUGIN_USED
-#        define CONGELADO_PLUGIN_USED
+    #ifndef CONGELADO_PLUGIN_USED
+        #define CONGELADO_PLUGIN_USED
 
-/**
- * @def CONGELADO_PLUGIN(T)
- * @brief Drops a lazily-constructed `static T *s_plugin` and every `extern "C"` symbol the host
- * dlsym's off a plugin `.so`, all wired straight to that one instance — this is the whole bridge
- * from pure-C++ `congelado::Plugin` subclasses to the C ABI, no cap.
- * @warning Exactly one invocation per translation unit (enforced by the
- * `CONGELADO_PLUGIN_USED` guard above), and it cannot coexist with `CONGELADO_TASK` in the same
- * TU — drop it once, at the bottom of your plugin `.cc`, after `T`'s definition. Mess up either
- * rule and it's a straight compile-time L via the `#error`s guarding this block.
- * @details Generated C symbols, each lazily constructing `s_plugin` on first touch if it isn't
- * already up (via the guarded `plugin_instance()` helper — thread-safe, allocation-failure-safe):
- * - `congelado_plugin_name()` → `T::get_name()`
- * - `congelado_plugin_version()` → `T::get_version()`
- * - `congelado_capabilities()` → `T::capabilities()`
- * - `congelado_init(host, cfg)` → constructs `s_plugin`, calls `T::on_load`; catches everything
- *   and returns `-1` on any exception instead of letting it escape the ABI boundary
- * - `congelado_type()` → `T::get_type()`
- * - `congelado_worker_type()` → `T::get_worker_type()`
- * - `congelado_worker_execute(input)` → `T::execute_worker(input)`; `{}` if `s_plugin` was
- *   never constructed or `execute_worker` throws
- * - `congelado_on_unload()` → calls `T::on_unload()`, then deletes and nulls `s_plugin`
- * - `congelado_on_ready()` → `T::on_ready()`
- * - `congelado_on_shutdown()` → `T::on_shutdown_requested()`, a no-op if `s_plugin` was never
- *   constructed
- * - `congelado_on_reload_requested()` → `T::on_reload_requested()` as `1`/`0`
- * - `congelado_call(type, action, args, args_count)` → the universal capability-call ABI,
- *   routed through `_cap_dispatch::call`. `CONGELADO_RUN_LOGGER` + `WRITE`/`ERROR` forwards to
- *   `_cap_dispatch::logger_write` (a no-op if `T` never implements `logger_write`);
- *   `CONGELADO_RUN_STORAGE`/`PROTOCOL`/`SERDE` + `GET` forward to
- *   `_cap_dispatch::storage_get`/`protocol_get`/`serde_get` (`nullptr` if `T` doesn't implement
- *   the matching method) — replaces what used to be 4 separate named C symbols
- *   (`congelado_logger_write(_error)`, `congelado_protocol_get`, `congelado_storage_get`) with
- *   one dlsym'd entrypoint.
- * - `congelado_unique_type()` → `T::get_unique_type()`
- * - `congelado_requires()` / `congelado_requires_count()` → caches `T::get_requires()` into a
- *   static `const char*` array on first call (deque-backed, so the cached pointers stay valid)
- * - `congelado_load_before_types()` / `congelado_load_before_types_count()` → same caching deal
- *   for `T::get_load_before_types()`
- * @param T the `congelado::Plugin` subclass to bridge — must be default-constructible.
- */
-#        define CONGELADO_PLUGIN(T) /* NOLINT(cppcoreguidelines-macro-usage) */                    \
+        /**
+         * @def CONGELADO_PLUGIN(T)
+         * @brief Drops a lazily-constructed `static T *s_plugin` and every `extern "C"` symbol the
+         * host dlsym's off a plugin `.so`, all wired straight to that one instance — this is the
+         * whole bridge from pure-C++ `congelado::Plugin` subclasses to the C ABI, no cap.
+         * @warning Exactly one invocation per translation unit (enforced by the
+         * `CONGELADO_PLUGIN_USED` guard above), and it cannot coexist with `CONGELADO_TASK` in the
+         * same TU — drop it once, at the bottom of your plugin `.cc`, after `T`'s definition. Mess
+         * up either rule and it's a straight compile-time L via the `#error`s guarding this block.
+         * @details Generated C symbols, each lazily constructing `s_plugin` on first touch if it
+         * isn't already up (via the guarded `plugin_instance()` helper — thread-safe,
+         * allocation-failure-safe):
+         * - `congelado_plugin_name()` → `T::get_name()`
+         * - `congelado_plugin_version()` → `T::get_version()`
+         * - `congelado_capabilities()` → `T::capabilities()`
+         * - `congelado_init(host, cfg)` → constructs `s_plugin`, calls `T::on_load`; catches
+         * everything and returns `-1` on any exception instead of letting it escape the ABI
+         * boundary
+         * - `congelado_type()` → `T::get_type()`
+         * - `congelado_worker_type()` → `T::get_worker_type()`
+         * - `congelado_worker_execute(input)` → `T::execute_worker(input)`; `{}` if `s_plugin` was
+         *   never constructed or `execute_worker` throws
+         * - `congelado_on_unload()` → calls `T::on_unload()`, then deletes and nulls `s_plugin`
+         * - `congelado_on_ready()` → `T::on_ready()`
+         * - `congelado_on_shutdown()` → `T::on_shutdown_requested()`, a no-op if `s_plugin` was
+         * never constructed
+         * - `congelado_on_reload_requested()` → `T::on_reload_requested()` as `1`/`0`
+         * - `congelado_call(type, action, args, args_count)` → the universal capability-call ABI,
+         *   routed through `_cap_dispatch::call`. `CONGELADO_RUN_LOGGER` + `WRITE`/`ERROR` forwards
+         * to
+         *   `_cap_dispatch::logger_write` (a no-op if `T` never implements `logger_write`);
+         *   `CONGELADO_RUN_STORAGE`/`PROTOCOL`/`SERDE` + `GET` forward to
+         *   `_cap_dispatch::storage_get`/`protocol_get`/`serde_get` (`nullptr` if `T` doesn't
+         * implement the matching method) — replaces what used to be 4 separate named C symbols
+         *   (`congelado_logger_write(_error)`, `congelado_protocol_get`, `congelado_storage_get`)
+         * with one dlsym'd entrypoint.
+         * - `congelado_unique_type()` → `T::get_unique_type()`
+         * - `congelado_requires()` / `congelado_requires_count()` → caches `T::get_requires()` into
+         * a static `const char*` array on first call (deque-backed, so the cached pointers stay
+         * valid)
+         * - `congelado_load_before_types()` / `congelado_load_before_types_count()` → same caching
+         * deal for `T::get_load_before_types()`
+         * @param T the `congelado::Plugin` subclass to bridge — must be default-constructible.
+         */
+        #define CONGELADO_PLUGIN(T) /* NOLINT(cppcoreguidelines-macro-usage) */                    \
             static T* s_plugin =                                                                   \
                 nullptr; /* NOLINT(cppcoreguidelines-avoid-non-const-global-variables) */          \
             static std::recursive_mutex s_plugin_mutex; /* NOLINT */                               \
-            /* Single guarded accessor: constructs s_plugin once, thread-safely, and never lets   \
-             * an exception escape a noexcept extern "C" getter — a failed construction (OOM or   \
-             * a throwing ctor) yields nullptr and the getters degrade to ""/0/{} instead of      \
+            /* Single guarded accessor: constructs s_plugin once, thread-safely, and never lets    \
+             * an exception escape a noexcept extern "C" getter — a failed construction (OOM or  \
+             * a throwing ctor) yields nullptr and the getters degrade to ""/0/{} instead of       \
              * std::terminate-ing the host. */                                                     \
             static T* plugin_instance() noexcept /* NOLINT */                                      \
             {                                                                                      \
                 try {                                                                              \
-                    std::lock_guard<std::recursive_mutex> lock{s_plugin_mutex};                   \
+                    std::lock_guard<std::recursive_mutex> lock{s_plugin_mutex};                    \
                     if (s_plugin == nullptr) {                                                     \
                         try {                                                                      \
                             s_plugin = new T{};                                                    \
                         } catch (...) {                                                            \
-                            s_plugin = nullptr;                                                   \
+                            s_plugin = nullptr;                                                    \
                         }                                                                          \
                     }                                                                              \
                 } catch (...) {                                                                    \
@@ -133,7 +137,8 @@
                 return p ? p->capabilities() : 0;                                                  \
             }                                                                                      \
             extern "C" int congelado_init(                                                         \
-                const CongeladoHostCallbacks* host, const CongeladoConfigView* cfg                 \
+                const CongeladoHostCallbacks* host,                                                \
+                const CongeladoConfigView* cfg                                                     \
             ) noexcept                                                                             \
             {                                                                                      \
                 T* p = plugin_instance();                                                          \
@@ -221,7 +226,9 @@
                 }                                                                                  \
             }                                                                                      \
             extern "C" CongeladoAny congelado_call(                                                \
-                CongeladoRunType type, CongeladoRunAction action, const CongeladoAny* args,        \
+                CongeladoRunType type,                                                             \
+                CongeladoRunAction action,                                                         \
+                const CongeladoAny* args,                                                          \
                 size_t args_count                                                                  \
             ) noexcept                                                                             \
             {                                                                                      \
@@ -242,13 +249,13 @@
                 if (!p) {                                                                          \
                     return nullptr;                                                                \
                 }                                                                                  \
-                /* deque: push_back keeps references/pointers to existing elements valid, so      \
+                /* deque: push_back keeps references/pointers to existing elements valid, so       \
                  * the cached c_str() pointers survive growth (vector<string> + SSO would not). */ \
-                static std::deque<std::string> s_strs; /* NOLINT */                                \
+                static std::deque<std::string> s_strs;  /* NOLINT */                               \
                 static std::vector<const char*> s_ptrs; /* NOLINT */                               \
                 static bool s_cache_built = false;      /* NOLINT */                               \
                 try {                                                                              \
-                    std::lock_guard<std::recursive_mutex> lock{s_plugin_mutex};                   \
+                    std::lock_guard<std::recursive_mutex> lock{s_plugin_mutex};                    \
                     if (!s_cache_built) {                                                          \
                         for (auto sv: p->get_requires()) {                                         \
                             s_strs.emplace_back(sv);                                               \
@@ -272,11 +279,11 @@
                 if (!p) {                                                                          \
                     return nullptr;                                                                \
                 }                                                                                  \
-                static std::deque<std::string> s_strs; /* NOLINT */                                \
+                static std::deque<std::string> s_strs;  /* NOLINT */                               \
                 static std::vector<const char*> s_ptrs; /* NOLINT */                               \
                 static bool s_cache_built = false;      /* NOLINT */                               \
                 try {                                                                              \
-                    std::lock_guard<std::recursive_mutex> lock{s_plugin_mutex};                   \
+                    std::lock_guard<std::recursive_mutex> lock{s_plugin_mutex};                    \
                     if (!s_cache_built) {                                                          \
                         for (auto sv: p->get_load_before_types()) {                                \
                             s_strs.emplace_back(sv);                                               \
@@ -294,7 +301,7 @@
                 const T* p = plugin_instance();                                                    \
                 return p ? p->get_load_before_types().size() : 0;                                  \
             }
-#    endif // CONGELADO_PLUGIN_USED
+    #endif // CONGELADO_PLUGIN_USED
 
 #endif // CONGELADO_GUEST
 

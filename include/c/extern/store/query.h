@@ -1,11 +1,11 @@
 #ifndef CONGELADO_C_STORE_QUERY_H_
 #define CONGELADO_C_STORE_QUERY_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/map.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 #include "include/c/intern/vector.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -14,7 +14,11 @@ extern "C"
 {
 #endif
 
-    typedef void (*TFStoreQueryFn)(void* user_data, const TF_Vector* matches, TF_Status* out_status);
+    typedef void (*TFStoreQueryFn)(
+        void* user_data,
+        const TF_Vector* matches,
+        TF_Status* out_status
+    );
 
     typedef struct TFStoreQuery
     {
@@ -27,7 +31,9 @@ extern "C"
         void (*create)(TFStoreQuery* out_handle);
         void (*destroy)(TFStoreQuery* handle);
 
-        // filters: arbitrary field->value equality constraints (backend-specific, genuinely open-ended). free_text/sort/offset/limit: universal, explicitly typed. free_text and sort are nullable; limit == 0 means no limit.
+        // filters: arbitrary field->value equality constraints (backend-specific, genuinely
+        // open-ended). free_text/sort/offset/limit: universal, explicitly typed. free_text and sort
+        // are nullable; limit == 0 means no limit.
         void (*run)(
             TFStoreQuery* query,
             const TF_Map* filters,
@@ -43,11 +49,8 @@ extern "C"
 
 #define TF_STORE_QUERY_STRUCT_SIZE TF_OFFSET_OF_END(TFStoreQueryOps, run)
 
-    TF_CAPI_EXPORT void create_store_query(
-        TFStoreQueryOps** ops,
-        void** plugin_context,
-        TF_Status* out_status
-    );
+    TF_CAPI_EXPORT void
+    create_store_query(TFStoreQueryOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_store_query(void* plugin_context);
 
 #ifdef __cplusplus

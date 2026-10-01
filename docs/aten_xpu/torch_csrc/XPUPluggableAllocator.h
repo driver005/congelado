@@ -23,16 +23,16 @@
 
 #pragma once
 
-#include <sycl/sycl.hpp>
+#include "include/c/extern/stream_executor/executor.h"
+#include "include/c/intern/status.h"
+#include "include/c/macros.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <mutex>
+#include <sycl/sycl.hpp>
 #include <unordered_map>
-
-#include "include/c/macros.h"
-#include "include/c/intern/status.h"
-#include "include/c/extern/stream_executor/executor.h"
 
 namespace ice::sycl_alloc {
 
@@ -40,11 +40,13 @@ namespace ice::sycl_alloc {
 // PoolId — replaces c10::xpu::MempoolId_t (std::pair<uint64_t,uint64_t>)
 // ice: MempoolId_t → struct PoolId { uint64_t hi, lo; }
 // ---------------------------------------------------------------------------
-struct PoolId {
+struct PoolId
+{
     uint64_t hi{0};
     uint64_t lo{0};
 
-    bool operator==(const PoolId& o) const noexcept {
+    bool operator==(const PoolId& o) const noexcept
+    {
         return hi == o.hi && lo == o.lo;
     }
 };
@@ -54,10 +56,11 @@ struct PoolId {
 // ice: replaces torch::xpu::XPUPluggableAllocator::_AllocationMetadata.
 //   c10::DeviceIndex → int
 // ---------------------------------------------------------------------------
-struct AllocationMetadata {
-    size_t       size{0};
-    int          device_index{-1};
-    sycl::queue* queue{nullptr};   // queue active at time of allocation
+struct AllocationMetadata
+{
+    size_t size{0};
+    int device_index{-1};
+    sycl::queue* queue{nullptr}; // queue active at time of allocation
 };
 
 // ---------------------------------------------------------------------------
@@ -69,17 +72,18 @@ struct AllocationMetadata {
 //
 // ice: replaces alloc_fn_ / free_fn_ / init_fn_ / record_stream_fn_.
 // ---------------------------------------------------------------------------
-struct SyclPluggableAllocatorVtable {
+struct SyclPluggableAllocatorVtable
+{
     /// Allocate `size` bytes on `device_index` using the given SYCL queue.
     /// Must return a non-null pointer on success; on failure set *out_status.
     /// ice: replaces std::function<void*(size_t, int, sycl::queue*)> alloc_fn_.
-    void* (*alloc)(size_t size, int device_index, sycl::queue* queue,
-                   TF_Status* out_status){nullptr};
+    void* (*alloc)(size_t size, int device_index, sycl::queue* queue, TF_Status* out_status){
+        nullptr
+    };
 
     /// Free a block previously returned by alloc.
     /// ice: replaces std::function<void(void*, size_t, int, sycl::queue*)> free_fn_.
-    void (*free)(void* ptr, size_t size, int device_index,
-                 sycl::queue* queue){nullptr};
+    void (*free)(void* ptr, size_t size, int device_index, sycl::queue* queue){nullptr};
 
     /// Optional: called once when the allocator is first used.
     /// ice: replaces std::function<void(int)> init_fn_.
@@ -99,19 +103,21 @@ struct SyclPluggableAllocatorVtable {
 //   Instead of inheriting a virtual-method base class, the allocator exposes
 //   the TF_ExecutorOps-compatible free functions below.
 // ---------------------------------------------------------------------------
-class SyclPluggableAllocator {
+class SyclPluggableAllocator
+{
 public:
-    explicit SyclPluggableAllocator(SyclPluggableAllocatorVtable vtable)
-        : vtable_(vtable) {}
+    explicit SyclPluggableAllocator(SyclPluggableAllocatorVtable vtable) :
+        vtable_(vtable)
+    {
+    }
 
     // Non-copyable, non-movable (matches C10_DISABLE_COPY_AND_ASSIGN intent).
-    SyclPluggableAllocator(const SyclPluggableAllocator&)            = delete;
+    SyclPluggableAllocator(const SyclPluggableAllocator&) = delete;
     SyclPluggableAllocator& operator=(const SyclPluggableAllocator&) = delete;
 
     /// Allocate, recording metadata for the returned block.
     /// ice: replaces XPUPluggableAllocator::malloc() + allocate().
-    void* alloc(size_t size, int device_index, sycl::queue* queue,
-                TF_Status* out_status);
+    void* alloc(size_t size, int device_index, sycl::queue* queue, TF_Status* out_status);
 
     /// Free a block.  Looks up metadata to supply size/queue to vtable_.free.
     /// ice: replaces XPUPluggableAllocator::raw_delete().
@@ -121,12 +127,20 @@ public:
     /// ice: replaces XPUPluggableAllocator::init(device_count).
     void init(int device_count);
 
-    bool initialized() const noexcept { return initialized_; }
+    bool initialized() const noexcept
+    {
+        return initialized_;
+    }
 
     /// Copies `count` bytes between two device pointers using the current queue.
     /// ice: replaces XPUPluggableAllocator::copy_data().
-    void copy_data(void* dest, const void* src, size_t count,
-                   sycl::queue* queue, TF_Status* out_status) const;
+    void copy_data(
+        void* dest,
+        const void* src,
+        size_t count,
+        sycl::queue* queue,
+        TF_Status* out_status
+    ) const;
 
     /// Hint: `ptr` will be used on `queue` after the current stream retires.
     /// ice: replaces XPUPluggableAllocator::recordStream().
@@ -134,10 +148,10 @@ public:
 
 private:
     SyclPluggableAllocatorVtable vtable_;
-    mutable std::mutex           mutex_;
+    mutable std::mutex mutex_;
     std::unordered_map<void*, AllocationMetadata> metadata_;
     bool initialized_{false};
-    int  device_count_{0};
+    int device_count_{0};
 };
 
 // ---------------------------------------------------------------------------
@@ -160,7 +174,8 @@ TF_CAPI_EXPORT
 SyclPluggableAllocator* sycl_pluggable_allocator_install(
     SyclPluggableAllocatorVtable vtable,
     int device_count,
-    TF_Status* out_status);
+    TF_Status* out_status
+);
 
 /// Removes the currently installed custom allocator.
 /// Must be called before the plugin .so is dlclose'd.
@@ -179,11 +194,14 @@ void sycl_pluggable_allocator_uninstall();
 //
 // ice: these replace the indirect calls through c10::SetAllocator / c10::kXPU.
 
-void sycl_exec_alloc(TF_Executor* executor, TF_Device* device,
-                      uint64_t size, int64_t memory_space,
-                      TF_DeviceMemoryBase* mem);
+void sycl_exec_alloc(
+    TF_Executor* executor,
+    TF_Device* device,
+    uint64_t size,
+    int64_t memory_space,
+    TF_DeviceMemoryBase* mem
+);
 
-void sycl_exec_free(TF_Executor* executor, TF_Device* device,
-                     TF_DeviceMemoryBase* memory);
+void sycl_exec_free(TF_Executor* executor, TF_Device* device, TF_DeviceMemoryBase* memory);
 
 } // namespace ice::sycl_alloc

@@ -224,8 +224,10 @@ struct std::formatter<io::shared_layer::FrameType>
 namespace io::shared_layer::tests {
 using namespace boost::ut;
 
-suite<"StreamState"> stream_state_suite = [] {
-    "formats every enumerator to its human-readable name"_test = [] {
+suite<"StreamState"> stream_state_suite = []
+{
+    "formats every enumerator to its human-readable name"_test = []
+    {
         using enum io::shared_layer::StreamState;
 
         expect(std::format("{}", IDLE) == "Idle");
@@ -237,14 +239,17 @@ suite<"StreamState"> stream_state_suite = [] {
         expect(std::format("{}", RESERVED_REMOTE) == "ReservedRemote");
     };
 
-    "unknown value falls back to UNKNOWN"_test = [] {
+    "unknown value falls back to UNKNOWN"_test = []
+    {
         auto bogus = static_cast<io::shared_layer::StreamState>(255);
         expect(std::format("{}", bogus) == "UNKNOWN");
     };
 };
 
-suite<"FrameType"> frame_type_suite = [] {
-    "formats every enumerator to its wire-format name"_test = [] {
+suite<"FrameType"> frame_type_suite = []
+{
+    "formats every enumerator to its wire-format name"_test = []
+    {
         using enum io::shared_layer::FrameType;
 
         expect(std::format("{}", DATA) == "DATA");
@@ -259,12 +264,14 @@ suite<"FrameType"> frame_type_suite = [] {
         expect(std::format("{}", CONTINUATION) == "CONTINUATION");
     };
 
-    "unknown value falls back to UNKNOWN"_test = [] {
+    "unknown value falls back to UNKNOWN"_test = []
+    {
         auto bogus = static_cast<io::shared_layer::FrameType>(255);
         expect(std::format("{}", bogus) == "UNKNOWN");
     };
 
-    "wire values match RFC 9113 §11.2 assigned numbers"_test = [] {
+    "wire values match RFC 9113 §11.2 assigned numbers"_test = []
+    {
         using enum io::shared_layer::FrameType;
 
         expect(std::to_underlying(DATA) == 0x0);
@@ -280,8 +287,10 @@ suite<"FrameType"> frame_type_suite = [] {
     };
 };
 
-suite<"Flags"> flags_suite = [] {
-    "flag bit values match RFC 9113 wire layout"_test = [] {
+suite<"Flags"> flags_suite = []
+{
+    "flag bit values match RFC 9113 wire layout"_test = []
+    {
         expect(io::shared_layer::Flags::END_STREAM == 0x01);
         expect(io::shared_layer::Flags::ACK == 0x01);
         expect(io::shared_layer::Flags::END_HEADERS == 0x04);

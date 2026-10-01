@@ -62,11 +62,14 @@ inline ExecutionId generate_id()
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"generate_id"> generate_id_suite = [] {
-    "produces a non-nil uuid"_test = [] {
+suite<"generate_id"> generate_id_suite = []
+{
+    "produces a non-nil uuid"_test = []
+    {
         expect(not generate_id().is_nil());
     };
-    "produces a distinct uuid on every call"_test = [] {
+    "produces a distinct uuid on every call"_test = []
+    {
         expect(generate_id() != generate_id());
     };
 };

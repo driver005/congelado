@@ -347,7 +347,10 @@ private:
             for (;;) {
                 std::size_t read_count = 0;
                 if (::SSL_read_ex(
-                        stream_ssl, buf.data() + total, buf.size() - total, &read_count
+                        stream_ssl,
+                        buf.data() + total,
+                        buf.size() - total,
+                        &read_count
                     ) != 1) {
                     break;
                 }
@@ -402,14 +405,17 @@ private:
 namespace quic::tests {
 using namespace boost::ut;
 
-suite<"Connection"> connection_suite = [] {
-    "starts Handshaking, not connected"_test = [] {
+suite<"Connection"> connection_suite = []
+{
+    "starts Handshaking, not connected"_test = []
+    {
         Connection conn{nullptr};
         expect(conn.state() == ConnState::Handshaking);
         expect(not conn.connected());
         expect(conn.native() == nullptr);
     };
-    "stream operations fail closed before the handshake completes"_test = [] {
+    "stream operations fail closed before the handshake completes"_test = []
+    {
         Connection conn{nullptr};
 
         expect(conn.open_stream() == UINT64_MAX);
@@ -419,16 +425,20 @@ suite<"Connection"> connection_suite = [] {
         expect(not conn.write_stream(0, data));
     };
     "on_connected/on_stream just replace the stored callbacks, no invocation without a tick"_test =
-        [] {
-            Connection conn{nullptr};
-            bool connected_fired = false;
-            conn.on_connected([&connected_fired] {
+        []
+    {
+        Connection conn{nullptr};
+        bool connected_fired = false;
+        conn.on_connected(
+            [&connected_fired]
+            {
                 connected_fired = true;
-            });
-            conn.on_stream([](std::uint64_t, std::vector<std::byte>, bool) {});
+            }
+        );
+        conn.on_stream([](std::uint64_t, std::vector<std::byte>, bool) {});
 
-            expect(not connected_fired);
-        };
+        expect(not connected_fired);
+    };
 };
 
 } // namespace quic::tests

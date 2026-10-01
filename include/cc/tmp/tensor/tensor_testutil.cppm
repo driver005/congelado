@@ -30,7 +30,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
         namespace test {
 
@@ -124,7 +123,10 @@ export {
             // than atol + rtol * abs(x). If atol or rtol is negative, the data type's
             // epsilon * kSlackFactor is used.
             void ExpectClose(
-                const Tensor& x, const Tensor& y, double atol = -1.0, double rtol = -1.0
+                const Tensor& x,
+                const Tensor& y,
+                double atol = -1.0,
+                double rtol = -1.0
             );
 
             // Expects "x" and "y" are tensors of the same type T, same shape, and
@@ -141,7 +143,9 @@ export {
 
             template<typename T>
             void ExpectTensorEqual(
-                const Tensor& x, const Tensor& y, std::function<bool(const T&, const T&)> is_equal
+                const Tensor& x,
+                const Tensor& y,
+                std::function<bool(const T&, const T&)> is_equal
             )
             {
                 EXPECT_EQ(x.dtype(), DataTypeToEnum<T>::value);
@@ -271,7 +275,8 @@ export {
                     return EqualFailure(x, y);
                 }
 
-                auto sign_and_magnitude_to_biased = [](uint16_t sam) {
+                auto sign_and_magnitude_to_biased = [](uint16_t sam)
+                {
                     const uint16_t kSignBitMask = 0x80'00;
                     if (kSignBitMask & sam) {
                         return ~sam + 1; // negative number.
@@ -309,7 +314,8 @@ export {
                     return EqualFailure(x, y);
                 }
 
-                auto sign_and_magnitude_to_biased = [](uint16_t sam) {
+                auto sign_and_magnitude_to_biased = [](uint16_t sam)
+                {
                     const uint16_t kSignBitMask = 0x80'00;
                     if (kSignBitMask & sam) {
                         return ~sam + 1; // negative number.
@@ -387,7 +393,10 @@ export {
 
             template<typename T>
             static ::testing::AssertionResult IsClose(
-                const std::complex<T>& x, const std::complex<T>& y, const T& atol, const T& rtol
+                const std::complex<T>& x,
+                const std::complex<T>& y,
+                const T& atol,
+                const T& rtol
             )
             {
                 if (IsClose(x.real(), y.real(), atol, rtol) &&
@@ -530,7 +539,10 @@ export {
             internal_test::IsClose(Eigen::half x, Eigen::half y, double atol, double rtol)
             {
                 return test::IsClose(
-                    x, y, GetTolerance<Eigen::half>(atol), GetTolerance<Eigen::half>(rtol)
+                    x,
+                    y,
+                    GetTolerance<Eigen::half>(atol),
+                    GetTolerance<Eigen::half>(rtol)
                 );
             }
 

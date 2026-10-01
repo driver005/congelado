@@ -156,16 +156,24 @@ private:
 namespace core::generator::tests {
 using namespace boost::ut;
 
-suite<"Generator"> generator_suite = [] {
-    "bare generator throws on addImport since it owns no module"_test = [] {
+suite<"Generator"> generator_suite = []
+{
+    "bare generator throws on addImport since it owns no module"_test = []
+    {
         Generator generator;
 
-        expect(throws<std::bad_optional_access>([&] {
-            generator.addImport("std");
-        }));
+        expect(
+            throws<std::bad_optional_access>(
+                [&]
+                {
+                    generator.addImport("std");
+                }
+            )
+        );
     };
 
-    "named generator builds and renders a module"_test = [] {
+    "named generator builds and renders a module"_test = []
+    {
         Generator generator{"core_test_module"};
         generator.addImport("std");
         generator.addNamespace("core::test").addClass("Widget");
@@ -177,7 +185,8 @@ suite<"Generator"> generator_suite = [] {
         expect(rendered.contains("class Widget"));
     };
 
-    "write(path, content) writes the exact bytes given"_test = [] {
+    "write(path, content) writes the exact bytes given"_test = []
+    {
         auto path = std::filesystem::temp_directory_path() / "congelado_generator_test_write.txt";
         auto result = Generator::write(path, "hello generator\n");
 
@@ -190,7 +199,8 @@ suite<"Generator"> generator_suite = [] {
         std::filesystem::remove(path);
     };
 
-    "write(path) renders the owned module and writes it to disk"_test = [] {
+    "write(path) renders the owned module and writes it to disk"_test = []
+    {
         auto path = std::filesystem::temp_directory_path() / "congelado_generator_test_module.cppm";
         Generator generator{"core_test_write_module"};
 

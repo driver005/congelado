@@ -57,7 +57,9 @@ public:
      * @param send the stream's reply callback, invoked by the handler (or the 404 path).
      */
     void enqueue(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         std::lock_guard lock{m_pending_mutex};
@@ -87,7 +89,8 @@ public:
      */
     shared::WorkerFunction on_execute() override
     {
-        return [this]() {
+        return [this]()
+        {
             PendingRequest pending;
             {
                 std::lock_guard lock{m_pending_mutex};
@@ -103,7 +106,11 @@ public:
             auto method = interfaces::io::types::parse_method(pending.req->get_method());
             try {
                 m_route_handler->match(
-                    method, pending.req->get_path(), *pending.req, *pending.res, pending.send
+                    method,
+                    pending.req->get_path(),
+                    *pending.req,
+                    *pending.res,
+                    pending.send
                 );
             } catch (const std::runtime_error&) {
                 pending.res->set_status(interfaces::io::types::Status::NOT_FOUND);
@@ -148,20 +155,24 @@ private:
 namespace core::router::tests {
 using namespace boost::ut;
 
-suite<"RouterExecutor"> router_executor_suite = [] {
-    "starts idle, with no pending or in-flight work"_test = [] {
+suite<"RouterExecutor"> router_executor_suite = []
+{
+    "starts idle, with no pending or in-flight work"_test = []
+    {
         RouteHandler<> route_handler{};
         RouterExecutor executor{&route_handler};
         expect(executor.is_idle());
     };
 
-    "get_name identifies this handler"_test = [] {
+    "get_name identifies this handler"_test = []
+    {
         RouteHandler<> route_handler{};
         RouterExecutor executor{&route_handler};
         expect(executor.get_name() == "router_executor");
     };
 
-    "set_wake accepts a callback without disturbing idle state"_test = [] {
+    "set_wake accepts a callback without disturbing idle state"_test = []
+    {
         RouteHandler<> route_handler{};
         RouterExecutor executor{&route_handler};
         executor.set_wake([] {});

@@ -26,7 +26,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // Check that 0 <= index < limit using a single comparison, assuming
@@ -52,7 +51,8 @@ export {
             EIGEN_ALWAYS_INLINE EIGEN_DEVICE_FUNC const T SubtleMustCopy(const T& x)
             {
                 static_assert(
-                    std::is_integral<T>::value, "SubtleMustCopy can only be used on integer types."
+                    std::is_integral<T>::value,
+                    "SubtleMustCopy can only be used on integer types."
                 );
                 auto* to_x = reinterpret_cast<const volatile T*>(&x);
                 return *to_x;

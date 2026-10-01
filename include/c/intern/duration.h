@@ -1,8 +1,8 @@
 #ifndef TENSORFLOW_C_TF_DURATION_H_
 #define TENSORFLOW_C_TF_DURATION_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -31,7 +31,8 @@ extern "C"
 
 #define TF_DURATION_STRUCT_SIZE TF_OFFSET_OF_END(TF_DurationOps, get_ratio_den)
 
-    TF_CAPI_EXPORT void create_duration(TF_DurationOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void
+    create_duration(TF_DurationOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_duration(void* plugin_context);
 
 #ifdef __cplusplus

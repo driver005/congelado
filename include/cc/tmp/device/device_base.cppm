@@ -43,7 +43,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace Eigen {
         struct ThreadPoolDevice;
     } // end namespace Eigen
@@ -113,7 +112,9 @@ export {
 
             // Same as CopyCPUTensorToDevice, but in a synchronous way.
             absl::Status CopyCPUTensorToDeviceSync(
-                const Tensor* cpu_tensor, Device* device, Tensor* device_tensor
+                const Tensor* cpu_tensor,
+                Device* device,
+                Tensor* device_tensor
             ) const;
 
             // Copies a tensor in this device.
@@ -376,7 +377,10 @@ export {
                 done(
                     absl::InternalError(
                         absl::StrCat(
-                            "Device ", name(), " does not implement ", "CopyTensorInSameDevice"
+                            "Device ",
+                            name(),
+                            " does not implement ",
+                            "CopyTensorInSameDevice"
                         )
                     )
                 );
@@ -423,13 +427,21 @@ export {
         }
 
         Status DeviceContext::CopyDeviceTensorToCPUSync(
-            const Tensor* device_tensor, StringPiece tensor_name, Device* device, Tensor* cpu_tensor
+            const Tensor* device_tensor,
+            StringPiece tensor_name,
+            Device* device,
+            Tensor* cpu_tensor
         )
         {
             absl::Notification n;
             Status status;
             CopyDeviceTensorToCPU(
-                device_tensor, tensor_name, device, cpu_tensor, [&](const Status& s) {
+                device_tensor,
+                tensor_name,
+                device,
+                cpu_tensor,
+                [&](const Status& s)
+                {
                     status = s;
                     n.Notify();
                 }
@@ -439,15 +451,23 @@ export {
         }
 
         Status DeviceContext::CopyCPUTensorToDeviceSync(
-            const Tensor* cpu_tensor, Device* device, Tensor* device_tensor
+            const Tensor* cpu_tensor,
+            Device* device,
+            Tensor* device_tensor
         ) const
         {
             absl::Notification n;
             Status status;
-            CopyCPUTensorToDevice(cpu_tensor, device, device_tensor, [&](const Status& s) {
-                status = s;
-                n.Notify();
-            });
+            CopyCPUTensorToDevice(
+                cpu_tensor,
+                device,
+                device_tensor,
+                [&](const Status& s)
+                {
+                    status = s;
+                    n.Notify();
+                }
+            );
             n.WaitForNotification();
             return status;
         }
@@ -493,7 +513,8 @@ export {
             // Eigen::ThreadPoolDevice may not aggressively occupy all the
             // threads in the underlying threadpool.
             const int parallelism = std::max<int>(
-                1, std::min<int>(GetPerThreadMaxParallelism(), eigen_cpu_devices_.size())
+                1,
+                std::min<int>(GetPerThreadMaxParallelism(), eigen_cpu_devices_.size())
             );
             return eigen_cpu_devices_[parallelism - 1];
         }

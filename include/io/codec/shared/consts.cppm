@@ -23,11 +23,14 @@ constexpr std::size_t SIZE_MAX = 0xFF'FF'FF'FF'FF'FF'FF'FF;
 namespace io::shared_codec::tests {
 using namespace boost::ut;
 
-suite<"shared_codec_consts"> shared_codec_consts_suite = [] {
-    "SIZE_MAX is the all-bits-set sentinel for std::size_t"_test = [] {
+suite<"shared_codec_consts"> shared_codec_consts_suite = []
+{
+    "SIZE_MAX is the all-bits-set sentinel for std::size_t"_test = []
+    {
         expect(SIZE_MAX == std::numeric_limits<std::size_t>::max());
     };
-    "ENTRY_OVERHEAD and DEFAULT_MAX_TABLE_SIZE hold their documented values"_test = [] {
+    "ENTRY_OVERHEAD and DEFAULT_MAX_TABLE_SIZE hold their documented values"_test = []
+    {
         expect(ENTRY_OVERHEAD == 32);
         expect(DEFAULT_MAX_TABLE_SIZE == 4'096);
     };

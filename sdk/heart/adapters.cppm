@@ -204,8 +204,10 @@ resolve_search_provider(PluginRef& ref)
         return nullptr;
     }
     auto* provider = static_cast<interfaces::ISearchProvider*>(result.v_ptr);
-    return std::shared_ptr<interfaces::ISearchProvider>(provider, [](interfaces::ISearchProvider*) {
-    });
+    return std::shared_ptr<interfaces::ISearchProvider>(
+        provider,
+        [](interfaces::ISearchProvider*) {}
+    );
 }
 
 /**
@@ -294,7 +296,8 @@ resolve_worker_orchestrator(PluginRef& ref)
     }
     auto* orchestrator = static_cast<interfaces::IWorkerOrchestrator*>(result.v_ptr);
     return std::shared_ptr<interfaces::IWorkerOrchestrator>(
-        orchestrator, [](interfaces::IWorkerOrchestrator*) {}
+        orchestrator,
+        [](interfaces::IWorkerOrchestrator*) {}
     );
 }
 
@@ -319,7 +322,8 @@ resolve_payload_storage(PluginRef& ref)
     }
     auto* storage = static_cast<interfaces::IExternalPayloadStorage*>(result.v_ptr);
     return std::shared_ptr<interfaces::IExternalPayloadStorage>(
-        storage, [](interfaces::IExternalPayloadStorage*) {}
+        storage,
+        [](interfaces::IExternalPayloadStorage*) {}
     );
 }
 
@@ -343,7 +347,8 @@ resolve_workflow_orchestrator(PluginRef& ref)
     }
     auto* orchestrator = static_cast<interfaces::IWorkflowOrchestrator*>(result.v_ptr);
     return std::shared_ptr<interfaces::IWorkflowOrchestrator>(
-        orchestrator, [](interfaces::IWorkflowOrchestrator*) {}
+        orchestrator,
+        [](interfaces::IWorkflowOrchestrator*) {}
     );
 }
 
@@ -457,7 +462,8 @@ resolve_openapi_generator(PluginRef& ref)
     }
     auto* generator = static_cast<interfaces::IOpenApiGenerator*>(result.v_ptr);
     return std::shared_ptr<interfaces::IOpenApiGenerator>(
-        generator, [](interfaces::IOpenApiGenerator*) {}
+        generator,
+        [](interfaces::IOpenApiGenerator*) {}
     );
 }
 
@@ -638,22 +644,27 @@ using namespace boost::ut;
 
 void dummy_call_symbol() {}
 
-suite<"resolve_call_fn"> resolve_call_fn_suite = [] {
-    "missing congelado_capabilities entry yields nullptr"_test = [] {
+suite<"resolve_call_fn"> resolve_call_fn_suite = []
+{
+    "missing congelado_capabilities entry yields nullptr"_test = []
+    {
         PluginRef ref;
         expect(resolve_call_fn(ref, 1U) == nullptr);
     };
-    "capability bit not set yields nullptr even with the entry present"_test = [] {
+    "capability bit not set yields nullptr even with the entry present"_test = []
+    {
         PluginRef ref;
         ref.m_data["congelado_capabilities"] = std::uint32_t{2U}; // bit 1 set, not bit 0
         expect(resolve_call_fn(ref, 1U) == nullptr);
     };
-    "capability bit set but missing congelado_call yields nullptr"_test = [] {
+    "capability bit set but missing congelado_call yields nullptr"_test = []
+    {
         PluginRef ref;
         ref.m_data["congelado_capabilities"] = std::uint32_t{1U};
         expect(resolve_call_fn(ref, 1U) == nullptr);
     };
-    "capability bit set and congelado_call present resolves non-null"_test = [] {
+    "capability bit set and congelado_call present resolves non-null"_test = []
+    {
         PluginRef ref;
         ref.m_data["congelado_capabilities"] = std::uint32_t{1U};
         ref.m_data["congelado_call"] =
@@ -665,8 +676,10 @@ suite<"resolve_call_fn"> resolve_call_fn_suite = [] {
     };
 };
 
-suite<"OtelLogBridge"> otel_log_bridge_suite = [] {
-    "get_name returns a fixed identifying name"_test = [] {
+suite<"OtelLogBridge"> otel_log_bridge_suite = []
+{
+    "get_name returns a fixed identifying name"_test = []
+    {
         OtelLogBridge bridge;
         expect(bridge.get_name() == "otel-log-bridge");
     };

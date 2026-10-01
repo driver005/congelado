@@ -1,16 +1,15 @@
 #ifndef TENSORFLOW_C_EXTERN_STORE_H_
 #define TENSORFLOW_C_EXTERN_STORE_H_
 
-#include "include/c/macros.h"
-#include "include/c/intern/status.h"
-#include "include/c/intern/tstring.h"
-
 #include "include/c/extern/store/admin.h"
 #include "include/c/extern/store/collection.h"
-#include "include/c/extern/store/transaction.h"
-#include "include/c/extern/store/watch.h"
 #include "include/c/extern/store/index.h"
 #include "include/c/extern/store/query.h"
+#include "include/c/extern/store/transaction.h"
+#include "include/c/extern/store/watch.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -40,7 +39,8 @@ extern "C"
 
 #define TF_STORE_STRUCT_SIZE TF_OFFSET_OF_END(TF_StoreOps, get_name)
 
-    TF_CAPI_EXPORT void create_store(TF_StoreOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void
+    create_store(TF_StoreOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_store(void* plugin_context);
 
     static inline void init_store(TF_StoreOps** ops, TF_Store* store, TF_Status* out_status)

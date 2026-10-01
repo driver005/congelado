@@ -1474,24 +1474,31 @@ struct serde::Serializable<congelado_api_dto::WorkflowSchedule>
         return std::tuple{
             serde::FieldDesc<"name", &WorkflowSchedule::getName, &WorkflowSchedule::setName>{},
             serde::FieldDesc<
-                "workflow_name", &WorkflowSchedule::getWorkflowName,
+                "workflow_name",
+                &WorkflowSchedule::getWorkflowName,
                 &WorkflowSchedule::setWorkflowName>{},
             serde::FieldDesc<
-                "workflow_version", &WorkflowSchedule::getWorkflowVersion,
+                "workflow_version",
+                &WorkflowSchedule::getWorkflowVersion,
                 &WorkflowSchedule::setWorkflowVersion>{},
+            serde::
+                FieldDesc<"paused", &WorkflowSchedule::getPaused, &WorkflowSchedule::setPaused>{},
             serde::FieldDesc<
-                "paused", &WorkflowSchedule::getPaused, &WorkflowSchedule::setPaused>{},
-            serde::FieldDesc<
-                "last_fired_at", &WorkflowSchedule::getLastFiredAt,
+                "last_fired_at",
+                &WorkflowSchedule::getLastFiredAt,
                 &WorkflowSchedule::setLastFiredAt>{},
             serde::FieldDesc<
-                "cron_expression", &WorkflowSchedule::getCronExpression,
+                "cron_expression",
+                &WorkflowSchedule::getCronExpression,
                 &WorkflowSchedule::setCronExpression>{},
             serde::FieldDesc<
-                "seed_variables", &WorkflowSchedule::getSeedVariables,
+                "seed_variables",
+                &WorkflowSchedule::getSeedVariables,
                 &WorkflowSchedule::setSeedVariables>{},
             serde::FieldDesc<
-                "enabled", &WorkflowSchedule::getEnabled, &WorkflowSchedule::setEnabled>{},
+                "enabled",
+                &WorkflowSchedule::getEnabled,
+                &WorkflowSchedule::setEnabled>{},
         };
     }
 };
@@ -1531,18 +1538,21 @@ struct serde::Serializable<congelado_api_dto::TaskNode>
     {
         using congelado_api_dto::TaskNode;
         return std::tuple{
-            serde::FieldDesc<
-                "task_def_name", &TaskNode::getTaskDefName, &TaskNode::setTaskDefName>{},
+            serde::
+                FieldDesc<"task_def_name", &TaskNode::getTaskDefName, &TaskNode::setTaskDefName>{},
             serde::FieldDesc<"ref_name", &TaskNode::getRefName, &TaskNode::setRefName>{},
             serde::FieldDesc<"edges", &TaskNode::getEdges, &TaskNode::setEdges>{},
             serde::FieldDesc<"join_on", &TaskNode::getJoinOn, &TaskNode::setJoinOn>{},
             serde::FieldDesc<"join_type", &TaskNode::getJoinType, &TaskNode::setJoinType>{},
             serde::FieldDesc<
-                "dynamic_tasks_input_key", &TaskNode::getDynamicTasksInputKey,
+                "dynamic_tasks_input_key",
+                &TaskNode::getDynamicTasksInputKey,
                 &TaskNode::setDynamicTasksInputKey>{},
             serde::FieldDesc<"loop_body", &TaskNode::getLoopBody, &TaskNode::setLoopBody>{},
             serde::FieldDesc<
-                "loop_condition", &TaskNode::getLoopCondition, &TaskNode::setLoopCondition>{},
+                "loop_condition",
+                &TaskNode::getLoopCondition,
+                &TaskNode::setLoopCondition>{},
         };
     }
 };
@@ -1555,12 +1565,16 @@ struct serde::Serializable<congelado_api_dto::ExecutionTimings>
         using congelado_api_dto::ExecutionTimings;
         return std::tuple{
             serde::FieldDesc<
-                "scheduled_at", &ExecutionTimings::getScheduledAt,
+                "scheduled_at",
+                &ExecutionTimings::getScheduledAt,
                 &ExecutionTimings::setScheduledAt>{},
             serde::FieldDesc<
-                "started_at", &ExecutionTimings::getStartedAt, &ExecutionTimings::setStartedAt>{},
+                "started_at",
+                &ExecutionTimings::getStartedAt,
+                &ExecutionTimings::setStartedAt>{},
             serde::FieldDesc<
-                "completed_at", &ExecutionTimings::getCompletedAt,
+                "completed_at",
+                &ExecutionTimings::getCompletedAt,
                 &ExecutionTimings::setCompletedAt>{},
         };
     }
@@ -1574,26 +1588,36 @@ struct serde::Serializable<congelado_api_dto::TaskInstance>
         using congelado_api_dto::TaskInstance;
         return std::tuple{
             serde::FieldDesc<"task_id", &TaskInstance::getTaskId, &TaskInstance::setTaskId>{},
+            serde::
+                FieldDesc<"input_data", &TaskInstance::getInputData, &TaskInstance::setInputData>{},
             serde::FieldDesc<
-                "input_data", &TaskInstance::getInputData, &TaskInstance::setInputData>{},
-            serde::FieldDesc<
-                "workflow_exec_id", &TaskInstance::getWorkflowExecId,
+                "workflow_exec_id",
+                &TaskInstance::getWorkflowExecId,
                 &TaskInstance::setWorkflowExecId>{},
             serde::FieldDesc<"def_name", &TaskInstance::getDefName, &TaskInstance::setDefName>{},
             serde::FieldDesc<"seq", &TaskInstance::getSeq, &TaskInstance::setSeq>{},
             serde::FieldDesc<"node_ref", &TaskInstance::getNodeRef, &TaskInstance::setNodeRef>{},
             serde::FieldDesc<
-                "output_data", &TaskInstance::getOutputData, &TaskInstance::setOutputData>{},
+                "output_data",
+                &TaskInstance::getOutputData,
+                &TaskInstance::setOutputData>{},
             serde::FieldDesc<"status", &TaskInstance::getStatus, &TaskInstance::setStatus>{},
             serde::FieldDesc<
-                "retry_count", &TaskInstance::getRetryCount, &TaskInstance::setRetryCount>{},
+                "retry_count",
+                &TaskInstance::getRetryCount,
+                &TaskInstance::setRetryCount>{},
             serde::FieldDesc<
-                "deadline_at", &TaskInstance::getDeadlineAt, &TaskInstance::setDeadlineAt>{},
+                "deadline_at",
+                &TaskInstance::getDeadlineAt,
+                &TaskInstance::setDeadlineAt>{},
             serde::FieldDesc<"timings", &TaskInstance::getTimings, &TaskInstance::setTimings>{},
             serde::FieldDesc<
-                "next_retry_at", &TaskInstance::getNextRetryAt, &TaskInstance::setNextRetryAt>{},
+                "next_retry_at",
+                &TaskInstance::getNextRetryAt,
+                &TaskInstance::setNextRetryAt>{},
             serde::FieldDesc<
-                "sub_workflow_exec_id", &TaskInstance::getSubWorkflowExecId,
+                "sub_workflow_exec_id",
+                &TaskInstance::getSubWorkflowExecId,
                 &TaskInstance::setSubWorkflowExecId>{},
         };
     }
@@ -1607,29 +1631,42 @@ struct serde::Serializable<congelado_api_dto::WorkflowExecution>
         using congelado_api_dto::WorkflowExecution;
         return std::tuple{
             serde::FieldDesc<
-                "exec_id", &WorkflowExecution::getExecId, &WorkflowExecution::setExecId>{},
+                "exec_id",
+                &WorkflowExecution::getExecId,
+                &WorkflowExecution::setExecId>{},
+            serde::
+                FieldDesc<"status", &WorkflowExecution::getStatus, &WorkflowExecution::setStatus>{},
             serde::FieldDesc<
-                "status", &WorkflowExecution::getStatus, &WorkflowExecution::setStatus>{},
-            serde::FieldDesc<
-                "dynamic_nodes", &WorkflowExecution::getDynamicNodes,
+                "dynamic_nodes",
+                &WorkflowExecution::getDynamicNodes,
                 &WorkflowExecution::setDynamicNodes>{},
             serde::FieldDesc<
-                "def_name", &WorkflowExecution::getDefName, &WorkflowExecution::setDefName>{},
+                "def_name",
+                &WorkflowExecution::getDefName,
+                &WorkflowExecution::setDefName>{},
             serde::FieldDesc<
-                "def_version", &WorkflowExecution::getDefVersion,
+                "def_version",
+                &WorkflowExecution::getDefVersion,
                 &WorkflowExecution::setDefVersion>{},
             serde::FieldDesc<
-                "task_instances", &WorkflowExecution::getTaskInstances,
+                "task_instances",
+                &WorkflowExecution::getTaskInstances,
                 &WorkflowExecution::setTaskInstances>{},
             serde::FieldDesc<
-                "correlation_id", &WorkflowExecution::getCorrelationId,
+                "correlation_id",
+                &WorkflowExecution::getCorrelationId,
                 &WorkflowExecution::setCorrelationId>{},
             serde::FieldDesc<
-                "variables", &WorkflowExecution::getVariables, &WorkflowExecution::setVariables>{},
+                "variables",
+                &WorkflowExecution::getVariables,
+                &WorkflowExecution::setVariables>{},
             serde::FieldDesc<
-                "timings", &WorkflowExecution::getTimings, &WorkflowExecution::setTimings>{},
+                "timings",
+                &WorkflowExecution::getTimings,
+                &WorkflowExecution::setTimings>{},
             serde::FieldDesc<
-                "parent_exec_id", &WorkflowExecution::getParentExecId,
+                "parent_exec_id",
+                &WorkflowExecution::getParentExecId,
                 &WorkflowExecution::setParentExecId>{},
         };
     }
@@ -1669,10 +1706,14 @@ struct serde::Serializable<congelado_api_dto::RetryPolicy>
         using congelado_api_dto::RetryPolicy;
         return std::tuple{
             serde::FieldDesc<
-                "max_attempts", &RetryPolicy::getMaxAttempts, &RetryPolicy::setMaxAttempts>{},
+                "max_attempts",
+                &RetryPolicy::getMaxAttempts,
+                &RetryPolicy::setMaxAttempts>{},
             serde::FieldDesc<"backoff", &RetryPolicy::getBackoff, &RetryPolicy::setBackoff>{},
             serde::FieldDesc<
-                "interval_ms", &RetryPolicy::getIntervalMs, &RetryPolicy::setIntervalMs>{},
+                "interval_ms",
+                &RetryPolicy::getIntervalMs,
+                &RetryPolicy::setIntervalMs>{},
         };
     }
 };
@@ -1684,8 +1725,8 @@ struct serde::Serializable<congelado_api_dto::BulkExecIdsBody>
     {
         using congelado_api_dto::BulkExecIdsBody;
         return std::tuple{
-            serde::FieldDesc<
-                "exec_ids", &BulkExecIdsBody::getExecIds, &BulkExecIdsBody::setExecIds>{},
+            serde::
+                FieldDesc<"exec_ids", &BulkExecIdsBody::getExecIds, &BulkExecIdsBody::setExecIds>{},
         };
     }
 };
@@ -1712,8 +1753,8 @@ struct serde::Serializable<congelado_api_dto::EventHandler>
         return std::tuple{
             serde::FieldDesc<"name", &EventHandler::getName, &EventHandler::setName>{},
             serde::FieldDesc<"event", &EventHandler::getEvent, &EventHandler::setEvent>{},
-            serde::FieldDesc<
-                "condition", &EventHandler::getCondition, &EventHandler::setCondition>{},
+            serde::
+                FieldDesc<"condition", &EventHandler::getCondition, &EventHandler::setCondition>{},
             serde::FieldDesc<"actions", &EventHandler::getActions, &EventHandler::setActions>{},
             serde::FieldDesc<"active", &EventHandler::getActive, &EventHandler::setActive>{},
         };
@@ -1741,10 +1782,12 @@ struct serde::Serializable<congelado_api_dto::QueueUpdateBody>
         return std::tuple{
             serde::FieldDesc<"exec_id", &QueueUpdateBody::getExecId, &QueueUpdateBody::setExecId>{},
             serde::FieldDesc<"status", &QueueUpdateBody::getStatus, &QueueUpdateBody::setStatus>{},
+            serde::
+                FieldDesc<"node_ref", &QueueUpdateBody::getNodeRef, &QueueUpdateBody::setNodeRef>{},
             serde::FieldDesc<
-                "node_ref", &QueueUpdateBody::getNodeRef, &QueueUpdateBody::setNodeRef>{},
-            serde::FieldDesc<
-                "output_data", &QueueUpdateBody::getOutputData, &QueueUpdateBody::setOutputData>{},
+                "output_data",
+                &QueueUpdateBody::getOutputData,
+                &QueueUpdateBody::setOutputData>{},
         };
     }
 };
@@ -1759,7 +1802,9 @@ struct serde::Serializable<congelado_api_dto::SearchRequestBody>
             serde::FieldDesc<"query", &SearchRequestBody::getQuery, &SearchRequestBody::setQuery>{},
             serde::FieldDesc<"sort", &SearchRequestBody::getSort, &SearchRequestBody::setSort>{},
             serde::FieldDesc<
-                "free_text", &SearchRequestBody::getFreeText, &SearchRequestBody::setFreeText>{},
+                "free_text",
+                &SearchRequestBody::getFreeText,
+                &SearchRequestBody::setFreeText>{},
             serde::FieldDesc<"size", &SearchRequestBody::getSize, &SearchRequestBody::setSize>{},
             serde::FieldDesc<"start", &SearchRequestBody::getStart, &SearchRequestBody::setStart>{},
         };
@@ -1774,7 +1819,9 @@ struct serde::Serializable<congelado_api_dto::TimeoutPolicy>
         using congelado_api_dto::TimeoutPolicy;
         return std::tuple{
             serde::FieldDesc<
-                "timeout_ms", &TimeoutPolicy::getTimeoutMs, &TimeoutPolicy::setTimeoutMs>{},
+                "timeout_ms",
+                &TimeoutPolicy::getTimeoutMs,
+                &TimeoutPolicy::setTimeoutMs>{},
             serde::FieldDesc<"action", &TimeoutPolicy::getAction, &TimeoutPolicy::setAction>{},
         };
     }
@@ -1789,20 +1836,27 @@ struct serde::Serializable<congelado_api_dto::WorkflowDef>
         return std::tuple{
             serde::FieldDesc<"name", &WorkflowDef::getName, &WorkflowDef::setName>{},
             serde::FieldDesc<
-                "input_params", &WorkflowDef::getInputParams, &WorkflowDef::setInputParams>{},
+                "input_params",
+                &WorkflowDef::getInputParams,
+                &WorkflowDef::setInputParams>{},
             serde::FieldDesc<
-                "output_mappings", &WorkflowDef::getOutputMappings,
+                "output_mappings",
+                &WorkflowDef::getOutputMappings,
                 &WorkflowDef::setOutputMappings>{},
             serde::FieldDesc<"version", &WorkflowDef::getVersion, &WorkflowDef::setVersion>{},
             serde::FieldDesc<"nodes", &WorkflowDef::getNodes, &WorkflowDef::setNodes>{},
             serde::FieldDesc<
-                "failure_workflow", &WorkflowDef::getFailureWorkflow,
+                "failure_workflow",
+                &WorkflowDef::getFailureWorkflow,
                 &WorkflowDef::setFailureWorkflow>{},
             serde::FieldDesc<"timeout", &WorkflowDef::getTimeout, &WorkflowDef::setTimeout>{},
             serde::FieldDesc<
-                "restartable", &WorkflowDef::getRestartable, &WorkflowDef::setRestartable>{},
+                "restartable",
+                &WorkflowDef::getRestartable,
+                &WorkflowDef::setRestartable>{},
             serde::FieldDesc<
-                "workflow_status_listener_enabled", &WorkflowDef::getWorkflowStatusListenerEnabled,
+                "workflow_status_listener_enabled",
+                &WorkflowDef::getWorkflowStatusListenerEnabled,
                 &WorkflowDef::setWorkflowStatusListenerEnabled>{},
         };
     }
@@ -1829,12 +1883,16 @@ struct serde::Serializable<congelado_api_dto::AdminConfig>
         using congelado_api_dto::AdminConfig;
         return std::tuple{
             serde::FieldDesc<
-                "db_configured", &AdminConfig::getDbConfigured, &AdminConfig::setDbConfigured>{},
+                "db_configured",
+                &AdminConfig::getDbConfigured,
+                &AdminConfig::setDbConfigured>{},
             serde::FieldDesc<
-                "sweep_interval_seconds", &AdminConfig::getSweepIntervalSeconds,
+                "sweep_interval_seconds",
+                &AdminConfig::getSweepIntervalSeconds,
                 &AdminConfig::setSweepIntervalSeconds>{},
             serde::FieldDesc<
-                "lua_bridge_configured", &AdminConfig::getLuaBridgeConfigured,
+                "lua_bridge_configured",
+                &AdminConfig::getLuaBridgeConfigured,
                 &AdminConfig::setLuaBridgeConfigured>{},
         };
     }
@@ -1849,7 +1907,9 @@ struct serde::Serializable<congelado_api_dto::TaskSubmitBody>
         return std::tuple{
             serde::FieldDesc<"result", &TaskSubmitBody::getResult, &TaskSubmitBody::setResult>{},
             serde::FieldDesc<
-                "output_data", &TaskSubmitBody::getOutputData, &TaskSubmitBody::setOutputData>{},
+                "output_data",
+                &TaskSubmitBody::getOutputData,
+                &TaskSubmitBody::setOutputData>{},
         };
     }
 };
@@ -1862,10 +1922,12 @@ struct serde::Serializable<congelado_api_dto::RateLimitPolicy>
         using congelado_api_dto::RateLimitPolicy;
         return std::tuple{
             serde::FieldDesc<
-                "max_concurrent", &RateLimitPolicy::getMaxConcurrent,
+                "max_concurrent",
+                &RateLimitPolicy::getMaxConcurrent,
                 &RateLimitPolicy::setMaxConcurrent>{},
             serde::FieldDesc<
-                "rate_limit_per_second", &RateLimitPolicy::getRateLimitPerSecond,
+                "rate_limit_per_second",
+                &RateLimitPolicy::getRateLimitPerSecond,
                 &RateLimitPolicy::setRateLimitPerSecond>{},
         };
     }
@@ -1880,25 +1942,30 @@ struct serde::Serializable<congelado_api_dto::TaskDef>
         return std::tuple{
             serde::FieldDesc<"name", &TaskDef::getName, &TaskDef::setName>{},
             serde::FieldDesc<"worker_type", &TaskDef::getWorkerType, &TaskDef::setWorkerType>{},
-            serde::FieldDesc<
-                "masked_fields", &TaskDef::getMaskedFields, &TaskDef::setMaskedFields>{},
+            serde::
+                FieldDesc<"masked_fields", &TaskDef::getMaskedFields, &TaskDef::setMaskedFields>{},
             serde::FieldDesc<"input_keys", &TaskDef::getInputKeys, &TaskDef::setInputKeys>{},
             serde::FieldDesc<"type", &TaskDef::getType, &TaskDef::setType>{},
             serde::FieldDesc<"output_keys", &TaskDef::getOutputKeys, &TaskDef::setOutputKeys>{},
             serde::FieldDesc<"rate_limit", &TaskDef::getRateLimit, &TaskDef::setRateLimit>{},
             serde::FieldDesc<"input_schema", &TaskDef::getInputSchema, &TaskDef::setInputSchema>{},
             serde::FieldDesc<
-                "wait_duration_ms", &TaskDef::getWaitDurationMs, &TaskDef::setWaitDurationMs>{},
-            serde::FieldDesc<
-                "output_schema", &TaskDef::getOutputSchema, &TaskDef::setOutputSchema>{},
+                "wait_duration_ms",
+                &TaskDef::getWaitDurationMs,
+                &TaskDef::setWaitDurationMs>{},
+            serde::
+                FieldDesc<"output_schema", &TaskDef::getOutputSchema, &TaskDef::setOutputSchema>{},
             serde::FieldDesc<"timeout", &TaskDef::getTimeout, &TaskDef::setTimeout>{},
             serde::FieldDesc<
-                "dynamic_task_param", &TaskDef::getDynamicTaskParam,
+                "dynamic_task_param",
+                &TaskDef::getDynamicTaskParam,
                 &TaskDef::setDynamicTaskParam>{},
             serde::FieldDesc<"domain", &TaskDef::getDomain, &TaskDef::setDomain>{},
             serde::FieldDesc<"retry", &TaskDef::getRetry, &TaskDef::setRetry>{},
             serde::FieldDesc<
-                "enforce_schema", &TaskDef::getEnforceSchema, &TaskDef::setEnforceSchema>{},
+                "enforce_schema",
+                &TaskDef::getEnforceSchema,
+                &TaskDef::setEnforceSchema>{},
         };
     }
 };

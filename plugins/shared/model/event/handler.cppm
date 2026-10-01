@@ -157,10 +157,12 @@ struct serde::Serializable<model::EventAction>
     static constexpr auto fields()
     {
         return std::tuple{
+            serde::
+                FieldDesc<"type", &model::EventAction::get_type, &model::EventAction::set_type>{},
             serde::FieldDesc<
-                "type", &model::EventAction::get_type, &model::EventAction::set_type>{},
-            serde::FieldDesc<
-                "payload", &model::EventAction::get_payload, &model::EventAction::set_payload>{},
+                "payload",
+                &model::EventAction::get_payload,
+                &model::EventAction::set_payload>{},
         };
     }
 };
@@ -177,17 +179,26 @@ struct serde::Serializable<model::EventHandler>
     {
         return std::tuple{
             serde::FieldDesc<
-                "name", &model::EventHandler::get_name, &model::EventHandler::set_name,
+                "name",
+                &model::EventHandler::get_name,
+                &model::EventHandler::set_name,
                 serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
             serde::FieldDesc<
-                "event", &model::EventHandler::get_event, &model::EventHandler::set_event>{},
+                "event",
+                &model::EventHandler::get_event,
+                &model::EventHandler::set_event>{},
             serde::FieldDesc<
-                "condition", &model::EventHandler::get_condition,
+                "condition",
+                &model::EventHandler::get_condition,
                 &model::EventHandler::set_condition>{},
             serde::FieldDesc<
-                "actions", &model::EventHandler::get_actions, &model::EventHandler::set_actions>{},
+                "actions",
+                &model::EventHandler::get_actions,
+                &model::EventHandler::set_actions>{},
             serde::FieldDesc<
-                "active", &model::EventHandler::get_active, &model::EventHandler::set_active>{},
+                "active",
+                &model::EventHandler::get_active,
+                &model::EventHandler::set_active>{},
         };
     }
 };
@@ -196,8 +207,10 @@ struct serde::Serializable<model::EventHandler>
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"EventAction"> event_action_suite = [] {
-    "defaults to START_WORKFLOW and setters round-trip"_test = [] {
+suite<"EventAction"> event_action_suite = []
+{
+    "defaults to START_WORKFLOW and setters round-trip"_test = []
+    {
         EventAction action;
         expect(action.get_type() == EventActionType::START_WORKFLOW);
 
@@ -209,15 +222,18 @@ suite<"EventAction"> event_action_suite = [] {
     };
 };
 
-suite<"EventHandler"> event_handler_suite = [] {
-    "defaults to active, no actions, and fails validation"_test = [] {
+suite<"EventHandler"> event_handler_suite = []
+{
+    "defaults to active, no actions, and fails validation"_test = []
+    {
         EventHandler handler;
 
         expect(handler.get_active());
         expect(handler.get_actions().empty());
         expect(not handler.validate().has_value());
     };
-    "requires both name and event"_test = [] {
+    "requires both name and event"_test = []
+    {
         EventHandler handler;
         handler.set_name("on_order_shipped");
         expect(not handler.validate().has_value());
@@ -225,7 +241,8 @@ suite<"EventHandler"> event_handler_suite = [] {
         handler.set_event("order_shipped");
         expect(bool(handler.validate()));
     };
-    "add_action accumulates"_test = [] {
+    "add_action accumulates"_test = []
+    {
         EventHandler handler;
         handler.add_action(EventAction{});
         handler.add_action(EventAction{});

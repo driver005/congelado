@@ -1,10 +1,10 @@
 module;
 #ifdef _WIN32
-#    ifndef WIN32_LEAN_AND_MEAN
-#        define WIN32_LEAN_AND_MEAN
-#    endif
-#    include <winsock2.h>
-#    include <ws2tcpip.h>
+    #ifndef WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN
+    #endif
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
 #endif
 #include <openssl/bio.h>
 #include <openssl/err.h>
@@ -81,19 +81,27 @@ public:
         static constexpr unsigned char ALPN_PROTOCOLS[] = {2, 'h', '3'};
         ::SSL_CTX_set_alpn_select_cb(
             ctx,
-            [](SSL*, const unsigned char** out, unsigned char* outlen, const unsigned char* input,
-               unsigned int inlen, void*) -> int {
+            [](SSL*,
+               const unsigned char** out,
+               unsigned char* outlen,
+               const unsigned char* input,
+               unsigned int inlen,
+               void*) -> int
+            {
                 // Only accept the negotiation if the client actually offered "h3" — anything
                 // else gets NOACK, no fallback protocol.
                 if (::SSL_select_next_proto(
-                        const_cast<unsigned char**>(out), outlen,
+                        const_cast<unsigned char**>(out),
+                        outlen,
                         ALPN_PROTOCOLS, // NOLINT(cppcoreguidelines-pro-type-const-cast) —
                                         // OpenSSL's ALPN callback signature fixes `out` as
                                         // `const unsigned char **`, but SSL_select_next_proto()
                                         // requires a non-const `unsigned char **`;
                                         // array-to-pointer decay on ALPN_PROTOCOLS is a
                                         // separate finding out of scope here
-                        sizeof(ALPN_PROTOCOLS), input, inlen
+                        sizeof(ALPN_PROTOCOLS),
+                        input,
+                        inlen
                     ) == OPENSSL_NPN_NEGOTIATED) {
                     return SSL_TLSEXT_ERR_OK;
                 }
@@ -396,17 +404,25 @@ private:
 namespace quic::tls::tests {
 using namespace boost::ut;
 
-suite<"TlsContext"> tls_context_suite = [] {
-    "default-constructed context is invalid"_test = [] {
+suite<"TlsContext"> tls_context_suite = []
+{
+    "default-constructed context is invalid"_test = []
+    {
         TlsContext ctx;
         expect(not ctx.valid());
         expect(ctx.get() == nullptr);
     };
-    "from_files throws when the cert/key can't be loaded"_test = [] {
-        expect(throws<std::runtime_error>([] {
-            [[maybe_unused]] auto ctx =
-                TlsContext::from_files("/nonexistent/cert.pem", "/nonexistent/key.pem");
-        }));
+    "from_files throws when the cert/key can't be loaded"_test = []
+    {
+        expect(
+            throws<std::runtime_error>(
+                []
+                {
+                    [[maybe_unused]] auto ctx =
+                        TlsContext::from_files("/nonexistent/cert.pem", "/nonexistent/key.pem");
+                }
+            )
+        );
     };
 };
 

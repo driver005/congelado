@@ -38,7 +38,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // A token that can be used to register and deregister a
@@ -323,16 +322,20 @@ export {
         }
 
         bool CancellationManager::RegisterCallbackWithErrorLogging(
-            CancellationToken token, CancelCallback callback, tensorflow::StringPiece callback_name
+            CancellationToken token,
+            CancelCallback callback,
+            tensorflow::StringPiece callback_name
         )
         {
             return RegisterCallbackConfig(
-                token, CallbackConfiguration{callback, std::string(callback_name), true}
+                token,
+                CallbackConfiguration{callback, std::string(callback_name), true}
             );
         }
 
         bool CancellationManager::RegisterCallbackConfig(
-            CancellationToken token, CallbackConfiguration config
+            CancellationToken token,
+            CallbackConfiguration config
         )
         {
             DCHECK_LT(token, next_cancellation_token_) << "Invalid cancellation token";
@@ -475,7 +478,8 @@ export {
                 if (!cancellation_manager->RegisterCallback(token, std::move(callback))) {
                     return errors::Cancelled("Operation was cancelled");
                 }
-                *deregister_fn = [cancellation_manager, token]() {
+                *deregister_fn = [cancellation_manager, token]()
+                {
                     cancellation_manager->DeregisterCallback(token);
                 };
             } else {

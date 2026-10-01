@@ -120,7 +120,8 @@ public:
      * @param callback gets the number of ready (claimable) tasks.
      */
     virtual void queue_size(
-        std::string_view worker_type, std::move_only_function<void(std::size_t)> callback
+        std::string_view worker_type,
+        std::move_only_function<void(std::size_t)> callback
     ) = 0;
 
     /**
@@ -227,8 +228,10 @@ public:
 
 using namespace boost::ut;
 
-suite<"IWorkerOrchestrator"> worker_orchestrator_suite = [] {
-    "required() defaults to false when not overridden"_test = [] {
+suite<"IWorkerOrchestrator"> worker_orchestrator_suite = []
+{
+    "required() defaults to false when not overridden"_test = []
+    {
         MockWorkerOrchestrator orchestrator;
         expect(!orchestrator.required());
     };

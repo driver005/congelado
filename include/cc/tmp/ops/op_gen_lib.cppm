@@ -41,7 +41,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // Forward declare protos so their symbols can be removed from .so exports
@@ -65,7 +64,8 @@ export {
 
         // Convert text-serialized protobufs to/from multiline format.
         std::string PBTxtToMultiline(
-            absl::string_view pbtxt, const std::vector<std::string>& multi_line_fields
+            absl::string_view pbtxt,
+            const std::vector<std::string>& multi_line_fields
         );
         std::string PBTxtFromMultiline(absl::string_view multiline_pbtxt);
 
@@ -199,7 +199,8 @@ export {
         // Does this line start with "<spaces><field>:" where "<field>" is
         // in multi_line_fields? Sets *colon_pos to the position of the colon.
         static bool StartsWithFieldName(
-            absl::string_view line, const std::vector<std::string>& multi_line_fields
+            absl::string_view line,
+            const std::vector<std::string>& multi_line_fields
         )
         {
             absl::string_view up_to_colon;
@@ -389,21 +390,27 @@ export {
             for (int i = 0; i < api_def->in_arg_size(); ++i) {
                 if (!api_def->in_arg(i).description().empty()) {
                     StringReplace(
-                        from_quoted, to_quoted, api_def->mutable_in_arg(i)->mutable_description()
+                        from_quoted,
+                        to_quoted,
+                        api_def->mutable_in_arg(i)->mutable_description()
                     );
                 }
             }
             for (int i = 0; i < api_def->out_arg_size(); ++i) {
                 if (!api_def->out_arg(i).description().empty()) {
                     StringReplace(
-                        from_quoted, to_quoted, api_def->mutable_out_arg(i)->mutable_description()
+                        from_quoted,
+                        to_quoted,
+                        api_def->mutable_out_arg(i)->mutable_description()
                     );
                 }
             }
             for (int i = 0; i < api_def->attr_size(); ++i) {
                 if (!api_def->attr(i).description().empty()) {
                     StringReplace(
-                        from_quoted, to_quoted, api_def->mutable_attr(i)->mutable_description()
+                        from_quoted,
+                        to_quoted,
+                        api_def->mutable_attr(i)->mutable_description()
                     );
                 }
             }
@@ -489,7 +496,8 @@ export {
                 if (new_api_def.endpoint_size() > 0) {
                     base_api_def->clear_endpoint();
                     std::copy(
-                        new_api_def.endpoint().begin(), new_api_def.endpoint().end(),
+                        new_api_def.endpoint().begin(),
+                        new_api_def.endpoint().end(),
                         protobuf::RepeatedFieldBackInserter(base_api_def->mutable_endpoint())
                     );
                 }
@@ -507,7 +515,9 @@ export {
                     if (!found_base_arg) {
                         return absl::FailedPreconditionError(
                             absl::StrCat(
-                                "Argument ", new_arg.name(), " not defined in base api for ",
+                                "Argument ",
+                                new_arg.name(),
+                                " not defined in base api for ",
                                 base_api_def->graph_op_name()
                             )
                         );
@@ -526,7 +536,9 @@ export {
                     if (!found_base_arg) {
                         return absl::FailedPreconditionError(
                             absl::StrCat(
-                                "Argument ", new_arg.name(), " not defined in base api for ",
+                                "Argument ",
+                                new_arg.name(),
+                                " not defined in base api for ",
                                 base_api_def->graph_op_name()
                             )
                         );
@@ -538,20 +550,26 @@ export {
                     if (new_api_def.arg_order_size() != base_api_def->arg_order_size()) {
                         return absl::FailedPreconditionError(
                             absl::StrCat(
-                                "Invalid number of arguments ", new_api_def.arg_order_size(),
-                                " for ", base_api_def->graph_op_name(),
-                                ". Expected: ", base_api_def->arg_order_size()
+                                "Invalid number of arguments ",
+                                new_api_def.arg_order_size(),
+                                " for ",
+                                base_api_def->graph_op_name(),
+                                ". Expected: ",
+                                base_api_def->arg_order_size()
                             )
                         );
                     }
                     if (!std::is_permutation(
-                            new_api_def.arg_order().begin(), new_api_def.arg_order().end(),
+                            new_api_def.arg_order().begin(),
+                            new_api_def.arg_order().end(),
                             base_api_def->arg_order().begin()
                         )) {
                         return absl::FailedPreconditionError(
                             absl::StrCat(
-                                "Invalid arg_order: ", absl::StrJoin(new_api_def.arg_order(), ", "),
-                                " for ", base_api_def->graph_op_name(),
+                                "Invalid arg_order: ",
+                                absl::StrJoin(new_api_def.arg_order(), ", "),
+                                " for ",
+                                base_api_def->graph_op_name(),
                                 ". All elements in arg_order override must match base arg_order: ",
                                 absl::StrJoin(base_api_def->arg_order(), ", ")
                             )
@@ -560,7 +578,8 @@ export {
 
                     base_api_def->clear_arg_order();
                     std::copy(
-                        new_api_def.arg_order().begin(), new_api_def.arg_order().end(),
+                        new_api_def.arg_order().begin(),
+                        new_api_def.arg_order().end(),
                         protobuf::RepeatedFieldBackInserter(base_api_def->mutable_arg_order())
                     );
                 }
@@ -578,7 +597,9 @@ export {
                     if (!found_base_attr) {
                         return absl::FailedPreconditionError(
                             absl::StrCat(
-                                "Attribute ", new_attr.name(), " not defined in base api for ",
+                                "Attribute ",
+                                new_attr.name(),
+                                " not defined in base api for ",
                                 base_api_def->graph_op_name()
                             )
                         );

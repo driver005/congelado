@@ -1,13 +1,12 @@
 #ifndef TENSORFLOW_C_EXTERN_PUBSUB_H_
 #define TENSORFLOW_C_EXTERN_PUBSUB_H_
 
-#include "include/c/macros.h"
-#include "include/c/intern/status.h"
-#include "include/c/intern/tstring.h"
-
-#include "include/c/extern/pubsub/subscription.h"
 #include "include/c/extern/pubsub/channel.h"
 #include "include/c/extern/pubsub/publish.h"
+#include "include/c/extern/pubsub/subscription.h"
+#include "include/c/intern/status.h"
+#include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -32,7 +31,8 @@ extern "C"
 
 #define TF_PUBSUB_STRUCT_SIZE TF_OFFSET_OF_END(TF_PubSubOps, get_name)
 
-    TF_CAPI_EXPORT void create_pubsub(TF_PubSubOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void
+    create_pubsub(TF_PubSubOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_pubsub(void* plugin_context);
 
     static inline void init_pubsub(TF_PubSubOps** ops, TF_PubSub* pubsub, TF_Status* out_status)

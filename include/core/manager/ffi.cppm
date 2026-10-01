@@ -19,43 +19,59 @@ export namespace core::plugin {
 using std::runtime_error;
 
 
-template <typename F>
+template<typename F>
 struct FunctionInfo;
-template <typename C, typename R, typename... A>
-struct FunctionInfo<R (C::*)(A...)> : FunctionInfo<R(A...)> {
+
+template<typename C, typename R, typename... A>
+struct FunctionInfo<R (C::*)(A...)> : FunctionInfo<R(A...)>
+{
     using Class = C;
 };
-template <typename C, typename R, typename... A>
-struct FunctionInfo<R (C::*)(A...) const> : FunctionInfo<R(A...)> {
+
+template<typename C, typename R, typename... A>
+struct FunctionInfo<R (C::*)(A...) const> : FunctionInfo<R(A...)>
+{
     using Class = C;
 };
-template <typename C, typename R, typename... A>
-struct FunctionInfo<R (C::*)(A...) noexcept> : FunctionInfo<R(A...)> {
+
+template<typename C, typename R, typename... A>
+struct FunctionInfo<R (C::*)(A...) noexcept> : FunctionInfo<R(A...)>
+{
     using Class = C;
 };
-template <typename C, typename R, typename... A>
-struct FunctionInfo<R (C::*)(A...) const noexcept> : FunctionInfo<R(A...)> {
+
+template<typename C, typename R, typename... A>
+struct FunctionInfo<R (C::*)(A...) const noexcept> : FunctionInfo<R(A...)>
+{
     using Class = C;
 };
-template <typename R, typename... A>
-struct FunctionInfo<R(A...)> {
+
+template<typename R, typename... A>
+struct FunctionInfo<R(A...)>
+{
     using Ret = R;
     using Args = std::tuple<A...>;
     static constexpr std::size_t ARG_COUNT = sizeof...(A);
 };
 
-class FnEntry {
-  public:
+class FnEntry
+{
+public:
     /// @brief Default-constructs an empty, uncallable FnEntry — mostly for container storage.
     FnEntry() = default;
+
     /**
      * @brief Constructs an FnEntry directly from its parts.
      * @param key the registered lookup key for this entry.
      * @param arity expected argument count for `call`.
      * @param call the type-erased invoke callable.
      */
-    FnEntry(std::string key, std::size_t arity, std::function<Value(std::span<const Value>)> call)
-        : m_key{std::move(key)}, m_arity{arity}, m_call{std::move(call)} {}
+    FnEntry(std::string key, std::size_t arity, std::function<Value(std::span<const Value>)> call) :
+        m_key{std::move(key)},
+        m_arity{arity},
+        m_call{std::move(call)}
+    {
+    }
 
     /**
      * @brief Builds an FnEntry that dispatches to a bound member function pointer, marshaling
@@ -71,33 +87,41 @@ class FnEntry {
      * @return an FnEntry wrapping the bound method, ready to register_entry() or dispatch via
      * call().
      */
-    template <auto MemFn, typename T>
-    [[nodiscard]] static FnEntry from_method(T *instance, std::string key) {
+    template<auto MemFn, typename T>
+    [[nodiscard]] static FnEntry from_method(T* instance, std::string key)
+    {
         using Info = FunctionInfo<decltype(MemFn)>;
         using Params = Info::Args;
         using Ret = Info::Ret;
         constexpr std::size_t ARG_SIZE = Info::ARG_COUNT;
 
-        auto call = [instance, key, ARG_SIZE](std::span<const Value> args) -> Value {
+        auto call = [instance, key, ARG_SIZE](std::span<const Value> args) -> Value
+        {
             // Bail loud if the caller didn't pass the exact arity this member expects —
             // no partial application, no cap.
             if (args.size() != ARG_SIZE) {
                 throw runtime_error{
-                    std::format("{}: expected {} args, got {}", key, ARG_SIZE, args.size())};
+                    std::format("{}: expected {} args, got {}", key, ARG_SIZE, args.size())
+                };
             }
 
             // Unpack the arg span positionally via an index sequence, converting each
             // Value to its parameter type and invoking the bound member function.
-            return [&]<std::size_t... I>(std::index_sequence<I...>) -> Value {
+            return [&]<std::size_t... I>(std::index_sequence<I...>) -> Value
+            {
                 if constexpr (std::is_void_v<Ret>) {
                     // Void-returning members have nothing to marshal back — hand back None.
                     (instance->*MemFn)(
-                        ValueTraits<std::tuple_element_t<I, Params>>::from_value(args[I])...);  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+                        ValueTraits<std::tuple_element_t<I, Params>>::from_value(args[I])...
+                    ); // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant
+                       // array index
                     return None{};
                 } else {
                     // Non-void: convert the return value back into a Value for the caller.
                     return ValueTraits<Ret>::to_value((instance->*MemFn)(
-                        ValueTraits<std::tuple_element_t<I, Params>>::from_value(args[I])...));  // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant array index
+                        ValueTraits<std::tuple_element_t<I, Params>>::from_value(args[I])...
+                    )); // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant
+                        // array index
                 }
             }(std::make_index_sequence<Info::ARG_COUNT>{});
         };
@@ -112,67 +136,94 @@ class FnEntry {
      * @throws std::runtime_error if the underlying callable rejects the arg count or types
      * (thrown from inside `m_call`, e.g. the arity check in from_method()'s generated lambda).
      */
-    [[nodiscard]] Value invoke(std::span<const Value> args) const { return m_call(args); }
+    [[nodiscard]] Value invoke(std::span<const Value> args) const
+    {
+        return m_call(args);
+    }
 
     /// @brief Gets the registered lookup key.
     /// @return this entry's key.
-    [[nodiscard]] std::string_view get_key() const noexcept { return m_key; }
+    [[nodiscard]] std::string_view get_key() const noexcept
+    {
+        return m_key;
+    }
+
     /// @brief Gets the expected argument count.
     /// @return this entry's arity.
-    [[nodiscard]] std::size_t get_arity() const noexcept { return m_arity; }
+    [[nodiscard]] std::size_t get_arity() const noexcept
+    {
+        return m_arity;
+    }
+
     /// @brief Gets the underlying type-erased invoke callable.
     /// @return a reference to the wrapped `std::function`.
-    [[nodiscard]] const std::function<Value(std::span<const Value>)> &
-    get_invoke_fn() const noexcept {
+    [[nodiscard]] const std::function<Value(std::span<const Value>)>& get_invoke_fn() const noexcept
+    {
         return m_call;
     }
 
-  private:
+private:
     std::string m_key;
     std::size_t m_arity{0};
     std::function<Value(std::span<const Value>)> m_call;
 };
 
-
-class FfiRuntime {
-  public:
+class FfiRuntime
+{
+public:
     /// @brief Default-constructs an FfiRuntime with a default GenerationConfig and no plugin.
     FfiRuntime() = default;
+
     /// @brief Constructs with an explicit GenerationConfig and no plugin attached yet.
     /// @param cfg the runtime generation config to use.
-    explicit FfiRuntime(types::GenerationConfig cfg) : m_cfg{std::move(cfg)} {}
+    explicit FfiRuntime(types::GenerationConfig cfg) :
+        m_cfg{std::move(cfg)}
+    {
+    }
+
     /**
      * @brief Constructs with both a GenerationConfig and an already-loaded plugin attached.
      * @param cfg the runtime generation config to use.
      * @param plugin the loaded plugin this runtime drives lifecycle calls (init/on_ready/
      * on_unload) against.
      */
-    FfiRuntime(types::GenerationConfig cfg, std::shared_ptr<types::PluginRef> plugin)
-        : m_cfg{std::move(cfg)}, m_plugin{std::move(plugin)} {}
+    FfiRuntime(types::GenerationConfig cfg, std::shared_ptr<types::PluginRef> plugin) :
+        m_cfg{std::move(cfg)},
+        m_plugin{std::move(plugin)}
+    {
+    }
 
     /// @brief Deleted — an FfiRuntime owns bridges and a plugin ref, no copying that motion.
-    FfiRuntime(const FfiRuntime &) = delete;
+    FfiRuntime(const FfiRuntime&) = delete;
     /// @brief Deleted — same reason as the copy ctor.
-    FfiRuntime &operator=(const FfiRuntime &) = delete;
+    FfiRuntime& operator=(const FfiRuntime&) = delete;
     /// @brief Move-constructs, transferring ownership of bridges/entries/plugin ref.
-    FfiRuntime(FfiRuntime &&) = default;
+    FfiRuntime(FfiRuntime&&) = default;
     /// @brief Move-assigns, transferring ownership of bridges/entries/plugin ref.
-    FfiRuntime &operator=(FfiRuntime &&) = default;
+    FfiRuntime& operator=(FfiRuntime&&) = default;
     /// @brief Default dtor — every member is a normal RAII type, nothing needs manual teardown.
     ~FfiRuntime() = default;
 
     /// @brief Sets (replaces) the runtime generation config.
     /// @param cfg the new config.
-    void set_config(types::GenerationConfig cfg) { m_cfg = std::move(cfg); }
+    void set_config(types::GenerationConfig cfg)
+    {
+        m_cfg = std::move(cfg);
+    }
+
     /// @brief Attaches (or replaces) the loaded plugin this runtime drives lifecycle calls against.
     /// @param plugin the plugin ref to attach.
-    void attach_plugin(std::shared_ptr<types::PluginRef> plugin) { m_plugin = std::move(plugin); }
+    void attach_plugin(std::shared_ptr<types::PluginRef> plugin)
+    {
+        m_plugin = std::move(plugin);
+    }
 
     /**
      * @brief Registers (or overwrites) a callable entry, keyed by its own registered key.
      * @param entry the FnEntry to register — an existing entry with the same key gets replaced.
      */
-    void register_entry(FnEntry entry) {
+    void register_entry(FnEntry entry)
+    {
         m_entries.insert_or_assign(std::string{entry.get_key()}, std::move(entry));
     }
 
@@ -184,7 +235,8 @@ class FfiRuntime {
      * `bridge` is null.
      * @param bridge the bridge instance to add.
      */
-    void add_bridge(std::shared_ptr<interfaces::IBridge> bridge) {
+    void add_bridge(std::shared_ptr<interfaces::IBridge> bridge)
+    {
         if (bridge) {
             m_bridges[std::string{bridge->runtime_name()}] = std::move(bridge);
         }
@@ -197,7 +249,8 @@ class FfiRuntime {
      * @return the matching bridge, or `nullptr` if none was added for it — i.e. that bridge
      * plugin simply isn't loaded.
      */
-    [[nodiscard]] interfaces::IBridge *get_bridge(std::string_view runtime_name) const noexcept {
+    [[nodiscard]] interfaces::IBridge* get_bridge(std::string_view runtime_name) const noexcept
+    {
         auto it = m_bridges.find(std::string{runtime_name});
         return it != m_bridges.end() ? it->second.get() : nullptr;
     }
@@ -209,9 +262,10 @@ class FfiRuntime {
      * @param script_extension the file extension to match (dot included).
      * @return the matching bridge, or `nullptr` if none of the added bridges handle it.
      */
-    [[nodiscard]] interfaces::IBridge *
-    find_bridge_for_extension(std::string_view script_extension) const noexcept {
-        for (const auto &[name, bridge] : m_bridges) {
+    [[nodiscard]] interfaces::IBridge*
+    find_bridge_for_extension(std::string_view script_extension) const noexcept
+    {
+        for (const auto& [name, bridge]: m_bridges) {
             if (bridge->script_extension() == script_extension) {
                 return bridge.get();
             }
@@ -244,26 +298,29 @@ class FfiRuntime {
      * and the bridge-facing name (`prefix_method`) — required, since there's no reflection to
      * pull `T`'s own name from.
      */
-    template <core::ffi::IsExported T>
-    void register_class(const types::GenerationConfig &cfg, std::string_view prefix) {
+    template<core::ffi::IsExported T>
+    void register_class(const types::GenerationConfig& cfg, std::string_view prefix)
+    {
         // 1. Look up already-loaded bridges for whichever runtimes the caller wants — an open
         // set of names (cfg.get_wanted_runtimes()), not a fixed pair. No bridge added for a
         // wanted runtime means that runtime simply isn't available, same as an unregistered
         // serde format.
-        std::vector<interfaces::IBridge *> bridges;
-        for (const auto &runtime_name : cfg.get_wanted_runtimes()) {
-            if (auto *bridge = get_bridge(runtime_name)) {
+        std::vector<interfaces::IBridge*> bridges;
+        for (const auto& runtime_name: cfg.get_wanted_runtimes()) {
+            if (auto* bridge = get_bridge(runtime_name)) {
                 bridges.push_back(bridge);
             }
         }
 
         // 2. Register every method listed in Exported<T>::methods(), bound against the
         // single shared instance the specialization itself provides.
-        auto &instance = core::ffi::Exported<T>::instance();
+        auto& instance = core::ffi::Exported<T>::instance();
         std::apply(
-            [&](auto... method_desc) {
+            [&](auto... method_desc)
+            {
                 (
-                    [&] {
+                    [&]
+                    {
                         auto registered_key =
                             std::string{prefix} + "." + std::string{method_desc.name.string_view()};
                         auto lang_name =
@@ -271,20 +328,24 @@ class FfiRuntime {
 
                         // Create and store the FnEntry, bound against the real instance —
                         // fixes the previous reflection-era code's always-nullptr bind.
-                        auto entry = FnEntry::from_method<method_desc.member>(&instance, registered_key);
+                        auto entry =
+                            FnEntry::from_method<method_desc.member>(&instance, registered_key);
                         auto invoke_function = entry.get_invoke_fn();
                         register_entry(std::move(entry));
 
                         // Create one FnContext per bridge (each bridge owns its own)
-                        for (auto &bridge : bridges) {
-                            auto fn_context = std::make_unique<FnContext>(std::any{invoke_function},
-                                                                          registered_key);
+                        for (auto& bridge: bridges) {
+                            auto fn_context = std::make_unique<FnContext>(
+                                std::any{invoke_function},
+                                registered_key
+                            );
                             bridge->install_method(std::move(fn_context), lang_name);
                         }
                     }(),
                     ...);
             },
-            core::ffi::Exported<T>::methods());
+            core::ffi::Exported<T>::methods()
+        );
     }
 
     // ── Plugin lifecycle helpers (now own plugin ref) ─────────────────────
@@ -299,7 +360,8 @@ class FfiRuntime {
      * @return the plugin's own return code, or -1 if no plugin is attached, the `congelado_init`
      * symbol wasn't resolved, or the call threw (caught here and swallowed into -1).
      */
-    int init(const CongeladoHostCallbacks *host_cb, const CongeladoConfigView *view) noexcept {
+    int init(const CongeladoHostCallbacks* host_cb, const CongeladoConfigView* view) noexcept
+    {
         // No plugin attached — nothing to init.
         if (!m_plugin) {
             return -1;
@@ -310,7 +372,10 @@ class FfiRuntime {
             auto symbol_name =
                 std::string{types::PluginRef::shared_symbol_name(0)}; // index 0 == congelado_init
             if (auto it = m_plugin->m_data.find(symbol_name); it != m_plugin->m_data.end()) {
-                auto init_function = reinterpret_cast<types::InitFn>(std::any_cast<void *>(it->second));  // FIXME(clang-tidy): reinterpret_cast usage — cross-ABI cast of a dlsym'd void* back to its known function pointer type
+                auto init_function = reinterpret_cast<types::InitFn>(
+                    std::any_cast<void*>(it->second)
+                ); // FIXME(clang-tidy): reinterpret_cast usage — cross-ABI cast of a dlsym'd void*
+                   // back to its known function pointer type
                 return init_function(host_cb, view);
             }
             return -1;
@@ -327,7 +392,8 @@ class FfiRuntime {
      * @note No-op (bet, safely) if no plugin is attached or the symbol was never resolved —
      * `congelado_on_ready` is optional per the plugin ABI, unlike `congelado_init`.
      */
-    void on_ready() noexcept {
+    void on_ready() noexcept
+    {
         // No plugin attached — nothing to notify.
         if (!m_plugin) {
             return;
@@ -338,11 +404,19 @@ class FfiRuntime {
         // allowed to terminate the process either.
         try {
             auto symbol_name = std::string{
-                types::PluginRef::shared_symbol_name(3)}; // index 3 == congelado_on_ready
+                types::PluginRef::shared_symbol_name(3)
+            }; // index 3 == congelado_on_ready
             if (auto it = m_plugin->m_data.find(symbol_name); it != m_plugin->m_data.end()) {
-                reinterpret_cast<types::PluginReadyFn>(std::any_cast<void *>(it->second))();  // FIXME(clang-tidy): reinterpret_cast usage — cross-ABI cast of a dlsym'd void* back to its known function pointer type
+                reinterpret_cast<
+                    types::PluginReadyFn>(std::any_cast<
+                                          void*>(it->second))(); // FIXME(clang-tidy):
+                                                                 // reinterpret_cast usage —
+                                                                 // cross-ABI cast of a dlsym'd
+                                                                 // void* back to its known function
+                                                                 // pointer type
             }
-        } catch (...) { // NOLINT(bugprone-empty-catch) — deliberate: never let a plugin-side throw escape across the ABI boundary
+        } catch (...) { // NOLINT(bugprone-empty-catch) — deliberate: never let a plugin-side throw
+                        // escape across the ABI boundary
             core::events::publish("ffi.plugin.on_ready_failed");
         }
     }
@@ -352,7 +426,8 @@ class FfiRuntime {
      * @note No-op if no plugin is attached or the symbol was never resolved — like on_ready(),
      * this hook is optional per the plugin ABI.
      */
-    void on_unload() noexcept {
+    void on_unload() noexcept
+    {
         // No plugin attached — nothing to tear down.
         if (!m_plugin) {
             return;
@@ -362,11 +437,19 @@ class FfiRuntime {
         // arbitrary plugin code, and a plugin-side throw shouldn't terminate the process.
         try {
             auto symbol_name = std::string{
-                types::PluginRef::shared_symbol_name(2)}; // index 2 == congelado_on_unload
+                types::PluginRef::shared_symbol_name(2)
+            }; // index 2 == congelado_on_unload
             if (auto it = m_plugin->m_data.find(symbol_name); it != m_plugin->m_data.end()) {
-                reinterpret_cast<types::PluginUnloadFn>(std::any_cast<void *>(it->second))();  // FIXME(clang-tidy): reinterpret_cast usage — cross-ABI cast of a dlsym'd void* back to its known function pointer type
+                reinterpret_cast<
+                    types::PluginUnloadFn>(std::any_cast<
+                                           void*>(it->second))(); // FIXME(clang-tidy):
+                                                                  // reinterpret_cast usage —
+                                                                  // cross-ABI cast of a dlsym'd
+                                                                  // void* back to its known
+                                                                  // function pointer type
             }
-        } catch (...) { // NOLINT(bugprone-empty-catch) — deliberate: never let a plugin-side throw escape across the ABI boundary
+        } catch (...) { // NOLINT(bugprone-empty-catch) — deliberate: never let a plugin-side throw
+                        // escape across the ABI boundary
             core::events::publish("ffi.plugin.on_unload_failed");
         }
     }
@@ -377,7 +460,8 @@ class FfiRuntime {
      * @note No-op if no plugin is attached or the symbol was never resolved — like on_ready()/
      * on_unload(), this hook is optional per the plugin ABI.
      */
-    void on_shutdown() noexcept {
+    void on_shutdown() noexcept
+    {
         // No plugin attached — nothing to signal.
         if (!m_plugin) {
             return;
@@ -387,11 +471,19 @@ class FfiRuntime {
         // into arbitrary plugin code, and a plugin-side throw shouldn't terminate the process.
         try {
             auto symbol_name = std::string{
-                types::PluginRef::shared_symbol_name(4)}; // index 4 == congelado_on_shutdown
+                types::PluginRef::shared_symbol_name(4)
+            }; // index 4 == congelado_on_shutdown
             if (auto it = m_plugin->m_data.find(symbol_name); it != m_plugin->m_data.end()) {
-                reinterpret_cast<types::PluginShutdownFn>(std::any_cast<void *>(it->second))();  // FIXME(clang-tidy): reinterpret_cast usage — cross-ABI cast of a dlsym'd void* back to its known function pointer type
+                reinterpret_cast<
+                    types::PluginShutdownFn>(std::any_cast<
+                                             void*>(it->second))(); // FIXME(clang-tidy):
+                                                                    // reinterpret_cast usage —
+                                                                    // cross-ABI cast of a dlsym'd
+                                                                    // void* back to its known
+                                                                    // function pointer type
             }
-        } catch (...) { // NOLINT(bugprone-empty-catch) — deliberate: never let a plugin-side throw escape across the ABI boundary
+        } catch (...) { // NOLINT(bugprone-empty-catch) — deliberate: never let a plugin-side throw
+                        // escape across the ABI boundary
             core::events::publish("ffi.plugin.on_shutdown_failed");
         }
     }
@@ -412,8 +504,14 @@ class FfiRuntime {
      * @return 0 on success, -1 on failure (key not found or the call threw) — check
      * get_last_error() for details.
      */
-    int call(const char *key, size_t key_len, const CongeladoAny *args, int num_args,
-             CongeladoAny *result) noexcept {
+    int call(
+        const char* key,
+        size_t key_len,
+        const CongeladoAny* args,
+        int num_args,
+        CongeladoAny* result
+    ) noexcept
+    {
         try {
             // Unknown key — record why and bail before touching anything else.
             auto it = m_entries.find(std::string{key, key_len});
@@ -423,19 +521,25 @@ class FfiRuntime {
             }
             // Convert every cross-ABI arg into a Value, dispatch to the registered
             // entry, then convert the result back out through the out-param.
-            auto dispatch_args =
-                std::views::iota(0, num_args) |
-                std::views::transform([&](int arg_index) { return AnyConverter::from_any(args[arg_index]); }) |
-                std::ranges::to<std::vector>();
+            auto dispatch_args = std::views::iota(0, num_args) |
+                                 std::views::transform(
+                                     [&](int arg_index)
+                                     {
+                                         return AnyConverter::from_any(args[arg_index]);
+                                     }
+                                 ) |
+                                 std::ranges::to<std::vector>();
             auto return_value = it->second.invoke(dispatch_args);
             *result = AnyConverter::to_any(return_value);
             return 0;
-        } catch (const std::exception &exception) {
+        } catch (const std::exception& exception) {
             // Arity mismatch, bad marshaling, or a plugin-side throw — report it
             // through get_last_error() instead of letting it cross the ABI boundary.
             m_last_error = exception.what();
-            core::events::publish("ffi.call.failed",
-                                  {{"key", std::string{key, key_len}}, {"error", m_last_error}});
+            core::events::publish(
+                "ffi.call.failed",
+                {{"key", std::string{key, key_len}}, {"error", m_last_error}}
+            );
             return -1;
         }
     }
@@ -445,7 +549,8 @@ class FfiRuntime {
      * @return the last error message, or the literal string `"no error"` if nothing has
      * failed yet (or `m_last_error` was never set).
      */
-    [[nodiscard]] const char *get_last_error() const noexcept {
+    [[nodiscard]] const char* get_last_error() const noexcept
+    {
         return m_last_error.empty() ? "no error" : m_last_error.c_str();
     }
 
@@ -453,13 +558,24 @@ class FfiRuntime {
 
     /// @brief Gets how many entries are currently registered.
     /// @return the registered entry count.
-    [[nodiscard]] std::size_t get_size() const noexcept { return m_entries.size(); }
+    [[nodiscard]] std::size_t get_size() const noexcept
+    {
+        return m_entries.size();
+    }
+
     /// @brief Gets the runtime's generation config.
     /// @return the configured GenerationConfig.
-    [[nodiscard]] const types::GenerationConfig &get_config() const noexcept { return m_cfg; }
+    [[nodiscard]] const types::GenerationConfig& get_config() const noexcept
+    {
+        return m_cfg;
+    }
+
     /// @brief Gets the attached plugin ref, if any.
     /// @return the attached PluginRef, or null if none is attached.
-    [[nodiscard]] std::shared_ptr<types::PluginRef> get_plugin() const noexcept { return m_plugin; }
+    [[nodiscard]] std::shared_ptr<types::PluginRef> get_plugin() const noexcept
+    {
+        return m_plugin;
+    }
 
     /**
      * @brief Gets a loaded bridge's native interpreter handle (e.g. Lua's `lua_State*`, as
@@ -471,12 +587,13 @@ class FfiRuntime {
      * expects), or `nullptr` if that bridge isn't loaded or doesn't expose one (Python's
      * interpreter is process-global, `PythonBridgePlugin` never has one to give back).
      */
-    [[nodiscard]] void *get_bridge_native_handle(std::string_view runtime_name) const noexcept {
-        auto *bridge = get_bridge(runtime_name);
+    [[nodiscard]] void* get_bridge_native_handle(std::string_view runtime_name) const noexcept
+    {
+        auto* bridge = get_bridge(runtime_name);
         return bridge != nullptr ? bridge->native_handle() : nullptr;
     }
 
-  private:
+private:
     types::GenerationConfig m_cfg;
     std::unordered_map<std::string, FnEntry> m_entries;
     std::unordered_map<std::string, std::shared_ptr<interfaces::IBridge>> m_bridges;
@@ -501,15 +618,26 @@ class FfiRuntime {
 namespace core::plugin::tests {
 using namespace boost::ut;
 
-class Calculator {
-  public:
-    std::string greet(std::string name) { return "hello " + std::move(name); }
-    bool negate(bool value) { return !value; }
+class Calculator
+{
+public:
+    std::string greet(std::string name)
+    {
+        return "hello " + std::move(name);
+    }
+
+    bool negate(bool value)
+    {
+        return !value;
+    }
+
     void log(std::string) {}
 };
 
-suite<"FnEntry"> fn_entry_suite = [] {
-    "from_method wraps a bound member, invoke marshals args/return through Value"_test = [] {
+suite<"FnEntry"> fn_entry_suite = []
+{
+    "from_method wraps a bound member, invoke marshals args/return through Value"_test = []
+    {
         Calculator calc;
         auto entry = FnEntry::from_method<&Calculator::greet>(&calc, "calc.greet");
 
@@ -520,38 +648,51 @@ suite<"FnEntry"> fn_entry_suite = [] {
         auto result = entry.invoke(args);
         expect(std::get<Str>(result).m_value == "hello world");
     };
-    "bool params/return round-trip"_test = [] {
+    "bool params/return round-trip"_test = []
+    {
         Calculator calc;
         auto entry = FnEntry::from_method<&Calculator::negate>(&calc, "calc.negate");
 
         std::array<Value, 1> args{Bool{true}};
         expect(not std::get<Bool>(entry.invoke(args)).m_value);
     };
-    "a void-returning method invokes to None"_test = [] {
+    "a void-returning method invokes to None"_test = []
+    {
         Calculator calc;
         auto entry = FnEntry::from_method<&Calculator::log>(&calc, "calc.log");
 
         std::array<Value, 1> args{Str{"x"}};
         expect(std::holds_alternative<None>(entry.invoke(args)));
     };
-    "invoking with the wrong arity throws"_test = [] {
+    "invoking with the wrong arity throws"_test = []
+    {
         Calculator calc;
         auto entry = FnEntry::from_method<&Calculator::greet>(&calc, "calc.greet");
 
         std::array<Value, 2> wrong_args{Str{"a"}, Str{"b"}};
-        expect(throws<std::runtime_error>([&] { [[maybe_unused]] auto result = entry.invoke(wrong_args); }));
+        expect(
+            throws<std::runtime_error>(
+                [&]
+                {
+                    [[maybe_unused]] auto result = entry.invoke(wrong_args);
+                }
+            )
+        );
     };
 };
 
-suite<"FfiRuntime"> ffi_runtime_suite = [] {
-    "starts with no entries, no plugin, default config"_test = [] {
+suite<"FfiRuntime"> ffi_runtime_suite = []
+{
+    "starts with no entries, no plugin, default config"_test = []
+    {
         FfiRuntime runtime;
         expect(runtime.get_size() == 0);
         expect(runtime.get_plugin() == nullptr);
         expect(runtime.get_bridge("python") == nullptr);
         expect(runtime.find_bridge_for_extension(".py") == nullptr);
     };
-    "register_entry adds an entry, dispatchable via call()"_test = [] {
+    "register_entry adds an entry, dispatchable via call()"_test = []
+    {
         FfiRuntime runtime;
         Calculator calc;
         runtime.register_entry(FnEntry::from_method<&Calculator::greet>(&calc, "calc.greet"));
@@ -565,7 +706,8 @@ suite<"FfiRuntime"> ffi_runtime_suite = [] {
         expect(result.type_index == CG_STR);
         expect(std::string_view{result.v_cstr} == "hello world");
     };
-    "call() with an unknown key fails and records the error"_test = [] {
+    "call() with an unknown key fails and records the error"_test = []
+    {
         FfiRuntime runtime;
         CongeladoAny result{};
         auto rc = runtime.call("missing", 7, nullptr, 0, &result);
@@ -573,16 +715,19 @@ suite<"FfiRuntime"> ffi_runtime_suite = [] {
         expect(rc == -1);
         expect(std::string_view{runtime.get_last_error()}.contains("not found"));
     };
-    "get_last_error defaults to 'no error' before any failed call"_test = [] {
+    "get_last_error defaults to 'no error' before any failed call"_test = []
+    {
         FfiRuntime runtime;
         expect(std::string_view{runtime.get_last_error()} == "no error");
     };
-    "add_bridge is a no-op for a null bridge"_test = [] {
+    "add_bridge is a no-op for a null bridge"_test = []
+    {
         FfiRuntime runtime;
         runtime.add_bridge(nullptr);
         expect(runtime.get_bridge("python") == nullptr);
     };
-    "lifecycle hooks no-op safely when no plugin is attached"_test = [] {
+    "lifecycle hooks no-op safely when no plugin is attached"_test = []
+    {
         FfiRuntime runtime;
         expect(runtime.init(nullptr, nullptr) == -1);
         runtime.on_ready();
@@ -592,7 +737,8 @@ suite<"FfiRuntime"> ffi_runtime_suite = [] {
         // be a safe no-op with no plugin attached.
         expect(true);
     };
-    "set_config/get_config and attach_plugin/get_plugin round-trip"_test = [] {
+    "set_config/get_config and attach_plugin/get_plugin round-trip"_test = []
+    {
         FfiRuntime runtime;
         types::GenerationConfig cfg;
         cfg.add_runtime("python");

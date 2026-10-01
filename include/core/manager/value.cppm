@@ -9,17 +9,26 @@ import boost.ut;
 
 export namespace core::plugin {
 
-struct None {};
-struct Int {
+struct None
+{};
+
+struct Int
+{
     std::int64_t m_value;
 };
-struct Float {
+
+struct Float
+{
     double m_value;
 };
-struct Bool {
+
+struct Bool
+{
     bool m_value;
 };
-struct Str {
+
+struct Str
+{
     std::string m_value;
 };
 
@@ -27,10 +36,11 @@ class Map;
 class Array;
 
 using Value =
-    std::variant<None, Int, Float, Bool, Str, std::shared_ptr<Map>, std::shared_ptr<Array>, void *>;
+    std::variant<None, Int, Float, Bool, Str, std::shared_ptr<Map>, std::shared_ptr<Array>, void*>;
 
-class Map {
-  public:
+class Map
+{
+public:
     /// @brief Default-constructs an empty Map.
     Map() = default;
 
@@ -38,13 +48,19 @@ class Map {
     ~Map() = default;
 
     /// @brief Deleted — Maps hold potentially-large entry sets, no implicit copying that motion.
-    Map(const Map &) = delete;
+    Map(const Map&) = delete;
     /// @brief Deleted — same reason as the copy ctor.
-    Map &operator=(const Map &) = delete;
+    Map& operator=(const Map&) = delete;
+
     /// @brief Move-constructs, stealing the other Map's entries.
-    Map(Map &&other) noexcept : m_entries(std::move(other.m_entries)) {}
+    Map(Map&& other) noexcept :
+        m_entries(std::move(other.m_entries))
+    {
+    }
+
     /// @brief Move-assigns, stealing the other Map's entries.
-    Map &operator=(Map &&other) noexcept {
+    Map& operator=(Map&& other) noexcept
+    {
         if (this != &other) {
             m_entries = std::move(other.m_entries);
         }
@@ -56,7 +72,8 @@ class Map {
      * @param key the entry key.
      * @param val the value to store.
      */
-    void set(std::string key, Value val) {
+    void set(std::string key, Value val)
+    {
         m_entries.insert_or_assign(std::move(key), std::move(val));
     }
 
@@ -65,43 +82,60 @@ class Map {
      * @param key the entry key to look up.
      * @return a copy of the stored Value, or nullopt if the key isn't present.
      */
-    [[nodiscard]] std::optional<Value> get(std::string_view key) const noexcept {
+    [[nodiscard]] std::optional<Value> get(std::string_view key) const noexcept
+    {
         auto it = m_entries.find(std::string{key});
         return it != m_entries.end() ? std::make_optional(it->second) : std::nullopt;
     }
 
     /// @brief Gets how many entries are stored.
     /// @return the entry count.
-    [[nodiscard]] std::size_t get_size() const noexcept { return m_entries.size(); }
+    [[nodiscard]] std::size_t get_size() const noexcept
+    {
+        return m_entries.size();
+    }
+
     /// @brief Gets the full backing entry map.
     /// @return a reference to the underlying key/Value map.
-    [[nodiscard]] const std::unordered_map<std::string, Value> &get_entries() noexcept {
+    [[nodiscard]] const std::unordered_map<std::string, Value>& get_entries() noexcept
+    {
         return m_entries;
     }
 
-  private:
+private:
     std::unordered_map<std::string, Value> m_entries;
 };
 
-class Array {
-  public:
+class Array
+{
+public:
     /// @brief Default-constructs an empty Array with no reserved capacity.
     Array() = default;
+
     /// @brief Constructs an empty Array, pre-reserving storage for `capacity` items.
     /// @param capacity number of items to reserve space for up front.
-    explicit Array(std::size_t capacity) { m_items.reserve(capacity); }
+    explicit Array(std::size_t capacity)
+    {
+        m_items.reserve(capacity);
+    }
 
     /// @brief Destroys the Array, releasing every stored Value.
     ~Array() = default;
 
     /// @brief Deleted — Arrays hold potentially-large item sets, no implicit copying that motion.
-    Array(const Array &) = delete;
+    Array(const Array&) = delete;
     /// @brief Deleted — same reason as the copy ctor.
-    Array &operator=(const Array &) = delete;
+    Array& operator=(const Array&) = delete;
+
     /// @brief Move-constructs, stealing the other Array's items.
-    Array(Array &&other) noexcept : m_items(std::move(other.m_items)) {}
+    Array(Array&& other) noexcept :
+        m_items(std::move(other.m_items))
+    {
+    }
+
     /// @brief Move-assigns, stealing the other Array's items.
-    Array &operator=(Array &&other) noexcept {
+    Array& operator=(Array&& other) noexcept
+    {
         if (this != &other) {
             m_items = std::move(other.m_items);
         }
@@ -110,37 +144,54 @@ class Array {
 
     /// @brief Appends a value to the end of the array.
     /// @param value the value to append.
-    void push(Value value) { m_items.push_back(std::move(value)); }
+    void push(Value value)
+    {
+        m_items.push_back(std::move(value));
+    }
 
     /**
      * @brief Looks up a value by index.
      * @param idx the zero-based index to look up.
      * @return a copy of the stored Value, or nullopt if `idx` is out of range.
      */
-    [[nodiscard]] std::optional<Value> get(std::size_t idx) const noexcept {
-        return idx < m_items.size() ? std::make_optional(m_items[idx]) : std::nullopt;  // FIXME(clang-tidy): unchecked operator[], consider .at()
+    [[nodiscard]] std::optional<Value> get(std::size_t idx) const noexcept
+    {
+        return idx < m_items.size()
+                   ? std::make_optional(m_items[idx])
+                   : std::nullopt; // FIXME(clang-tidy): unchecked operator[], consider .at()
     }
 
     /// @brief Gets how many items are stored.
     /// @return the item count.
-    [[nodiscard]] std::size_t get_size() const noexcept { return m_items.size(); }
+    [[nodiscard]] std::size_t get_size() const noexcept
+    {
+        return m_items.size();
+    }
+
     /// @brief Gets a mutable view over every stored item.
     /// @return a span over the underlying item storage.
-    [[nodiscard]] std::span<Value> get_items() noexcept { return m_items; }
+    [[nodiscard]] std::span<Value> get_items() noexcept
+    {
+        return m_items;
+    }
 
-  private:
+private:
     std::vector<Value> m_items;
 };
 
-template <typename T>
+template<typename T>
 struct ValueTraits;
 
-template <>
-struct ValueTraits<bool> {
+template<>
+struct ValueTraits<bool>
+{
     /// @brief Wraps a `bool` as a Value.
     /// @param val the bool to wrap.
     /// @return the equivalent Value (a `Bool` alternative).
-    static Value to_value(bool val) { return Bool{val}; }
+    static Value to_value(bool val)
+    {
+        return Bool{val};
+    }
 
     /**
      * @brief Unwraps a Value back into a `bool`.
@@ -148,11 +199,13 @@ struct ValueTraits<bool> {
      * @return the extracted bool.
      * @throws std::runtime_error if `val` holds neither `Bool` nor `Int`.
      */
-    static bool from_value(const Value &val) {
+    static bool from_value(const Value& val)
+    {
         // Accept either a direct Bool or an Int coerced to bool (nonzero == true) —
         // anything else in the variant is a real type mismatch, so it throws.
         return std::visit(
-            []<typename U>(const U &value) -> bool {
+            []<typename U>(const U& value) -> bool
+            {
                 if constexpr (std::same_as<U, Bool>) {
                     return value.m_value;
                 }
@@ -161,17 +214,22 @@ struct ValueTraits<bool> {
                 }
                 throw std::runtime_error{"expected bool"};
             },
-            val);
+            val
+        );
     }
 };
 
-template <std::integral T>
+template<std::integral T>
     requires(!std::same_as<T, bool>)
-struct ValueTraits<T> {
+struct ValueTraits<T>
+{
     /// @brief Wraps an integral value as a Value.
     /// @param val the integral to wrap, narrowed/widened to `std::int64_t`.
     /// @return the equivalent Value (an `Int` alternative).
-    static Value to_value(T val) { return Int{static_cast<std::int64_t>(val)}; }
+    static Value to_value(T val)
+    {
+        return Int{static_cast<std::int64_t>(val)};
+    }
 
     /**
      * @brief Unwraps a Value back into `T`.
@@ -186,11 +244,13 @@ struct ValueTraits<T> {
      * @return the extracted value as `T`.
      * @throws std::runtime_error if `val` holds neither `Int` nor `Bool`.
      */
-    T from_value(const Value &val) {
+    T from_value(const Value& val)
+    {
         // Intended flow: accept a direct Int as-is, or coerce a Bool to 0/1, then
         // narrow the visited int64 result down to T via the outer static_cast.
         return static_cast<T>(std::visit(
-            []<typename U>(const U &value) -> std::int64_t {
+            []<typename U>(const U& value) -> std::int64_t
+            {
                 if constexpr (std::same_as<U, Int>) {
                     return value.value;
                 }
@@ -199,16 +259,21 @@ struct ValueTraits<T> {
                 }
                 throw std::runtime_error{"expected int"};
             },
-            val));
+            val
+        ));
     }
 };
 
-template <std::floating_point T>
-struct ValueTraits<T> {
+template<std::floating_point T>
+struct ValueTraits<T>
+{
     /// @brief Wraps a floating-point value as a Value.
     /// @param val the value to wrap, converted to `double`.
     /// @return the equivalent Value (a `Float` alternative).
-    static Value to_value(T val) { return Float{static_cast<double>(val)}; }
+    static Value to_value(T val)
+    {
+        return Float{static_cast<double>(val)};
+    }
 
     /**
      * @brief Unwraps a Value back into `T`.
@@ -220,11 +285,13 @@ struct ValueTraits<T> {
      * @return the extracted value as `T`.
      * @throws std::runtime_error if `val` holds neither `Float` nor `Int`.
      */
-    T from_value(const Value &val) {
+    T from_value(const Value& val)
+    {
         // Intended flow: accept a direct Float as-is, or widen an Int to double,
         // then narrow the visited double result down to T via the outer static_cast.
         return static_cast<T>(std::visit(
-            []<typename U>(const U &value) -> double {
+            []<typename U>(const U& value) -> double
+            {
                 if constexpr (std::same_as<U, Float>) {
                     return value.value;
                 }
@@ -233,16 +300,21 @@ struct ValueTraits<T> {
                 }
                 throw std::runtime_error{"expected float"};
             },
-            val));
+            val
+        ));
     }
 };
 
-template <>
-struct ValueTraits<std::string> {
+template<>
+struct ValueTraits<std::string>
+{
     /// @brief Wraps a `std::string` as a Value.
     /// @param val the string to wrap (moved in).
     /// @return the equivalent Value (a `Str` alternative).
-    static Value to_value(std::string val) { return Str{std::move(val)}; }
+    static Value to_value(std::string val)
+    {
+        return Str{std::move(val)};
+    }
 
     /**
      * @brief Unwraps a Value back into a `std::string`.
@@ -250,26 +322,33 @@ struct ValueTraits<std::string> {
      * @return a copy of the extracted string.
      * @throws std::runtime_error if `val` doesn't hold `Str`.
      */
-    static std::string from_value(const Value &val) {
+    static std::string from_value(const Value& val)
+    {
         // Only Str unwraps cleanly here — everything else in the variant throws,
         // no cap, no implicit stringification of Int/Float/Bool.
         return std::visit(
-            []<typename T>(const T &value) -> std::string {
+            []<typename T>(const T& value) -> std::string
+            {
                 if constexpr (std::same_as<T, Str>) {
                     return value.m_value;
                 }
                 throw std::runtime_error{"expected string"};
             },
-            val);
+            val
+        );
     }
 };
 
-template <>
-struct ValueTraits<std::string_view> {
+template<>
+struct ValueTraits<std::string_view>
+{
     /// @brief Wraps a `std::string_view` as a Value, copying it into an owned `Str`.
     /// @param val the string_view to wrap; the underlying characters are copied.
     /// @return the equivalent Value (a `Str` alternative).
-    static Value to_value(std::string_view val) { return Str{std::string{val}}; }
+    static Value to_value(std::string_view val)
+    {
+        return Str{std::string{val}};
+    }
 
     /**
      * @brief Unwraps a Value into a `std::string_view` borrowing the Value's own storage.
@@ -279,17 +358,20 @@ struct ValueTraits<std::string_view> {
      * @return a view over the extracted string's characters.
      * @throws std::runtime_error if `val` doesn't hold `Str`.
      */
-    static std::string_view from_value(const Value &val) {
+    static std::string_view from_value(const Value& val)
+    {
         // Same shape as the std::string overload, just returning a borrowed view
         // into the Str's own storage instead of copying it out.
         return std::visit(
-            []<typename T>(const T &value) -> std::string_view {
+            []<typename T>(const T& value) -> std::string_view
+            {
                 if constexpr (std::same_as<T, Str>) {
                     return value.m_value;
                 }
                 throw std::runtime_error{"expected string_view"};
             },
-            val);
+            val
+        );
     }
 };
 
@@ -299,9 +381,10 @@ struct ValueTraits<std::string_view> {
 //     static const Value &from_value(const Value &val) { return val; }
 // };
 
-template <typename T>
+template<typename T>
     requires(std::is_aggregate_v<T> && !std::is_array_v<T>)
-struct ValueTraits<T> {
+struct ValueTraits<T>
+{
     /**
      * @brief Wraps an aggregate struct as a Value, reflecting over its non-underscore-prefixed
      * fields and recursively converting each one.
@@ -311,14 +394,16 @@ struct ValueTraits<T> {
      * @param val the aggregate to convert.
      * @return a Map Value with one entry per reflected field.
      */
-    static Value to_value(const T &val) {
+    static Value to_value(const T& val)
+    {
         auto map = std::make_shared<Map>();
 #ifdef __cpp_reflection
         // Walk every non-static data member reflected off T, skipping anything
         // underscore-prefixed (treated as "private"/non-serialized by convention),
         // and recursively convert the rest into map entries keyed by field name.
         constexpr auto ctx = std::meta::access_context::current();
-        template for (constexpr auto field : std::meta::nonstatic_data_members_of(^^T, ctx)) {
+        template for (constexpr auto field: std::meta::nonstatic_data_members_of(^^T, ctx))
+        {
             constexpr std::string_view name = std::meta::identifier_of(field);
             if (name.starts_with('_')) {
                 continue;
@@ -339,10 +424,11 @@ struct ValueTraits<T> {
      * @throws std::runtime_error if `val` doesn't hold a Map, or the Map is missing a field
      * that `T` declares.
      */
-    static T from_value(const Value &val) {
+    static T from_value(const Value& val)
+    {
         // Must actually hold a live Map — anything else (including a null map
         // pointer) is a hard type mismatch.
-        const auto *opt_map = std::get_if<std::shared_ptr<Map>>(&val);
+        const auto* opt_map = std::get_if<std::shared_ptr<Map>>(&val);
         if ((opt_map == nullptr) || !*opt_map) {
             throw std::runtime_error{std::string{"expected Map for "} + typeid(T).name()};
         }
@@ -350,9 +436,10 @@ struct ValueTraits<T> {
 #ifdef __cpp_reflection
         // Mirror to_value(): walk the same reflected, non-underscore-prefixed
         // fields, pulling each one back out of the map by name.
-        const Map &map = **opt_map;
+        const Map& map = **opt_map;
         constexpr auto ctx = std::meta::access_context::current();
-        template for (constexpr auto field : std::meta::nonstatic_data_members_of(^^T, ctx)) {
+        template for (constexpr auto field: std::meta::nonstatic_data_members_of(^^T, ctx))
+        {
             constexpr std::string_view name = std::meta::identifier_of(field);
             if (name.starts_with('_')) {
                 continue;
@@ -369,9 +456,11 @@ struct ValueTraits<T> {
     }
 };
 
-class AnyConverter {
-  public:
-    /// @brief Deleted — AnyConverter is a pure static-method utility, never meant to be instantiated.
+class AnyConverter
+{
+public:
+    /// @brief Deleted — AnyConverter is a pure static-method utility, never meant to be
+    /// instantiated.
     AnyConverter() = delete;
 
     class HandleTable;
@@ -385,32 +474,35 @@ class AnyConverter {
      * @return the equivalent native Value; CG_INT and CG_BOOL both map to `Int`, and anything
      * unrecognized falls back to the raw `void *`.
      */
-    [[nodiscard]] static Value from_any(const CongeladoAny &any) {
+    [[nodiscard]] static Value from_any(const CongeladoAny& any)
+    {
         // Dispatch on the cross-ABI type tag — CG_INT and CG_BOOL both collapse
         // down to the same Int variant on this side.
         switch (any.type_index) {
-        case CG_NONE:
-            return None{};
-        case CG_INT:
-        case CG_BOOL:
-            return Int{any.v_int64};
-        case CG_FLOAT:
-            return Float{any.v_float64};
-        case CG_STR:
-            return Str{(any.v_cstr != nullptr) ? std::string{any.v_cstr} : ""};
-        // CG_MAP/CG_ARRAY wrap the raw pointer in a non-owning shared_ptr — the
-        // real owner lives elsewhere, this is just a borrowing view over it.
-        case CG_MAP: {
-            auto *raw_ptr = static_cast<Map *>(any.v_ptr);
-            return std::shared_ptr<Map>(raw_ptr, [](Map *) {});
-        }
-        case CG_ARRAY: {
-            auto *raw_ptr = static_cast<Array *>(any.v_ptr);
-            return std::shared_ptr<Array>(raw_ptr, [](Array *) {});
-        }
-        // Unrecognized type tags fall back to the raw pointer as-is.
-        default:
-            return any.v_ptr;
+            case CG_NONE:
+                return None{};
+            case CG_INT:
+            case CG_BOOL:
+                return Int{any.v_int64};
+            case CG_FLOAT:
+                return Float{any.v_float64};
+            case CG_STR:
+                return Str{(any.v_cstr != nullptr) ? std::string{any.v_cstr} : ""};
+            // CG_MAP/CG_ARRAY wrap the raw pointer in a non-owning shared_ptr — the
+            // real owner lives elsewhere, this is just a borrowing view over it.
+            case CG_MAP:
+                {
+                    auto* raw_ptr = static_cast<Map*>(any.v_ptr);
+                    return std::shared_ptr<Map>(raw_ptr, [](Map*) {});
+                }
+            case CG_ARRAY:
+                {
+                    auto* raw_ptr = static_cast<Array*>(any.v_ptr);
+                    return std::shared_ptr<Array>(raw_ptr, [](Array*) {});
+                }
+            // Unrecognized type tags fall back to the raw pointer as-is.
+            default:
+                return any.v_ptr;
         }
     }
 
@@ -425,12 +517,14 @@ class AnyConverter {
      * though nothing here actually mutates it).
      * @return the equivalent cross-ABI CongeladoAny.
      */
-    [[nodiscard]] static CongeladoAny to_any(Value &val) {
+    [[nodiscard]] static CongeladoAny to_any(Value& val)
+    {
         CongeladoAny any{};
         // Match the visited alternative against every Value type and fill in the
         // matching CongeladoAny tag + payload — one branch per variant member.
         std::visit(
-            [&]<typename T>(T &value) {
+            [&]<typename T>(T& value)
+            {
                 if constexpr (std::same_as<T, None>) {
                     any.type_index = CG_NONE;
                 } else if constexpr (std::same_as<T, Bool>) {
@@ -451,12 +545,13 @@ class AnyConverter {
                 } else if constexpr (std::same_as<T, std::shared_ptr<Array>>) {
                     any.type_index = CG_ARRAY;
                     any.v_ptr = value.get();
-                } else if constexpr (std::same_as<T, void *>) {
+                } else if constexpr (std::same_as<T, void*>) {
                     any.type_index = CG_PTR;
                     any.v_ptr = value;
                 }
             },
-            val);
+            val
+        );
         return any;
     }
 
@@ -470,12 +565,14 @@ class AnyConverter {
      * @param val the Value to convert.
      * @return the equivalent cross-ABI CongeladoAny.
      */
-    [[nodiscard]] static CongeladoAny to_any_borrow(const Value &val) {
+    [[nodiscard]] static CongeladoAny to_any_borrow(const Value& val)
+    {
         CongeladoAny any{};
         // Same variant-to-tag mapping as to_any() above, just over a const Value —
         // every branch still only borrows into `val`'s own storage.
         std::visit(
-            [&]<typename T>(const T &value) {
+            [&]<typename T>(const T& value)
+            {
                 if constexpr (std::same_as<T, None>) {
                     any.type_index = CG_NONE;
                 } else if constexpr (std::same_as<T, Bool>) {
@@ -496,18 +593,20 @@ class AnyConverter {
                 } else if constexpr (std::same_as<T, std::shared_ptr<Array>>) {
                     any.type_index = CG_ARRAY;
                     any.v_ptr = value.get();
-                } else if constexpr (std::same_as<T, void *>) {
+                } else if constexpr (std::same_as<T, void*>) {
                     any.type_index = CG_PTR;
                     any.v_ptr = value;
                 }
             },
-            val);
+            val
+        );
         return any;
     }
 };
 
-class HandleTable {
-  public:
+class HandleTable
+{
+public:
     /// @brief Default-constructs an empty HandleTable with no live handles.
     HandleTable() = default;
 
@@ -516,7 +615,8 @@ class HandleTable {
      * @param obj the object to store, type-erased via `std::any`.
      * @return the newly assigned handle id.
      */
-    [[nodiscard]] int64_t insert(std::any obj) {
+    [[nodiscard]] int64_t insert(std::any obj)
+    {
         // Hand out the next id, then store the object under it, bet — ids just
         // count up forever, never reused even after remove().
         auto id = m_next_id++;
@@ -530,11 +630,17 @@ class HandleTable {
      * @return a mutable reference to the stored `std::any`.
      * @throws std::out_of_range if `idx` isn't a live handle.
      */
-    [[nodiscard]] std::any &get(int64_t idx) { return m_handles.at(idx); }
+    [[nodiscard]] std::any& get(int64_t idx)
+    {
+        return m_handles.at(idx);
+    }
 
     /// @brief Drops a handle, releasing whatever object it referenced.
     /// @param idx the handle id to remove; a no-op if it's not present.
-    void remove(int64_t idx) { m_handles.erase(idx); }
+    void remove(int64_t idx)
+    {
+        m_handles.erase(idx);
+    }
 
     /**
      * @brief Looks up and unwraps the object behind a handle as a specific type.
@@ -544,8 +650,9 @@ class HandleTable {
      * @throws std::out_of_range if `idx` isn't a live handle.
      * @throws std::bad_any_cast if the stored object isn't actually a `T`.
      */
-    template <typename T>
-    [[nodiscard]] T get_as(int64_t idx) {
+    template<typename T>
+    [[nodiscard]] T get_as(int64_t idx)
+    {
         return std::any_cast<T>(m_handles.at(idx));
     }
 
@@ -553,7 +660,8 @@ class HandleTable {
      * @brief Creates a new empty Map and returns a cross-ABI handle to it.
      * @return a CG_MAP_HANDLE-kind CongeladoAny wrapping the new map's handle id.
      */
-    [[nodiscard]] CongeladoAny map_create() noexcept {
+    [[nodiscard]] CongeladoAny map_create() noexcept
+    {
         auto id = insert(std::make_shared<Map>());
         return CongeladoAny{.type_index = CG_MAP_HANDLE, .v_int64 = id};
     }
@@ -568,7 +676,8 @@ class HandleTable {
      * @throws std::out_of_range if `handle` isn't a live handle.
      * @throws std::bad_any_cast if `handle` doesn't actually reference a `shared_ptr<Map>`.
      */
-    void map_set(int64_t handle, std::string_view key, const CongeladoAny &value) {
+    void map_set(int64_t handle, std::string_view key, const CongeladoAny& value)
+    {
         auto map = get_as<std::shared_ptr<Map>>(handle);
         // AnyConverter::from_any() only understands the raw-pointer CG_MAP/CG_ARRAY tags, not
         // the handle-id CG_MAP_HANDLE/CG_ARRAY_HANDLE tags returned by map_create()/array_create()
@@ -595,12 +704,13 @@ class HandleTable {
      * @throws std::out_of_range if `handle` isn't a live handle.
      * @throws std::bad_any_cast if `handle` doesn't actually reference a `shared_ptr<Map>`.
      */
-    [[nodiscard]] CongeladoAny map_get(int64_t handle, std::string_view key) {
+    [[nodiscard]] CongeladoAny map_get(int64_t handle, std::string_view key)
+    {
         auto map = get_as<std::shared_ptr<Map>>(handle);
         // Borrow straight from the Map's own backing storage (get_entries()) rather than
         // through Map::get()'s by-value std::optional<Value> — borrowing into that temporary's
         // owned Value would dangle the instant this function returns.
-        const auto &entries = map->get_entries();
+        const auto& entries = map->get_entries();
         auto it = entries.find(std::string{key});
         // Missing key isn't an error here — just hand back a zeroed CongeladoAny.
         if (it == entries.end()) {
@@ -616,7 +726,8 @@ class HandleTable {
      * @throws std::out_of_range if `handle` isn't a live handle.
      * @throws std::bad_any_cast if `handle` doesn't actually reference a `shared_ptr<Map>`.
      */
-    [[nodiscard]] CongeladoAny get_map_size(int64_t handle) {
+    [[nodiscard]] CongeladoAny get_map_size(int64_t handle)
+    {
         auto map = get_as<std::shared_ptr<Map>>(handle);
         return CongeladoAny{.type_index = CG_INT, .v_int64 = static_cast<int64_t>(map->get_size())};
     }
@@ -631,12 +742,13 @@ class HandleTable {
      * @throws std::out_of_range if `handle` isn't a live handle.
      * @throws std::bad_any_cast if `handle` doesn't actually reference a `shared_ptr<Map>`.
      */
-    [[nodiscard]] CongeladoAny get_map_keys(int64_t handle) {
+    [[nodiscard]] CongeladoAny get_map_keys(int64_t handle)
+    {
         auto map = get_as<std::shared_ptr<Map>>(handle);
         // Build a brand-new Array of Str keys, lowkey a snapshot copy, not a
         // view into the map, so the caller is expected to handle_free() it later.
         auto keys_array = std::make_shared<Array>();
-        for (const auto &key : map->get_entries() | std::views::keys) {
+        for (const auto& key: map->get_entries() | std::views::keys) {
             (*keys_array).push(Str{key});
         }
         auto id = insert(std::move(keys_array));
@@ -645,14 +757,18 @@ class HandleTable {
 
     /// @brief Frees a handle (map or array), releasing whatever it referenced.
     /// @param handle the handle id to free; a no-op if it's not present.
-    void handle_free(int64_t handle) noexcept { remove(handle); }
+    void handle_free(int64_t handle) noexcept
+    {
+        remove(handle);
+    }
 
     /**
      * @brief Creates a new empty Array (optionally pre-sized) and returns a cross-ABI handle to it.
      * @param capacity optional item count to reserve up front; defaults to no reservation.
      * @return a CG_ARRAY_HANDLE-kind CongeladoAny wrapping the new array's handle id.
      */
-    [[nodiscard]] CongeladoAny array_create(std::optional<int64_t> capacity = std::nullopt) {
+    [[nodiscard]] CongeladoAny array_create(std::optional<int64_t> capacity = std::nullopt)
+    {
         auto array_size = capacity.has_value() ? static_cast<std::size_t>(capacity.value())
                                                : static_cast<std::size_t>(0);
         auto id = insert(std::make_shared<Array>(array_size));
@@ -666,7 +782,8 @@ class HandleTable {
      * @throws std::out_of_range if `handle` isn't a live handle.
      * @throws std::bad_any_cast if `handle` doesn't actually reference a `shared_ptr<Array>`.
      */
-    void array_push(int64_t handle, const CongeladoAny &value) {
+    void array_push(int64_t handle, const CongeladoAny& value)
+    {
         auto arr = get_as<std::shared_ptr<Array>>(handle);
         // Same handle-id-vs-raw-pointer tag mismatch as map_set() above — resolve
         // CG_MAP_HANDLE/CG_ARRAY_HANDLE directly instead of routing through from_any().
@@ -688,7 +805,8 @@ class HandleTable {
      * @throws std::out_of_range if `handle` isn't a live handle.
      * @throws std::bad_any_cast if `handle` doesn't actually reference a `shared_ptr<Array>`.
      */
-    [[nodiscard]] CongeladoAny get_array_size(int64_t handle) {
+    [[nodiscard]] CongeladoAny get_array_size(int64_t handle)
+    {
         auto arr = get_as<std::shared_ptr<Array>>(handle);
         return CongeladoAny{.type_index = CG_INT, .v_int64 = static_cast<int64_t>(arr->get_size())};
     }
@@ -702,7 +820,8 @@ class HandleTable {
      * @throws std::out_of_range if `handle` isn't a live handle.
      * @throws std::bad_any_cast if `handle` doesn't actually reference a `shared_ptr<Array>`.
      */
-    [[nodiscard]] CongeladoAny array_get(int64_t handle, int64_t index) {
+    [[nodiscard]] CongeladoAny array_get(int64_t handle, int64_t index)
+    {
         auto arr = get_as<std::shared_ptr<Array>>(handle);
         // Borrow straight from the Array's own backing storage (get_items()) rather than
         // through Array::get()'s by-value std::optional<Value> — same dangling-temporary
@@ -724,7 +843,8 @@ class HandleTable {
      * @param key C-string key; treated as an empty key if null.
      * @param value the cross-ABI value to convert and store.
      */
-    void map_set(int64_t handle, const char *key, const CongeladoAny &value) {
+    void map_set(int64_t handle, const char* key, const CongeladoAny& value)
+    {
         map_set(handle, std::string_view{(key != nullptr) ? key : ""}, value);
     }
 
@@ -735,7 +855,8 @@ class HandleTable {
      * @return the entry's value as a CongeladoAny, or a zero-initialized CongeladoAny if
      * the key isn't present.
      */
-    [[nodiscard]] CongeladoAny map_get(int64_t handle, const char *key) {
+    [[nodiscard]] CongeladoAny map_get(int64_t handle, const char* key)
+    {
         return map_get(handle, std::string_view{(key != nullptr) ? key : ""});
     }
 
@@ -751,10 +872,13 @@ class HandleTable {
      * @param key CongeladoAny whose `v_cstr` is the entry key; treated as empty if null.
      * @param value the cross-ABI value to convert and store.
      */
-    void map_set(const CongeladoAny *handler, const CongeladoAny *key,
-                 const CongeladoAny *value) {
-        map_set(handler->v_int64, (key->v_cstr != nullptr) ? std::string_view{key->v_cstr} : "",
-                *value);
+    void map_set(const CongeladoAny* handler, const CongeladoAny* key, const CongeladoAny* value)
+    {
+        map_set(
+            handler->v_int64,
+            (key->v_cstr != nullptr) ? std::string_view{key->v_cstr} : "",
+            *value
+        );
     }
 
     /**
@@ -765,10 +889,12 @@ class HandleTable {
      * @return the entry's value as a CongeladoAny, or a zero-initialized CongeladoAny if
      * the key isn't present.
      */
-    [[nodiscard]] CongeladoAny map_get(const CongeladoAny *handler,
-                                       const CongeladoAny *key) {
-        return map_get(handler->v_int64,
-                       (key->v_cstr != nullptr) ? std::string_view{key->v_cstr} : "");
+    [[nodiscard]] CongeladoAny map_get(const CongeladoAny* handler, const CongeladoAny* key)
+    {
+        return map_get(
+            handler->v_int64,
+            (key->v_cstr != nullptr) ? std::string_view{key->v_cstr} : ""
+        );
     }
 
     /**
@@ -776,7 +902,8 @@ class HandleTable {
      * @param handler CongeladoAny whose `v_int64` is the target map's handle id.
      * @return a CG_INT-kind CongeladoAny wrapping the entry count.
      */
-    [[nodiscard]] CongeladoAny get_map_size(const CongeladoAny *handler) {
+    [[nodiscard]] CongeladoAny get_map_size(const CongeladoAny* handler)
+    {
         return get_map_size(handler->v_int64);
     }
 
@@ -785,13 +912,17 @@ class HandleTable {
      * @param handler CongeladoAny whose `v_int64` is the target map's handle id.
      * @return a CG_ARRAY_HANDLE-kind CongeladoAny wrapping the new keys array's handle id.
      */
-    [[nodiscard]] CongeladoAny get_map_keys(const CongeladoAny *handler) {
+    [[nodiscard]] CongeladoAny get_map_keys(const CongeladoAny* handler)
+    {
         return get_map_keys(handler->v_int64);
     }
 
     /// @brief Pointer-args backward-compat overload of handle_free().
     /// @param handler CongeladoAny whose `v_int64` is the handle id to free.
-    void handle_free(const CongeladoAny *handler) noexcept { handle_free(handler->v_int64); }
+    void handle_free(const CongeladoAny* handler) noexcept
+    {
+        handle_free(handler->v_int64);
+    }
 
     /**
      * @brief Pointer-args backward-compat overload of array_create().
@@ -799,7 +930,8 @@ class HandleTable {
      * non-null and CG_INT-kind, otherwise falls back to the no-reservation default.
      * @return a CG_ARRAY_HANDLE-kind CongeladoAny wrapping the new array's handle id.
      */
-    [[nodiscard]] CongeladoAny array_create(const CongeladoAny *cap) {
+    [[nodiscard]] CongeladoAny array_create(const CongeladoAny* cap)
+    {
         // Only honor the capacity hint if it's actually present and CG_INT-kind —
         // anything else falls back to the no-reservation default overload.
         if (cap != nullptr && cap->type_index == CG_INT) {
@@ -814,7 +946,8 @@ class HandleTable {
      * @param handler CongeladoAny whose `v_int64` is the target array's handle id.
      * @param value the cross-ABI value to convert and append.
      */
-    void array_push(const CongeladoAny *handler, const CongeladoAny *value) {
+    void array_push(const CongeladoAny* handler, const CongeladoAny* value)
+    {
         array_push(handler->v_int64, *value);
     }
 
@@ -823,7 +956,8 @@ class HandleTable {
      * @param handler CongeladoAny whose `v_int64` is the target array's handle id.
      * @return a CG_INT-kind CongeladoAny wrapping the item count.
      */
-    [[nodiscard]] CongeladoAny get_array_size(const CongeladoAny *handler) {
+    [[nodiscard]] CongeladoAny get_array_size(const CongeladoAny* handler)
+    {
         return get_array_size(handler->v_int64);
     }
 
@@ -835,8 +969,8 @@ class HandleTable {
      * @return the item's value as a CongeladoAny, or a zero-initialized CongeladoAny if the
      * resolved index is out of range.
      */
-    [[nodiscard]] CongeladoAny array_get(const CongeladoAny *handler,
-                                         const CongeladoAny *index) {
+    [[nodiscard]] CongeladoAny array_get(const CongeladoAny* handler, const CongeladoAny* index)
+    {
         // Same "only honor it if it's really there and CG_INT-kind" pattern as
         // array_create() — otherwise just default to index 0.
         std::size_t idx = (index != nullptr && index->type_index == CG_INT)
@@ -845,7 +979,7 @@ class HandleTable {
         return array_get(handler->v_int64, static_cast<int64_t>(idx));
     }
 
-  private:
+private:
     std::unordered_map<int64_t, std::any> m_handles;
     int64_t m_next_id = 1;
 };
@@ -856,13 +990,16 @@ class HandleTable {
 namespace core::plugin::tests {
 using namespace boost::ut;
 
-suite<"Map"> map_suite = [] {
-    "starts empty"_test = [] {
+suite<"Map"> map_suite = []
+{
+    "starts empty"_test = []
+    {
         Map map;
         expect(map.get_size() == 0);
         expect(not map.get("missing").has_value());
     };
-    "set then get round-trips a value, overwriting on repeat set"_test = [] {
+    "set then get round-trips a value, overwriting on repeat set"_test = []
+    {
         Map map;
         map.set("a", Int{1});
         map.set("a", Int{2});
@@ -874,13 +1011,16 @@ suite<"Map"> map_suite = [] {
     };
 };
 
-suite<"Array"> array_suite = [] {
-    "starts empty"_test = [] {
+suite<"Array"> array_suite = []
+{
+    "starts empty"_test = []
+    {
         Array arr;
         expect(arr.get_size() == 0);
         expect(not arr.get(0).has_value());
     };
-    "push appends, get retrieves by index"_test = [] {
+    "push appends, get retrieves by index"_test = []
+    {
         Array arr;
         arr.push(Int{10});
         arr.push(Str{"x"});
@@ -892,54 +1032,90 @@ suite<"Array"> array_suite = [] {
     };
 };
 
-suite<"ValueTraits<bool>"> value_traits_bool_suite = [] {
-    "to_value wraps as Bool"_test = [] {
+suite<"ValueTraits<bool>"> value_traits_bool_suite = []
+{
+    "to_value wraps as Bool"_test = []
+    {
         auto val = ValueTraits<bool>::to_value(true);
         expect(std::get<Bool>(val).m_value);
     };
-    "from_value accepts Bool directly and Int as nonzero-coercion"_test = [] {
+    "from_value accepts Bool directly and Int as nonzero-coercion"_test = []
+    {
         expect(ValueTraits<bool>::from_value(Bool{true}));
         expect(not ValueTraits<bool>::from_value(Bool{false}));
         expect(ValueTraits<bool>::from_value(Int{5}));
         expect(not ValueTraits<bool>::from_value(Int{0}));
     };
-    "from_value throws for anything else"_test = [] {
-        expect(throws<std::runtime_error>([] { ValueTraits<bool>::from_value(Str{"x"}); }));
+    "from_value throws for anything else"_test = []
+    {
+        expect(
+            throws<std::runtime_error>(
+                []
+                {
+                    ValueTraits<bool>::from_value(Str{"x"});
+                }
+            )
+        );
     };
 };
 
-suite<"ValueTraits<integral/floating> to_value"> value_traits_numeric_to_value_suite = [] {
+suite<"ValueTraits<integral/floating> to_value"> value_traits_numeric_to_value_suite = []
+{
     // from_value on these two specializations is documented dead/broken code (missing `static`,
     // wrong member name) that can't be called without a hard compile error — see the
     // @warning on ValueTraits<T>::from_value in this file. to_value is unaffected and correct.
-    "integral to_value wraps as Int"_test = [] {
+    "integral to_value wraps as Int"_test = []
+    {
         expect(std::get<Int>(ValueTraits<int>::to_value(42)).m_value == 42);
     };
-    "floating-point to_value wraps as Float"_test = [] {
+    "floating-point to_value wraps as Float"_test = []
+    {
         expect(std::get<Float>(ValueTraits<double>::to_value(1.5)).m_value == 1.5);
     };
 };
 
-suite<"ValueTraits<std::string>"> value_traits_string_suite = [] {
-    "to_value/from_value round-trip"_test = [] {
+suite<"ValueTraits<std::string>"> value_traits_string_suite = []
+{
+    "to_value/from_value round-trip"_test = []
+    {
         auto val = ValueTraits<std::string>::to_value("hello");
         expect(ValueTraits<std::string>::from_value(val) == "hello");
     };
-    "from_value throws for a non-Str value"_test = [] {
-        expect(throws<std::runtime_error>([] { ValueTraits<std::string>::from_value(Int{1}); }));
+    "from_value throws for a non-Str value"_test = []
+    {
+        expect(
+            throws<std::runtime_error>(
+                []
+                {
+                    ValueTraits<std::string>::from_value(Int{1});
+                }
+            )
+        );
     };
 };
 
-suite<"AnyConverter"> any_converter_suite = [] {
-    "from_any maps every scalar tag to the matching Value alternative"_test = [] {
-        expect(std::holds_alternative<None>(AnyConverter::from_any(CongeladoAny{.type_index = CG_NONE})));
-        expect(std::get<Int>(AnyConverter::from_any(CongeladoAny{.type_index = CG_INT, .v_int64 = 7})).m_value ==
-               7);
-        expect(std::get<Float>(
-                   AnyConverter::from_any(CongeladoAny{.type_index = CG_FLOAT, .v_float64 = 2.5}))
-                   .m_value == 2.5);
+suite<"AnyConverter"> any_converter_suite = []
+{
+    "from_any maps every scalar tag to the matching Value alternative"_test = []
+    {
+        expect(
+            std::holds_alternative<None>(
+                AnyConverter::from_any(CongeladoAny{.type_index = CG_NONE})
+            )
+        );
+        expect(
+            std::get<Int>(AnyConverter::from_any(CongeladoAny{.type_index = CG_INT, .v_int64 = 7}))
+                .m_value == 7
+        );
+        expect(
+            std::get<Float>(
+                AnyConverter::from_any(CongeladoAny{.type_index = CG_FLOAT, .v_float64 = 2.5})
+            )
+                .m_value == 2.5
+        );
     };
-    "to_any round-trips an Int Value back to a CongeladoAny"_test = [] {
+    "to_any round-trips an Int Value back to a CongeladoAny"_test = []
+    {
         Value val = Int{99};
         auto any = AnyConverter::to_any(val);
         expect(any.type_index == CG_INT);
@@ -951,8 +1127,10 @@ suite<"AnyConverter"> any_converter_suite = [] {
 // handle_free (~line 731-823) dereference handler/key/value with zero null checks — a null
 // CongeladoAny* crashes the process immediately. Not exercised here per the "never trigger real
 // memory corruption/crash" safety constraint; comment-only.
-suite<"HandleTable"> handle_table_suite = [] {
-    "map_create/map_set/map_get/get_map_size round-trip"_test = [] {
+suite<"HandleTable"> handle_table_suite = []
+{
+    "map_create/map_set/map_get/get_map_size round-trip"_test = []
+    {
         HandleTable table;
         auto handle = table.map_create();
         expect(handle.type_index == CG_MAP_HANDLE);
@@ -965,13 +1143,15 @@ suite<"HandleTable"> handle_table_suite = [] {
         auto size = table.get_map_size(handle.v_int64);
         expect(size.v_int64 == 1);
     };
-    "map_get on a missing key returns a zeroed CongeladoAny"_test = [] {
+    "map_get on a missing key returns a zeroed CongeladoAny"_test = []
+    {
         HandleTable table;
         auto handle = table.map_create();
         auto result = table.map_get(handle.v_int64, "missing");
         expect(result.type_index == CG_NONE);
     };
-    "array_create/array_push/array_get/get_array_size round-trip"_test = [] {
+    "array_create/array_push/array_get/get_array_size round-trip"_test = []
+    {
         HandleTable table;
         auto handle = table.array_create();
         table.array_push(handle.v_int64, CongeladoAny{.type_index = CG_INT, .v_int64 = 1});
@@ -981,17 +1161,32 @@ suite<"HandleTable"> handle_table_suite = [] {
         expect(table.array_get(handle.v_int64, 0).v_int64 == 1);
         expect(table.array_get(handle.v_int64, 1).v_int64 == 2);
     };
-    "handle_free drops the handle, later access throws"_test = [] {
+    "handle_free drops the handle, later access throws"_test = []
+    {
         HandleTable table;
         auto handle = table.map_create();
         table.handle_free(handle.v_int64);
-        expect(throws<std::out_of_range>([&] { [[maybe_unused]] auto result = table.get_map_size(handle.v_int64); }));
+        expect(
+            throws<std::out_of_range>(
+                [&]
+                {
+                    [[maybe_unused]] auto result = table.get_map_size(handle.v_int64);
+                }
+            )
+        );
     };
-    "get_as throws bad_any_cast for a mismatched handle type"_test = [] {
+    "get_as throws bad_any_cast for a mismatched handle type"_test = []
+    {
         HandleTable table;
         auto map_handle = table.map_create();
-        expect(throws<std::bad_any_cast>(
-            [&] { [[maybe_unused]] auto result = table.get_array_size(map_handle.v_int64); }));
+        expect(
+            throws<std::bad_any_cast>(
+                [&]
+                {
+                    [[maybe_unused]] auto result = table.get_array_size(map_handle.v_int64);
+                }
+            )
+        );
     };
 };
 

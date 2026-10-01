@@ -28,11 +28,23 @@ import boost.ut;
 
 namespace {
 
-enum class ValueKind : std::uint8_t {
-    STRING, BOOLEAN, INT64, UINT64, INT32, UINT32, DOUBLE, FLOAT, TIMESTAMP, UUID, OTHER
+enum class ValueKind : std::uint8_t
+{
+    STRING,
+    BOOLEAN,
+    INT64,
+    UINT64,
+    INT32,
+    UINT32,
+    DOUBLE,
+    FLOAT,
+    TIMESTAMP,
+    UUID,
+    OTHER
 };
 
-struct SqlColumnDesc {
+struct SqlColumnDesc
+{
     std::string name;
     ValueKind kind{ValueKind::OTHER};
     bool primary_key = false;
@@ -43,14 +55,16 @@ struct SqlColumnDesc {
     std::string ref_column;
 };
 
-struct SqlQueryOptions {
+struct SqlQueryOptions
+{
     std::vector<std::string> joins;
     std::vector<std::string> where_conditions;
     std::vector<std::pair<std::string, bool>> order_by_clauses;
     std::optional<std::size_t> limit;
 };
 
-struct SqlRequest {
+struct SqlRequest
+{
     std::string op;
     std::string table_name;
     std::vector<SqlColumnDesc> columns;
@@ -71,19 +85,31 @@ struct SqlRequest {
  * @param kind the generic kind to map.
  * @return the Postgres column type as a string view (e.g. `"TEXT"`, `"BIGINT"`).
  */
-[[nodiscard]] std::string_view postgres_type_of(ValueKind kind) noexcept {
+[[nodiscard]] std::string_view postgres_type_of(ValueKind kind) noexcept
+{
     switch (kind) {
-    case ValueKind::STRING: return "TEXT";
-    case ValueKind::BOOLEAN: return "BOOLEAN";
-    case ValueKind::INT64: return "BIGINT";
-    case ValueKind::UINT64: return "BIGINT";
-    case ValueKind::TIMESTAMP: return "BIGINT";
-    case ValueKind::INT32: return "INTEGER";
-    case ValueKind::UINT32: return "INTEGER";
-    case ValueKind::DOUBLE: return "DOUBLE PRECISION";
-    case ValueKind::FLOAT: return "REAL";
-    case ValueKind::UUID: return "UUID";
-    case ValueKind::OTHER: return "JSONB";
+        case ValueKind::STRING:
+            return "TEXT";
+        case ValueKind::BOOLEAN:
+            return "BOOLEAN";
+        case ValueKind::INT64:
+            return "BIGINT";
+        case ValueKind::UINT64:
+            return "BIGINT";
+        case ValueKind::TIMESTAMP:
+            return "BIGINT";
+        case ValueKind::INT32:
+            return "INTEGER";
+        case ValueKind::UINT32:
+            return "INTEGER";
+        case ValueKind::DOUBLE:
+            return "DOUBLE PRECISION";
+        case ValueKind::FLOAT:
+            return "REAL";
+        case ValueKind::UUID:
+            return "UUID";
+        case ValueKind::OTHER:
+            return "JSONB";
     }
     return "JSONB";
 }
@@ -98,7 +124,8 @@ struct SqlRequest {
  * @param values the values to quote-and-join.
  * @return the comma-joined, quoted list, ready to splice into an `IN (...)` clause.
  */
-[[nodiscard]] std::string quoted_list(const std::vector<std::string> &values) {
+[[nodiscard]] std::string quoted_list(const std::vector<std::string>& values)
+{
     std::string list;
     for (std::size_t index = 0; index < values.size(); ++index) {
         if (index > 0) {
@@ -111,7 +138,7 @@ struct SqlRequest {
         // escaping is doubling embedded single quotes.
         std::string escaped;
         escaped.reserve(values[index].size());
-        for (char character : values[index]) {
+        for (char character: values[index]) {
             if (character == '\'') {
                 escaped += '\'';
             }
@@ -129,19 +156,21 @@ struct SqlRequest {
  * @param options the joins/conditions/ordering/limit to compose the query from.
  * @return the inner query string, without any outer JSON-aggregation wrapper.
  */
-[[nodiscard]] std::string build_inner_query(std::string_view table_name, const SqlQueryOptions &options) {
+[[nodiscard]] std::string
+build_inner_query(std::string_view table_name, const SqlQueryOptions& options)
+{
     std::string inner = std::format("SELECT {}.* FROM {}", table_name, table_name);
-    for (const auto &join : options.joins) {
+    for (const auto& join: options.joins) {
         inner += " " + join;
     }
     bool first_where = true;
-    for (const auto &condition : options.where_conditions) {
+    for (const auto& condition: options.where_conditions) {
         inner += first_where ? " WHERE " : " AND ";
         inner += condition;
         first_where = false;
     }
     bool first_order = true;
-    for (const auto &[column, ascending] : options.order_by_clauses) {
+    for (const auto& [column, ascending]: options.order_by_clauses) {
         inner += first_order ? " ORDER BY " : ", ";
         inner += column;
         inner += ascending ? " ASC" : " DESC";
@@ -153,18 +182,28 @@ struct SqlRequest {
     return inner;
 }
 
-class SqlPostgresPlugin : public congelado::Plugin, public interfaces::ISerdeFormat {
-  public:
+class SqlPostgresPlugin : public congelado::Plugin, public interfaces::ISerdeFormat
+{
+public:
     /// @brief Plugin name reported to the host. @return `"sql_postgres"`.
-    [[nodiscard]] std::string_view get_name() const noexcept override { return "sql_postgres"; }
+    [[nodiscard]] std::string_view get_name() const noexcept override
+    {
+        return "sql_postgres";
+    }
+
     /// @brief Version string for this build. @return `"0.1.0"`.
-    [[nodiscard]] std::string_view get_version() const noexcept override { return "0.1.0"; }
+    [[nodiscard]] std::string_view get_version() const noexcept override
+    {
+        return "0.1.0";
+    }
+
     /**
      * @brief Flags this as a serde-format-capable plugin, so the host wires `serde_get` into
      * the `_cap_dispatch` routing — the exact same capability JSON/TOML register under.
      * @return `CONGELADO_CAP_SERDE`.
      */
-    [[nodiscard]] std::uint32_t capabilities() const noexcept override {
+    [[nodiscard]] std::uint32_t capabilities() const noexcept override
+    {
         return CONGELADO_CAP_SERDE;
     }
 
@@ -172,14 +211,22 @@ class SqlPostgresPlugin : public congelado::Plugin, public interfaces::ISerdeFor
      * @brief Capability hook the host calls to get at this plugin's `ISerdeFormat` surface.
      * @return this instance, upcast to `interfaces::ISerdeFormat*`.
      */
-    void *serde_get() noexcept { return static_cast<interfaces::ISerdeFormat *>(this); }
+    void* serde_get() noexcept
+    {
+        return static_cast<interfaces::ISerdeFormat*>(this);
+    }
 
     /// @brief The content-type this "format" registers under. @return `"application/sql+postgres"`.
-    [[nodiscard]] std::string_view content_type() const noexcept override {
+    [[nodiscard]] std::string_view content_type() const noexcept override
+    {
         return "application/sql+postgres";
     }
+
     /// @brief Short human-readable format name. @return `"sql_postgres"`.
-    [[nodiscard]] std::string_view format_name() const noexcept override { return "sql_postgres"; }
+    [[nodiscard]] std::string_view format_name() const noexcept override
+    {
+        return "sql_postgres";
+    }
 
     /**
      * @brief Generates Postgres SQL text for whatever operation `value` (an `rfl::Generic`
@@ -189,28 +236,44 @@ class SqlPostgresPlugin : public congelado::Plugin, public interfaces::ISerdeFor
      * request shape or names an unrecognized `op`.
      */
     [[nodiscard]] std::expected<std::string, std::string>
-    encode(const rfl::Generic &value) const override {
+    encode(const rfl::Generic& value) const override
+    {
         auto request = rfl::from_generic<SqlRequest>(value);
         if (!request) {
             core::logger::warning("sql_postgres", "encode failed: {}", request.error().what());
-            core::events::publish("serde.sql_postgres.encode_failed", {{"error", request.error().what()}});
+            core::events::publish(
+                "serde.sql_postgres.encode_failed",
+                {{"error", request.error().what()}}
+            );
             return std::unexpected{std::string{request.error().what()}};
         }
 
         std::string sql;
-        if (request->op == "create_table") { sql = build_create_sql(*request); }
-        else if (request->op == "select") { sql = build_select_sql(*request); }
-        else if (request->op == "select_many") { sql = build_select_many_sql(*request); }
-        else if (request->op == "select_all") { sql = build_select_all_sql(*request); }
-        else if (request->op == "insert") { sql = build_insert_sql(*request); }
-        else if (request->op == "insert_many") { sql = build_insert_many_sql(*request); }
-        else if (request->op == "update") { sql = build_update_sql(*request); }
-        else if (request->op == "upsert") { sql = build_upsert_sql(*request); }
-        else if (request->op == "delete") { sql = build_delete_sql(*request); }
-        else if (request->op == "delete_many") { sql = build_delete_many_sql(*request); }
-        else if (request->op == "query") { sql = build_query_sql(*request); }
-        else if (request->op == "query_first") { sql = build_query_first_sql(*request); }
-        else {
+        if (request->op == "create_table") {
+            sql = build_create_sql(*request);
+        } else if (request->op == "select") {
+            sql = build_select_sql(*request);
+        } else if (request->op == "select_many") {
+            sql = build_select_many_sql(*request);
+        } else if (request->op == "select_all") {
+            sql = build_select_all_sql(*request);
+        } else if (request->op == "insert") {
+            sql = build_insert_sql(*request);
+        } else if (request->op == "insert_many") {
+            sql = build_insert_many_sql(*request);
+        } else if (request->op == "update") {
+            sql = build_update_sql(*request);
+        } else if (request->op == "upsert") {
+            sql = build_upsert_sql(*request);
+        } else if (request->op == "delete") {
+            sql = build_delete_sql(*request);
+        } else if (request->op == "delete_many") {
+            sql = build_delete_many_sql(*request);
+        } else if (request->op == "query") {
+            sql = build_query_sql(*request);
+        } else if (request->op == "query_first") {
+            sql = build_query_first_sql(*request);
+        } else {
             core::logger::warning("sql_postgres", "unrecognized op '{}'", request->op);
             core::events::publish("serde.sql_postgres.unrecognized_op", {{"op", request->op}});
             return std::unexpected{std::format("sql_postgres: unrecognized op '{}'", request->op)};
@@ -228,16 +291,18 @@ class SqlPostgresPlugin : public congelado::Plugin, public interfaces::ISerdeFor
      * @return always an error.
      */
     [[nodiscard]] std::expected<rfl::Generic, std::string>
-    decode(std::string_view /*data*/) const override {
+    decode(std::string_view /*data*/) const override
+    {
         core::logger::warning("sql_postgres", "decode() called — this format is write-only");
         return std::unexpected{"sql_postgres format is write-only, decode is not supported"};
     }
 
-  private:
-    [[nodiscard]] static std::string build_create_sql(const SqlRequest &request) {
+private:
+    [[nodiscard]] static std::string build_create_sql(const SqlRequest& request)
+    {
         std::string columns;
         for (std::size_t index = 0; index < request.columns.size(); ++index) {
-            const auto &column = request.columns[index];
+            const auto& column = request.columns[index];
             if (index > 0) {
                 columns += ", ";
             }
@@ -259,81 +324,128 @@ class SqlPostgresPlugin : public congelado::Plugin, public interfaces::ISerdeFor
         return std::format("CREATE TABLE IF NOT EXISTS {} ({})", request.table_name, columns);
     }
 
-    [[nodiscard]] static std::string build_select_sql(const SqlRequest &request) {
-        return std::format("SELECT row_to_json(row) FROM (SELECT * FROM {} WHERE {} = '{}') row",
-                           request.table_name, request.pk_column, request.key);
+    [[nodiscard]] static std::string build_select_sql(const SqlRequest& request)
+    {
+        return std::format(
+            "SELECT row_to_json(row) FROM (SELECT * FROM {} WHERE {} = '{}') row",
+            request.table_name,
+            request.pk_column,
+            request.key
+        );
     }
 
-    [[nodiscard]] static std::string build_select_many_sql(const SqlRequest &request) {
+    [[nodiscard]] static std::string build_select_many_sql(const SqlRequest& request)
+    {
         return std::format(
             "SELECT json_agg(row_to_json(row)) FROM (SELECT * FROM {} WHERE {} IN ({})) row",
-            request.table_name, request.pk_column, quoted_list(request.keys));
+            request.table_name,
+            request.pk_column,
+            quoted_list(request.keys)
+        );
     }
 
-    [[nodiscard]] static std::string build_select_all_sql(const SqlRequest &request) {
+    [[nodiscard]] static std::string build_select_all_sql(const SqlRequest& request)
+    {
         return std::format("SELECT json_agg(row_to_json(row)) FROM {} row", request.table_name);
     }
 
-    [[nodiscard]] static std::string build_insert_sql(const SqlRequest &request) {
-        return std::format("INSERT INTO {} SELECT * FROM json_populate_record(NULL::{}, '{}')",
-                           request.table_name, request.table_name, request.json_payload);
+    [[nodiscard]] static std::string build_insert_sql(const SqlRequest& request)
+    {
+        return std::format(
+            "INSERT INTO {} SELECT * FROM json_populate_record(NULL::{}, '{}')",
+            request.table_name,
+            request.table_name,
+            request.json_payload
+        );
     }
 
-    [[nodiscard]] static std::string build_insert_many_sql(const SqlRequest &request) {
-        return std::format("INSERT INTO {} SELECT * FROM json_populate_recordset(NULL::{}, '{}')",
-                           request.table_name, request.table_name, request.json_array_payload);
+    [[nodiscard]] static std::string build_insert_many_sql(const SqlRequest& request)
+    {
+        return std::format(
+            "INSERT INTO {} SELECT * FROM json_populate_recordset(NULL::{}, '{}')",
+            request.table_name,
+            request.table_name,
+            request.json_array_payload
+        );
     }
 
-    [[nodiscard]] static std::string build_update_sql(const SqlRequest &request) {
+    [[nodiscard]] static std::string build_update_sql(const SqlRequest& request)
+    {
         std::string set_list;
         for (std::size_t index = 0; index < request.set_columns.size(); ++index) {
             if (index > 0) {
                 set_list += ", ";
             }
-            const auto &column = request.set_columns[index];
+            const auto& column = request.set_columns[index];
             set_list += std::format("{} = src.{}", column, column);
         }
         return std::format(
             "UPDATE {} AS target SET {} FROM json_populate_record(NULL::{}, '{}') AS src "
             "WHERE target.{} = src.{}",
-            request.table_name, set_list, request.table_name, request.json_payload,
-            request.pk_column, request.pk_column);
+            request.table_name,
+            set_list,
+            request.table_name,
+            request.json_payload,
+            request.pk_column,
+            request.pk_column
+        );
     }
 
-    [[nodiscard]] static std::string build_upsert_sql(const SqlRequest &request) {
+    [[nodiscard]] static std::string build_upsert_sql(const SqlRequest& request)
+    {
         std::string update_list;
         for (std::size_t index = 0; index < request.update_columns.size(); ++index) {
             if (index > 0) {
                 update_list += ", ";
             }
-            const auto &column = request.update_columns[index];
+            const auto& column = request.update_columns[index];
             update_list += std::format("{} = EXCLUDED.{}", column, column);
         }
         return std::format(
             "INSERT INTO {} SELECT * FROM json_populate_record(NULL::{}, '{}') "
             "ON CONFLICT ({}) DO UPDATE SET {}",
-            request.table_name, request.table_name, request.json_payload, request.pk_column,
-            update_list);
+            request.table_name,
+            request.table_name,
+            request.json_payload,
+            request.pk_column,
+            update_list
+        );
     }
 
-    [[nodiscard]] static std::string build_delete_sql(const SqlRequest &request) {
-        return std::format("DELETE FROM {} WHERE {} = '{}'", request.table_name,
-                           request.pk_column, request.key);
+    [[nodiscard]] static std::string build_delete_sql(const SqlRequest& request)
+    {
+        return std::format(
+            "DELETE FROM {} WHERE {} = '{}'",
+            request.table_name,
+            request.pk_column,
+            request.key
+        );
     }
 
-    [[nodiscard]] static std::string build_delete_many_sql(const SqlRequest &request) {
-        return std::format("DELETE FROM {} WHERE {} IN ({})", request.table_name,
-                           request.pk_column, quoted_list(request.keys));
+    [[nodiscard]] static std::string build_delete_many_sql(const SqlRequest& request)
+    {
+        return std::format(
+            "DELETE FROM {} WHERE {} IN ({})",
+            request.table_name,
+            request.pk_column,
+            quoted_list(request.keys)
+        );
     }
 
-    [[nodiscard]] static std::string build_query_sql(const SqlRequest &request) {
-        return std::format("SELECT json_agg(row_to_json(row)) FROM ({}) row",
-                           build_inner_query(request.table_name, request.options));
+    [[nodiscard]] static std::string build_query_sql(const SqlRequest& request)
+    {
+        return std::format(
+            "SELECT json_agg(row_to_json(row)) FROM ({}) row",
+            build_inner_query(request.table_name, request.options)
+        );
     }
 
-    [[nodiscard]] static std::string build_query_first_sql(const SqlRequest &request) {
-        return std::format("SELECT row_to_json(row) FROM ({} LIMIT 1) row",
-                           build_inner_query(request.table_name, request.options));
+    [[nodiscard]] static std::string build_query_first_sql(const SqlRequest& request)
+    {
+        return std::format(
+            "SELECT row_to_json(row) FROM ({} LIMIT 1) row",
+            build_inner_query(request.table_name, request.options)
+        );
     }
 };
 
@@ -351,25 +463,28 @@ using namespace boost::ut;
  * generic tree except `limit` (it's `std::optional`, so omitting the key entirely stands in
  * for "no limit").
  */
-rfl::Generic::Object make_options_object(const std::vector<std::string> &joins,
-                                          const std::vector<std::string> &where_conditions,
-                                          const std::vector<std::pair<std::string, bool>> &order_by,
-                                          std::optional<std::size_t> limit) {
+rfl::Generic::Object make_options_object(
+    const std::vector<std::string>& joins,
+    const std::vector<std::string>& where_conditions,
+    const std::vector<std::pair<std::string, bool>>& order_by,
+    std::optional<std::size_t> limit
+)
+{
     rfl::Generic::Object object;
     rfl::Generic::Array joins_array;
-    for (const auto &join : joins) {
+    for (const auto& join: joins) {
         joins_array.push_back(rfl::Generic{join});
     }
     object.insert(std::string{"joins"}, rfl::Generic{joins_array});
 
     rfl::Generic::Array where_array;
-    for (const auto &condition : where_conditions) {
+    for (const auto& condition: where_conditions) {
         where_array.push_back(rfl::Generic{condition});
     }
     object.insert(std::string{"where_conditions"}, rfl::Generic{where_array});
 
     rfl::Generic::Array order_array;
-    for (const auto &clause : order_by) {
+    for (const auto& clause: order_by) {
         rfl::Generic::Array pair_array{rfl::Generic{clause.first}, rfl::Generic{clause.second}};
         order_array.push_back(rfl::Generic{pair_array});
     }
@@ -387,9 +502,14 @@ rfl::Generic::Object make_options_object(const std::vector<std::string> &joins,
  * every one must be present even when empty. `columns` is always an empty array here since none
  * of the ops this test file exercises (`select`/`query`/unrecognized) read it.
  */
-rfl::Generic make_request_generic(const std::string &op, const std::string &table_name,
-                                   const std::string &pk_column, const std::string &key,
-                                   const rfl::Generic::Object &options_object) {
+rfl::Generic make_request_generic(
+    const std::string& op,
+    const std::string& table_name,
+    const std::string& pk_column,
+    const std::string& key,
+    const rfl::Generic::Object& options_object
+)
+{
     rfl::Generic::Object object;
     object.insert(std::string{"op"}, rfl::Generic{op});
     object.insert(std::string{"table_name"}, rfl::Generic{table_name});
@@ -405,8 +525,10 @@ rfl::Generic make_request_generic(const std::string &op, const std::string &tabl
     return rfl::Generic{object};
 }
 
-suite<"postgres_type_of"> postgres_type_of_suite = [] {
-    "maps every ValueKind to its Postgres column type"_test = [] {
+suite<"postgres_type_of"> postgres_type_of_suite = []
+{
+    "maps every ValueKind to its Postgres column type"_test = []
+    {
         expect(postgres_type_of(ValueKind::STRING) == "TEXT");
         expect(postgres_type_of(ValueKind::BOOLEAN) == "BOOLEAN");
         expect(postgres_type_of(ValueKind::INT64) == "BIGINT");
@@ -421,16 +543,20 @@ suite<"postgres_type_of"> postgres_type_of_suite = [] {
     };
 };
 
-suite<"quoted_list"> quoted_list_suite = [] {
-    "empty list produces an empty string"_test = [] {
+suite<"quoted_list"> quoted_list_suite = []
+{
+    "empty list produces an empty string"_test = []
+    {
         expect(quoted_list({}) == "");
     };
 
-    "single value is wrapped in single quotes"_test = [] {
+    "single value is wrapped in single quotes"_test = []
+    {
         expect(quoted_list({"abc"}) == "'abc'");
     };
 
-    "multiple values are comma-joined, each individually quoted"_test = [] {
+    "multiple values are comma-joined, each individually quoted"_test = []
+    {
         expect(quoted_list({"a", "b", "c"}) == "'a','b','c'");
     };
 
@@ -439,99 +565,127 @@ suite<"quoted_list"> quoted_list_suite = [] {
     // SQL-injection-shaped gap since this feeds select_many/delete_many's `WHERE col IN (...)`
     // clauses (found while writing this file's tests). FIXED by doubling embedded single quotes,
     // standard SQL string-literal escaping.
-    "a value containing a quote character is escaped by doubling the quote"_test = [] {
+    "a value containing a quote character is escaped by doubling the quote"_test = []
+    {
         expect(quoted_list({"O'Brien"}) == "'O''Brien'");
     };
 
-    "a value with multiple embedded quotes is escaped throughout"_test = [] {
+    "a value with multiple embedded quotes is escaped throughout"_test = []
+    {
         expect(quoted_list({"'; DROP TABLE users; --"}) == "'''; DROP TABLE users; --'");
     };
 };
 
-suite<"build_inner_query"> build_inner_query_suite = [] {
-    "a bare table with no joins/conditions/ordering/limit"_test = [] {
+suite<"build_inner_query"> build_inner_query_suite = []
+{
+    "a bare table with no joins/conditions/ordering/limit"_test = []
+    {
         SqlQueryOptions options;
         expect(build_inner_query("users", options) == "SELECT users.* FROM users");
     };
 
-    "joins, where conditions, ordering, and a limit all compose together in order"_test = [] {
+    "joins, where conditions, ordering, and a limit all compose together in order"_test = []
+    {
         SqlQueryOptions options;
         options.joins = {"JOIN orders ON orders.user_id = users.id"};
         options.where_conditions = {"active = true", "age > 18"};
         options.order_by_clauses = {{"name", true}, {"age", false}};
         options.limit = std::size_t{10};
 
-        expect(build_inner_query("users", options) ==
-               "SELECT users.* FROM users JOIN orders ON orders.user_id = users.id "
-               "WHERE active = true AND age > 18 ORDER BY name ASC, age DESC LIMIT 10");
+        expect(
+            build_inner_query("users", options) ==
+            "SELECT users.* FROM users JOIN orders ON orders.user_id = users.id "
+            "WHERE active = true AND age > 18 ORDER BY name ASC, age DESC LIMIT 10"
+        );
     };
 };
 
-suite<"SqlPostgresPlugin"> sql_postgres_plugin_suite = [] {
-    "get_name returns sql_postgres"_test = [] {
+suite<"SqlPostgresPlugin"> sql_postgres_plugin_suite = []
+{
+    "get_name returns sql_postgres"_test = []
+    {
         SqlPostgresPlugin plugin;
         expect(plugin.get_name() == "sql_postgres");
     };
 
-    "get_version returns 0.1.0"_test = [] {
+    "get_version returns 0.1.0"_test = []
+    {
         SqlPostgresPlugin plugin;
         expect(plugin.get_version() == "0.1.0");
     };
 
-    "capabilities reports CONGELADO_CAP_SERDE"_test = [] {
+    "capabilities reports CONGELADO_CAP_SERDE"_test = []
+    {
         SqlPostgresPlugin plugin;
         expect(plugin.capabilities() == CONGELADO_CAP_SERDE);
     };
 
-    "serde_get returns a non-null pointer castable to ISerdeFormat"_test = [] {
+    "serde_get returns a non-null pointer castable to ISerdeFormat"_test = []
+    {
         SqlPostgresPlugin plugin;
-        void *raw = plugin.serde_get();
+        void* raw = plugin.serde_get();
         expect(raw != nullptr) << fatal;
-        auto *format = static_cast<interfaces::ISerdeFormat *>(raw);
+        auto* format = static_cast<interfaces::ISerdeFormat*>(raw);
         expect(format->format_name() == "sql_postgres");
     };
 
-    "content_type returns application/sql+postgres"_test = [] {
+    "content_type returns application/sql+postgres"_test = []
+    {
         SqlPostgresPlugin plugin;
         expect(plugin.content_type() == "application/sql+postgres");
     };
 
-    "format_name returns sql_postgres"_test = [] {
+    "format_name returns sql_postgres"_test = []
+    {
         SqlPostgresPlugin plugin;
         expect(plugin.format_name() == "sql_postgres");
     };
 
-    "encode generates a SELECT-by-key query for the select op"_test = [] {
+    "encode generates a SELECT-by-key query for the select op"_test = []
+    {
         SqlPostgresPlugin plugin;
-        auto request = make_request_generic("select", "users", "id", "42",
-                                             make_options_object({}, {}, {}, std::nullopt));
+        auto request = make_request_generic(
+            "select",
+            "users",
+            "id",
+            "42",
+            make_options_object({}, {}, {}, std::nullopt)
+        );
         auto result = plugin.encode(request);
         expect(result.has_value()) << fatal;
-        expect(*result ==
-               "SELECT row_to_json(row) FROM (SELECT * FROM users WHERE id = '42') row");
+        expect(*result == "SELECT row_to_json(row) FROM (SELECT * FROM users WHERE id = '42') row");
     };
 
-    "encode generates a filtered/ordered/limited query for the query op"_test = [] {
+    "encode generates a filtered/ordered/limited query for the query op"_test = []
+    {
         SqlPostgresPlugin plugin;
         auto options = make_options_object({}, {"active = true"}, {{"name", true}}, std::size_t{5});
         auto request = make_request_generic("query", "users", "", "", options);
         auto result = plugin.encode(request);
         expect(result.has_value()) << fatal;
-        expect(*result ==
-               "SELECT json_agg(row_to_json(row)) FROM (SELECT users.* FROM users "
-               "WHERE active = true ORDER BY name ASC LIMIT 5) row");
+        expect(
+            *result == "SELECT json_agg(row_to_json(row)) FROM (SELECT users.* FROM users "
+                       "WHERE active = true ORDER BY name ASC LIMIT 5) row"
+        );
     };
 
-    "encode fails on an unrecognized op"_test = [] {
+    "encode fails on an unrecognized op"_test = []
+    {
         SqlPostgresPlugin plugin;
-        auto request = make_request_generic("bogus_op", "users", "", "",
-                                             make_options_object({}, {}, {}, std::nullopt));
+        auto request = make_request_generic(
+            "bogus_op",
+            "users",
+            "",
+            "",
+            make_options_object({}, {}, {}, std::nullopt)
+        );
         auto result = plugin.encode(request);
         expect(!result.has_value()) << fatal;
         expect(result.error() == "sql_postgres: unrecognized op 'bogus_op'");
     };
 
-    "decode always fails — this format is write-only"_test = [] {
+    "decode always fails — this format is write-only"_test = []
+    {
         SqlPostgresPlugin plugin;
         auto result = plugin.decode("SELECT 1");
         expect(!result.has_value()) << fatal;

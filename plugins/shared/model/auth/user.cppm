@@ -66,10 +66,13 @@ struct serde::Serializable<model::AuthUser>
     {
         return std::tuple{
             serde::FieldDesc<
-                "username", &model::AuthUser::get_username, &model::AuthUser::set_username,
+                "username",
+                &model::AuthUser::get_username,
+                &model::AuthUser::set_username,
                 serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
             serde::FieldDesc<
-                "password_hash", &model::AuthUser::get_password_hash,
+                "password_hash",
+                &model::AuthUser::get_password_hash,
                 &model::AuthUser::set_password_hash>{},
         };
     }
@@ -79,14 +82,17 @@ struct serde::Serializable<model::AuthUser>
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"AuthUser"> auth_user_suite = [] {
-    "defaults to empty username/password_hash"_test = [] {
+suite<"AuthUser"> auth_user_suite = []
+{
+    "defaults to empty username/password_hash"_test = []
+    {
         AuthUser user;
 
         expect(user.get_username().empty());
         expect(user.get_password_hash().empty());
     };
-    "setters round-trip through their getters"_test = [] {
+    "setters round-trip through their getters"_test = []
+    {
         AuthUser user;
         user.set_username("alice");
         user.set_password_hash("$2b$hash");

@@ -89,8 +89,7 @@ public:
     // Tensor of opaque Parameter* handles — arguments (inputs) and returns (outputs)
     // as heap copies with parameter-slot context; attrs are always empty (functions
     // carry none). Ownership of each handle transfers to the C side.
-    std::expected<ice::TensorHandle, ice::Status>
-    get_inputs() const noexcept override
+    std::expected<ice::TensorHandle, ice::Status> get_inputs() const noexcept override
     {
         int64_t count = static_cast<int64_t>(m_arguments.size());
         auto handle = make_handle_tensor(count);
@@ -106,8 +105,7 @@ public:
         return handle;
     }
 
-    std::expected<ice::TensorHandle, ice::Status>
-    get_outputs() const noexcept override
+    std::expected<ice::TensorHandle, ice::Status> get_outputs() const noexcept override
     {
         int64_t count = static_cast<int64_t>(m_returns.size());
         auto handle = make_handle_tensor(count);
@@ -123,8 +121,7 @@ public:
         return handle;
     }
 
-    std::expected<ice::TensorHandle, ice::Status>
-    get_attrs() const noexcept override
+    std::expected<ice::TensorHandle, ice::Status> get_attrs() const noexcept override
     {
         return make_handle_tensor(0);
     }

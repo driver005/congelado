@@ -16,12 +16,19 @@ enum class EdgeKind : std::uint8_t
 
 constexpr auto split_path(std::string_view path) noexcept
 {
-    return path | std::views::split('/') | std::views::transform([](auto&& rng) {
-               return std::string_view(std::ranges::begin(rng), std::ranges::end(rng));
-           }) |
-           std::views::filter([](std::string_view segment) {
-               return !segment.empty();
-           });
+    return path | std::views::split('/') |
+           std::views::transform(
+               [](auto&& rng)
+               {
+                   return std::string_view(std::ranges::begin(rng), std::ranges::end(rng));
+               }
+           ) |
+           std::views::filter(
+               [](std::string_view segment)
+               {
+                   return !segment.empty();
+               }
+           );
 }
 
 constexpr std::uint32_t fnv1a(std::string_view text) noexcept
@@ -42,8 +49,10 @@ constexpr std::uint32_t fnv1a(std::string_view text) noexcept
 namespace core::router::tests {
 using namespace boost::ut;
 
-suite<"router_utils_split_path"> split_path_suite = [] {
-    "splits a multi-segment path"_test = [] {
+suite<"router_utils_split_path"> split_path_suite = []
+{
+    "splits a multi-segment path"_test = []
+    {
         std::vector<std::string_view> segments;
         for (auto segment: split_path("/users/42/posts")) {
             segments.emplace_back(segment);
@@ -55,7 +64,8 @@ suite<"router_utils_split_path"> split_path_suite = [] {
         expect(segments[2] == "posts");
     };
 
-    "collapses consecutive slashes, ignoring empty segments"_test = [] {
+    "collapses consecutive slashes, ignoring empty segments"_test = []
+    {
         std::vector<std::string_view> segments;
         for (auto segment: split_path("//foo//bar/")) {
             segments.emplace_back(segment);
@@ -66,7 +76,8 @@ suite<"router_utils_split_path"> split_path_suite = [] {
         expect(segments[1] == "bar");
     };
 
-    "empty path yields no segments"_test = [] {
+    "empty path yields no segments"_test = []
+    {
         std::vector<std::string_view> segments;
         for (auto segment: split_path("")) {
             segments.emplace_back(segment);
@@ -76,18 +87,22 @@ suite<"router_utils_split_path"> split_path_suite = [] {
     };
 };
 
-suite<"router_utils_fnv1a"> fnv1a_suite = [] {
-    "empty string hashes to the seed value"_test = [] {
+suite<"router_utils_fnv1a"> fnv1a_suite = []
+{
+    "empty string hashes to the seed value"_test = []
+    {
         expect(fnv1a("") == 5'381U);
     };
 
-    "known strings hash to their expected fnv1a-variant value"_test = [] {
+    "known strings hash to their expected fnv1a-variant value"_test = []
+    {
         expect(fnv1a("a") == 177'604U);
         expect(fnv1a("users") == 183'638'951U);
         expect(fnv1a(":id") == 193'366'962U);
     };
 
-    "hashing is deterministic"_test = [] {
+    "hashing is deterministic"_test = []
+    {
         expect(fnv1a("same-input") == fnv1a("same-input"));
     };
 };

@@ -28,7 +28,8 @@ extern "C"
 {
 #endif
 
-    // TF_Code holds an error code.  The enum values here are identical to corresponding values in error_codes.proto. LINT.IfChange
+    // TF_Code holds an error code.  The enum values here are identical to corresponding values in
+    // error_codes.proto. LINT.IfChange
     typedef enum TF_Code
     {
         TF_OK = 0,
@@ -61,14 +62,18 @@ extern "C"
         void* capture
     );
 
-    // Opaque status object. Owned and laid out entirely by whichever backend's create_status() supplied the TF_Status ops below — callers never look inside it, only ever hold/pass a pointer.
+    // Opaque status object. Owned and laid out entirely by whichever backend's create_status()
+    // supplied the TF_Status ops below — callers never look inside it, only ever hold/pass a
+    // pointer.
 
     typedef struct TF_Status
     {
         void* plugin_data;
     } TF_Status;
 
-    // Ops vtable for TF_Status — matches the intern/extern convention (struct_size first) instead of free functions, so this type registers with cc_abi_gen exactly like TF_Buffer/TF_Shape/TF_String.
+    // Ops vtable for TF_Status — matches the intern/extern convention (struct_size first) instead
+    // of free functions, so this type registers with cc_abi_gen exactly like
+    // TF_Buffer/TF_Shape/TF_String.
     typedef struct TF_StatusOps
     {
         size_t struct_size;
@@ -78,20 +83,22 @@ extern "C"
         // Delete a previously created status object.
         void (*delete_status)(TF_Status* s);
 
-        // Record <code, msg> in *s.  Any previous information is lost. A common use is to clear a status: set_status(s, TF_OK, "");
+        // Record <code, msg> in *s.  Any previous information is lost. A common use is to clear a
+        // status: set_status(s, TF_OK, "");
         void (*set_status)(TF_Status* s, TF_Code code, const TF_String* msg);
 
-        // Record <key, value> as a payload in *s. The previous payload having the same key (if any) is overwritten. Payload will not be added if the Status is OK.
+        // Record <key, value> as a payload in *s. The previous payload having the same key (if any)
+        // is overwritten. Payload will not be added if the Status is OK.
         void (*set_payload)(TF_Status* s, const TF_String* key, const TF_String* value);
 
-        // Iterates over the stored payloads and calls the `visitor(key, value)` callable for each one. `key` and `value` is only usable during the callback. `capture` will be passed to the callback without modification.
-        void (*for_each_payload)(
-            const TF_Status* s,
-            TF_PayloadVisitor visitor,
-            void* capture
-        );
+        // Iterates over the stored payloads and calls the `visitor(key, value)` callable for each
+        // one. `key` and `value` is only usable during the callback. `capture` will be passed to
+        // the callback without modification.
+        void (*for_each_payload)(const TF_Status* s, TF_PayloadVisitor visitor, void* capture);
 
-        // Convert from an I/O error code (e.g., errno) to a TF_Status value. Any previous information is lost. Prefer to use this instead of set_status when the error comes from I/O operations.
+        // Convert from an I/O error code (e.g., errno) to a TF_Status value. Any previous
+        // information is lost. Prefer to use this instead of set_status when the error comes from
+        // I/O operations.
         void (*set_status_from_io_error)(TF_Status* s, int error_code, const TF_String* context);
 
         // Return the code record in *s.
@@ -103,11 +110,16 @@ extern "C"
 
 #define TF_STATUS_STRUCT_SIZE TF_OFFSET_OF_END(TF_StatusOps, message)
 
-    // Declared-only, like create_buffer/create_shape/create_string: no default implementation lives under include/c/, graceful null-ops degradation expected. status may be null on this call (nothing yet exists to have produced a non-null one), and callees must already tolerate that per the null-ops degradation contract.
-    TF_CAPI_EXPORT void create_status(TF_StatusOps** ops, void** plugin_context, TF_Status* out_status);
+    // Declared-only, like create_buffer/create_shape/create_string: no default implementation lives
+    // under include/c/, graceful null-ops degradation expected. status may be null on this call
+    // (nothing yet exists to have produced a non-null one), and callees must already tolerate that
+    // per the null-ops degradation contract.
+    TF_CAPI_EXPORT void
+    create_status(TF_StatusOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_status(void* plugin_context);
 
-    // Real implementation, not declared-only — calls create_status status may be null, same bootstrap exemption as create_status.
+    // Real implementation, not declared-only — calls create_status status may be null, same
+    // bootstrap exemption as create_status.
     static inline void init_status(TF_Status* s, TF_Status* out_status)
     {
         TF_StatusOps* ops = NULL;

@@ -288,39 +288,54 @@ struct serde::Serializable<model::TaskInstance>
     {
         return std::tuple{
             serde::FieldDesc<
-                "task_id", &model::TaskInstance::get_task_id, &model::TaskInstance::set_task_id,
+                "task_id",
+                &model::TaskInstance::get_task_id,
+                &model::TaskInstance::set_task_id,
                 serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
             serde::FieldDesc<
-                "workflow_exec_id", &model::TaskInstance::get_workflow_exec_id,
+                "workflow_exec_id",
+                &model::TaskInstance::get_workflow_exec_id,
                 &model::TaskInstance::set_workflow_exec_id>{},
             serde::FieldDesc<
-                "def_name", &model::TaskInstance::get_def_name,
+                "def_name",
+                &model::TaskInstance::get_def_name,
                 &model::TaskInstance::set_def_name>{},
             serde::FieldDesc<
-                "node_ref", &model::TaskInstance::get_node_ref,
+                "node_ref",
+                &model::TaskInstance::get_node_ref,
                 &model::TaskInstance::set_node_ref>{},
             serde::FieldDesc<
-                "status", &model::TaskInstance::get_status, &model::TaskInstance::set_status>{},
+                "status",
+                &model::TaskInstance::get_status,
+                &model::TaskInstance::set_status>{},
             serde::FieldDesc<"seq", &model::TaskInstance::get_seq, &model::TaskInstance::set_seq>{},
             serde::FieldDesc<
-                "retry_count", &model::TaskInstance::get_retry_count,
+                "retry_count",
+                &model::TaskInstance::get_retry_count,
                 &model::TaskInstance::set_retry_count>{},
             serde::FieldDesc<
-                "input_data", &model::TaskInstance::get_input_data,
+                "input_data",
+                &model::TaskInstance::get_input_data,
                 &model::TaskInstance::set_input_data>{},
             serde::FieldDesc<
-                "output_data", &model::TaskInstance::get_output_data,
+                "output_data",
+                &model::TaskInstance::get_output_data,
                 &model::TaskInstance::set_output_data>{},
             serde::FieldDesc<
-                "timings", &model::TaskInstance::get_timings, &model::TaskInstance::set_timings>{},
+                "timings",
+                &model::TaskInstance::get_timings,
+                &model::TaskInstance::set_timings>{},
             serde::FieldDesc<
-                "deadline_at", &model::TaskInstance::get_deadline_at,
+                "deadline_at",
+                &model::TaskInstance::get_deadline_at,
                 &model::TaskInstance::set_deadline_at>{},
             serde::FieldDesc<
-                "next_retry_at", &model::TaskInstance::get_next_retry_at,
+                "next_retry_at",
+                &model::TaskInstance::get_next_retry_at,
                 &model::TaskInstance::set_next_retry_at>{},
             serde::FieldDesc<
-                "sub_workflow_exec_id", &model::TaskInstance::get_sub_workflow_exec_id,
+                "sub_workflow_exec_id",
+                &model::TaskInstance::get_sub_workflow_exec_id,
                 &model::TaskInstance::set_sub_workflow_exec_id>{},
         };
     }
@@ -330,8 +345,10 @@ struct serde::Serializable<model::TaskInstance>
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"TaskInstance"> task_instance_suite = [] {
-    "defaults to SCHEDULED, seq 0, retry_count 0, nil ids"_test = [] {
+suite<"TaskInstance"> task_instance_suite = []
+{
+    "defaults to SCHEDULED, seq 0, retry_count 0, nil ids"_test = []
+    {
         TaskInstance instance;
 
         expect(instance.get_status() == TaskStatus::SCHEDULED);
@@ -341,7 +358,8 @@ suite<"TaskInstance"> task_instance_suite = [] {
         expect(instance.get_output_data().empty());
         expect(not instance.validate().has_value());
     };
-    "add_output_data accumulates by key, last write wins"_test = [] {
+    "add_output_data accumulates by key, last write wins"_test = []
+    {
         TaskInstance instance;
         instance.add_output_data("message_id", "abc");
         instance.add_output_data("status", "sent");
@@ -350,13 +368,15 @@ suite<"TaskInstance"> task_instance_suite = [] {
         expect(instance.get_output_data().size() == 2);
         expect(instance.get_output_data().at("status") == "delivered");
     };
-    "a valid def_name passes validation"_test = [] {
+    "a valid def_name passes validation"_test = []
+    {
         TaskInstance instance;
         instance.set_def_name("send_email");
 
         expect(bool(instance.validate()));
     };
-    "an invalid nested timings ordering propagates through validate"_test = [] {
+    "an invalid nested timings ordering propagates through validate"_test = []
+    {
         TaskInstance instance;
         instance.set_def_name("send_email");
         ExecutionTimings timings;

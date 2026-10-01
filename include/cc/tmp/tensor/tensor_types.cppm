@@ -24,7 +24,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // Helper to define Tensor types given that the scalar is of type T.
@@ -187,7 +186,8 @@ export {
                 template<typename Func, typename... Args>
                 void operator()(Func func, Args&&... args) const
                 {
-                    auto all = [](const auto&... bool_vals) {
+                    auto all = [](const auto&... bool_vals)
+                    {
                         for (bool b: {bool_vals...}) {
                             if (!b) {
                                 return false;
@@ -209,7 +209,8 @@ export {
         void MaybeWith32BitIndexing(Func func, Args&&... args)
         {
             return internal::MaybeWith32BitIndexingImpl<Device>()(
-                func, std::forward<Args>(args)...
+                func,
+                std::forward<Args>(args)...
             );
         }
 

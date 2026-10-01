@@ -221,7 +221,9 @@ public:
      * @return a handle to record observations through.
      */
     [[nodiscard]] virtual std::shared_ptr<IHistogram> create_histogram(
-        std::string_view name, std::string_view description, std::string_view unit
+        std::string_view name,
+        std::string_view description,
+        std::string_view unit
     ) = 0;
 };
 
@@ -316,35 +318,59 @@ using namespace boost::ut;
 
 // IOtelProvider has no pure virtuals — every accessor defaults to nullptr, so the base class
 // itself is concrete and worth exercising directly (no mock subclass needed).
-suite<"IOtelProvider defaults"> otel_provider_suite = [] {
-    "get_tracer_provider() defaults to nullptr when not overridden"_test = [] {
+suite<"IOtelProvider defaults"> otel_provider_suite = []
+{
+    "get_tracer_provider() defaults to nullptr when not overridden"_test = []
+    {
         IOtelProvider provider;
         expect(provider.get_tracer_provider() == nullptr);
     };
 
-    "get_meter_provider() defaults to nullptr when not overridden"_test = [] {
+    "get_meter_provider() defaults to nullptr when not overridden"_test = []
+    {
         IOtelProvider provider;
         expect(provider.get_meter_provider() == nullptr);
     };
 
-    "get_log_provider() defaults to nullptr when not overridden"_test = [] {
+    "get_log_provider() defaults to nullptr when not overridden"_test = []
+    {
         IOtelProvider provider;
         expect(provider.get_log_provider() == nullptr);
     };
 };
 
-suite<"SpanContext defaults"> span_context_suite = [] {
-    "a default-constructed SpanContext is all-zero ids and sampled"_test = [] {
+suite<"SpanContext defaults"> span_context_suite = []
+{
+    "a default-constructed SpanContext is all-zero ids and sampled"_test = []
+    {
         SpanContext ctx;
-        expect(std::ranges::all_of(ctx.trace_id, [](std::byte val) {
-            return val == std::byte{0};
-        }));
-        expect(std::ranges::all_of(ctx.span_id, [](std::byte val) {
-            return val == std::byte{0};
-        }));
-        expect(std::ranges::all_of(ctx.parent_span_id, [](std::byte val) {
-            return val == std::byte{0};
-        }));
+        expect(
+            std::ranges::all_of(
+                ctx.trace_id,
+                [](std::byte val)
+                {
+                    return val == std::byte{0};
+                }
+            )
+        );
+        expect(
+            std::ranges::all_of(
+                ctx.span_id,
+                [](std::byte val)
+                {
+                    return val == std::byte{0};
+                }
+            )
+        );
+        expect(
+            std::ranges::all_of(
+                ctx.parent_span_id,
+                [](std::byte val)
+                {
+                    return val == std::byte{0};
+                }
+            )
+        );
         expect(ctx.sampled);
     };
 };

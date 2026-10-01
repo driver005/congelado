@@ -26,7 +26,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         class VersionDef;
@@ -68,8 +67,12 @@ export {
             if (consumer < min_producer) {
                 return absl::InternalError(
                     absl::StrCat(
-                        upper_name, " version check has consumer ", consumer, " < min_producer ",
-                        min_producer, "."
+                        upper_name,
+                        " version check has consumer ",
+                        consumer,
+                        " < min_producer ",
+                        min_producer,
+                        "."
                     )
                 );
             }
@@ -77,15 +80,27 @@ export {
             // Check versions
             if (versions.producer() < min_producer) {
                 return errors::InvalidArgument(
-                    upper_name, " producer version ", versions.producer(), " below min producer ",
-                    min_producer, " supported by TensorFlow ", TF_VERSION_STRING,
-                    ".  Please regenerate your ", lower_name, "."
+                    upper_name,
+                    " producer version ",
+                    versions.producer(),
+                    " below min producer ",
+                    min_producer,
+                    " supported by TensorFlow ",
+                    TF_VERSION_STRING,
+                    ".  Please regenerate your ",
+                    lower_name,
+                    "."
                 );
             }
             if (versions.min_consumer() > consumer) {
                 return errors::InvalidArgument(
-                    upper_name, " min consumer version ", versions.min_consumer(),
-                    " above current version ", consumer, " for TensorFlow ", TF_VERSION_STRING,
+                    upper_name,
+                    " min consumer version ",
+                    versions.min_consumer(),
+                    " above current version ",
+                    consumer,
+                    " for TensorFlow ",
+                    TF_VERSION_STRING,
                     ".  Please upgrade TensorFlow."
                 );
             }
@@ -93,7 +108,9 @@ export {
                 if (bad_consumer == consumer) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            upper_name, " disallows consumer version ", bad_consumer,
+                            upper_name,
+                            " disallows consumer version ",
+                            bad_consumer,
                             ".  Please upgrade TensorFlow: this version is likely buggy."
                         )
                     );

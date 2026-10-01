@@ -74,7 +74,8 @@ public:
      * @param callback gets true once applied.
      */
     virtual void on_execution_terminal(
-        std::string_view exec_id, std::move_only_function<void(bool)> callback
+        std::string_view exec_id,
+        std::move_only_function<void(bool)> callback
     ) = 0;
 
     /**
@@ -204,7 +205,8 @@ public:
     }
 
     void on_execution_terminal(
-        std::string_view, std::move_only_function<void(bool)> callback
+        std::string_view,
+        std::move_only_function<void(bool)> callback
     ) override
     {
         callback(false);
@@ -278,8 +280,10 @@ public:
 
 using namespace boost::ut;
 
-suite<"IWorkflowOrchestrator"> workflow_orchestrator_suite = [] {
-    "required() defaults to false when not overridden"_test = [] {
+suite<"IWorkflowOrchestrator"> workflow_orchestrator_suite = []
+{
+    "required() defaults to false when not overridden"_test = []
+    {
         MockWorkflowOrchestrator orchestrator;
         expect(!orchestrator.required());
     };

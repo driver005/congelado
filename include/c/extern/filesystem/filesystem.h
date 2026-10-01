@@ -15,9 +15,9 @@ limitations under the License.
 #ifndef CONGELADO_C_FILESYSTEM_CONTROLLER_H_
 #define CONGELADO_C_FILESYSTEM_CONTROLLER_H_
 
-#include "include/c/extern/filesystem/tree.h"
 #include "include/c/extern/filesystem/random_access_file.h"
 #include "include/c/extern/filesystem/read_only_memory_region.h"
+#include "include/c/extern/filesystem/tree.h"
 #include "include/c/extern/filesystem/writable_file.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
@@ -49,14 +49,14 @@ extern "C"
         void (*get_name)(TF_Filesystem* filesystem, TF_String* out_name);
     } TF_FilesystemOps;
 
-#define TF_FILESYSTEM_STRUCT_SIZE                                                                  \
-    TF_OFFSET_OF_END(TF_FilesystemOps, get_name)
+#define TF_FILESYSTEM_STRUCT_SIZE TF_OFFSET_OF_END(TF_FilesystemOps, get_name)
 
     TF_CAPI_EXPORT void
     create_filesystem(TF_FilesystemOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_filesystem(void* plugin_context);
 
-    static inline void init_filesystem(TF_FilesystemOps** ops, TF_Filesystem* filesystem, TF_Status* out_status)
+    static inline void
+    init_filesystem(TF_FilesystemOps** ops, TF_Filesystem* filesystem, TF_Status* out_status)
     {
         create_filesystem(ops, &filesystem->plugin_data, out_status);
 

@@ -26,7 +26,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tsl {
         class Thread;
     } // namespace tsl

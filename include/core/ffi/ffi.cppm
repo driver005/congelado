@@ -130,16 +130,20 @@ struct Exported<tests::FfiTestTarget>
 namespace core::ffi::tests {
 using namespace boost::ut;
 
-suite<"ffi::StringLiteral"> string_literal_suite = [] {
-    "wraps a literal and exposes it as a string_view"_test = [] {
+suite<"ffi::StringLiteral"> string_literal_suite = []
+{
+    "wraps a literal and exposes it as a string_view"_test = []
+    {
         constexpr StringLiteral name = "has_task_type";
         expect(name.string_view() == "has_task_type");
         expect(name.string_view().size() == 13);
     };
 };
 
-suite<"ffi::MethodDesc"> method_desc_suite = [] {
-    "carries a name and a bound member-function pointer"_test = [] {
+suite<"ffi::MethodDesc"> method_desc_suite = []
+{
+    "carries a name and a bound member-function pointer"_test = []
+    {
         using Desc = MethodDesc<"add_one", &FfiTestTarget::add_one>;
         expect(Desc::name.string_view() == "add_one");
 
@@ -148,11 +152,14 @@ suite<"ffi::MethodDesc"> method_desc_suite = [] {
     };
 };
 
-suite<"ffi::IsExported"> is_exported_suite = [] {
-    "a type with an Exported<T> specialization satisfies the concept"_test = [] {
+suite<"ffi::IsExported"> is_exported_suite = []
+{
+    "a type with an Exported<T> specialization satisfies the concept"_test = []
+    {
         expect(IsExported<FfiTestTarget>);
     };
-    "a type without a specialization does not satisfy the concept"_test = [] {
+    "a type without a specialization does not satisfy the concept"_test = []
+    {
         expect(not IsExported<FfiUnexportedTarget>);
     };
 };

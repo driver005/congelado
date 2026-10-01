@@ -23,7 +23,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         enum Algorithm

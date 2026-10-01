@@ -13,31 +13,32 @@ at::native::onednn::Attr& construct_unary_attr(
     onednn::Attr& attr,
     std::string_view unary,
     torch::List<std::optional<at::Scalar>> scalars,
-    std::optional<std::string_view> algorithm);
+    std::optional<std::string_view> algorithm
+);
 
-template <bool is_matmul = false>
-onednn::Attr& construct_binary_attr(
-    onednn::Attr& attr,
-    std::string_view binary,
-    const Tensor& other) {
-  if (binary == "mul") {
-    attr.append_post_binary<is_matmul>(attr.kind_with_binary_mul, other);
-  } else if (binary == "sub") {
-    attr.append_post_binary<is_matmul>(attr.kind_with_binary_sub, other);
-  } else if (binary == "div") {
-    attr.append_post_binary<is_matmul>(attr.kind_with_binary_div, other);
-  } else if (binary == "add") {
-    attr.append_post_binary<is_matmul>(attr.kind_with_binary_add, other);
-  } else if (binary == "sum") {
-    attr.append_post_sum(1.f, 1.f, 0);
-  } else {
-    TORCH_CHECK(
-        binary == "none",
-        "Binary attr ",
-        binary,
-        "is not supported for conv/linear post binary fusion");
-  }
-  return attr;
+template<bool is_matmul = false>
+onednn::Attr&
+construct_binary_attr(onednn::Attr& attr, std::string_view binary, const Tensor& other)
+{
+    if (binary == "mul") {
+        attr.append_post_binary<is_matmul>(attr.kind_with_binary_mul, other);
+    } else if (binary == "sub") {
+        attr.append_post_binary<is_matmul>(attr.kind_with_binary_sub, other);
+    } else if (binary == "div") {
+        attr.append_post_binary<is_matmul>(attr.kind_with_binary_div, other);
+    } else if (binary == "add") {
+        attr.append_post_binary<is_matmul>(attr.kind_with_binary_add, other);
+    } else if (binary == "sum") {
+        attr.append_post_sum(1.f, 1.f, 0);
+    } else {
+        TORCH_CHECK(
+            binary == "none",
+            "Binary attr ",
+            binary,
+            "is not supported for conv/linear post binary fusion"
+        );
+    }
+    return attr;
 }
 
 } // namespace at::native::xpu

@@ -101,8 +101,10 @@ public:
 namespace interfaces::tests {
 using namespace boost::ut;
 
-suite<"LogLevel"> log_level_suite = [] {
-    "to_string maps every level to its own name"_test = [] {
+suite<"LogLevel"> log_level_suite = []
+{
+    "to_string maps every level to its own name"_test = []
+    {
         expect(to_string(LogLevel::DEBUG) == "DEBUG");
         expect(to_string(LogLevel::INFO) == "INFO");
         expect(to_string(LogLevel::IMPORTANT) == "IMPORTANT");
@@ -111,7 +113,8 @@ suite<"LogLevel"> log_level_suite = [] {
         expect(to_string(LogLevel::FATAL) == "FATAL");
     };
 
-    "to_string falls back to UNKNOWN for an out-of-range level"_test = [] {
+    "to_string falls back to UNKNOWN for an out-of-range level"_test = []
+    {
         auto bogus = static_cast<LogLevel>(255);
         expect(to_string(bogus) == "UNKNOWN");
     };

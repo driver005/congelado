@@ -74,7 +74,9 @@ template<typename... Args>
 void info(std::string_view name, std::format_string<Args...> fmt, Args&&... args) noexcept
 {
     try {
-        log(interfaces::LogLevel::INFO, "|{}| {}", name,
+        log(interfaces::LogLevel::INFO,
+            "|{}| {}",
+            name,
             std::format(fmt, std::forward<Args>(args)...));
     } catch (...) {
         std::abort();
@@ -86,7 +88,9 @@ template<typename... Args>
 void debug(std::string_view name, std::format_string<Args...> fmt, Args&&... args) noexcept
 {
     try {
-        log(interfaces::LogLevel::DEBUG, "|{}| {}", name,
+        log(interfaces::LogLevel::DEBUG,
+            "|{}| {}",
+            name,
             std::format(fmt, std::forward<Args>(args)...));
     } catch (...) {
         std::abort();
@@ -98,7 +102,9 @@ template<typename... Args>
 void important(std::string_view name, std::format_string<Args...> fmt, Args&&... args) noexcept
 {
     try {
-        log(interfaces::LogLevel::IMPORTANT, "|{}| {}", name,
+        log(interfaces::LogLevel::IMPORTANT,
+            "|{}| {}",
+            name,
             std::format(fmt, std::forward<Args>(args)...));
     } catch (...) {
         std::abort();
@@ -110,7 +116,9 @@ template<typename... Args>
 void warning(std::string_view name, std::format_string<Args...> fmt, Args&&... args) noexcept
 {
     try {
-        log(interfaces::LogLevel::WARNING, "|{}| {}", name,
+        log(interfaces::LogLevel::WARNING,
+            "|{}| {}",
+            name,
             std::format(fmt, std::forward<Args>(args)...));
     } catch (...) {
         std::abort();
@@ -122,7 +130,9 @@ template<typename... Args>
 void error(std::string_view name, std::format_string<Args...> fmt, Args&&... args) noexcept
 {
     try {
-        log(interfaces::LogLevel::ERROR, "|{}| {}", name,
+        log(interfaces::LogLevel::ERROR,
+            "|{}| {}",
+            name,
             std::format(fmt, std::forward<Args>(args)...));
     } catch (...) {
         std::abort();
@@ -134,7 +144,9 @@ template<typename... Args>
 void fatal(std::string_view name, std::format_string<Args...> fmt, Args&&... args) noexcept
 {
     try {
-        log(interfaces::LogLevel::FATAL, "|{}| {}", name,
+        log(interfaces::LogLevel::FATAL,
+            "|{}| {}",
+            name,
             std::format(fmt, std::forward<Args>(args)...));
     } catch (...) {
         std::abort();
@@ -224,8 +236,10 @@ public:
     int m_error_count{0};
 };
 
-suite<"logger facade"> facade_suite = [] {
-    "info routes through write() with a |name| prefix"_test = [] {
+suite<"logger facade"> facade_suite = []
+{
+    "info routes through write() with a |name| prefix"_test = []
+    {
         auto* previous = LoggerRegistry::get_active();
         LoggerRegistry registry;
         auto logger = std::make_shared<LoggerFacadeFakeLogger>();
@@ -242,7 +256,8 @@ suite<"logger facade"> facade_suite = [] {
         LoggerRegistry::set_active(previous);
     };
 
-    "error routes through error(), not write()"_test = [] {
+    "error routes through error(), not write()"_test = []
+    {
         auto* previous = LoggerRegistry::get_active();
         LoggerRegistry registry;
         auto logger = std::make_shared<LoggerFacadeFakeLogger>();
@@ -258,7 +273,8 @@ suite<"logger facade"> facade_suite = [] {
         LoggerRegistry::set_active(previous);
     };
 
-    "every registered logger receives the message, fan-out style"_test = [] {
+    "every registered logger receives the message, fan-out style"_test = []
+    {
         auto* previous = LoggerRegistry::get_active();
         LoggerRegistry registry;
         auto first = std::make_shared<LoggerFacadeFakeLogger>();
@@ -275,18 +291,23 @@ suite<"logger facade"> facade_suite = [] {
         LoggerRegistry::set_active(previous);
     };
 
-    "logging with no active registry falls back to stderr without throwing"_test = [] {
+    "logging with no active registry falls back to stderr without throwing"_test = []
+    {
         auto* previous = LoggerRegistry::get_active();
         LoggerRegistry::set_active(nullptr);
 
-        expect(nothrow([] {
-            core::logger::debug("engine", "no sink around");
-        }));
+        expect(nothrow(
+            []
+            {
+                core::logger::debug("engine", "no sink around");
+            }
+        ));
 
         LoggerRegistry::set_active(previous);
     };
 
-    "unnamed::info skips the |name| prefix"_test = [] {
+    "unnamed::info skips the |name| prefix"_test = []
+    {
         auto* previous = LoggerRegistry::get_active();
         LoggerRegistry registry;
         auto logger = std::make_shared<LoggerFacadeFakeLogger>();

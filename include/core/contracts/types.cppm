@@ -232,7 +232,9 @@ public:
         // Unwrap to the raw underlying type — the atomic itself only speaks uint8_t.
         auto expected_val = std::to_underlying(expected);
         bool success = m_flags.compare_exchange_weak(
-            expected_val, std::to_underlying(desired), std::memory_order_acq_rel,
+            expected_val,
+            std::to_underlying(desired),
+            std::memory_order_acq_rel,
             std::memory_order_acquire
         );
         // Whether it succeeded or not, `expected_val` now holds the current value — rewrap it
@@ -362,8 +364,10 @@ private:
 namespace core::contract::tests {
 using namespace boost::ut;
 
-suite<"ContractState_operators"> contract_state_operators_suite = [] {
-    "operator| combines flag bits"_test = [] {
+suite<"ContractState_operators"> contract_state_operators_suite = []
+{
+    "operator| combines flag bits"_test = []
+    {
         auto combined = ContractState::SCHEDULED | ContractState::EXECUTING;
 
         expect(
@@ -372,38 +376,46 @@ suite<"ContractState_operators"> contract_state_operators_suite = [] {
         );
     };
 
-    "operator& isolates shared flag bits"_test = [] {
+    "operator& isolates shared flag bits"_test = []
+    {
         auto combined = ContractState::SCHEDULED | ContractState::EXECUTING;
 
         expect((combined & ContractState::SCHEDULED) == ContractState::SCHEDULED);
         expect((combined & ContractState::RELEASED) == ContractState::IDLE);
     };
 
-    "operator~ inverts the underlying bits"_test = [] {
+    "operator~ inverts the underlying bits"_test = []
+    {
         auto inverted = ~ContractState::IDLE;
 
         expect(std::to_underlying(inverted) == static_cast<std::uint8_t>(~std::uint8_t{0}));
     };
 };
 
-suite<"ContractState_formatter"> contract_state_formatter_suite = [] {
-    "IDLE formats as the literal string"_test = [] {
+suite<"ContractState_formatter"> contract_state_formatter_suite = []
+{
+    "IDLE formats as the literal string"_test = []
+    {
         expect(std::format("{}", ContractState::IDLE) == "IDLE");
     };
 
-    "single flag formats as its own name"_test = [] {
+    "single flag formats as its own name"_test = []
+    {
         expect(std::format("{}", ContractState::SCHEDULED) == "SCHEDULED");
     };
 
-    "combined flags format pipe-joined in flag order"_test = [] {
+    "combined flags format pipe-joined in flag order"_test = []
+    {
         auto combined = ContractState::SCHEDULED | ContractState::RELEASED;
 
         expect(std::format("{}", combined) == "SCHEDULED|RELEASED");
     };
 };
 
-suite<"Worker"> worker_suite = [] {
-    "default-constructed worker is idle and running it is a no-op"_test = [] {
+suite<"Worker"> worker_suite = []
+{
+    "default-constructed worker is idle and running it is a no-op"_test = []
+    {
         Worker worker;
 
         expect(worker.is_idle());
@@ -412,10 +424,12 @@ suite<"Worker"> worker_suite = [] {
         worker();
     };
 
-    "constructing with SCHEDULED sets the flag and invoking runs the callable"_test = [] {
+    "constructing with SCHEDULED sets the flag and invoking runs the callable"_test = []
+    {
         int calls = 0;
         Worker worker{
-            [&calls] {
+            [&calls]
+            {
                 ++calls;
             },
             ContractState::SCHEDULED
@@ -426,7 +440,8 @@ suite<"Worker"> worker_suite = [] {
         expect(calls == 1);
     };
 
-    "add_flags/remove_flags toggle bits individually"_test = [] {
+    "add_flags/remove_flags toggle bits individually"_test = []
+    {
         Worker worker{[] {}, ContractState::IDLE};
 
         worker.add_flags(ContractState::SCHEDULED);
@@ -436,14 +451,16 @@ suite<"Worker"> worker_suite = [] {
         expect(not worker.is_scheduled());
     };
 
-    "schedule() reports whether the call actually changed anything"_test = [] {
+    "schedule() reports whether the call actually changed anything"_test = []
+    {
         Worker worker{[] {}, ContractState::IDLE};
 
         expect(worker.schedule());
         expect(not worker.schedule());
     };
 
-    "try_claim_execution swaps SCHEDULED for EXECUTING exactly once"_test = [] {
+    "try_claim_execution swaps SCHEDULED for EXECUTING exactly once"_test = []
+    {
         Worker worker{[] {}, ContractState::SCHEDULED};
 
         expect(worker.try_claim_execution());
@@ -453,7 +470,8 @@ suite<"Worker"> worker_suite = [] {
         expect(not worker.try_claim_execution());
     };
 
-    "complete_execution clears EXECUTING and returns to idle"_test = [] {
+    "complete_execution clears EXECUTING and returns to idle"_test = []
+    {
         Worker worker{[] {}, ContractState::SCHEDULED};
         worker.try_claim_execution();
 
@@ -463,7 +481,8 @@ suite<"Worker"> worker_suite = [] {
         expect(worker.is_idle());
     };
 
-    "compare_exchange swaps on match and refreshes expected on mismatch"_test = [] {
+    "compare_exchange swaps on match and refreshes expected on mismatch"_test = []
+    {
         Worker worker{[] {}, ContractState::IDLE};
 
         auto expected = ContractState::IDLE;

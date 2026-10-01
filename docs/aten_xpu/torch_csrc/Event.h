@@ -18,15 +18,15 @@
 
 #pragma once
 
-#include <sycl/sycl.hpp>
+#include "include/c/extern/stream_executor/event.h"
+#include "include/c/extern/stream_executor/stream.h"
+#include "include/c/intern/status.h"
+#include "include/c/macros.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-
-#include "include/c/macros.h"
-#include "include/c/intern/status.h"
-#include "include/c/extern/stream_executor/event.h"
-#include "include/c/extern/stream_executor/stream.h"
+#include <sycl/sycl.hpp>
 
 namespace ice::sycl_event {
 
@@ -36,11 +36,12 @@ namespace ice::sycl_event {
 
 // ice: replaces THXPEvent.xpu_event (at::xpu::XPUEvent).
 //   at::xpu::XPUEvent → heap-allocated sycl::event wrapper.
-struct SyclEventHandle {
-    sycl::event event;         // the underlying SYCL event
-    int         device_index{-1};
-    bool        enable_timing{false};
-    bool        interprocess{false};
+struct SyclEventHandle
+{
+    sycl::event event; // the underlying SYCL event
+    int device_index{-1};
+    bool enable_timing{false};
+    bool interprocess{false};
 };
 
 // ---------------------------------------------------------------------------
@@ -52,8 +53,8 @@ struct SyclEventHandle {
 /// `interprocess` requests an IPC-exportable event (requires SYCL ≥ 2026.2).
 /// ice: replaces THXPEvent_pynew / at::xpu::XPUEvent(enable_timing, interprocess).
 TF_CAPI_EXPORT
-TF_Event sycl_event_create(int device_index, bool enable_timing,
-                            bool interprocess, TF_Status* out_status);
+TF_Event
+sycl_event_create(int device_index, bool enable_timing, bool interprocess, TF_Status* out_status);
 
 /// Destroys the SYCL event and frees the SyclEventHandle.
 /// ice: replaces THXPEvent_dealloc.
@@ -102,20 +103,24 @@ int sycl_event_device_index(TF_Event event);
 /// the first call to query the required size.
 /// ice: replaces THXPEvent_ipc_handle.
 TF_CAPI_EXPORT
-void sycl_event_ipc_handle(TF_Event event, void* out_buf, size_t* out_size,
-                             TF_Status* out_status);
+void sycl_event_ipc_handle(TF_Event event, void* out_buf, size_t* out_size, TF_Status* out_status);
 
 /// Reconstructs an event from a previously exported IPC handle blob.
 /// ice: replaces THXPEvent_from_ipc_handle.
 TF_CAPI_EXPORT
-TF_Event sycl_event_from_ipc_handle(int device_index, const void* handle_bytes,
-                                      size_t handle_size, TF_Status* out_status);
+TF_Event sycl_event_from_ipc_handle(
+    int device_index,
+    const void* handle_bytes,
+    size_t handle_size,
+    TF_Status* out_status
+);
 
 } // namespace ice::sycl_event
 
 // ice: mandatory stream_executor plugin hooks.
-extern "C" {
-TF_CAPI_EXPORT void create_event(TF_EventOps** ops, void** plugin_context,
-                                   TF_Status* out_status);
-TF_CAPI_EXPORT void destroy_event(void* plugin_context);
+extern "C"
+{
+    TF_CAPI_EXPORT void
+    create_event(TF_EventOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void destroy_event(void* plugin_context);
 } // extern "C"

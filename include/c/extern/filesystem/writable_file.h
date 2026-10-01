@@ -1,9 +1,9 @@
 #ifndef CONGELADO_C_FILESYSTEM_WRITABLE_FILE_H_
 #define CONGELADO_C_FILESYSTEM_WRITABLE_FILE_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 #include <stdint.h>

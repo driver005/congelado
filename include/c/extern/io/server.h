@@ -1,7 +1,6 @@
 #ifndef TENSORFLOW_C_EXTERN_SERVER_H_
 #define TENSORFLOW_C_EXTERN_SERVER_H_
 
-#include "include/c/macros.h"
 #include "include/c/extern/io/connection.h"
 #include "include/c/extern/io/request.h"
 #include "include/c/extern/io/response.h"
@@ -9,6 +8,7 @@
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 #include "include/c/intern/vector.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -19,11 +19,18 @@ extern "C"
 #endif
 
     // --------------------------------------------------------------------------
-    // TF_Server — generic server control, absorbing the old TF_Protocol's bind-config (host/port/TLS cert+key) and lifecycle (start/stop/ is_running) with real added depth from the actual Server class (include/io/layer/http2/plugin.cppm): connection tracking, graceful drain, extension registration. Depends on TF_Request/TF_Response for the request-handler callback shape, not on TF_Socket — matches the real design where Server doesn't hold a Socket member itself (composition happens at the concrete plugin's own construction site, not through the abstract interface).
+    // TF_Server — generic server control, absorbing the old TF_Protocol's bind-config
+    // (host/port/TLS cert+key) and lifecycle (start/stop/ is_running) with real added depth from
+    // the actual Server class (include/io/layer/http2/plugin.cppm): connection tracking, graceful
+    // drain, extension registration. Depends on TF_Request/TF_Response for the request-handler
+    // callback shape, not on TF_Socket — matches the real design where Server doesn't hold a Socket
+    // member itself (composition happens at the concrete plugin's own construction site, not
+    // through the abstract interface).
     typedef struct TF_Server
     {
         void* plugin_data;
     } TF_Server;
+
     typedef void (*TFServerRequestHandler)(
         void* user_data,
         TFServerConnection* connection,
@@ -48,7 +55,11 @@ extern "C"
         void (*get_tls_cert)(TF_Server* server, TF_String* out_cert);
         void (*get_tls_key)(TF_Server* server, TF_String* out_key);
 
-        void (*set_request_handler)(TF_Server* server, TFServerRequestHandler handler, void* user_data);
+        void (*set_request_handler)(
+            TF_Server* server,
+            TFServerRequestHandler handler,
+            void* user_data
+        );
         void (*on_connect)(TF_Server* server, TFServerConnectFn handler, void* user_data);
         void (*on_disconnect)(TF_Server* server, TFServerDisconnectFn handler, void* user_data);
 
@@ -68,15 +79,29 @@ extern "C"
         void (*is_idle)(TF_Server* server, int* out_idle);
 
         // Connection limits and lookup.
-        void (*set_max_connections)(TF_Server* server, size_t max_connections, TF_Status* out_status);
+        void (*set_max_connections)(
+            TF_Server* server,
+            size_t max_connections,
+            TF_Status* out_status
+        );
         void (*get_max_connections)(TF_Server* server, size_t* out_max_connections);
-        void (*find_connection)(TF_Server* server, const TF_String* connection_id, TFServerConnection* out_connection, TF_Status* out_status);
+        void (*find_connection)(
+            TF_Server* server,
+            const TF_String* connection_id,
+            TFServerConnection* out_connection,
+            TF_Status* out_status
+        );
         // Send the same response to every currently active connection.
         void (*broadcast)(TF_Server* server, TF_Response* response, TF_Status* out_status);
-        void (*list_connections)(TF_Server* server, TF_Vector* out_connections, TF_Status* out_status);
+        void (*list_connections)(
+            TF_Server* server,
+            TF_Vector* out_connections,
+            TF_Status* out_status
+        );
         void (*get_connection_count)(TF_Server* server, size_t* out_count);
 
-        // out_stats keys such as total_requests/bytes_sent/bytes_received/ uptime_ms are a documented convention, not enforced by this header.
+        // out_stats keys such as total_requests/bytes_sent/bytes_received/ uptime_ms are a
+        // documented convention, not enforced by this header.
         void (*get_stats)(TF_Server* server, TF_Map* out_stats, TF_Status* out_status);
 
         // Extension management (matches the real Server's HttpExtensionRegistry).
@@ -86,7 +111,11 @@ extern "C"
             const TF_Map* config,
             TF_Status* out_status
         );
-        void (*unregister_extension)(TF_Server* server, const TF_String* name, TF_Status* out_status);
+        void (*unregister_extension)(
+            TF_Server* server,
+            const TF_String* name,
+            TF_Status* out_status
+        );
         void (*list_extensions)(TF_Server* server, TF_Vector* out_names, TF_Status* out_status);
 
         // Hot cert rotation without a restart.
@@ -101,7 +130,8 @@ extern "C"
 
 #define TF_SERVER_STRUCT_SIZE TF_OFFSET_OF_END(TF_ServerOps, reload_certificate)
 
-    TF_CAPI_EXPORT void create_server(TF_ServerOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void
+    create_server(TF_ServerOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_server(void* plugin_context);
 
 #ifdef __cplusplus

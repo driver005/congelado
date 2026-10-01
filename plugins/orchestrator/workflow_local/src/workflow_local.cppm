@@ -54,7 +54,8 @@ public:
         auto* registry = static_cast<core::contract::ContractRegistry*>(registry_ctx);
         if (group == nullptr || registry == nullptr) {
             core::logger::error(
-                "workflow_orchestrator.local", "no contract group/registry — sweep not started"
+                "workflow_orchestrator.local",
+                "no contract group/registry — sweep not started"
             );
             return;
         }
@@ -73,8 +74,11 @@ public:
     ) override
     {
         m_orchestrator.start(
-            std::string{def_name}, variables, std::nullopt,
-            [callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable {
+            std::string{def_name},
+            variables,
+            std::nullopt,
+            [callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable
+            {
                 callback(
                     exec ? std::optional<std::string>{std::format("{}", exec->get_exec_id())}
                          : std::nullopt
@@ -84,13 +88,14 @@ public:
     }
 
     void on_task_terminal(
-        std::string_view task_id, std::move_only_function<void(bool)> callback
+        std::string_view task_id,
+        std::move_only_function<void(bool)> callback
     ) override
     {
         m_context.get_connector().find<model::TaskInstance>(
             std::string{task_id},
-            [this,
-             callback = std::move(callback)](std::optional<model::TaskInstance> found) mutable {
+            [this, callback = std::move(callback)](std::optional<model::TaskInstance> found) mutable
+            {
                 if (!found) {
                     callback(false);
                     return;
@@ -102,13 +107,15 @@ public:
     }
 
     void on_execution_terminal(
-        std::string_view exec_id, std::move_only_function<void(bool)> callback
+        std::string_view exec_id,
+        std::move_only_function<void(bool)> callback
     ) override
     {
         m_context.get_connector().find<model::WorkflowExecution>(
             std::string{exec_id},
             [this,
-             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable {
+             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable
+            {
                 if (!exec) {
                     callback(false);
                     return;
@@ -156,9 +163,8 @@ public:
         std::move_only_function<void(bool)> callback
     ) override
     {
-        m_orchestrator.rerun(
-            std::string{exec_id}, std::string{node_ref}, input, std::move(callback)
-        );
+        m_orchestrator
+            .rerun(std::string{exec_id}, std::string{node_ref}, input, std::move(callback));
     }
 
     void signal(
@@ -171,7 +177,9 @@ public:
         auto payload_owned =
             payload ? std::optional<std::string>{std::string{*payload}} : std::nullopt;
         m_orchestrator.signal(
-            std::string{exec_id}, std::string{node_ref}, std::move(payload_owned),
+            std::string{exec_id},
+            std::string{node_ref},
+            std::move(payload_owned),
             std::move(callback)
         );
     }
@@ -192,8 +200,10 @@ public:
         // `POST /api/v1/queue/update` via TaskHandler::queue_update()) gets a false-positive
         // success for a bogus exec_id/node_ref pair.
         m_orchestrator.queue_update(
-            std::string{exec_id}, std::string{node_ref},
-            success ? model::TaskStatus::COMPLETED : model::TaskStatus::FAILED, output
+            std::string{exec_id},
+            std::string{node_ref},
+            success ? model::TaskStatus::COMPLETED : model::TaskStatus::FAILED,
+            output
         );
         callback(true);
     }
@@ -230,7 +240,9 @@ public:
     }
 
     void set(
-        std::string_view key, std::string_view value, shared::QueryReadFn&& result
+        std::string_view key,
+        std::string_view value,
+        shared::QueryReadFn&& result
     ) noexcept override
     {
         m_store[std::string{key}] = std::string{value};
@@ -283,9 +295,11 @@ private:
     connector::Connector m_connector;
 };
 
-suite<"WorkflowLocal::on_load"> workflow_local_on_load_suite = [] {
+suite<"WorkflowLocal::on_load"> workflow_local_on_load_suite = []
+{
     "wires the connector before checking group/registry — start_workflow works even with a "
-    "null contract group/registry"_test = [] {
+    "null contract group/registry"_test = []
+    {
         WorkflowLocalFixture fixture;
         fixture.seed_def("order_pipeline");
 
@@ -293,187 +307,260 @@ suite<"WorkflowLocal::on_load"> workflow_local_on_load_suite = [] {
         local.on_load(&fixture.get_connector(), nullptr, nullptr, nullptr, nullptr);
 
         std::optional<std::string> result;
-        local.start_workflow("order_pipeline", {}, [&result](std::optional<std::string> id) {
-            result = std::move(id);
-        });
+        local.start_workflow(
+            "order_pipeline",
+            {},
+            [&result](std::optional<std::string> id)
+            {
+                result = std::move(id);
+            }
+        );
 
         expect(result.has_value()) << fatal;
         expect(!result->empty());
     };
 };
 
-suite<"WorkflowLocal basic identity"> workflow_local_identity_suite = [] {
-    "backend_name reports 'local'"_test = [] {
+suite<"WorkflowLocal basic identity"> workflow_local_identity_suite = []
+{
+    "backend_name reports 'local'"_test = []
+    {
         WorkflowLocal local;
         expect(local.backend_name() == "local");
     };
 
-    "start_server/shutdown_all are harmless no-ops"_test = [] {
+    "start_server/shutdown_all are harmless no-ops"_test = []
+    {
         WorkflowLocal local;
-        expect(nothrow([&] {
-            local.start_server();
-            local.shutdown_all();
-        }));
+        expect(nothrow(
+            [&]
+            {
+                local.start_server();
+                local.shutdown_all();
+            }
+        ));
     };
 };
 
-suite<"WorkflowLocal::start_workflow"> workflow_local_start_suite = [] {
-    "a nonexistent def name reports std::nullopt"_test = [] {
+suite<"WorkflowLocal::start_workflow"> workflow_local_start_suite = []
+{
+    "a nonexistent def name reports std::nullopt"_test = []
+    {
         WorkflowLocalFixture fixture;
         WorkflowLocal local;
         local.on_load(&fixture.get_connector(), nullptr, nullptr, nullptr, nullptr);
 
         std::optional<std::string> result{"unset"};
-        local.start_workflow("missing_def", {}, [&result](std::optional<std::string> id) {
-            result = std::move(id);
-        });
+        local.start_workflow(
+            "missing_def",
+            {},
+            [&result](std::optional<std::string> id)
+            {
+                result = std::move(id);
+            }
+        );
 
         expect(!result.has_value());
     };
 };
 
-suite<"WorkflowLocal::on_task_terminal / on_execution_terminal"> workflow_local_terminal_suite =
-    [] {
-        "on_task_terminal reports false for an unknown task id"_test = [] {
-            WorkflowLocalFixture fixture;
-            WorkflowLocal local;
-            local.on_load(&fixture.get_connector(), nullptr, nullptr, nullptr, nullptr);
+suite<"WorkflowLocal::on_task_terminal / on_execution_terminal"> workflow_local_terminal_suite = []
+{
+    "on_task_terminal reports false for an unknown task id"_test = []
+    {
+        WorkflowLocalFixture fixture;
+        WorkflowLocal local;
+        local.on_load(&fixture.get_connector(), nullptr, nullptr, nullptr, nullptr);
 
-            bool result = true;
-            local.on_task_terminal(std::format("{}", model::generate_id()), [&result](bool ok) {
+        bool result = true;
+        local.on_task_terminal(
+            std::format("{}", model::generate_id()),
+            [&result](bool ok)
+            {
                 result = ok;
-            });
-            expect(!result);
-        };
-
-        "on_task_terminal reports true and re-finds a real instance by id"_test = [] {
-            WorkflowLocalFixture fixture;
-            model::TaskInstance instance;
-            instance.set_task_id(model::generate_id());
-            instance.set_def_name("noop_task");
-            instance.set_status(model::TaskStatus::COMPLETED);
-            fixture.get_connector().insert<model::TaskInstance>(instance, [](bool) {});
-
-            WorkflowLocal local;
-            local.on_load(&fixture.get_connector(), nullptr, nullptr, nullptr, nullptr);
-
-            bool result = false;
-            local.on_task_terminal(std::format("{}", instance.get_task_id()), [&result](bool ok) {
-                result = ok;
-            });
-            expect(result);
-        };
-
-        "on_execution_terminal reports false for an unknown exec id"_test = [] {
-            WorkflowLocalFixture fixture;
-            WorkflowLocal local;
-            local.on_load(&fixture.get_connector(), nullptr, nullptr, nullptr, nullptr);
-
-            bool result = true;
-            local.on_execution_terminal(
-                std::format("{}", model::generate_id()), [&result](bool ok) {
-                    result = ok;
-                }
-            );
-            expect(!result);
-        };
-
-        "on_execution_terminal reports true for a real execution"_test = [] {
-            WorkflowLocalFixture fixture;
-            model::WorkflowExecution exec;
-            exec.set_exec_id(model::generate_id());
-            exec.set_def_name("order_pipeline");
-            exec.set_status(model::WorkflowStatus::COMPLETED);
-            fixture.get_connector().insert<model::WorkflowExecution>(exec, [](bool) {});
-
-            WorkflowLocal local;
-            local.on_load(&fixture.get_connector(), nullptr, nullptr, nullptr, nullptr);
-
-            bool result = false;
-            local.on_execution_terminal(std::format("{}", exec.get_exec_id()), [&result](bool ok) {
-                result = ok;
-            });
-            expect(result);
-        };
+            }
+        );
+        expect(!result);
     };
+
+    "on_task_terminal reports true and re-finds a real instance by id"_test = []
+    {
+        WorkflowLocalFixture fixture;
+        model::TaskInstance instance;
+        instance.set_task_id(model::generate_id());
+        instance.set_def_name("noop_task");
+        instance.set_status(model::TaskStatus::COMPLETED);
+        fixture.get_connector().insert<model::TaskInstance>(instance, [](bool) {});
+
+        WorkflowLocal local;
+        local.on_load(&fixture.get_connector(), nullptr, nullptr, nullptr, nullptr);
+
+        bool result = false;
+        local.on_task_terminal(
+            std::format("{}", instance.get_task_id()),
+            [&result](bool ok)
+            {
+                result = ok;
+            }
+        );
+        expect(result);
+    };
+
+    "on_execution_terminal reports false for an unknown exec id"_test = []
+    {
+        WorkflowLocalFixture fixture;
+        WorkflowLocal local;
+        local.on_load(&fixture.get_connector(), nullptr, nullptr, nullptr, nullptr);
+
+        bool result = true;
+        local.on_execution_terminal(
+            std::format("{}", model::generate_id()),
+            [&result](bool ok)
+            {
+                result = ok;
+            }
+        );
+        expect(!result);
+    };
+
+    "on_execution_terminal reports true for a real execution"_test = []
+    {
+        WorkflowLocalFixture fixture;
+        model::WorkflowExecution exec;
+        exec.set_exec_id(model::generate_id());
+        exec.set_def_name("order_pipeline");
+        exec.set_status(model::WorkflowStatus::COMPLETED);
+        fixture.get_connector().insert<model::WorkflowExecution>(exec, [](bool) {});
+
+        WorkflowLocal local;
+        local.on_load(&fixture.get_connector(), nullptr, nullptr, nullptr, nullptr);
+
+        bool result = false;
+        local.on_execution_terminal(
+            std::format("{}", exec.get_exec_id()),
+            [&result](bool ok)
+            {
+                result = ok;
+            }
+        );
+        expect(result);
+    };
+};
 
 suite<"WorkflowLocal lifecycle wrappers forward to Orchestrator"> workflow_local_lifecycle_suite =
-    [] {
-        "pause/resume/retry/restart/reconcile all report false for an unknown exec id"_test = [] {
-            WorkflowLocalFixture fixture;
-            WorkflowLocal local;
-            local.on_load(&fixture.get_connector(), nullptr, nullptr, nullptr, nullptr);
-            auto missing = std::format("{}", model::generate_id());
+    []
+{
+    "pause/resume/retry/restart/reconcile all report false for an unknown exec id"_test = []
+    {
+        WorkflowLocalFixture fixture;
+        WorkflowLocal local;
+        local.on_load(&fixture.get_connector(), nullptr, nullptr, nullptr, nullptr);
+        auto missing = std::format("{}", model::generate_id());
 
-            bool pause_result = true, resume_result = true, retry_result = true,
-                 restart_result = true, reconcile_result = true;
-            local.pause(missing, [&](bool ok) {
+        bool pause_result = true, resume_result = true, retry_result = true, restart_result = true,
+             reconcile_result = true;
+        local.pause(
+            missing,
+            [&](bool ok)
+            {
                 pause_result = ok;
-            });
-            local.resume(missing, [&](bool ok) {
+            }
+        );
+        local.resume(
+            missing,
+            [&](bool ok)
+            {
                 resume_result = ok;
-            });
-            local.retry(missing, [&](bool ok) {
+            }
+        );
+        local.retry(
+            missing,
+            [&](bool ok)
+            {
                 retry_result = ok;
-            });
-            local.restart(missing, [&](bool ok) {
+            }
+        );
+        local.restart(
+            missing,
+            [&](bool ok)
+            {
                 restart_result = ok;
-            });
-            local.reconcile(missing, [&](bool ok) {
+            }
+        );
+        local.reconcile(
+            missing,
+            [&](bool ok)
+            {
                 reconcile_result = ok;
-            });
+            }
+        );
 
-            expect(!pause_result);
-            expect(!resume_result);
-            expect(!retry_result);
-            expect(!restart_result);
-            expect(!reconcile_result);
-        };
-
-        "rerun reports false for an unknown exec id"_test = [] {
-            WorkflowLocalFixture fixture;
-            WorkflowLocal local;
-            local.on_load(&fixture.get_connector(), nullptr, nullptr, nullptr, nullptr);
-
-            bool result = true;
-            local.rerun(
-                std::format("{}", model::generate_id()), "some_ref",
-                interfaces::Value{std::string{"x"}}, [&result](bool ok) {
-                    result = ok;
-                }
-            );
-            expect(!result);
-        };
-
-        "signal reports false when there's no IN_PROGRESS instance for that node_ref"_test = [] {
-            WorkflowLocalFixture fixture;
-            WorkflowLocal local;
-            local.on_load(&fixture.get_connector(), nullptr, nullptr, nullptr, nullptr);
-
-            bool result = true;
-            local.signal(
-                std::format("{}", model::generate_id()), "some_ref", std::nullopt,
-                [&result](bool ok) {
-                    result = ok;
-                }
-            );
-            expect(!result);
-        };
+        expect(!pause_result);
+        expect(!resume_result);
+        expect(!retry_result);
+        expect(!restart_result);
+        expect(!reconcile_result);
     };
 
-suite<"WorkflowLocal::complete_task"> workflow_local_complete_task_suite = [] {
+    "rerun reports false for an unknown exec id"_test = []
+    {
+        WorkflowLocalFixture fixture;
+        WorkflowLocal local;
+        local.on_load(&fixture.get_connector(), nullptr, nullptr, nullptr, nullptr);
+
+        bool result = true;
+        local.rerun(
+            std::format("{}", model::generate_id()),
+            "some_ref",
+            interfaces::Value{std::string{"x"}},
+            [&result](bool ok)
+            {
+                result = ok;
+            }
+        );
+        expect(!result);
+    };
+
+    "signal reports false when there's no IN_PROGRESS instance for that node_ref"_test = []
+    {
+        WorkflowLocalFixture fixture;
+        WorkflowLocal local;
+        local.on_load(&fixture.get_connector(), nullptr, nullptr, nullptr, nullptr);
+
+        bool result = true;
+        local.signal(
+            std::format("{}", model::generate_id()),
+            "some_ref",
+            std::nullopt,
+            [&result](bool ok)
+            {
+                result = ok;
+            }
+        );
+        expect(!result);
+    };
+};
+
+suite<"WorkflowLocal::complete_task"> workflow_local_complete_task_suite = []
+{
     // BUG pin (see the `// BUG:` comment above complete_task()'s callback(true) call): the
     // callback fires true even for a wholly-nonexistent exec_id/node_ref pair, since
     // Orchestrator::queue_update() is fire-and-forget and never reports back whether anything
     // was actually found and updated.
-    "BUG: reports true even for a bogus exec_id/node_ref that updates nothing"_test = [] {
+    "BUG: reports true even for a bogus exec_id/node_ref that updates nothing"_test = []
+    {
         WorkflowLocalFixture fixture;
         WorkflowLocal local;
         local.on_load(&fixture.get_connector(), nullptr, nullptr, nullptr, nullptr);
 
         bool result = false;
         local.complete_task(
-            std::format("{}", model::generate_id()), "no_such_node", true, {}, [&result](bool ok) {
+            std::format("{}", model::generate_id()),
+            "no_such_node",
+            true,
+            {},
+            [&result](bool ok)
+            {
                 result = ok;
             }
         );
@@ -482,7 +569,9 @@ suite<"WorkflowLocal::complete_task"> workflow_local_complete_task_suite = [] {
 
         std::optional<model::WorkflowExecution> found{model::WorkflowExecution{}};
         fixture.get_connector().find<model::WorkflowExecution>(
-            "does-not-exist", [&found](std::optional<model::WorkflowExecution> value) {
+            "does-not-exist",
+            [&found](std::optional<model::WorkflowExecution> value)
+            {
                 found = std::move(value);
             }
         );

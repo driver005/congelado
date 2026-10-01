@@ -255,7 +255,8 @@ public:
         // Build a fresh node for the calling thread, link it onto the shared registry, then hand
         // it back to the caller.
         auto* node = new ThreadNode<T>{
-            m_recycle_list, thread_slot()
+            m_recycle_list,
+            thread_slot()
         }; // FIXME(clang-tidy): cppcoreguidelines-owning-memory — would need
            // gsl::owner<ThreadNode<T> *>, but this codebase has no GSL dependency; not a mechanical
            // fix
@@ -274,13 +275,15 @@ public:
         // Lock just long enough to grow the producer vector — the thread itself registers and
         // loops entirely on its own, outside the lock.
         std::scoped_lock lock(m_threads_mu);
-        m_producers.emplace_back([this, work_callback =
-                                            std::move(work)](const std::stop_token& stop_token) {
-            auto node = register_thread();
-            while (!stop_token.stop_requested()) {
-                work_callback(node);
+        m_producers.emplace_back(
+            [this, work_callback = std::move(work)](const std::stop_token& stop_token)
+            {
+                auto node = register_thread();
+                while (!stop_token.stop_requested()) {
+                    work_callback(node);
+                }
             }
-        });
+        );
     }
 
     /**
@@ -292,12 +295,14 @@ public:
         // Same deal as add_producer() — lock only for the vector growth, the loop itself runs
         // unlocked on its own thread.
         std::scoped_lock lock(m_threads_mu);
-        m_consumers.emplace_back([this, work_callback =
-                                            std::move(work)](const std::stop_token& stop_token) {
-            while (!stop_token.stop_requested()) {
-                work_callback();
+        m_consumers.emplace_back(
+            [this, work_callback = std::move(work)](const std::stop_token& stop_token)
+            {
+                while (!stop_token.stop_requested()) {
+                    work_callback();
+                }
             }
-        });
+        );
     }
 
     /**

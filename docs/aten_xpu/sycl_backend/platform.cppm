@@ -147,16 +147,13 @@ public:
             }
         }
 
-        return std::unexpected{
-            ice::sonic::Status::from_message("SyclPlatform: pointer does not belong to this platform")
-        };
+        return std::unexpected{ice::sonic::Status::from_message(
+            "SyclPlatform: pointer does not belong to this platform"
+        )};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status> can_access_peer(
-        int device_index,
-        int peer_device_index,
-        bool* out_can_access
-    ) noexcept override
+    [[nodiscard]] std::expected<void, ice::sonic::Status>
+    can_access_peer(int device_index, int peer_device_index, bool* out_can_access) noexcept override
     {
         const auto key = std::pair{device_index, peer_device_index};
 
@@ -165,13 +162,15 @@ public:
             return {};
         }
 
-        const sycl::device& device = m_devices.at(static_cast<std::size_t>(device_index))
-                                          ->get_native_device();
-        const sycl::device& peer = m_devices.at(static_cast<std::size_t>(peer_device_index))
-                                        ->get_native_device();
+        const sycl::device& device =
+            m_devices.at(static_cast<std::size_t>(device_index))->get_native_device();
+        const sycl::device& peer =
+            m_devices.at(static_cast<std::size_t>(peer_device_index))->get_native_device();
 
-        const bool can_access =
-            device.ext_oneapi_can_access_peer(peer, sycl::ext::oneapi::peer_access::access_supported);
+        const bool can_access = device.ext_oneapi_can_access_peer(
+            peer,
+            sycl::ext::oneapi::peer_access::access_supported
+        );
 
         m_peer_access_cache.emplace(key, can_access);
         *out_can_access = can_access;
@@ -197,7 +196,8 @@ private:
             return device.has(sycl::aspect::ext_oneapi_is_integrated_gpu);
         };
 
-        auto platform_has_gpu = [&is_integrated](const sycl::platform& platform, bool want_integrated)
+        auto platform_has_gpu =
+            [&is_integrated](const sycl::platform& platform, bool want_integrated)
         {
             if (platform.get_backend() != sycl::backend::ext_oneapi_level_zero) {
                 return false;
@@ -246,8 +246,9 @@ private:
             return;
         }
 
-        m_context = sycl::context{m_devices.front()->get_native_device().get_platform()
-                                       .khr_get_default_context()};
+        m_context = sycl::context{
+            m_devices.front()->get_native_device().get_platform().khr_get_default_context()
+        };
     }
 
     std::vector<std::unique_ptr<SyclDevice>> m_devices;

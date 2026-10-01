@@ -71,10 +71,8 @@ inline HeaderConfig build_header_config(
     data["deps"] = dependencies_json(dependencies);
 
     if (target == GenTarget::Builder) {
-        auto body_result = cc::templating::TemplateRenderer::render_template_json(
-            "class_body_builder",
-            data
-        );
+        auto body_result =
+            cc::templating::TemplateRenderer::render_template_json("class_body_builder", data);
         if (!body_result) {
             return {}; // will be handled by caller
         }

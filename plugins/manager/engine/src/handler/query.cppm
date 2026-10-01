@@ -43,7 +43,9 @@ public:
      * fails.
      */
     void run_query(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     ) noexcept
     {
         auto accept = req.find_header("accept");
@@ -57,7 +59,8 @@ public:
         // parser/allow-list or removal.
         if (!is_select(sql)) {
             reply(
-                res, serde::Ser::serialize_error(accept, "only SELECT statements are allowed"),
+                res,
+                serde::Ser::serialize_error(accept, "only SELECT statements are allowed"),
                 interfaces::io::types::Status::BAD_REQUEST
             );
             send();
@@ -67,7 +70,8 @@ public:
         auto* database = m_ctx.get().get_db();
         if (database == nullptr) {
             reply(
-                res, serde::Ser::serialize_error(accept, "no database configured"),
+                res,
+                serde::Ser::serialize_error(accept, "no database configured"),
                 interfaces::io::types::Status::SERVICE_UNAVAILABLE
             );
             send();
@@ -82,21 +86,27 @@ public:
         // returning — the surrounding try/catch relies on exactly that — so the captured locals
         // are read while this frame is still alive.
         try {
-            database->query(sql, [&](std::string_view result) {
-                if (result.empty()) {
-                    reply(
-                        res, serde::Ser::serialize_error(accept, "query failed"),
-                        interfaces::io::types::Status::INTERNAL_SERVER_ERROR
-                    );
+            database->query(
+                sql,
+                [&](std::string_view result)
+                {
+                    if (result.empty()) {
+                        reply(
+                            res,
+                            serde::Ser::serialize_error(accept, "query failed"),
+                            interfaces::io::types::Status::INTERNAL_SERVER_ERROR
+                        );
+                        send();
+                        return;
+                    }
+                    reply(res, serde::Ser::serialize_raw(accept, result));
                     send();
-                    return;
                 }
-                reply(res, serde::Ser::serialize_raw(accept, result));
-                send();
-            });
+            );
         } catch (...) {
             reply(
-                res, serde::Ser::serialize_error(accept, "query failed"),
+                res,
+                serde::Ser::serialize_error(accept, "query failed"),
                 interfaces::io::types::Status::INTERNAL_SERVER_ERROR
             );
             send();
@@ -121,9 +131,14 @@ private:
             return false;
         }
         auto head = sql.substr(start, SELECT.size());
-        return std::ranges::equal(head, SELECT, [](char lhs, char rhs) {
-            return std::tolower(static_cast<unsigned char>(lhs)) == rhs;
-        });
+        return std::ranges::equal(
+            head,
+            SELECT,
+            [](char lhs, char rhs)
+            {
+                return std::tolower(static_cast<unsigned char>(lhs)) == rhs;
+            }
+        );
     }
 
     /**
@@ -232,8 +247,10 @@ private:
     return out;
 }
 
-suite<"QueryHandler"> query_handler_suite = [] {
-    "run_query replies 400 when the body isn't a SELECT statement"_test = [] {
+suite<"QueryHandler"> query_handler_suite = []
+{
+    "run_query replies 400 when the body isn't a SELECT statement"_test = []
+    {
         engine::EngineContext ctx;
         engine::QueryHandler handler{ctx};
         io::layer::http2::HttpRequest req{1};
@@ -241,47 +258,64 @@ suite<"QueryHandler"> query_handler_suite = [] {
         req.set_body(to_bytes("DELETE FROM tasks"));
         bool sent = false;
 
-        handler.run_query(req, res, [&sent] {
-            sent = true;
-        });
+        handler.run_query(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::BAD_REQUEST);
     };
 
-    "run_query replies 400 for an empty body"_test = [] {
+    "run_query replies 400 for an empty body"_test = []
+    {
         engine::EngineContext ctx;
         engine::QueryHandler handler{ctx};
         io::layer::http2::HttpRequest req{1};
         io::layer::http2::HttpResponse res{1};
         bool sent = false;
 
-        handler.run_query(req, res, [&sent] {
-            sent = true;
-        });
+        handler.run_query(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::BAD_REQUEST);
     };
 
     "run_query accepts a lowercase, leading-whitespace SELECT — reaches the backend check instead of BAD_REQUEST"_test =
-        [] {
-            engine::EngineContext ctx;
-            engine::QueryHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            req.set_body(to_bytes("  select 1"));
-            bool sent = false;
+        []
+    {
+        engine::EngineContext ctx;
+        engine::QueryHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        req.set_body(to_bytes("  select 1"));
+        bool sent = false;
 
-            handler.run_query(req, res, [&sent] {
+        handler.run_query(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            // No db configured — is_select() let it through, so it fails past the gate on the
-            // missing-backend check instead of BAD_REQUEST.
-            expect(res.get_status() == interfaces::io::types::Status::SERVICE_UNAVAILABLE);
-        };
+        expect(sent);
+        // No db configured — is_select() let it through, so it fails past the gate on the
+        // missing-backend check instead of BAD_REQUEST.
+        expect(res.get_status() == interfaces::io::types::Status::SERVICE_UNAVAILABLE);
+    };
 
     // SECURITY: pins the finding in the SECURITY comment above run_query() — is_select() is a
     // case-insensitive prefix check, not a parser, so a stacked-statement payload that merely
@@ -290,23 +324,30 @@ suite<"QueryHandler"> query_handler_suite = [] {
     // rejected instead reaches the missing-backend check (503), same as a real SELECT would,
     // instead of BAD_REQUEST.
     "run_query's is_select() gate is bypassable via a stacked statement — SELECT-prefixed payload with a trailing DROP TABLE reaches the backend check instead of BAD_REQUEST"_test =
-        [] {
-            engine::EngineContext ctx;
-            engine::QueryHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            req.set_body(to_bytes("SELECT 1; DROP TABLE workflow_definitions;"));
-            bool sent = false;
+        []
+    {
+        engine::EngineContext ctx;
+        engine::QueryHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        req.set_body(to_bytes("SELECT 1; DROP TABLE workflow_definitions;"));
+        bool sent = false;
 
-            handler.run_query(req, res, [&sent] {
+        handler.run_query(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::SERVICE_UNAVAILABLE);
-        };
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::SERVICE_UNAVAILABLE);
+    };
 
-    "run_query replies 503 when no database backend is configured"_test = [] {
+    "run_query replies 503 when no database backend is configured"_test = []
+    {
         engine::EngineContext ctx;
         engine::QueryHandler handler{ctx};
         io::layer::http2::HttpRequest req{1};
@@ -314,15 +355,21 @@ suite<"QueryHandler"> query_handler_suite = [] {
         req.set_body(to_bytes("SELECT * FROM tasks"));
         bool sent = false;
 
-        handler.run_query(req, res, [&sent] {
-            sent = true;
-        });
+        handler.run_query(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::SERVICE_UNAVAILABLE);
     };
 
-    "run_query replies 200 with the raw query result for a successful SELECT"_test = [] {
+    "run_query replies 200 with the raw query result for a successful SELECT"_test = []
+    {
         engine::EngineContext ctx;
         FakeDatabase db{R"([{"id":"1"}])"};
         ctx.set_db(&db);
@@ -332,16 +379,22 @@ suite<"QueryHandler"> query_handler_suite = [] {
         req.set_body(to_bytes("SELECT * FROM tasks"));
         bool sent = false;
 
-        handler.run_query(req, res, [&sent] {
-            sent = true;
-        });
+        handler.run_query(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::OK);
         expect(body_to_string(res) == R"([{"id":"1"}])");
     };
 
-    "run_query replies 500 when the database comes back empty-handed"_test = [] {
+    "run_query replies 500 when the database comes back empty-handed"_test = []
+    {
         engine::EngineContext ctx;
         FakeDatabase db{""};
         ctx.set_db(&db);
@@ -351,9 +404,14 @@ suite<"QueryHandler"> query_handler_suite = [] {
         req.set_body(to_bytes("SELECT * FROM tasks"));
         bool sent = false;
 
-        handler.run_query(req, res, [&sent] {
-            sent = true;
-        });
+        handler.run_query(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::INTERNAL_SERVER_ERROR);

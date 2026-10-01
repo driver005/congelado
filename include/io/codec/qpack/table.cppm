@@ -16,7 +16,8 @@ export namespace io::codec::qpack {
 // initialized function-local static without a wider API change across this module.
 inline const std::array<std::shared_ptr<interfaces::io::HeaderField<true>>, 99> STATIC_TABLE = {
     /* 0  */ std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::AUTHORITY, ""
+        interfaces::io::types::Token::AUTHORITY,
+        ""
     ),
     /* 1  */
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::PATH, "/"),
@@ -24,11 +25,13 @@ inline const std::array<std::shared_ptr<interfaces::io::HeaderField<true>>, 99> 
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::AGE, "0"),
     /* 3  */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_DISPOSITION, ""
+        interfaces::io::types::Token::CONTENT_DISPOSITION,
+        ""
     ),
     /* 4  */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_LENGTH, "0"
+        interfaces::io::types::Token::CONTENT_LENGTH,
+        "0"
     ),
     /* 5  */
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::COOKIE, ""),
@@ -38,15 +41,18 @@ inline const std::array<std::shared_ptr<interfaces::io::HeaderField<true>>, 99> 
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::E_TAG, ""),
     /* 8  */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::IF_MODIFIED_SINCE, ""
+        interfaces::io::types::Token::IF_MODIFIED_SINCE,
+        ""
     ),
     /* 9  */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::IF_NONE_MATCH, ""
+        interfaces::io::types::Token::IF_NONE_MATCH,
+        ""
     ),
     /* 10 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::LAST_MODIFIED, ""
+        interfaces::io::types::Token::LAST_MODIFIED,
+        ""
     ),
     /* 11 */
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::LINK, ""),
@@ -56,175 +62,218 @@ inline const std::array<std::shared_ptr<interfaces::io::HeaderField<true>>, 99> 
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::REFERER, ""),
     /* 14 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::SET_COOKIE, ""
+        interfaces::io::types::Token::SET_COOKIE,
+        ""
     ),
     /* 15 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::METHOD, "CONNECT"
+        interfaces::io::types::Token::METHOD,
+        "CONNECT"
     ),
     /* 16 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::METHOD, "DELETE"
+        interfaces::io::types::Token::METHOD,
+        "DELETE"
     ),
     /* 17 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::METHOD, "GET"
+        interfaces::io::types::Token::METHOD,
+        "GET"
     ),
     /* 18 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::METHOD, "HEAD"
+        interfaces::io::types::Token::METHOD,
+        "HEAD"
     ),
     /* 19 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::METHOD, "OPTIONS"
+        interfaces::io::types::Token::METHOD,
+        "OPTIONS"
     ),
     /* 20 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::METHOD, "POST"
+        interfaces::io::types::Token::METHOD,
+        "POST"
     ),
     /* 21 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::METHOD, "PUT"
+        interfaces::io::types::Token::METHOD,
+        "PUT"
     ),
     /* 22 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::SCHEME, "http"
+        interfaces::io::types::Token::SCHEME,
+        "http"
     ),
     /* 23 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::SCHEME, "https"
+        interfaces::io::types::Token::SCHEME,
+        "https"
     ),
     /* 24 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "103"
+        interfaces::io::types::Token::STATUS,
+        "103"
     ),
     /* 25 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "200"
+        interfaces::io::types::Token::STATUS,
+        "200"
     ),
     /* 26 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "304"
+        interfaces::io::types::Token::STATUS,
+        "304"
     ),
     /* 27 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "404"
+        interfaces::io::types::Token::STATUS,
+        "404"
     ),
     /* 28 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "503"
+        interfaces::io::types::Token::STATUS,
+        "503"
     ),
     /* 29 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCEPT, "*/*"
+        interfaces::io::types::Token::ACCEPT,
+        "*/*"
     ),
     /* 30 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCEPT, "application/dns-message"
+        interfaces::io::types::Token::ACCEPT,
+        "application/dns-message"
     ),
     /* 31 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCEPT_ENCODING, "gzip, deflate, br"
+        interfaces::io::types::Token::ACCEPT_ENCODING,
+        "gzip, deflate, br"
     ),
     /* 32 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCEPT_RANGES, "bytes"
+        interfaces::io::types::Token::ACCEPT_RANGES,
+        "bytes"
     ),
     /* 33 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_HEADERS, "cache-control"
+        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_HEADERS,
+        "cache-control"
     ),
     /* 34 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_HEADERS, "content-type"
+        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_HEADERS,
+        "content-type"
     ),
     /* 35 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_ORIGIN, "*"
+        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_ORIGIN,
+        "*"
     ),
     /* 36 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CACHE_CONTROL, "max-age=0"
+        interfaces::io::types::Token::CACHE_CONTROL,
+        "max-age=0"
     ),
     /* 37 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CACHE_CONTROL, "max-age=2592000"
+        interfaces::io::types::Token::CACHE_CONTROL,
+        "max-age=2592000"
     ),
     /* 38 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CACHE_CONTROL, "max-age=604800"
+        interfaces::io::types::Token::CACHE_CONTROL,
+        "max-age=604800"
     ),
     /* 39 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CACHE_CONTROL, "no-cache"
+        interfaces::io::types::Token::CACHE_CONTROL,
+        "no-cache"
     ),
     /* 40 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CACHE_CONTROL, "no-store"
+        interfaces::io::types::Token::CACHE_CONTROL,
+        "no-store"
     ),
     /* 41 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CACHE_CONTROL, "public, max-age=31536000"
+        interfaces::io::types::Token::CACHE_CONTROL,
+        "public, max-age=31536000"
     ),
     /* 42 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_ENCODING, "br"
+        interfaces::io::types::Token::CONTENT_ENCODING,
+        "br"
     ),
     /* 43 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_ENCODING, "gzip"
+        interfaces::io::types::Token::CONTENT_ENCODING,
+        "gzip"
     ),
     /* 44 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_TYPE, "application/dns-message"
+        interfaces::io::types::Token::CONTENT_TYPE,
+        "application/dns-message"
     ),
     /* 45 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_TYPE, "application/javascript"
+        interfaces::io::types::Token::CONTENT_TYPE,
+        "application/javascript"
     ),
     /* 46 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_TYPE, "application/json"
+        interfaces::io::types::Token::CONTENT_TYPE,
+        "application/json"
     ),
     /* 47 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_TYPE, "application/x-www-form-urlencoded"
+        interfaces::io::types::Token::CONTENT_TYPE,
+        "application/x-www-form-urlencoded"
     ),
     /* 48 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_TYPE, "image/gif"
+        interfaces::io::types::Token::CONTENT_TYPE,
+        "image/gif"
     ),
     /* 49 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_TYPE, "image/jpeg"
+        interfaces::io::types::Token::CONTENT_TYPE,
+        "image/jpeg"
     ),
     /* 50 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_TYPE, "image/png"
+        interfaces::io::types::Token::CONTENT_TYPE,
+        "image/png"
     ),
     /* 51 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_TYPE, "text/css"
+        interfaces::io::types::Token::CONTENT_TYPE,
+        "text/css"
     ),
     /* 52 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_TYPE, "text/html; charset=utf-8"
+        interfaces::io::types::Token::CONTENT_TYPE,
+        "text/html; charset=utf-8"
     ),
     /* 53 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_TYPE, "text/plain"
+        interfaces::io::types::Token::CONTENT_TYPE,
+        "text/plain"
     ),
     /* 54 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::CONTENT_TYPE, "text/plain;charset=utf-8"
+        interfaces::io::types::Token::CONTENT_TYPE,
+        "text/plain;charset=utf-8"
     ),
     /* 55 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::RANGE, "bytes=0-"
+        interfaces::io::types::Token::RANGE,
+        "bytes=0-"
     ),
     /* 56 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STRICT_TRANSPORT_SECURITY, "max-age=31536000"
+        interfaces::io::types::Token::STRICT_TRANSPORT_SECURITY,
+        "max-age=31536000"
     ),
     /* 57 */
     std::make_shared<interfaces::io::HeaderField<true>>(
@@ -238,107 +287,133 @@ inline const std::array<std::shared_ptr<interfaces::io::HeaderField<true>>, 99> 
     ),
     /* 59 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::VARY, "accept-encoding"
+        interfaces::io::types::Token::VARY,
+        "accept-encoding"
     ),
     /* 60 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::VARY, "origin"
+        interfaces::io::types::Token::VARY,
+        "origin"
     ),
     /* 61 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::X_CONTENT_TYPE_OPTIONS, "nosniff"
+        interfaces::io::types::Token::X_CONTENT_TYPE_OPTIONS,
+        "nosniff"
     ),
     /* 62 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::X_XSS_PROTECTION, "1; mode=block"
+        interfaces::io::types::Token::X_XSS_PROTECTION,
+        "1; mode=block"
     ),
     /* 63 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "100"
+        interfaces::io::types::Token::STATUS,
+        "100"
     ),
     /* 64 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "204"
+        interfaces::io::types::Token::STATUS,
+        "204"
     ),
     /* 65 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "206"
+        interfaces::io::types::Token::STATUS,
+        "206"
     ),
     /* 66 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "302"
+        interfaces::io::types::Token::STATUS,
+        "302"
     ),
     /* 67 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "400"
+        interfaces::io::types::Token::STATUS,
+        "400"
     ),
     /* 68 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "403"
+        interfaces::io::types::Token::STATUS,
+        "403"
     ),
     /* 69 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "421"
+        interfaces::io::types::Token::STATUS,
+        "421"
     ),
     /* 70 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "425"
+        interfaces::io::types::Token::STATUS,
+        "425"
     ),
     /* 71 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::STATUS, "500"
+        interfaces::io::types::Token::STATUS,
+        "500"
     ),
     /* 72 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCEPT_LANGUAGE, ""
+        interfaces::io::types::Token::ACCEPT_LANGUAGE,
+        ""
     ),
     /* 73 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_CREDENTIALS, "FALSE"
+        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+        "FALSE"
     ),
     /* 74 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_CREDENTIALS, "TRUE"
+        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+        "TRUE"
     ),
     /* 75 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_HEADERS, "*"
+        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_HEADERS,
+        "*"
     ),
     /* 76 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_METHODS, "get"
+        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_METHODS,
+        "get"
     ),
     /* 77 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_METHODS, "get, post, options"
+        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_METHODS,
+        "get, post, options"
     ),
     /* 78 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_METHODS, "options"
+        interfaces::io::types::Token::ACCESS_CONTROL_ALLOW_METHODS,
+        "options"
     ),
     /* 79 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCESS_CONTROL_EXPOSE_HEADERS, "content-length"
+        interfaces::io::types::Token::ACCESS_CONTROL_EXPOSE_HEADERS,
+        "content-length"
     ),
     /* 80 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCESS_CONTROL_REQUEST_HEADERS, "content-type"
+        interfaces::io::types::Token::ACCESS_CONTROL_REQUEST_HEADERS,
+        "content-type"
     ),
     /* 81 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCESS_CONTROL_REQUEST_METHOD, "get"
+        interfaces::io::types::Token::ACCESS_CONTROL_REQUEST_METHOD,
+        "get"
     ),
     /* 82 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ACCESS_CONTROL_REQUEST_METHOD, "post"
+        interfaces::io::types::Token::ACCESS_CONTROL_REQUEST_METHOD,
+        "post"
     ),
     /* 83 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::ALT_SVC, "clear"
+        interfaces::io::types::Token::ALT_SVC,
+        "clear"
     ),
     /* 84 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::AUTHORIZATION, ""
+        interfaces::io::types::Token::AUTHORIZATION,
+        ""
     ),
     /* 85 */
     std::make_shared<interfaces::io::HeaderField<true>>(
@@ -347,15 +422,18 @@ inline const std::array<std::shared_ptr<interfaces::io::HeaderField<true>>, 99> 
     ),
     /* 86 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::EARLY_DATA, "1"
+        interfaces::io::types::Token::EARLY_DATA,
+        "1"
     ),
     /* 87 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::EXPECT_CT, ""
+        interfaces::io::types::Token::EXPECT_CT,
+        ""
     ),
     /* 88 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::FORWARDED, ""
+        interfaces::io::types::Token::FORWARDED,
+        ""
     ),
     /* 89 */
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::IF_RANGE, ""),
@@ -363,33 +441,40 @@ inline const std::array<std::shared_ptr<interfaces::io::HeaderField<true>>, 99> 
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::ORIGIN, ""),
     /* 91 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::PURPOSE, "prefetch"
+        interfaces::io::types::Token::PURPOSE,
+        "prefetch"
     ),
     /* 92 */
     std::make_shared<interfaces::io::HeaderField<true>>(interfaces::io::types::Token::SERVER, ""),
     /* 93 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::TIMING_ALLOW_ORIGIN, "*"
+        interfaces::io::types::Token::TIMING_ALLOW_ORIGIN,
+        "*"
     ),
     /* 94 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::UPGRADE_INSECURE_REQUESTS, "1"
+        interfaces::io::types::Token::UPGRADE_INSECURE_REQUESTS,
+        "1"
     ),
     /* 95 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::USER_AGENT, ""
+        interfaces::io::types::Token::USER_AGENT,
+        ""
     ),
     /* 96 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::X_FORWARDED_FOR, ""
+        interfaces::io::types::Token::X_FORWARDED_FOR,
+        ""
     ),
     /* 97 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::X_FRAME_OPTIONS, "deny"
+        interfaces::io::types::Token::X_FRAME_OPTIONS,
+        "deny"
     ),
     /* 98 */
     std::make_shared<interfaces::io::HeaderField<true>>(
-        interfaces::io::types::Token::X_FRAME_OPTIONS, "sameorigin"
+        interfaces::io::types::Token::X_FRAME_OPTIONS,
+        "sameorigin"
     ),
 };
 
@@ -732,8 +817,10 @@ private:
 namespace io::codec::qpack::tests {
 using namespace boost::ut;
 
-suite<"QPackTable defaults"> qpack_table_defaults_suite = [] {
-    "starts with zero capacity and no dynamic entries by default"_test = [] {
+suite<"QPackTable defaults"> qpack_table_defaults_suite = []
+{
+    "starts with zero capacity and no dynamic entries by default"_test = []
+    {
         QPackTable table;
 
         expect(table.dynamic_count() == 0);
@@ -743,8 +830,10 @@ suite<"QPackTable defaults"> qpack_table_defaults_suite = [] {
     };
 };
 
-suite<"QPackTable static lookups"> qpack_table_static_suite = [] {
-    "operator[] resolves a static-table index"_test = [] {
+suite<"QPackTable static lookups"> qpack_table_static_suite = []
+{
+    "operator[] resolves a static-table index"_test = []
+    {
         QPackTable table;
         auto field = table.operator[]<false, true>(17);
 
@@ -753,45 +842,56 @@ suite<"QPackTable static lookups"> qpack_table_static_suite = [] {
         expect((*field)->get_value() == "GET");
     };
 
-    "operator[] returns nullopt for a static index past the table"_test = [] {
+    "operator[] returns nullopt for a static index past the table"_test = []
+    {
         QPackTable table;
         auto field = table.operator[]<false, true>(9'999);
 
         expect(not field.has_value());
     };
 
-    "at resolves a static-table index"_test = [] {
+    "at resolves a static-table index"_test = []
+    {
         QPackTable table;
         auto field = table.at<false, true>(17);
 
         expect(field->get_value() == "GET");
     };
 
-    "at throws for a static index past the table"_test = [] {
+    "at throws for a static index past the table"_test = []
+    {
         QPackTable table;
-        expect(throws<std::out_of_range>([&] {
-            [[maybe_unused]] auto field = table.at<false, true>(9'999);
-        }));
+        expect(
+            throws<std::out_of_range>(
+                [&]
+                {
+                    [[maybe_unused]] auto field = table.at<false, true>(9'999);
+                }
+            )
+        );
     };
 };
 
-suite<"QPackTable dynamic inserts"> qpack_table_insert_suite = [] {
-    "inserting a name/value pair grows the table and returns index 0 for the first entry"_test =
-        [] {
-            QPackTable table{4'096};
+suite<"QPackTable dynamic inserts"> qpack_table_insert_suite = []
+{
+    "inserting a name/value pair grows the table and returns index 0 for the first entry"_test = []
+    {
+        QPackTable table{4'096};
 
-            std::size_t idx = table.insert("x-custom", "value1");
+        std::size_t idx = table.insert("x-custom", "value1");
 
-            expect(idx == 0);
-            expect(table.dynamic_count() == 1);
-            expect(table.insert_count() == 1);
-            expect(table.used() > 0);
-        };
+        expect(idx == 0);
+        expect(table.dynamic_count() == 1);
+        expect(table.insert_count() == 1);
+        expect(table.used() > 0);
+    };
 
-    "inserting a pre-built field works too"_test = [] {
+    "inserting a pre-built field works too"_test = []
+    {
         QPackTable table{4'096};
         auto field = std::make_shared<interfaces::io::HeaderField<true>>(
-            interfaces::io::types::Token::HOST, "example.com"
+            interfaces::io::types::Token::HOST,
+            "example.com"
         );
 
         std::size_t idx = table.insert(field);
@@ -801,18 +901,21 @@ suite<"QPackTable dynamic inserts"> qpack_table_insert_suite = [] {
     };
 
     "an entry too big for the table's budget gets evicted immediately and reports SIZE_MAX"_test =
-        [] {
-            QPackTable table{16};
+        []
+    {
+        QPackTable table{16};
 
-            std::size_t idx = table.insert("a", "b");
+        std::size_t idx = table.insert("a", "b");
 
-            expect(idx == shared_codec::SIZE_MAX);
-            expect(table.dynamic_count() == 0);
-        };
+        expect(idx == shared_codec::SIZE_MAX);
+        expect(table.dynamic_count() == 0);
+    };
 };
 
-suite<"QPackTable search"> qpack_table_search_suite = [] {
-    "search finds a static full match"_test = [] {
+suite<"QPackTable search"> qpack_table_search_suite = []
+{
+    "search finds a static full match"_test = []
+    {
         QPackTable table;
         auto result = table.search("cache-control", "no-cache");
 
@@ -821,7 +924,8 @@ suite<"QPackTable search"> qpack_table_search_suite = [] {
         expect(result.is_full_match());
     };
 
-    "search finds a dynamic full match after insert"_test = [] {
+    "search finds a dynamic full match after insert"_test = []
+    {
         QPackTable table{4'096};
         table.insert("x-custom", "value1");
 
@@ -832,7 +936,8 @@ suite<"QPackTable search"> qpack_table_search_suite = [] {
         expect(result.is_full_match());
     };
 
-    "search falls back to name-only when only the name matches"_test = [] {
+    "search falls back to name-only when only the name matches"_test = []
+    {
         QPackTable table{4'096};
         table.insert("x-custom", "value1");
 
@@ -842,7 +947,8 @@ suite<"QPackTable search"> qpack_table_search_suite = [] {
         expect(not result.is_full_match());
     };
 
-    "search reports a total miss as not found"_test = [] {
+    "search reports a total miss as not found"_test = []
+    {
         QPackTable table;
         auto result = table.search("x-totally-unknown-header", "whatever");
 
@@ -850,15 +956,18 @@ suite<"QPackTable search"> qpack_table_search_suite = [] {
     };
 };
 
-suite<"QPackTable RIC encode/decode"> qpack_table_ric_suite = [] {
-    "zero RIC encodes and decodes to zero"_test = [] {
+suite<"QPackTable RIC encode/decode"> qpack_table_ric_suite = []
+{
+    "zero RIC encodes and decodes to zero"_test = []
+    {
         QPackTable table{4'096};
 
         expect(table.encode_ric(0) == 0);
         expect(table.decode_ric(0) == 0);
     };
 
-    "encode_ric then decode_ric round-trips a small insert count"_test = [] {
+    "encode_ric then decode_ric round-trips a small insert count"_test = []
+    {
         QPackTable table{4'096};
         table.insert("h1", "v1");
         table.insert("h2", "v2");
@@ -870,7 +979,8 @@ suite<"QPackTable RIC encode/decode"> qpack_table_ric_suite = [] {
         expect(table.decode_ric(encoded) == ric);
     };
 
-    "is_ready reflects whether the decoder has caught up to a RIC"_test = [] {
+    "is_ready reflects whether the decoder has caught up to a RIC"_test = []
+    {
         QPackTable table{4'096};
         table.insert("h1", "v1");
 
@@ -879,8 +989,10 @@ suite<"QPackTable RIC encode/decode"> qpack_table_ric_suite = [] {
     };
 };
 
-suite<"QPackTable resizing"> qpack_table_resize_suite = [] {
-    "set_max_size evicts oldest entries until usage fits"_test = [] {
+suite<"QPackTable resizing"> qpack_table_resize_suite = []
+{
+    "set_max_size evicts oldest entries until usage fits"_test = []
+    {
         QPackTable table{4'096};
         table.insert("h1", "v1");
         table.insert("h2", "v2");

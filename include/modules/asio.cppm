@@ -2,7 +2,7 @@ module;
 
 // 1. Critical Defines
 #ifndef ASIO_STANDALONE
-#    define ASIO_STANDALONE 1
+    #define ASIO_STANDALONE 1
 #endif
 // #ifndef ASIO_SEPARATE_COMPILATION
 // #define ASIO_SEPARATE_COMPILATION 1

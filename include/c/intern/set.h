@@ -1,8 +1,8 @@
 #ifndef TENSORFLOW_C_TF_SET_H_
 #define TENSORFLOW_C_TF_SET_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -27,7 +27,12 @@ extern "C"
         void (*destroy)(TF_Set* handle);
 
         void (*insert)(TF_Set* set, const void* key, TF_Status* out_status);
-        void (*find)(const TF_Set* set, const void* key, const void** out_value, TF_Status* out_status);
+        void (*find)(
+            const TF_Set* set,
+            const void* key,
+            const void** out_value,
+            TF_Status* out_status
+        );
         void (*erase)(TF_Set* set, const void* key, TF_Status* out_status);
         void (*contains)(const TF_Set* set, const void* key, int* out_found, TF_Status* out_status);
         void (*size)(const TF_Set* set, size_t* out_size);

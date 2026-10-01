@@ -220,7 +220,8 @@ public:
      * @param attrs attributes carried on the event, if any.
      */
     void add_event(
-        std::string_view name, std::span<const interfaces::Attribute> attrs = {}
+        std::string_view name,
+        std::span<const interfaces::Attribute> attrs = {}
     ) noexcept
     {
         for (const auto& span: m_spans) {
@@ -259,9 +260,13 @@ public:
             // Normal case: this span is the top of the stack, pop it. Out-of-order end (this
             // span isn't the top) is tolerated — find and erase it wherever it sits rather than
             // corrupting the stack for spans that outlive this one.
-            auto it = std::ranges::find_if(stack, [this](const auto& ctx) {
-                return ctx.span_id == m_context.span_id;
-            });
+            auto it = std::ranges::find_if(
+                stack,
+                [this](const auto& ctx)
+                {
+                    return ctx.span_id == m_context.span_id;
+                }
+            );
             if (it != stack.end()) {
                 stack.erase(it);
             }
@@ -413,7 +418,8 @@ public:
 
     /// @brief Records a timestamped event on every held per-provider span.
     void add_event(
-        std::string_view name, std::span<const interfaces::Attribute> attrs = {}
+        std::string_view name,
+        std::span<const interfaces::Attribute> attrs = {}
     ) noexcept
     {
         for (const auto& span: m_spans) {
@@ -457,7 +463,8 @@ private:
     );
 
     DetachedSpan(
-        interfaces::SpanContext context, std::vector<std::shared_ptr<interfaces::ISpan>> spans
+        interfaces::SpanContext context,
+        std::vector<std::shared_ptr<interfaces::ISpan>> spans
     ) :
         m_context{context},
         m_spans{std::move(spans)}
@@ -498,8 +505,10 @@ private:
 namespace core::otel::tests {
 using namespace boost::ut;
 
-suite<"otel::ScopedSpan"> scoped_span_suite = [] {
-    "start_span pushes onto the ambient stack; end() pops it back off"_test = [] {
+suite<"otel::ScopedSpan"> scoped_span_suite = []
+{
+    "start_span pushes onto the ambient stack; end() pops it back off"_test = []
+    {
         auto* previous_registry = TracerRegistry::get_active();
         TracerRegistry::set_active(nullptr);
         auto before = current_context();
@@ -514,7 +523,8 @@ suite<"otel::ScopedSpan"> scoped_span_suite = [] {
         TracerRegistry::set_active(previous_registry);
     };
 
-    "a span with no parent starts a fresh sampled trace root"_test = [] {
+    "a span with no parent starts a fresh sampled trace root"_test = []
+    {
         auto* previous_registry = TracerRegistry::get_active();
         TracerRegistry::set_active(nullptr);
 
@@ -529,7 +539,8 @@ suite<"otel::ScopedSpan"> scoped_span_suite = [] {
         TracerRegistry::set_active(previous_registry);
     };
 
-    "nested spans inherit the trace id and parent from the ambient context"_test = [] {
+    "nested spans inherit the trace id and parent from the ambient context"_test = []
+    {
         auto* previous_registry = TracerRegistry::get_active();
         TracerRegistry::set_active(nullptr);
 
@@ -544,22 +555,27 @@ suite<"otel::ScopedSpan"> scoped_span_suite = [] {
         TracerRegistry::set_active(previous_registry);
     };
 
-    "end() is idempotent — a second call does not double-pop the stack"_test = [] {
+    "end() is idempotent — a second call does not double-pop the stack"_test = []
+    {
         auto* previous_registry = TracerRegistry::get_active();
         TracerRegistry::set_active(nullptr);
         auto before = current_context();
 
         auto span = start_span("idempotent");
         span.end();
-        expect(nothrow([&] {
-            span.end();
-        }));
+        expect(nothrow(
+            [&]
+            {
+                span.end();
+            }
+        ));
         expect(current_context().has_value() == before.has_value());
 
         TracerRegistry::set_active(previous_registry);
     };
 
-    "move construction disarms the source, so its destructor is a no-op"_test = [] {
+    "move construction disarms the source, so its destructor is a no-op"_test = []
+    {
         auto* previous_registry = TracerRegistry::get_active();
         TracerRegistry::set_active(nullptr);
         auto before = current_context();
@@ -577,8 +593,10 @@ suite<"otel::ScopedSpan"> scoped_span_suite = [] {
     };
 };
 
-suite<"otel::DetachedSpan"> detached_span_suite = [] {
-    "never touches the ambient stack"_test = [] {
+suite<"otel::DetachedSpan"> detached_span_suite = []
+{
+    "never touches the ambient stack"_test = []
+    {
         auto* previous_registry = TracerRegistry::get_active();
         TracerRegistry::set_active(nullptr);
         auto before = current_context();
@@ -587,9 +605,12 @@ suite<"otel::DetachedSpan"> detached_span_suite = [] {
         expect(current_context().has_value() == before.has_value());
 
         span.end();
-        expect(nothrow([&] {
-            span.end();
-        }));
+        expect(nothrow(
+            [&]
+            {
+                span.end();
+            }
+        ));
 
         TracerRegistry::set_active(previous_registry);
     };

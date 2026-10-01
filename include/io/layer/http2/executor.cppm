@@ -37,17 +37,22 @@ export namespace io::layer::http2 {
  * `resume()` (this executor contract) parses off its head. `m_resume` guards `resume()` against
  * re-entrancy only — mirroring the sync Receiver's `m_stalled`; `feed()` is not guarded.
  */
-class SessionExecutor : public ::shared::HandlerBase {
-  public:
+class SessionExecutor : public ::shared::HandlerBase
+{
+public:
     /**
      * @brief Binds the executor to the session it drains frames into.
      * @param session the owning flow's `Session`; must outlive this executor (it's the flow's own
      * member, sitting right next to this one).
      */
-    explicit SessionExecutor(Session &session) noexcept : m_session{session} {}
+    explicit SessionExecutor(Session& session) noexcept :
+        m_session{session}
+    {
+    }
 
     /// @brief Contract-handler identity.
-    [[nodiscard]] std::string_view get_name() const noexcept override {
+    [[nodiscard]] std::string_view get_name() const noexcept override
+    {
         return "http2_session_executor";
     }
 
@@ -56,8 +61,10 @@ class SessionExecutor : public ::shared::HandlerBase {
      * — same release-on-done pattern as the sync Sender/Receiver.
      * @return the callable the contract worker invokes on schedule.
      */
-    ::shared::WorkerFunction on_execute() override {
-        return [this]() {
+    ::shared::WorkerFunction on_execute() override
+    {
+        return [this]()
+        {
             if (resume()) {
                 ::shared::this_handler::shedule();
             } else {
@@ -77,7 +84,8 @@ class SessionExecutor : public ::shared::HandlerBase {
      * depending on a socket read to trigger them.
      * @return false when closed and fully drained (release), true otherwise (keep rescheduling).
      */
-    bool resume() {
+    bool resume()
+    {
         // Closed and nothing left to parse or serve — signal done so on_execute() releases.
         if (m_closing && m_handoff.get_view().empty() && m_session.get().is_idle()) {
             return false;
@@ -85,19 +93,26 @@ class SessionExecutor : public ::shared::HandlerBase {
         // Only parse if a drain isn't already running (guard).
         if (!get_resume()) {
             set_resume(true);
-            auto &reader = m_handoff.get_view();
+            auto& reader = m_handoff.get_view();
             if (!reader.empty()) {
                 // WIREDUMP (temporary): dump what the parser is about to read off m_handoff.
                 {
                     std::string hex;
                     std::size_t n = 0;
-                    for (auto b : reader | std::views::take(48)) {
+                    for (auto b: reader | std::views::take(48)) {
                         hex += std::format(
-                            "{:02x} ", static_cast<unsigned>(std::to_integer<std::uint8_t>(b)));
+                            "{:02x} ",
+                            static_cast<unsigned>(std::to_integer<std::uint8_t>(b))
+                        );
                         ++n;
                     }
-                    core::logger::warning("WIREDUMP", "engine-preparse size={} bytes[{}]: {}",
-                                          reader.size(), n, hex);
+                    core::logger::warning(
+                        "WIREDUMP",
+                        "engine-preparse size={} bytes[{}]: {}",
+                        reader.size(),
+                        n,
+                        hex
+                    );
                 }
                 m_session.get().receive(reader);
             }
@@ -112,7 +127,10 @@ class SessionExecutor : public ::shared::HandlerBase {
      * straight away — the actual parse runs later on this executor's worker turn.
      * @param view the receiver's buffer of freshly-read bytes; drained empty by the splice.
      */
-    void feed(utils::buffering::BufferReader &view) { m_handoff.get_view().splice(view); }
+    void feed(utils::buffering::BufferReader& view)
+    {
+        m_handoff.get_view().splice(view);
+    }
 
     /**
      * @brief Requests a graceful stop. The executor keeps running (draining any bytes still in
@@ -120,16 +138,24 @@ class SessionExecutor : public ::shared::HandlerBase {
      * active streams left — so a final response/GOAWAY still gets parsed before this handler goes
      * idle. The owning flow polls the contract (see `is_idle()` there) to know when that happened.
      */
-    void mark_close() noexcept { m_closing = true; }
+    void mark_close() noexcept
+    {
+        m_closing = true;
+    }
 
-  private:
+private:
     /// @brief Reads the guard (acquire ordering). Pairs with set_resume()'s release store — same
     /// approach as the sync Receiver/Sender's get_stalled()/set_stalled().
-    [[nodiscard]] bool get_resume() const noexcept {
+    [[nodiscard]] bool get_resume() const noexcept
+    {
         return m_resume.load(std::memory_order_acquire);
     }
+
     /// @brief Sets the guard (release ordering).
-    void set_resume(bool value) noexcept { m_resume.store(value, std::memory_order_release); }
+    void set_resume(bool value) noexcept
+    {
+        m_resume.store(value, std::memory_order_release);
+    }
 
     std::reference_wrapper<Session> m_session;
     utils::buffering::BufferWriter m_handoff;

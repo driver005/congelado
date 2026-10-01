@@ -49,19 +49,15 @@ public:
     // calls, which can reallocate m_modules); ownership of the copy transfers to the C
     // side, which frees it with definition_destroy. The tensor data is an array of
     // opaque Definition* handles (the list/array-carrier contract of TF_Tensor_Handle).
-    std::expected<ice::TensorHandle, ice::Status>
-    get_definitions() const noexcept override
+    std::expected<ice::TensorHandle, ice::Status> get_definitions() const noexcept override
     {
         if (!m_tensor_runtime) {
             return std::unexpected{ice::Status{"Builder has no tensor runtime"}};
         }
         int64_t count = static_cast<int64_t>(m_modules.size());
         size_t bytes = static_cast<size_t>(count) * sizeof(void*);
-        auto res = m_tensor_runtime->allocate_tensor(
-            ice::DataTypeEnum::Uint8,
-            std::span{&count, 1},
-            bytes
-        );
+        auto res = m_tensor_runtime
+                       ->allocate_tensor(ice::DataTypeEnum::Uint8, std::span{&count, 1}, bytes);
         if (!res) {
             return std::unexpected{res.error()};
         }

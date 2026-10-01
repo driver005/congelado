@@ -173,18 +173,20 @@ private:
 namespace congelado::heart::tests {
 using namespace boost::ut;
 
-suite<"AppContext"> app_context_suite = [] {
+suite<"AppContext"> app_context_suite = []
+{
     "construction wires up a live router, contract group, and connector, then stops cleanly"_test =
-        [] {
-            AppContext context{1};
+        []
+    {
+        AppContext context{1};
 
-            expect(context.get_router() != nullptr);
-            expect(context.get_connector() != nullptr);
-            // Fresh registries/groups start empty — no plugin has registered anything yet.
-            expect(context.get_event_bus_registry().get_sinks().empty());
+        expect(context.get_router() != nullptr);
+        expect(context.get_connector() != nullptr);
+        // Fresh registries/groups start empty — no plugin has registered anything yet.
+        expect(context.get_event_bus_registry().get_sinks().empty());
 
-            context.stop();
-        };
+        context.stop();
+    };
 };
 
 } // namespace congelado::heart::tests

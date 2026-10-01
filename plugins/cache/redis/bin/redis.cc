@@ -27,12 +27,22 @@ import boost.ut;
  * this same blocking connection — none of them enter Redis's pub/sub subscriber mode, so mixing
  * cache commands with PUBLISH on one `redisContext` is safe.
  */
-class RedisEventsPlugin : public congelado::Plugin,
-                          public interfaces::IEventSink,
-                          public interfaces::ICache {
-  public:
-    [[nodiscard]] std::string_view get_name() const noexcept override { return "redis"; }
-    [[nodiscard]] std::string_view get_version() const noexcept override { return "0.1.0"; }
+class RedisEventsPlugin :
+    public congelado::Plugin,
+    public interfaces::IEventSink,
+    public interfaces::ICache
+{
+public:
+    [[nodiscard]] std::string_view get_name() const noexcept override
+    {
+        return "redis";
+    }
+
+    [[nodiscard]] std::string_view get_version() const noexcept override
+    {
+        return "0.1.0";
+    }
+
     /**
      * @brief Flags this as both event-sink AND cache-capable, so the host wires both
      * `event_get`/`cache_get` into the `_cap_dispatch` routing — this plugin reuses its own
@@ -40,7 +50,8 @@ class RedisEventsPlugin : public congelado::Plugin,
      * "both capabilities live on the same instance" story as `postgres_plugin`.
      * @return `CONGELADO_CAP_EVENTS | CONGELADO_CAP_CACHE`.
      */
-    [[nodiscard]] std::uint32_t capabilities() const noexcept override {
+    [[nodiscard]] std::uint32_t capabilities() const noexcept override
+    {
         return CONGELADO_CAP_EVENTS | CONGELADO_CAP_CACHE;
     }
 
@@ -56,8 +67,8 @@ class RedisEventsPlugin : public congelado::Plugin,
      * (default `""`) prepended to every published channel name, and `key_prefix` (default `""`)
      * prepended to every cache key.
      */
-    void on_load(CongeladoHostCallbacks const & /*host*/,
-                CongeladoConfigView const &cfg) override {
+    void on_load(const CongeladoHostCallbacks& /*host*/, const CongeladoConfigView& cfg) override
+    {
         auto host_str = congelado::config_get(cfg, "host").value_or("localhost");
         auto port_str = congelado::config_get(cfg, "port").value_or("6379");
         auto password = congelado::config_get(cfg, "password").value_or("");
@@ -65,7 +76,7 @@ class RedisEventsPlugin : public congelado::Plugin,
         m_channel_prefix = congelado::config_get(cfg, "channel_prefix").value_or("");
         m_key_prefix = congelado::config_get(cfg, "key_prefix").value_or("");
 
-        int port = 6379;
+        int port = 6'379;
         try {
             port = std::stoi(port_str);
         } catch (...) {
@@ -73,13 +84,19 @@ class RedisEventsPlugin : public congelado::Plugin,
 
         m_ctx = redisConnect(host_str.c_str(), port);
         if (m_ctx == nullptr || m_ctx->err != 0) {
-            core::logger::warning("redis", "connect to {}:{} failed: {}", host_str, port,
-                                  m_ctx != nullptr ? m_ctx->errstr : "null context");
+            core::logger::warning(
+                "redis",
+                "connect to {}:{} failed: {}",
+                host_str,
+                port,
+                m_ctx != nullptr ? m_ctx->errstr : "null context"
+            );
             core::events::publish(
                 "redis.connect_failed",
                 {{"host", host_str},
                  {"port", std::to_string(port)},
-                 {"error", std::string{m_ctx != nullptr ? m_ctx->errstr : "null context"}}});
+                 {"error", std::string{m_ctx != nullptr ? m_ctx->errstr : "null context"}}}
+            );
             if (m_ctx != nullptr) {
                 redisFree(m_ctx);
                 m_ctx = nullptr;
@@ -96,7 +113,8 @@ class RedisEventsPlugin : public congelado::Plugin,
     }
 
     /// @brief Closes the connection if one's open — clean teardown, no leaked socket.
-    void on_unload() noexcept override {
+    void on_unload() noexcept override
+    {
         if (m_ctx != nullptr) {
             redisFree(m_ctx);
             m_ctx = nullptr;
@@ -107,12 +125,19 @@ class RedisEventsPlugin : public congelado::Plugin,
      * @brief Capability hook the host calls to get at this plugin's `IEventSink` surface.
      * @return this instance, upcast to `interfaces::IEventSink*`.
      */
-    void *event_get() noexcept { return static_cast<interfaces::IEventSink *>(this); }
+    void* event_get() noexcept
+    {
+        return static_cast<interfaces::IEventSink*>(this);
+    }
+
     /**
      * @brief Capability hook the host calls to get at this plugin's `ICache` surface.
      * @return this instance, upcast to `interfaces::ICache*`.
      */
-    void *cache_get() noexcept { return static_cast<interfaces::ICache *>(this); }
+    void* cache_get() noexcept
+    {
+        return static_cast<interfaces::ICache*>(this);
+    }
 
     /**
      * @brief Publishes via `PUBLISH channel_prefix+event_name payload_json`.
@@ -120,23 +145,36 @@ class RedisEventsPlugin : public congelado::Plugin,
      * channel name.
      * @param payload_json the event's JSON-encoded payload, sent as the message.
      */
-    void publish(std::string_view event_name, std::string_view payload_json) noexcept override {
+    void publish(std::string_view event_name, std::string_view payload_json) noexcept override
+    {
         if (m_ctx == nullptr) {
             core::logger::warning("redis", "publish skipped, no live connection: {}", event_name);
             return;
         }
         try {
-            auto *reply = static_cast<redisReply *>(redisCommand(
-                m_ctx, "PUBLISH %s%s %s", m_channel_prefix.c_str(),
-                std::string{event_name}.c_str(), std::string{payload_json}.c_str()));
+            auto* reply = static_cast<redisReply*>(redisCommand(
+                m_ctx,
+                "PUBLISH %s%s %s",
+                m_channel_prefix.c_str(),
+                std::string{event_name}.c_str(),
+                std::string{payload_json}.c_str()
+            ));
             if (reply == nullptr) {
-                core::logger::warning("redis", "publish failed for '{}': {}", event_name,
-                                      m_ctx->errstr);
+                core::logger::warning(
+                    "redis",
+                    "publish failed for '{}': {}",
+                    event_name,
+                    m_ctx->errstr
+                );
                 return;
             }
             if (reply->type == REDIS_REPLY_ERROR) {
-                core::logger::warning("redis", "publish error for '{}': {}", event_name,
-                                      reply->str != nullptr ? reply->str : "unknown");
+                core::logger::warning(
+                    "redis",
+                    "publish error for '{}': {}",
+                    event_name,
+                    reply->str != nullptr ? reply->str : "unknown"
+                );
             }
             freeReplyObject(reply);
         } catch (...) {
@@ -148,7 +186,10 @@ class RedisEventsPlugin : public congelado::Plugin,
      * @brief Identifies this cache backend.
      * @return the fixed string "redis".
      */
-    [[nodiscard]] std::string_view backend_name() const noexcept override { return "redis"; }
+    [[nodiscard]] std::string_view backend_name() const noexcept override
+    {
+        return "redis";
+    }
 
     /**
      * @brief Looks up `key_prefix+key` via `GET`.
@@ -159,7 +200,8 @@ class RedisEventsPlugin : public congelado::Plugin,
      * @param result gets the stored value, or an empty string on a cache miss, no live
      * connection, or a Redis-side error.
      */
-    void get(std::string_view key, shared::QueryReadFn &&result) noexcept override {
+    void get(std::string_view key, shared::QueryReadFn&& result) noexcept override
+    {
         if (m_ctx == nullptr) {
             core::logger::warning("redis", "cache get skipped, no live connection: {}", key);
             core::events::publish("redis.cache.get_skipped", {{"key", std::string{key}}});
@@ -168,24 +210,35 @@ class RedisEventsPlugin : public congelado::Plugin,
         }
         try {
             auto full_key = m_key_prefix + std::string{key};
-            auto *reply = static_cast<redisReply *>(
-                redisCommand(m_ctx, "GET %b", full_key.data(), full_key.size()));
+            auto* reply = static_cast<redisReply*>(
+                redisCommand(m_ctx, "GET %b", full_key.data(), full_key.size())
+            );
             if (reply == nullptr) {
                 core::logger::warning("redis", "cache get failed for '{}': {}", key, m_ctx->errstr);
-                core::events::publish("redis.cache.get_failed",
-                                      {{"key", std::string{key}}, {"error", m_ctx->errstr}});
+                core::events::publish(
+                    "redis.cache.get_failed",
+                    {{"key", std::string{key}}, {"error", m_ctx->errstr}}
+                );
                 std::move(result)("");
                 return;
             }
             if (reply->type == REDIS_REPLY_STRING) {
-                std::move(result)(std::string_view{reply->str, static_cast<std::size_t>(reply->len)});
+                std::move(result)(
+                    std::string_view{reply->str, static_cast<std::size_t>(reply->len)}
+                );
             } else {
                 if (reply->type == REDIS_REPLY_ERROR) {
-                    core::logger::warning("redis", "cache get error for '{}': {}", key,
-                                          reply->str != nullptr ? reply->str : "unknown");
-                    core::events::publish("redis.cache.get_error",
-                                          {{"key", std::string{key}},
-                                           {"error", reply->str != nullptr ? reply->str : "unknown"}});
+                    core::logger::warning(
+                        "redis",
+                        "cache get error for '{}': {}",
+                        key,
+                        reply->str != nullptr ? reply->str : "unknown"
+                    );
+                    core::events::publish(
+                        "redis.cache.get_error",
+                        {{"key", std::string{key}},
+                         {"error", reply->str != nullptr ? reply->str : "unknown"}}
+                    );
                 }
                 std::move(result)("");
             }
@@ -205,8 +258,12 @@ class RedisEventsPlugin : public congelado::Plugin,
      * @param result gets `"ok"` on a successful `SET`, `""` on failure or with no live
      * connection.
      */
-    void set(std::string_view key, std::string_view value,
-             shared::QueryReadFn &&result) noexcept override {
+    void set(
+        std::string_view key,
+        std::string_view value,
+        shared::QueryReadFn&& result
+    ) noexcept override
+    {
         if (m_ctx == nullptr) {
             core::logger::warning("redis", "cache set skipped, no live connection: {}", key);
             core::events::publish("redis.cache.set_skipped", {{"key", std::string{key}}});
@@ -215,23 +272,36 @@ class RedisEventsPlugin : public congelado::Plugin,
         }
         try {
             auto full_key = m_key_prefix + std::string{key};
-            auto *reply = static_cast<redisReply *>(
-                redisCommand(m_ctx, "SET %b %b", full_key.data(), full_key.size(), value.data(),
-                            value.size()));
+            auto* reply = static_cast<redisReply*>(redisCommand(
+                m_ctx,
+                "SET %b %b",
+                full_key.data(),
+                full_key.size(),
+                value.data(),
+                value.size()
+            ));
             if (reply == nullptr) {
                 core::logger::warning("redis", "cache set failed for '{}': {}", key, m_ctx->errstr);
-                core::events::publish("redis.cache.set_failed",
-                                      {{"key", std::string{key}}, {"error", m_ctx->errstr}});
+                core::events::publish(
+                    "redis.cache.set_failed",
+                    {{"key", std::string{key}}, {"error", m_ctx->errstr}}
+                );
                 std::move(result)("");
                 return;
             }
             bool ok = reply->type == REDIS_REPLY_STATUS;
             if (!ok && reply->type == REDIS_REPLY_ERROR) {
-                core::logger::warning("redis", "cache set error for '{}': {}", key,
-                                      reply->str != nullptr ? reply->str : "unknown");
-                core::events::publish("redis.cache.set_error",
-                                      {{"key", std::string{key}},
-                                       {"error", reply->str != nullptr ? reply->str : "unknown"}});
+                core::logger::warning(
+                    "redis",
+                    "cache set error for '{}': {}",
+                    key,
+                    reply->str != nullptr ? reply->str : "unknown"
+                );
+                core::events::publish(
+                    "redis.cache.set_error",
+                    {{"key", std::string{key}},
+                     {"error", reply->str != nullptr ? reply->str : "unknown"}}
+                );
             }
             freeReplyObject(reply);
             std::move(result)(ok ? "ok" : "");
@@ -249,7 +319,8 @@ class RedisEventsPlugin : public congelado::Plugin,
      * miss is still a successful removal, same "no error, no cap" story as `LocalCache::remove`;
      * `""` only on a Redis-side error or with no live connection.
      */
-    void remove(std::string_view key, shared::QueryReadFn &&result) noexcept override {
+    void remove(std::string_view key, shared::QueryReadFn&& result) noexcept override
+    {
         if (m_ctx == nullptr) {
             core::logger::warning("redis", "cache remove skipped, no live connection: {}", key);
             core::events::publish("redis.cache.remove_skipped", {{"key", std::string{key}}});
@@ -258,23 +329,36 @@ class RedisEventsPlugin : public congelado::Plugin,
         }
         try {
             auto full_key = m_key_prefix + std::string{key};
-            auto *reply = static_cast<redisReply *>(
-                redisCommand(m_ctx, "DEL %b", full_key.data(), full_key.size()));
+            auto* reply = static_cast<redisReply*>(
+                redisCommand(m_ctx, "DEL %b", full_key.data(), full_key.size())
+            );
             if (reply == nullptr) {
-                core::logger::warning("redis", "cache remove failed for '{}': {}", key,
-                                      m_ctx->errstr);
-                core::events::publish("redis.cache.remove_failed",
-                                      {{"key", std::string{key}}, {"error", m_ctx->errstr}});
+                core::logger::warning(
+                    "redis",
+                    "cache remove failed for '{}': {}",
+                    key,
+                    m_ctx->errstr
+                );
+                core::events::publish(
+                    "redis.cache.remove_failed",
+                    {{"key", std::string{key}}, {"error", m_ctx->errstr}}
+                );
                 std::move(result)("");
                 return;
             }
             bool ok = reply->type == REDIS_REPLY_INTEGER || reply->type == REDIS_REPLY_STATUS;
             if (!ok && reply->type == REDIS_REPLY_ERROR) {
-                core::logger::warning("redis", "cache remove error for '{}': {}", key,
-                                      reply->str != nullptr ? reply->str : "unknown");
-                core::events::publish("redis.cache.remove_error",
-                                      {{"key", std::string{key}},
-                                       {"error", reply->str != nullptr ? reply->str : "unknown"}});
+                core::logger::warning(
+                    "redis",
+                    "cache remove error for '{}': {}",
+                    key,
+                    reply->str != nullptr ? reply->str : "unknown"
+                );
+                core::events::publish(
+                    "redis.cache.remove_error",
+                    {{"key", std::string{key}},
+                     {"error", reply->str != nullptr ? reply->str : "unknown"}}
+                );
             }
             freeReplyObject(reply);
             std::move(result)(ok ? "ok" : "");
@@ -285,13 +369,14 @@ class RedisEventsPlugin : public congelado::Plugin,
         }
     }
 
-  private:
-    redisContext *m_ctx{nullptr};
+private:
+    redisContext* m_ctx{nullptr};
     std::string m_channel_prefix;
     std::string m_key_prefix;
 
-    void run_command(std::string const &command) noexcept {
-        auto *reply = static_cast<redisReply *>(redisCommand(m_ctx, command.c_str()));
+    void run_command(const std::string& command) noexcept
+    {
+        auto* reply = static_cast<redisReply*>(redisCommand(m_ctx, command.c_str()));
         if (reply != nullptr) {
             freeReplyObject(reply);
         }
@@ -306,17 +391,24 @@ using namespace boost::ut;
 
 /// @brief Small test-only helper class — keeps the "class-only, no free functions" convention
 /// even for test scaffolding.
-class RedisEventsTestHelper {
-  public:
+class RedisEventsTestHelper
+{
+public:
     RedisEventsTestHelper() = delete;
 
     /// @brief Runs `fn` synchronously against an `ICache`-shaped op that reports through a
     /// `shared::QueryReadFn` callback, and hands back whatever the callback got — every one of
     /// this plugin's cache ops fires its callback before returning (blocking hiredis calls, or
     /// the immediate "no live connection" degrade path), so there's no real async to wait on.
-    [[nodiscard]] static std::string run_sync(auto &&fn) {
+    [[nodiscard]] static std::string run_sync(auto&& fn)
+    {
         std::string captured;
-        fn([&](std::string_view value) { captured = std::string{value}; });
+        fn(
+            [&](std::string_view value)
+            {
+                captured = std::string{value};
+            }
+        );
         return captured;
     }
 };
@@ -332,38 +424,46 @@ class RedisEventsTestHelper {
 //   than a live failed connect.
 // - run_command() is private and only ever reached from on_load()'s AUTH/SELECT calls, which
 //   require a live connection to test meaningfully; skipped for the same reason as on_load().
-suite<"RedisEventsPlugin"> redis_events_plugin_suite = [] {
-    "get_name reports 'redis'"_test = [] {
+suite<"RedisEventsPlugin"> redis_events_plugin_suite = []
+{
+    "get_name reports 'redis'"_test = []
+    {
         RedisEventsPlugin plugin;
         expect(plugin.get_name() == "redis");
     };
 
-    "get_version reports a non-empty version string"_test = [] {
+    "get_version reports a non-empty version string"_test = []
+    {
         RedisEventsPlugin plugin;
         expect(plugin.get_version() == "0.1.0");
     };
 
-    "capabilities reports both EVENTS and CACHE bits"_test = [] {
+    "capabilities reports both EVENTS and CACHE bits"_test = []
+    {
         RedisEventsPlugin plugin;
         expect(plugin.capabilities() == (CONGELADO_CAP_EVENTS | CONGELADO_CAP_CACHE));
     };
 
-    "event_get returns this instance upcast to IEventSink*"_test = [] {
+    "event_get returns this instance upcast to IEventSink*"_test = []
+    {
         RedisEventsPlugin plugin;
-        expect(plugin.event_get() == static_cast<interfaces::IEventSink *>(&plugin));
+        expect(plugin.event_get() == static_cast<interfaces::IEventSink*>(&plugin));
     };
 
-    "cache_get returns this instance upcast to ICache*"_test = [] {
+    "cache_get returns this instance upcast to ICache*"_test = []
+    {
         RedisEventsPlugin plugin;
-        expect(plugin.cache_get() == static_cast<interfaces::ICache *>(&plugin));
+        expect(plugin.cache_get() == static_cast<interfaces::ICache*>(&plugin));
     };
 
-    "backend_name reports 'redis'"_test = [] {
+    "backend_name reports 'redis'"_test = []
+    {
         RedisEventsPlugin plugin;
         expect(plugin.backend_name() == "redis");
     };
 
-    "publish with no live connection is a safe no-op"_test = [] {
+    "publish with no live connection is a safe no-op"_test = []
+    {
         RedisEventsPlugin plugin;
         plugin.publish("some.event", R"({"payload":true})");
         // No live m_ctx (on_load never ran) — publish() must early-return without touching
@@ -371,28 +471,44 @@ suite<"RedisEventsPlugin"> redis_events_plugin_suite = [] {
         expect(true);
     };
 
-    "get with no live connection reports an empty string"_test = [] {
-        RedisEventsPlugin plugin;
-        auto result =
-            RedisEventsTestHelper::run_sync([&](shared::QueryReadFn &&cb) { plugin.get("key", std::move(cb)); });
-        expect(result.empty());
-    };
-
-    "set with no live connection reports an empty string (write failed)"_test = [] {
+    "get with no live connection reports an empty string"_test = []
+    {
         RedisEventsPlugin plugin;
         auto result = RedisEventsTestHelper::run_sync(
-            [&](shared::QueryReadFn &&cb) { plugin.set("key", "value", std::move(cb)); });
+            [&](shared::QueryReadFn&& cb)
+            {
+                plugin.get("key", std::move(cb));
+            }
+        );
         expect(result.empty());
     };
 
-    "remove with no live connection reports an empty string"_test = [] {
+    "set with no live connection reports an empty string (write failed)"_test = []
+    {
         RedisEventsPlugin plugin;
-        auto result =
-            RedisEventsTestHelper::run_sync([&](shared::QueryReadFn &&cb) { plugin.remove("key", std::move(cb)); });
+        auto result = RedisEventsTestHelper::run_sync(
+            [&](shared::QueryReadFn&& cb)
+            {
+                plugin.set("key", "value", std::move(cb));
+            }
+        );
         expect(result.empty());
     };
 
-    "on_unload with no live connection is a safe no-op"_test = [] {
+    "remove with no live connection reports an empty string"_test = []
+    {
+        RedisEventsPlugin plugin;
+        auto result = RedisEventsTestHelper::run_sync(
+            [&](shared::QueryReadFn&& cb)
+            {
+                plugin.remove("key", std::move(cb));
+            }
+        );
+        expect(result.empty());
+    };
+
+    "on_unload with no live connection is a safe no-op"_test = []
+    {
         RedisEventsPlugin plugin;
         plugin.on_unload();
         // m_ctx is nullptr (on_load never ran) — on_unload()'s null-guard means redisFree()

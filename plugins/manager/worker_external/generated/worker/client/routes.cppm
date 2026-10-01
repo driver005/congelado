@@ -38,7 +38,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -63,7 +64,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -88,7 +90,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -111,7 +114,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -134,7 +138,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -157,7 +162,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -182,7 +188,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {

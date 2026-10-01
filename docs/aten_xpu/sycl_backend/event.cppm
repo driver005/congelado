@@ -53,16 +53,16 @@ public:
         auto& native_end = static_cast<SyclEvent&>(end);
 
         if (!m_enable_timing || !native_end.timing_enabled()) {
-            return std::unexpected{
-                ice::sonic::Status::from_message("SyclEvent: elapsed_time needs enable_timing on both events")
-            };
+            return std::unexpected{ice::sonic::Status::from_message(
+                "SyclEvent: elapsed_time needs enable_timing on both events"
+            )};
         }
 
         try {
             const auto start_ns =
                 m_event.get_profiling_info<sycl::info::event_profiling::command_end>();
             const auto end_ns = native_end.get_native_event()
-                                     .get_profiling_info<sycl::info::event_profiling::command_end>();
+                                    .get_profiling_info<sycl::info::event_profiling::command_end>();
             *out_milliseconds = static_cast<float>(end_ns - start_ns) / 1'000'000.0F;
         } catch (const sycl::exception& error) {
             return std::unexpected{ice::sonic::Status::from_message(error.what())};
@@ -77,7 +77,9 @@ public:
         // IPC events need SYCL_COMPILER_VERSION >= 20260200's syclex::ipc::event API; out of
         // scope for this reference backend.
         (void)out_handle;
-        return std::unexpected{ice::sonic::Status::from_message("SyclEvent: IPC export not implemented")};
+        return std::unexpected{
+            ice::sonic::Status::from_message("SyclEvent: IPC export not implemented")
+        };
     }
 
     void get_native_handle(void** out_handle) noexcept override

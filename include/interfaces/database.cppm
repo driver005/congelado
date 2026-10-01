@@ -112,8 +112,10 @@ public:
 
 using namespace boost::ut;
 
-suite<"IDatabase"> database_suite = [] {
-    "is_connected() defaults to true when not overridden"_test = [] {
+suite<"IDatabase"> database_suite = []
+{
+    "is_connected() defaults to true when not overridden"_test = []
+    {
         MockDatabase database;
         expect(database.is_connected());
     };

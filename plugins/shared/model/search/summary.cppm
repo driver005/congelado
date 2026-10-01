@@ -223,28 +223,36 @@ struct serde::Serializable<model::WorkflowSummary>
     {
         return std::tuple{
             serde::FieldDesc<
-                "exec_id", &model::WorkflowSummary::get_exec_id,
+                "exec_id",
+                &model::WorkflowSummary::get_exec_id,
                 &model::WorkflowSummary::set_exec_id>{},
             serde::FieldDesc<
-                "workflow_type", &model::WorkflowSummary::get_workflow_type,
+                "workflow_type",
+                &model::WorkflowSummary::get_workflow_type,
                 &model::WorkflowSummary::set_workflow_type>{},
             serde::FieldDesc<
-                "version", &model::WorkflowSummary::get_version,
+                "version",
+                &model::WorkflowSummary::get_version,
                 &model::WorkflowSummary::set_version>{},
             serde::FieldDesc<
-                "status", &model::WorkflowSummary::get_status,
+                "status",
+                &model::WorkflowSummary::get_status,
                 &model::WorkflowSummary::set_status>{},
             serde::FieldDesc<
-                "correlation_id", &model::WorkflowSummary::get_correlation_id,
+                "correlation_id",
+                &model::WorkflowSummary::get_correlation_id,
                 &model::WorkflowSummary::set_correlation_id>{},
             serde::FieldDesc<
-                "start_time", &model::WorkflowSummary::get_start_time,
+                "start_time",
+                &model::WorkflowSummary::get_start_time,
                 &model::WorkflowSummary::set_start_time>{},
             serde::FieldDesc<
-                "end_time", &model::WorkflowSummary::get_end_time,
+                "end_time",
+                &model::WorkflowSummary::get_end_time,
                 &model::WorkflowSummary::set_end_time>{},
             serde::FieldDesc<
-                "failed_task_names", &model::WorkflowSummary::get_failed_task_names,
+                "failed_task_names",
+                &model::WorkflowSummary::get_failed_task_names,
                 &model::WorkflowSummary::set_failed_task_names>{},
         };
     }
@@ -257,26 +265,36 @@ struct serde::Serializable<model::TaskSummary>
     {
         return std::tuple{
             serde::FieldDesc<
-                "task_id", &model::TaskSummary::get_task_id, &model::TaskSummary::set_task_id>{},
+                "task_id",
+                &model::TaskSummary::get_task_id,
+                &model::TaskSummary::set_task_id>{},
             serde::FieldDesc<
-                "task_def_name", &model::TaskSummary::get_task_def_name,
+                "task_def_name",
+                &model::TaskSummary::get_task_def_name,
                 &model::TaskSummary::set_task_def_name>{},
             serde::FieldDesc<
-                "workflow_exec_id", &model::TaskSummary::get_workflow_exec_id,
+                "workflow_exec_id",
+                &model::TaskSummary::get_workflow_exec_id,
                 &model::TaskSummary::set_workflow_exec_id>{},
             serde::FieldDesc<
-                "status", &model::TaskSummary::get_status, &model::TaskSummary::set_status>{},
+                "status",
+                &model::TaskSummary::get_status,
+                &model::TaskSummary::set_status>{},
             serde::FieldDesc<
-                "scheduled_time", &model::TaskSummary::get_scheduled_time,
+                "scheduled_time",
+                &model::TaskSummary::get_scheduled_time,
                 &model::TaskSummary::set_scheduled_time>{},
             serde::FieldDesc<
-                "start_time", &model::TaskSummary::get_start_time,
+                "start_time",
+                &model::TaskSummary::get_start_time,
                 &model::TaskSummary::set_start_time>{},
             serde::FieldDesc<
-                "update_time", &model::TaskSummary::get_update_time,
+                "update_time",
+                &model::TaskSummary::get_update_time,
                 &model::TaskSummary::set_update_time>{},
             serde::FieldDesc<
-                "queue_wait_time_ms", &model::TaskSummary::get_queue_wait_time_ms,
+                "queue_wait_time_ms",
+                &model::TaskSummary::get_queue_wait_time_ms,
                 &model::TaskSummary::set_queue_wait_time_ms>{},
         };
     }
@@ -286,15 +304,18 @@ struct serde::Serializable<model::TaskSummary>
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"WorkflowSummary"> workflow_summary_suite = [] {
-    "defaults to version 1 and RUNNING"_test = [] {
+suite<"WorkflowSummary"> workflow_summary_suite = []
+{
+    "defaults to version 1 and RUNNING"_test = []
+    {
         WorkflowSummary summary;
 
         expect(summary.get_version() == 1);
         expect(summary.get_status() == WorkflowStatus::RUNNING);
         expect(summary.get_failed_task_names().empty());
     };
-    "setters round-trip through their getters"_test = [] {
+    "setters round-trip through their getters"_test = []
+    {
         WorkflowSummary summary;
         auto exec_id = generate_id();
         summary.set_exec_id(exec_id);
@@ -309,14 +330,17 @@ suite<"WorkflowSummary"> workflow_summary_suite = [] {
     };
 };
 
-suite<"TaskSummary"> task_summary_suite = [] {
-    "defaults to SCHEDULED and zero queue wait"_test = [] {
+suite<"TaskSummary"> task_summary_suite = []
+{
+    "defaults to SCHEDULED and zero queue wait"_test = []
+    {
         TaskSummary summary;
 
         expect(summary.get_status() == TaskStatus::SCHEDULED);
         expect(summary.get_queue_wait_time_ms() == 0);
     };
-    "setters round-trip through their getters"_test = [] {
+    "setters round-trip through their getters"_test = []
+    {
         TaskSummary summary;
         summary.set_task_def_name("send_email");
         summary.set_status(TaskStatus::COMPLETED);

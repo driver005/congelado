@@ -19,13 +19,16 @@ enum class Role : std::uint8_t
 namespace io::shared::tests {
 using namespace boost::ut;
 
-suite<"Role"> role_suite = [] {
-    "SENDER and RECEIVER have their expected underlying values"_test = [] {
+suite<"Role"> role_suite = []
+{
+    "SENDER and RECEIVER have their expected underlying values"_test = []
+    {
         expect(std::to_underlying(Role::SENDER) == 0);
         expect(std::to_underlying(Role::RECEIVER) == 1);
     };
 
-    "SENDER and RECEIVER are distinct"_test = [] {
+    "SENDER and RECEIVER are distinct"_test = []
+    {
         expect(Role::SENDER != Role::RECEIVER);
     };
 };

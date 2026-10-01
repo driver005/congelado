@@ -1,19 +1,20 @@
 #ifndef CONGELADO_C_EXTERN_MEMORY_MEMORY_H_
 #define CONGELADO_C_EXTERN_MEMORY_MEMORY_H_
 
-#include "include/c/macros.h"
+#include "include/c/extern/stream_executor/allocator.h"
+#include "include/c/extern/stream_executor/mem_pool.h"
+#include "include/c/extern/stream_executor/types.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
-
-#include "include/c/extern/stream_executor/types.h"
-#include "include/c/extern/stream_executor/mem_pool.h"
-#include "include/c/extern/stream_executor/allocator.h"
+#include "include/c/macros.h"
 
 #ifdef __cplusplus
-extern "C" {
+extern "C"
+{
 #endif
 
-    typedef struct TF_Memory {
+    typedef struct TF_Memory
+    {
         void* plugin_data;
         void* allocator_context;
         void* mem_pool_context;
@@ -21,20 +22,23 @@ extern "C" {
         const TF_MemPoolOps* mem_pool_ops;
     } TF_Memory;
 
-    typedef struct TF_MemoryOps {
+    typedef struct TF_MemoryOps
+    {
         size_t struct_size;
         void (*create)(TF_Memory* out_handle);
         void (*destroy)(TF_Memory* handle);
         void (*get_name)(TF_Memory* memory, TF_String* out_name);
     } TF_MemoryOps;
 
-    #define TF_MEMORY_STRUCT_SIZE TF_OFFSET_OF_END(TF_MemoryOps, get_name)
+#define TF_MEMORY_STRUCT_SIZE TF_OFFSET_OF_END(TF_MemoryOps, get_name)
 
-    TF_CAPI_EXPORT void create_memory(TF_MemoryOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void
+    create_memory(TF_MemoryOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_memory(void* plugin_context);
 
     // Each vtable gets its own plugin context slot so create_* calls do not overwrite one another.
-    static inline void init_memory(TF_MemoryOps** ops, TF_Memory* memory, TF_Status* out_status) {
+    static inline void init_memory(TF_MemoryOps** ops, TF_Memory* memory, TF_Status* out_status)
+    {
         create_memory(ops, &memory->plugin_data, out_status);
 
         TF_AllocatorOps* allocator_ops = NULL;
@@ -50,4 +54,4 @@ extern "C" {
 } /* end extern "C" */
 #endif
 
-#endif  // CONGELADO_C_EXTERN_MEMORY_MEMORY_H_
+#endif // CONGELADO_C_EXTERN_MEMORY_MEMORY_H_

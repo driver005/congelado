@@ -27,8 +27,8 @@ public:
         return *ops_table;
     }
 
-    [[nodiscard]] int64_t get_attr_int64(const char* name, int64_t fallback, TF_Status* out_status)
-        const noexcept
+    [[nodiscard]] int64_t
+    get_attr_int64(const char* name, int64_t fallback, TF_Status* out_status) const noexcept
     {
         int64_t value = fallback;
         ops().get_attr_int64(m_construction, name, &value, out_status);

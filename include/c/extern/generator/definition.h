@@ -1,12 +1,12 @@
 #ifndef CONGELADO_C_GENERATOR_DEFINITION_H_
 #define CONGELADO_C_GENERATOR_DEFINITION_H_
 
-#include "include/c/macros.h"
+#include "include/c/extern/generator/attribute.h"
+#include "include/c/extern/generator/parameter.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tensor.h"
 #include "include/c/intern/tstring.h"
-#include "include/c/extern/generator/parameter.h"
-#include "include/c/extern/generator/attribute.h"
+#include "include/c/macros.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -48,15 +48,30 @@ extern "C"
         void (*get_summary)(TFGeneratorDefinition* def_context, TF_String* out_summary);
         void (*get_description)(TFGeneratorDefinition* def_context, TF_String* out_description);
 
-        void (*list_inputs)(TFGeneratorDefinition* def_context, TF_Tensor** out_inputs, TF_Status* out_status);
-        void (*list_outputs)(TFGeneratorDefinition* def_context, TF_Tensor** out_outputs, TF_Status* out_status);
-        void (*list_attrs)(TFGeneratorDefinition* def_context, TF_Tensor** out_attrs, TF_Status* out_status);
+        void (*list_inputs)(
+            TFGeneratorDefinition* def_context,
+            TF_Tensor** out_inputs,
+            TF_Status* out_status
+        );
+        void (*list_outputs)(
+            TFGeneratorDefinition* def_context,
+            TF_Tensor** out_outputs,
+            TF_Status* out_status
+        );
+        void (*list_attrs)(
+            TFGeneratorDefinition* def_context,
+            TF_Tensor** out_attrs,
+            TF_Status* out_status
+        );
     } TFGeneratorDefinitionOps;
 
 #define TF_GENERATOR_DEFINITION_STRUCT_SIZE TF_OFFSET_OF_END(TFGeneratorDefinitionOps, list_attrs)
 
-    TF_CAPI_EXPORT void
-    create_generator_definition(TFGeneratorDefinitionOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void create_generator_definition(
+        TFGeneratorDefinitionOps** ops,
+        void** plugin_context,
+        TF_Status* out_status
+    );
     TF_CAPI_EXPORT void destroy_generator_definition(void* plugin_context);
 
 #ifdef __cplusplus

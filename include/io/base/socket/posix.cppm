@@ -83,8 +83,10 @@ using namespace boost::ut;
 // meaningful — not unit-testable in isolation, skipped here. get_error_code() just reads back
 // thread-local errno, no syscall involved, so that's covered for real.
 
-suite<"get_error_code"> get_error_code_suite = [] {
-    "reflects whatever errno currently holds"_test = [] {
+suite<"get_error_code"> get_error_code_suite = []
+{
+    "reflects whatever errno currently holds"_test = []
+    {
         errno = EINVAL;
         expect(get_error_code() == EINVAL);
 

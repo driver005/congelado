@@ -15,6 +15,7 @@
 module;
 
 #include "include/c/extern/kernel/context.h"
+
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_sycl.hpp>
 
@@ -61,7 +62,8 @@ public:
             return *found->second;
         }
 
-        auto stream = std::make_shared<dnnl::stream>(dnnl::sycl_interop::make_stream(engine, queue));
+        auto stream =
+            std::make_shared<dnnl::stream>(dnnl::sycl_interop::make_stream(engine, queue));
         return *m_streams.emplace(&queue, std::move(stream)).first->second;
     }
 

@@ -27,7 +27,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
         class OpKernelContext;
 
@@ -67,7 +66,8 @@ export {
             // Prevent copying uninitialized data, to solve harder to debug undefined
             // behaviors that cannot be traced back to the original tensor.
             OP_REQUIRES(
-                context, rhs.IsInitialized(),
+                context,
+                rhs.IsInitialized(),
                 absl::InternalError("Right hand side of AssignOp is not initialized")
             );
 
@@ -88,13 +88,15 @@ export {
                 const bool same_shape = old_lhs.shape().IsSameSize(rhs.shape());
                 if (validate_shape) {
                     OP_REQUIRES(
-                        context, same_shape,
+                        context,
+                        same_shape,
                         absl::InvalidArgumentError(
                             absl::StrCat(
                                 "Assign requires shapes of both tensors to match. "
                                 "lhs shape= ",
                                 old_lhs.shape().DebugString(),
-                                " rhs shape= ", rhs.shape().DebugString()
+                                " rhs shape= ",
+                                rhs.shape().DebugString()
                             )
                         )
                     );
@@ -117,11 +119,13 @@ export {
                         reshaped_old_lhs = old_lhs;
                     } else {
                         OP_REQUIRES(
-                            context, reshaped_old_lhs.CopyFrom(old_lhs, rhs.shape()),
+                            context,
+                            reshaped_old_lhs.CopyFrom(old_lhs, rhs.shape()),
                             absl::InternalError("Unable to copy the value tensor to the ref input")
                         );
                         context->replace_ref_input(
-                            input_ref_index, reshaped_old_lhs,
+                            input_ref_index,
+                            reshaped_old_lhs,
                             /* lock_held */ true
                         );
                     }
@@ -132,13 +136,18 @@ export {
                 } else {
                     // 2. Try to reuse the rhs.
                     std::unique_ptr<Tensor> input_alias = context->forward_input(
-                        value_index, OpKernelContext::Params::kNoReservation /*output_index*/,
-                        rhs.dtype(), rhs.shape(), DEVICE_MEMORY, attr
+                        value_index,
+                        OpKernelContext::Params::kNoReservation /*output_index*/,
+                        rhs.dtype(),
+                        rhs.shape(),
+                        DEVICE_MEMORY,
+                        attr
                     );
                     if (input_alias != nullptr) {
                         // Update the ref to point to the new buffer.
                         context->replace_ref_input(
-                            input_ref_index, *input_alias,
+                            input_ref_index,
+                            *input_alias,
                             /* lock_held */ true
                         );
                         return;
@@ -155,7 +164,8 @@ export {
                     // assign op.
                     context->clear_recorded_memory();
                     context->replace_ref_input(
-                        input_ref_index, copy_tensor,
+                        input_ref_index,
+                        copy_tensor,
                         /* lock_held */ true
                     );
                     if (use_locking) {

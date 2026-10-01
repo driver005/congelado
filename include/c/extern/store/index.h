@@ -1,11 +1,11 @@
 #ifndef CONGELADO_C_STORE_INDEX_H_
 #define CONGELADO_C_STORE_INDEX_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/map.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 #include "include/c/intern/vector.h"
+#include "include/c/macros.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -22,18 +22,20 @@ extern "C"
         size_t struct_size;
         void (*create)(TFStoreIndex* out_handle);
         void (*destroy)(TFStoreIndex* handle);
-        void (*create_index)(TFStoreIndex* index, const TF_String* name, const TF_Map* field_config, TF_Status* out_status);
+        void (*create_index)(
+            TFStoreIndex* index,
+            const TF_String* name,
+            const TF_Map* field_config,
+            TF_Status* out_status
+        );
         void (*drop)(TFStoreIndex* index, const TF_String* name, TF_Status* out_status);
         void (*list)(TFStoreIndex* index, TF_Vector* out_names, TF_Status* out_status);
     } TFStoreIndexOps;
 
 #define TF_STORE_INDEX_STRUCT_SIZE TF_OFFSET_OF_END(TFStoreIndexOps, list)
 
-    TF_CAPI_EXPORT void create_store_index(
-        TFStoreIndexOps** ops,
-        void** plugin_context,
-        TF_Status* out_status
-    );
+    TF_CAPI_EXPORT void
+    create_store_index(TFStoreIndexOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_store_index(void* plugin_context);
 
 #ifdef __cplusplus

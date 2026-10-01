@@ -14,8 +14,9 @@
 
 module;
 
-#include "include/c/extern/kernel/builder.h"
 #include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
+#include "include/c/extern/kernel/builder.h"
+
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_sycl.hpp>
 
@@ -178,13 +179,8 @@ private:
         dnnl::primitive_attr scores_attributes;
         scores_attributes.set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
-        dnnl::matmul::primitive_desc scores_pd{
-            engine,
-            query_md,
-            key_transposed_md,
-            scores_md,
-            scores_attributes
-        };
+        dnnl::matmul::primitive_desc
+            scores_pd{engine, query_md, key_transposed_md, scores_md, scores_attributes};
         dnnl::matmul scores_matmul{scores_pd};
 
         run_with_scratchpad(
@@ -204,7 +200,8 @@ private:
         {
             auto* scores = static_cast<float*>(scores_data);
             const auto scale_factor = static_cast<float>(scale);
-            queue.parallel_for(
+            queue
+                .parallel_for(
                     sycl::range<3>{
                         static_cast<std::size_t>(batch_heads),
                         static_cast<std::size_t>(seq_q),
@@ -260,7 +257,8 @@ private:
         dnnl::primitive_attr output_attributes;
         output_attributes.set_scratchpad_mode(dnnl::scratchpad_mode::user);
 
-        dnnl::matmul::primitive_desc output_pd{engine, scores_md, value_md, output_md, output_attributes};
+        dnnl::matmul::primitive_desc
+            output_pd{engine, scores_md, value_md, output_md, output_attributes};
         dnnl::matmul output_matmul{output_pd};
 
         run_with_scratchpad(
@@ -291,7 +289,10 @@ private:
         void* scratchpad_data =
             scratchpad_size == 0 ? nullptr : sycl::malloc_device(scratchpad_size, queue);
         if (scratchpad_data != nullptr) {
-            arguments.emplace(DNNL_ARG_SCRATCHPAD, dnnl::memory{scratchpad_desc, engine, scratchpad_data});
+            arguments.emplace(
+                DNNL_ARG_SCRATCHPAD,
+                dnnl::memory{scratchpad_desc, engine, scratchpad_data}
+            );
         }
 
         dnnl::sycl_interop::execute(primitive, dnnl_stream, arguments);

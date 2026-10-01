@@ -42,7 +42,10 @@ public:
         std::filesystem::create_directories(m_dir, error_code);
         if (error_code) {
             core::logger::warning(
-                "payload.local", "could not create '{}': {}", m_dir.string(), error_code.message()
+                "payload.local",
+                "could not create '{}': {}",
+                m_dir.string(),
+                error_code.message()
             );
             core::events::publish(
                 "payload.local.create_directory_failed",
@@ -58,7 +61,9 @@ public:
      * @param callback gets the written file's path on success, `""` on failure.
      */
     void write(
-        interfaces::PayloadType /*type*/, std::string_view data, shared::QueryReadFn&& callback
+        interfaces::PayloadType /*type*/,
+        std::string_view data,
+        shared::QueryReadFn&& callback
     ) noexcept override
     {
         auto path = m_dir / std::format("{}.payload", generate_id());
@@ -96,7 +101,8 @@ public:
         if (!in) {
             core::logger::warning("payload.local", "could not open '{}' for read", reference);
             core::events::publish(
-                "payload.local.open_read_failed", {{"reference", std::string{reference}}}
+                "payload.local.open_read_failed",
+                {{"reference", std::string{reference}}}
             );
             callback("");
             return;
@@ -174,8 +180,10 @@ void write_file(const std::filesystem::path& path, std::string_view contents)
     out.write(contents.data(), static_cast<std::streamsize>(contents.size()));
 }
 
-suite<"LocalPayloadStorage::set_directory"> local_payload_set_directory_suite = [] {
-    "creates the configured directory if it doesn't exist yet"_test = [] {
+suite<"LocalPayloadStorage::set_directory"> local_payload_set_directory_suite = []
+{
+    "creates the configured directory if it doesn't exist yet"_test = []
+    {
         TempSandbox sandbox;
         auto target = sandbox.get_root() / "fresh" / "nested";
         LocalPayloadStorage storage;
@@ -187,15 +195,20 @@ suite<"LocalPayloadStorage::set_directory"> local_payload_set_directory_suite = 
     };
 };
 
-suite<"LocalPayloadStorage::write/read"> local_payload_write_read_suite = [] {
-    "write() then read() round-trips the exact bytes"_test = [] {
+suite<"LocalPayloadStorage::write/read"> local_payload_write_read_suite = []
+{
+    "write() then read() round-trips the exact bytes"_test = []
+    {
         TempSandbox sandbox;
         LocalPayloadStorage storage;
         storage.set_directory(sandbox.get_root());
 
         std::string written_reference;
         storage.write(
-            interfaces::PayloadType::TASK_OUTPUT, "hello payload", [&](std::string_view reference) {
+            interfaces::PayloadType::TASK_OUTPUT,
+            "hello payload",
+            [&](std::string_view reference)
+            {
                 written_reference = std::string{reference};
             }
         );
@@ -205,35 +218,50 @@ suite<"LocalPayloadStorage::write/read"> local_payload_write_read_suite = [] {
         expect(written_reference.ends_with(".payload"));
 
         std::string read_back;
-        storage.read(written_reference, [&](std::string_view data) {
-            read_back = std::string{data};
-        });
+        storage.read(
+            written_reference,
+            [&](std::string_view data)
+            {
+                read_back = std::string{data};
+            }
+        );
 
         expect(read_back == "hello payload");
     };
 
-    "write() with empty data still succeeds and round-trips an empty payload"_test = [] {
+    "write() with empty data still succeeds and round-trips an empty payload"_test = []
+    {
         TempSandbox sandbox;
         LocalPayloadStorage storage;
         storage.set_directory(sandbox.get_root());
 
         std::string written_reference = "unset";
-        storage.write(interfaces::PayloadType::WORKFLOW_INPUT, "", [&](std::string_view reference) {
-            written_reference = std::string{reference};
-        });
+        storage.write(
+            interfaces::PayloadType::WORKFLOW_INPUT,
+            "",
+            [&](std::string_view reference)
+            {
+                written_reference = std::string{reference};
+            }
+        );
 
         expect(written_reference != "unset") << fatal;
         expect(!written_reference.empty());
 
         std::string read_back = "unset";
-        storage.read(written_reference, [&](std::string_view data) {
-            read_back = std::string{data};
-        });
+        storage.read(
+            written_reference,
+            [&](std::string_view data)
+            {
+                read_back = std::string{data};
+            }
+        );
 
         expect(read_back.empty());
     };
 
-    "two consecutive write() calls land in two distinct files, never colliding"_test = [] {
+    "two consecutive write() calls land in two distinct files, never colliding"_test = []
+    {
         TempSandbox sandbox;
         LocalPayloadStorage storage;
         storage.set_directory(sandbox.get_root());
@@ -241,12 +269,18 @@ suite<"LocalPayloadStorage::write/read"> local_payload_write_read_suite = [] {
         std::string first_reference;
         std::string second_reference;
         storage.write(
-            interfaces::PayloadType::TASK_INPUT, "first", [&](std::string_view reference) {
+            interfaces::PayloadType::TASK_INPUT,
+            "first",
+            [&](std::string_view reference)
+            {
                 first_reference = std::string{reference};
             }
         );
         storage.write(
-            interfaces::PayloadType::TASK_INPUT, "second", [&](std::string_view reference) {
+            interfaces::PayloadType::TASK_INPUT,
+            "second",
+            [&](std::string_view reference)
+            {
                 second_reference = std::string{reference};
             }
         );
@@ -257,52 +291,66 @@ suite<"LocalPayloadStorage::write/read"> local_payload_write_read_suite = [] {
 
         std::string first_read;
         std::string second_read;
-        storage.read(first_reference, [&](std::string_view data) {
-            first_read = std::string{data};
-        });
-        storage.read(second_reference, [&](std::string_view data) {
-            second_read = std::string{data};
-        });
+        storage.read(
+            first_reference,
+            [&](std::string_view data)
+            {
+                first_read = std::string{data};
+            }
+        );
+        storage.read(
+            second_reference,
+            [&](std::string_view data)
+            {
+                second_read = std::string{data};
+            }
+        );
 
         expect(first_read == "first");
         expect(second_read == "second");
     };
 
     "read() on a reference that was never written reports failure via an empty callback string"_test =
-        [] {
-            TempSandbox sandbox;
-            LocalPayloadStorage storage;
-            storage.set_directory(sandbox.get_root());
+        []
+    {
+        TempSandbox sandbox;
+        LocalPayloadStorage storage;
+        storage.set_directory(sandbox.get_root());
 
-            std::string read_back = "unset";
-            storage.read(
-                (sandbox.get_root() / "never-written.payload").string(),
-                [&](std::string_view data) {
-                    read_back = std::string{data};
-                }
-            );
+        std::string read_back = "unset";
+        storage.read(
+            (sandbox.get_root() / "never-written.payload").string(),
+            [&](std::string_view data)
+            {
+                read_back = std::string{data};
+            }
+        );
 
-            expect(read_back.empty());
-        };
+        expect(read_back.empty());
+    };
 
     "write() into a directory that couldn't be created (blocked by a same-named file) fails via an empty callback string"_test =
-        [] {
-            TempSandbox sandbox;
-            auto blocked_path = sandbox.get_root() / "blocked";
-            write_file(blocked_path, "this is a file, not a directory");
+        []
+    {
+        TempSandbox sandbox;
+        auto blocked_path = sandbox.get_root() / "blocked";
+        write_file(blocked_path, "this is a file, not a directory");
 
-            LocalPayloadStorage storage;
-            storage.set_directory(blocked_path);
+        LocalPayloadStorage storage;
+        storage.set_directory(blocked_path);
 
-            std::string written_reference = "unset";
-            storage.write(
-                interfaces::PayloadType::TASK_OUTPUT, "data", [&](std::string_view reference) {
-                    written_reference = std::string{reference};
-                }
-            );
+        std::string written_reference = "unset";
+        storage.write(
+            interfaces::PayloadType::TASK_OUTPUT,
+            "data",
+            [&](std::string_view reference)
+            {
+                written_reference = std::string{reference};
+            }
+        );
 
-            expect(written_reference.empty());
-        };
+        expect(written_reference.empty());
+    };
 };
 
 // SECURITY: pins the finding in the SECURITY comment above read() — the reference string is
@@ -310,52 +358,63 @@ suite<"LocalPayloadStorage::write/read"> local_payload_write_read_suite = [] {
 // whatsoever. Both cases below stay entirely inside a TempSandbox (never a real out-of-sandbox
 // path like /etc/passwd) but demonstrate the exact same escape a hostile reference would
 // achieve against a real deployment's payload directory.
-suite<"LocalPayloadStorage::read path confinement (SECURITY)"> local_payload_traversal_suite = [] {
+suite<"LocalPayloadStorage::read path confinement (SECURITY)"> local_payload_traversal_suite = []
+{
     "an absolute-path reference is honored outright, reading a file completely outside the configured storage directory"_test =
-        [] {
-            TempSandbox sandbox;
-            auto storage_dir = sandbox.get_root() / "storage";
-            auto outside_file = sandbox.get_root() / "elsewhere" / "secret.txt";
-            write_file(outside_file, "TOP-SECRET-OUTSIDE-STORAGE-DIR");
+        []
+    {
+        TempSandbox sandbox;
+        auto storage_dir = sandbox.get_root() / "storage";
+        auto outside_file = sandbox.get_root() / "elsewhere" / "secret.txt";
+        write_file(outside_file, "TOP-SECRET-OUTSIDE-STORAGE-DIR");
 
-            LocalPayloadStorage storage;
-            storage.set_directory(storage_dir);
+        LocalPayloadStorage storage;
+        storage.set_directory(storage_dir);
 
-            // A confined implementation would refuse a reference that resolves outside
-            // storage_dir (empty result); this one happily hands back the file's contents.
-            std::string read_back;
-            storage.read(outside_file.string(), [&](std::string_view data) {
+        // A confined implementation would refuse a reference that resolves outside
+        // storage_dir (empty result); this one happily hands back the file's contents.
+        std::string read_back;
+        storage.read(
+            outside_file.string(),
+            [&](std::string_view data)
+            {
                 read_back = std::string{data};
-            });
+            }
+        );
 
-            expect(read_back == "TOP-SECRET-OUTSIDE-STORAGE-DIR");
-        };
+        expect(read_back == "TOP-SECRET-OUTSIDE-STORAGE-DIR");
+    };
 
     "a relative '../' reference resolves against the process's current directory, not the configured storage directory — read() never joins the reference with m_dir at all"_test =
-        [] {
-            TempSandbox sandbox;
-            auto storage_dir = sandbox.get_root() / "storage";
-            auto cwd_dir = sandbox.get_root() / "cwd";
-            std::filesystem::create_directories(cwd_dir);
-            auto outside_file = sandbox.get_root() / "outside" / "secret.txt";
-            write_file(outside_file, "TOP-SECRET-VIA-RELATIVE-ESCAPE");
+        []
+    {
+        TempSandbox sandbox;
+        auto storage_dir = sandbox.get_root() / "storage";
+        auto cwd_dir = sandbox.get_root() / "cwd";
+        std::filesystem::create_directories(cwd_dir);
+        auto outside_file = sandbox.get_root() / "outside" / "secret.txt";
+        write_file(outside_file, "TOP-SECRET-VIA-RELATIVE-ESCAPE");
 
-            LocalPayloadStorage storage;
-            storage.set_directory(storage_dir);
+        LocalPayloadStorage storage;
+        storage.set_directory(storage_dir);
 
-            // Scoped, restored immediately after the single synchronous read() call below —
-            // boost::ut runs suites sequentially on one thread, so no other test observes the
-            // changed directory.
-            auto previous_cwd = std::filesystem::current_path();
-            std::filesystem::current_path(cwd_dir);
-            std::string read_back;
-            storage.read("../outside/secret.txt", [&](std::string_view data) {
+        // Scoped, restored immediately after the single synchronous read() call below —
+        // boost::ut runs suites sequentially on one thread, so no other test observes the
+        // changed directory.
+        auto previous_cwd = std::filesystem::current_path();
+        std::filesystem::current_path(cwd_dir);
+        std::string read_back;
+        storage.read(
+            "../outside/secret.txt",
+            [&](std::string_view data)
+            {
                 read_back = std::string{data};
-            });
-            std::filesystem::current_path(previous_cwd);
+            }
+        );
+        std::filesystem::current_path(previous_cwd);
 
-            expect(read_back == "TOP-SECRET-VIA-RELATIVE-ESCAPE");
-        };
+        expect(read_back == "TOP-SECRET-VIA-RELATIVE-ESCAPE");
+    };
 };
 
 } // namespace payload_local_tests

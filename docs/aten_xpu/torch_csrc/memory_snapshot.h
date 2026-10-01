@@ -16,13 +16,13 @@
 
 #pragma once
 
-#include <sycl/sycl.hpp>
+#include "include/c/intern/status.h"
+#include "include/c/macros.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <string>
-
-#include "include/c/macros.h"
-#include "include/c/intern/status.h"
+#include <sycl/sycl.hpp>
 
 namespace ice::sycl_diag {
 
@@ -41,8 +41,7 @@ namespace ice::sycl_diag {
 ///   This version accumulates (address, size, device, timestamp) tuples
 ///   using a lock-free ring buffer — no CPython involvement.
 TF_CAPI_EXPORT
-void sycl_record_memory_history(bool enabled, size_t max_entries,
-                                 TF_Status* out_status);
+void sycl_record_memory_history(bool enabled, size_t max_entries, TF_Status* out_status);
 
 // ---------------------------------------------------------------------------
 // Memory snapshot (diagnostic / introspection)
@@ -77,10 +76,11 @@ std::string sycl_memory_snapshot(TF_Status* out_status);
 // Per-device statistics (lightweight alternative to full snapshot)
 // ---------------------------------------------------------------------------
 
-struct SyclMemStats {
-    uint64_t global_mem_bytes{0};   ///< total device global memory
-    uint64_t local_mem_bytes{0};    ///< total device local (shared) memory
-    uint64_t allocated_bytes{0};    ///< bytes currently allocated via plugin
+struct SyclMemStats
+{
+    uint64_t global_mem_bytes{0}; ///< total device global memory
+    uint64_t local_mem_bytes{0};  ///< total device local (shared) memory
+    uint64_t allocated_bytes{0};  ///< bytes currently allocated via plugin
     uint64_t peak_allocated_bytes{0};
     uint64_t num_allocations{0};
     uint64_t num_frees{0};
@@ -89,8 +89,7 @@ struct SyclMemStats {
 /// Fills `*out_stats` with memory statistics for `device_index`.
 /// ice: replaces THXPModule_memoryStats / XPUCachingAllocator::getDeviceStats().
 TF_CAPI_EXPORT
-void sycl_memory_stats(int device_index, SyclMemStats* out_stats,
-                        TF_Status* out_status);
+void sycl_memory_stats(int device_index, SyclMemStats* out_stats, TF_Status* out_status);
 
 /// Resets peak and accumulated allocation counters for `device_index`.
 /// ice: replaces THXPModule_resetPeakMemoryStats +

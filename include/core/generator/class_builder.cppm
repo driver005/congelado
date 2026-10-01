@@ -167,14 +167,17 @@ private:
 namespace core::generator::tests {
 using namespace boost::ut;
 
-suite<"Field"> field_suite = [] {
-    "renders without a default value"_test = [] {
+suite<"Field"> field_suite = []
+{
+    "renders without a default value"_test = []
+    {
         Field field{"int", "m_count"};
 
         expect(field.render() == "int m_count;\n");
     };
 
-    "renders a brace-init default value"_test = [] {
+    "renders a brace-init default value"_test = []
+    {
         Field field{"int", "m_count"};
         field.setDefaultValue("0");
 
@@ -182,14 +185,17 @@ suite<"Field"> field_suite = [] {
     };
 };
 
-suite<"Class"> class_suite = [] {
-    "getName returns the class's own name"_test = [] {
+suite<"Class"> class_suite = []
+{
+    "getName returns the class's own name"_test = []
+    {
         Class cls{"Widget"};
 
         expect(cls.getName() == "Widget");
     };
 
-    "render emits header, ctor, non-const methods before const, then fields"_test = [] {
+    "render emits header, ctor, non-const methods before const, then fields"_test = []
+    {
         Class cls{"Widget"};
         cls.addMethod("void", "setX");
         cls.addMethod("int", "getX").set_const();
@@ -208,7 +214,8 @@ suite<"Class"> class_suite = [] {
         expect(setter_pos < getter_pos);
     };
 
-    "addField/addMethod return references usable for chaining"_test = [] {
+    "addField/addMethod return references usable for chaining"_test = []
+    {
         Class cls{"Widget"};
         cls.addField("int", "m_value").setDefaultValue("7");
         cls.addMethod("void", "run").set_static();

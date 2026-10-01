@@ -143,19 +143,25 @@ struct serde::Serializable<model::WorkflowEvent>
     {
         return std::tuple{
             serde::FieldDesc<
-                "event_id", &model::WorkflowEvent::get_event_id,
+                "event_id",
+                &model::WorkflowEvent::get_event_id,
                 &model::WorkflowEvent::set_event_id,
                 serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
             serde::FieldDesc<
-                "exec_id", &model::WorkflowEvent::get_exec_id,
+                "exec_id",
+                &model::WorkflowEvent::get_exec_id,
                 &model::WorkflowEvent::set_exec_id>{},
             serde::FieldDesc<
-                "type", &model::WorkflowEvent::get_type, &model::WorkflowEvent::set_type>{},
+                "type",
+                &model::WorkflowEvent::get_type,
+                &model::WorkflowEvent::set_type>{},
             serde::FieldDesc<
-                "payload", &model::WorkflowEvent::get_payload,
+                "payload",
+                &model::WorkflowEvent::get_payload,
                 &model::WorkflowEvent::set_payload>{},
             serde::FieldDesc<
-                "issued_at", &model::WorkflowEvent::get_issued_at,
+                "issued_at",
+                &model::WorkflowEvent::get_issued_at,
                 &model::WorkflowEvent::set_issued_at>{},
         };
     }
@@ -165,8 +171,10 @@ struct serde::Serializable<model::WorkflowEvent>
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"WorkflowEvent"> workflow_event_suite = [] {
-    "defaults to a nil exec_id, type PAUSE, no payload, and fails validation"_test = [] {
+suite<"WorkflowEvent"> workflow_event_suite = []
+{
+    "defaults to a nil exec_id, type PAUSE, no payload, and fails validation"_test = []
+    {
         WorkflowEvent event;
 
         expect(event.get_exec_id() == ExecutionId{});
@@ -174,7 +182,8 @@ suite<"WorkflowEvent"> workflow_event_suite = [] {
         expect(not event.get_payload().has_value());
         expect(not event.validate().has_value());
     };
-    "setters round-trip and a non-nil exec_id passes validation"_test = [] {
+    "setters round-trip and a non-nil exec_id passes validation"_test = []
+    {
         WorkflowEvent event;
         auto exec_id = generate_id();
         auto now = std::chrono::system_clock::now();

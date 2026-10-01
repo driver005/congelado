@@ -16,10 +16,10 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_TENSOR_H_
 #define TENSORFLOW_C_TF_TENSOR_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/datatype.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -29,7 +29,9 @@ extern "C"
 {
 #endif
 
-    // TF_Tensor — plugin vtable for tensor operations. TF_Tensor is an opaque pointer to a plugin-owned tensor object. It doubles as the "list/array carrier" type at C ABI boundaries (e.g. filesystem paths, generator definitions).
+    // TF_Tensor — plugin vtable for tensor operations. TF_Tensor is an opaque pointer to a
+    // plugin-owned tensor object. It doubles as the "list/array carrier" type at C ABI boundaries
+    // (e.g. filesystem paths, generator definitions).
 
     typedef struct TF_Tensor
     {
@@ -70,7 +72,8 @@ extern "C"
         // Return a pointer to the raw data buffer.
         void (*tensor_data)(const TF_Tensor* tensor, void** out_data);
 
-        // Reinterpret src's buffer as dtype and write result into *out_tensor. *out_tensor must be freed with TF_DeleteTensor.
+        // Reinterpret src's buffer as dtype and write result into *out_tensor. *out_tensor must be
+        // freed with TF_DeleteTensor.
         void (*tensor_bitcast_from)(
             TF_Tensor* src,
             TFDataTypeEnum dtype,
@@ -96,13 +99,22 @@ extern "C"
         void (*storage_offset)(const TF_Tensor* tensor, int64_t* out_offset_elements);
         void (*set_device_index)(TF_Tensor* tensor, int device_index);
         void (*get_device_index)(const TF_Tensor* tensor, int* out_device_index);
-        void (*tensor_view)(TF_Tensor* base, const int64_t* dims, int num_dims, const int64_t* strides, int64_t offset_elements, TF_Tensor** out_view, TF_Status* out_status);
+        void (*tensor_view)(
+            TF_Tensor* base,
+            const int64_t* dims,
+            int num_dims,
+            const int64_t* strides,
+            int64_t offset_elements,
+            TF_Tensor** out_view,
+            TF_Status* out_status
+        );
 
     } TF_TensorOps;
 
 #define TF_TENSOR_STRUCT_SIZE TF_OFFSET_OF_END(TF_TensorOps, tensor_view)
 
-    TF_CAPI_EXPORT void create_tensor(TF_TensorOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void
+    create_tensor(TF_TensorOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_tensor(void* plugin_context);
 
     // Real implementation, not declared-only — calls create_tensor

@@ -62,7 +62,9 @@ public:
      * whatever partial output the task produced — the engine only ever sees FAILURE + nothing.
      */
     static void poll(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     ) noexcept
     {
         try {
@@ -98,7 +100,9 @@ public:
             // Anything besides 200/204 from the queue endpoint is a genuine failure.
             if (engine_res.m_status != 200) {
                 core::logger::error(
-                    "worker/poll", "engine poll failed status={}", engine_res.m_status
+                    "worker/poll",
+                    "engine poll failed status={}",
+                    engine_res.m_status
                 );
                 core::events::publish(
                     "worker.poll.engine_poll_failed",
@@ -115,7 +119,8 @@ public:
             if (!parsed.has_value()) {
                 core::logger::error("worker/poll", "parse TaskInstance failed: {}", parsed.error());
                 core::events::publish(
-                    "worker.poll.parse_task_instance_failed", {{"error", parsed.error()}}
+                    "worker.poll.parse_task_instance_failed",
+                    {{"error", parsed.error()}}
                 );
                 res.set_status(interfaces::io::types::Status::INTERNAL_SERVER_ERROR);
                 send();
@@ -159,7 +164,9 @@ public:
                 res.set_status(interfaces::io::types::Status::OK);
             } else {
                 core::logger::error(
-                    "worker/poll", "submit result failed status={}", submit_res.m_status
+                    "worker/poll",
+                    "submit result failed status={}",
+                    submit_res.m_status
                 );
                 core::events::publish(
                     "worker.poll.submit_result_failed",
@@ -233,7 +240,8 @@ private:
      * enforced here.
      */
     static std::string build_submit_json(
-        model::TaskResult result, const std::unordered_map<std::string, std::string>& data
+        model::TaskResult result,
+        const std::unordered_map<std::string, std::string>& data
     )
     {
         // Map the enum onto its wire string first.
@@ -309,7 +317,8 @@ public:
     }
 
     void set_header(
-        std::variant<std::string_view, interfaces::io::types::Token>, std::string_view
+        std::variant<std::string_view, interfaces::io::types::Token>,
+        std::string_view
     ) & override
     {
     }
@@ -364,25 +373,33 @@ void install_throwing_client(WorkerContext& ctx)
     ctx.set_runtime(client);
 }
 
-suite<"PollHandler::poll"> poll_handler_poll_suite = [] {
+suite<"PollHandler::poll"> poll_handler_poll_suite = []
+{
     "replies BAD_REQUEST when no worker is registered for :type — never reaches the engine call"_test =
-        [] {
-            WorkerContext ctx;
-            PollHandler::bind(ctx);
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            req.set_header(interfaces::io::types::Token::PATH, "/api/v1/worker/poll/unregistered");
-            bool sent = false;
+        []
+    {
+        WorkerContext ctx;
+        PollHandler::bind(ctx);
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        req.set_header(interfaces::io::types::Token::PATH, "/api/v1/worker/poll/unregistered");
+        bool sent = false;
 
-            PollHandler::poll(req, res, [&sent] {
+        PollHandler::poll(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::BAD_REQUEST);
-        };
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::BAD_REQUEST);
+    };
 
-    "replies 500 when the registered type's engine queue query throws"_test = [] {
+    "replies 500 when the registered type's engine queue query throws"_test = []
+    {
         WorkerContext ctx;
         install_throwing_client(ctx);
         FakeWorker echo{"echo"};
@@ -393,17 +410,24 @@ suite<"PollHandler::poll"> poll_handler_poll_suite = [] {
         req.set_header(interfaces::io::types::Token::PATH, "/api/v1/worker/poll/echo");
         bool sent = false;
 
-        PollHandler::poll(req, res, [&sent] {
-            sent = true;
-        });
+        PollHandler::poll(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::INTERNAL_SERVER_ERROR);
     };
 };
 
-suite<"PollHandler::ack"> poll_handler_ack_suite = [] {
-    "replies 500 when the heartbeat engine call throws"_test = [] {
+suite<"PollHandler::ack"> poll_handler_ack_suite = []
+{
+    "replies 500 when the heartbeat engine call throws"_test = []
+    {
         WorkerContext ctx;
         install_throwing_client(ctx);
         PollHandler::bind(ctx);
@@ -412,9 +436,14 @@ suite<"PollHandler::ack"> poll_handler_ack_suite = [] {
         req.set_header(interfaces::io::types::Token::PATH, "/api/v1/worker/ack/task-1");
         bool sent = false;
 
-        PollHandler::ack(req, res, [&sent] {
-            sent = true;
-        });
+        PollHandler::ack(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::INTERNAL_SERVER_ERROR);

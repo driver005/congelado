@@ -169,7 +169,8 @@ struct serde::Serializable<engine::WorkflowStartBody>
     {
         return std::tuple{
             serde::FieldDesc<
-                "variables", &engine::WorkflowStartBody::get_variables,
+                "variables",
+                &engine::WorkflowStartBody::get_variables,
                 &engine::WorkflowStartBody::set_variables>{},
         };
     }
@@ -182,9 +183,11 @@ struct serde::Serializable<engine::RerunBody>
     {
         return std::tuple{
             serde::FieldDesc<
-                "node_ref", &engine::RerunBody::get_node_ref, &engine::RerunBody::set_node_ref>{},
-            serde::FieldDesc<
-                "input", &engine::RerunBody::get_input, &engine::RerunBody::set_input>{},
+                "node_ref",
+                &engine::RerunBody::get_node_ref,
+                &engine::RerunBody::set_node_ref>{},
+            serde::
+                FieldDesc<"input", &engine::RerunBody::get_input, &engine::RerunBody::set_input>{},
         };
     }
 };
@@ -196,9 +199,13 @@ struct serde::Serializable<engine::SignalBody>
     {
         return std::tuple{
             serde::FieldDesc<
-                "node_ref", &engine::SignalBody::get_node_ref, &engine::SignalBody::set_node_ref>{},
+                "node_ref",
+                &engine::SignalBody::get_node_ref,
+                &engine::SignalBody::set_node_ref>{},
             serde::FieldDesc<
-                "payload", &engine::SignalBody::get_payload, &engine::SignalBody::set_payload>{},
+                "payload",
+                &engine::SignalBody::get_payload,
+                &engine::SignalBody::set_payload>{},
         };
     }
 };
@@ -210,7 +217,8 @@ struct serde::Serializable<engine::BulkExecIdsBody>
     {
         return std::tuple{
             serde::FieldDesc<
-                "exec_ids", &engine::BulkExecIdsBody::get_exec_ids,
+                "exec_ids",
+                &engine::BulkExecIdsBody::get_exec_ids,
                 &engine::BulkExecIdsBody::set_exec_ids>{},
         };
     }
@@ -223,9 +231,13 @@ struct serde::Serializable<engine::BulkResult>
     {
         return std::tuple{
             serde::FieldDesc<
-                "exec_id", &engine::BulkResult::get_exec_id, &engine::BulkResult::set_exec_id>{},
+                "exec_id",
+                &engine::BulkResult::get_exec_id,
+                &engine::BulkResult::set_exec_id>{},
             serde::FieldDesc<
-                "success", &engine::BulkResult::get_success, &engine::BulkResult::set_success>{},
+                "success",
+                &engine::BulkResult::get_success,
+                &engine::BulkResult::set_success>{},
         };
     }
 };
@@ -234,27 +246,33 @@ struct serde::Serializable<engine::BulkResult>
 namespace engine::workflow_dto_tests {
 using namespace boost::ut;
 
-suite<"WorkflowStartBody"> workflow_start_body_suite = [] {
-    "default-constructs with empty variables"_test = [] {
+suite<"WorkflowStartBody"> workflow_start_body_suite = []
+{
+    "default-constructs with empty variables"_test = []
+    {
         engine::WorkflowStartBody body;
         expect(body.get_variables().empty());
     };
 
-    "set_variables/get_variables round-trip"_test = [] {
+    "set_variables/get_variables round-trip"_test = []
+    {
         engine::WorkflowStartBody body;
         body.set_variables({{"key", "value"}});
         expect(body.get_variables().at("key") == "value");
     };
 };
 
-suite<"RerunBody"> rerun_body_suite = [] {
-    "set_node_ref/get_node_ref round-trip"_test = [] {
+suite<"RerunBody"> rerun_body_suite = []
+{
+    "set_node_ref/get_node_ref round-trip"_test = []
+    {
         engine::RerunBody body;
         body.set_node_ref("node-a");
         expect(body.get_node_ref() == "node-a");
     };
 
-    "set_input/get_input round-trip"_test = [] {
+    "set_input/get_input round-trip"_test = []
+    {
         engine::RerunBody body;
         body.set_input(serde::Value{std::string{"fresh-input"}});
         auto decoded = serde::Ser::from_value<std::string>(body.get_input());
@@ -263,19 +281,23 @@ suite<"RerunBody"> rerun_body_suite = [] {
     };
 };
 
-suite<"SignalBody"> signal_body_suite = [] {
-    "default-constructs with no payload"_test = [] {
+suite<"SignalBody"> signal_body_suite = []
+{
+    "default-constructs with no payload"_test = []
+    {
         engine::SignalBody body;
         expect(!body.get_payload().has_value());
     };
 
-    "set_node_ref/get_node_ref round-trip"_test = [] {
+    "set_node_ref/get_node_ref round-trip"_test = []
+    {
         engine::SignalBody body;
         body.set_node_ref("node-b");
         expect(body.get_node_ref() == "node-b");
     };
 
-    "set_payload/get_payload round-trip, including clearing back to nullopt"_test = [] {
+    "set_payload/get_payload round-trip, including clearing back to nullopt"_test = []
+    {
         engine::SignalBody body;
         body.set_payload(std::string{"ping"});
         expect(body.get_payload().value() == "ping");
@@ -284,13 +306,16 @@ suite<"SignalBody"> signal_body_suite = [] {
     };
 };
 
-suite<"BulkExecIdsBody"> bulk_exec_ids_body_suite = [] {
-    "default-constructs empty"_test = [] {
+suite<"BulkExecIdsBody"> bulk_exec_ids_body_suite = []
+{
+    "default-constructs empty"_test = []
+    {
         engine::BulkExecIdsBody body;
         expect(body.get_exec_ids().empty());
     };
 
-    "set_exec_ids/get_exec_ids round-trip"_test = [] {
+    "set_exec_ids/get_exec_ids round-trip"_test = []
+    {
         engine::BulkExecIdsBody body;
         body.set_exec_ids({"exec-1", "exec-2"});
         expect(body.get_exec_ids().size() == 2);
@@ -299,26 +324,31 @@ suite<"BulkExecIdsBody"> bulk_exec_ids_body_suite = [] {
     };
 };
 
-suite<"BulkResult"> bulk_result_suite = [] {
-    "default-constructs with empty id and false success"_test = [] {
+suite<"BulkResult"> bulk_result_suite = []
+{
+    "default-constructs with empty id and false success"_test = []
+    {
         engine::BulkResult result;
         expect(result.get_exec_id().empty());
         expect(!result.get_success());
     };
 
-    "value ctor sets both fields"_test = [] {
+    "value ctor sets both fields"_test = []
+    {
         engine::BulkResult result{"exec-9", true};
         expect(result.get_exec_id() == "exec-9");
         expect(result.get_success());
     };
 
-    "set_exec_id/get_exec_id round-trip"_test = [] {
+    "set_exec_id/get_exec_id round-trip"_test = []
+    {
         engine::BulkResult result;
         result.set_exec_id("exec-a");
         expect(result.get_exec_id() == "exec-a");
     };
 
-    "set_success/get_success round-trip"_test = [] {
+    "set_success/get_success round-trip"_test = []
+    {
         engine::BulkResult result;
         result.set_success(true);
         expect(result.get_success());
@@ -369,7 +399,9 @@ public:
      * @param res the response — 200 with the definition, or 404 if nothing matched.
      */
     void get_definition(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     ) noexcept
     {
         // slice the name off the tail of the path — no dedicated route-param binding here
@@ -384,11 +416,14 @@ public:
         // require noexcept, nor does interfaces::HandlerFn (std::function), so dropping it here
         // is safe.
         m_ctx.get().get_connector().find<model::WorkflowDef>(
-            name, [&res, accept, send = std::move(send)](std::optional<model::WorkflowDef> result) {
+            name,
+            [&res, accept, send = std::move(send)](std::optional<model::WorkflowDef> result)
+            {
                 if (!result) {
                     // nothing under that name — bounce a 404
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not found"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not found"),
                         interfaces::io::types::Status::NOT_FOUND
                     );
                     send();
@@ -415,7 +450,9 @@ public:
     // throw. interfaces::HandlerFn is a std::function, which doesn't require a noexcept target,
     // and every route lambda in routes.cppm that calls this isn't noexcept either.
     void create_definition(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         auto accept = req.find_header("accept");
@@ -427,7 +464,8 @@ public:
         if (!parsed) {
             core::logger::warning("engine", "wf/create bad request: {}", parsed.error());
             reply(
-                res, serde::Ser::serialize_error(accept, parsed.error()),
+                res,
+                serde::Ser::serialize_error(accept, parsed.error()),
                 interfaces::io::types::Status::BAD_REQUEST
             );
             send();
@@ -438,7 +476,8 @@ public:
         if (auto value = parsed->validate(); !value) {
             core::logger::warning("engine", "wf/create invalid: {}", value.error());
             reply(
-                res, serde::Ser::serialize_error(accept, value.error()),
+                res,
+                serde::Ser::serialize_error(accept, value.error()),
                 interfaces::io::types::Status::UNPROCESSABLE_CONTENT
             );
             send();
@@ -450,11 +489,14 @@ public:
         // noexcept, same reasoning as create_definition() itself above.
         model::WorkflowDef definition = *parsed;
         m_ctx.get().get_connector().upsert<model::WorkflowDef>(
-            definition, [&res, accept, definition, send = std::move(send)](bool oke) {
+            definition,
+            [&res, accept, definition, send = std::move(send)](bool oke)
+            {
                 if (!oke) {
                     core::logger::error("engine", "wf/create db upsert failed");
                     reply(
-                        res, serde::Ser::serialize_error(accept, "upsert failed"),
+                        res,
+                        serde::Ser::serialize_error(accept, "upsert failed"),
                         interfaces::io::types::Status::INTERNAL_SERVER_ERROR
                     );
                     send();
@@ -462,10 +504,12 @@ public:
                 }
                 core::logger::info("engine", "workflow created: '{}'", definition.get_name());
                 core::events::publish(
-                    "engine.workflow_def.created", {{"name", definition.get_name()}}
+                    "engine.workflow_def.created",
+                    {{"name", definition.get_name()}}
                 );
                 reply(
-                    res, serde::Ser::serialize(accept, definition),
+                    res,
+                    serde::Ser::serialize(accept, definition),
                     interfaces::io::types::Status::CREATED
                 );
                 send();
@@ -491,7 +535,9 @@ public:
      */
     // Not noexcept — same reasoning as create_definition() above.
     void update_definition(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         auto accept = req.find_header("accept");
@@ -503,7 +549,8 @@ public:
         auto parsed = serde::Ser::deserialize<model::WorkflowDef>(content_type, body);
         if (!parsed) {
             reply(
-                res, serde::Ser::serialize_error(accept, parsed.error()),
+                res,
+                serde::Ser::serialize_error(accept, parsed.error()),
                 interfaces::io::types::Status::BAD_REQUEST
             );
             send();
@@ -513,7 +560,8 @@ public:
         // same validation pass as create — 422 if it fails
         if (auto value = parsed->validate(); !value) {
             reply(
-                res, serde::Ser::serialize_error(accept, value.error()),
+                res,
+                serde::Ser::serialize_error(accept, value.error()),
                 interfaces::io::types::Status::UNPROCESSABLE_CONTENT
             );
             send();
@@ -525,10 +573,13 @@ public:
         // noexcept, same reasoning as the insert() callback above.
         model::WorkflowDef definition = *parsed;
         m_ctx.get().get_connector().update<model::WorkflowDef>(
-            definition, [&res, accept, definition, send = std::move(send)](bool oke) {
+            definition,
+            [&res, accept, definition, send = std::move(send)](bool oke)
+            {
                 if (!oke) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not found"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not found"),
                         interfaces::io::types::Status::NOT_FOUND
                     );
                     send();
@@ -548,7 +599,9 @@ public:
      * @param res the response — 204 on success, 404 if that name wasn't found.
      */
     void remove_definition(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     ) noexcept
     {
         // same tail-slicing move as get_definition to pull the name back out
@@ -560,10 +613,13 @@ public:
         // serde::Ser::serialize_error(), which can throw; not noexcept, same reasoning as the
         // other callbacks in this class.
         m_ctx.get().get_connector().remove<model::WorkflowDef>(
-            name, [&res, accept, send = std::move(send)](bool oke) {
+            name,
+            [&res, accept, send = std::move(send)](bool oke)
+            {
                 if (!oke) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not found"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not found"),
                         interfaces::io::types::Status::NOT_FOUND
                     );
                     send();
@@ -593,7 +649,9 @@ public:
     // Not noexcept — model construction, serde::Ser::deserialize()/serialize(), and
     // std::chrono formatting below can throw. Same reasoning as create_definition() above.
     void start_execution(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         auto accept = req.find_header("accept");
@@ -614,13 +672,17 @@ public:
         }
 
         m_ctx.get().get_workflow_orchestrator()->start_workflow(
-            def_name, std::move(variables),
-            [this, &res, accept, def_name,
-             send = std::move(send)](std::optional<std::string> exec_id) mutable {
+            def_name,
+            std::move(variables),
+            [this, &res, accept, def_name, send = std::move(send)](
+                std::optional<std::string> exec_id
+            ) mutable
+            {
                 if (!exec_id) {
                     core::logger::warning("engine", "wf/start not found: '{}'", def_name);
                     reply(
-                        res, serde::Ser::serialize_error(accept, "workflow definition not found"),
+                        res,
+                        serde::Ser::serialize_error(accept, "workflow definition not found"),
                         interfaces::io::types::Status::NOT_FOUND
                     );
                     send();
@@ -630,18 +692,24 @@ public:
                 // hands back only the id).
                 m_ctx.get().get_connector().find<model::WorkflowExecution>(
                     *exec_id,
-                    [&res, accept, def_name,
-                     send = std::move(send)](std::optional<model::WorkflowExecution> exec) mutable {
+                    [&res, accept, def_name, send = std::move(send)](
+                        std::optional<model::WorkflowExecution> exec
+                    ) mutable
+                    {
                         if (!exec) {
                             reply(
-                                res, serde::Ser::serialize_error(accept, "not found"),
+                                res,
+                                serde::Ser::serialize_error(accept, "not found"),
                                 interfaces::io::types::Status::NOT_FOUND
                             );
                             send();
                             return;
                         }
                         core::logger::info(
-                            "engine", "exec '{}' started for '{}'", exec->get_exec_id(), def_name
+                            "engine",
+                            "exec '{}' started for '{}'",
+                            exec->get_exec_id(),
+                            def_name
                         );
                         core::events::publish(
                             "engine.workflow.started",
@@ -649,7 +717,8 @@ public:
                              {"workflow_name", def_name}}
                         );
                         reply(
-                            res, serde::Ser::serialize(accept, *exec),
+                            res,
+                            serde::Ser::serialize(accept, *exec),
                             interfaces::io::types::Status::ACCEPTED
                         );
                         send();
@@ -667,7 +736,9 @@ public:
      * @param res the response — 200 with the execution, or 404 if that id wasn't found.
      */
     void get_execution(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     ) noexcept
     {
         // exec_id is the last path segment
@@ -678,11 +749,15 @@ public:
         // look it up and let the callback decide 404 vs 200. Not noexcept — same reasoning as
         // get_definition()'s find() callback above.
         m_ctx.get().get_connector().find<model::WorkflowExecution>(
-            exec_id_str, [this, &res, accept,
-                          send = std::move(send)](std::optional<model::WorkflowExecution> result) {
+            exec_id_str,
+            [this, &res, accept, send = std::move(send)](
+                std::optional<model::WorkflowExecution> result
+            )
+            {
                 if (!result) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not found"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not found"),
                         interfaces::io::types::Status::NOT_FOUND
                     );
                     send();
@@ -710,7 +785,9 @@ public:
      * (on the initial lookup or the follow-up update()), or 409 if it was already terminal.
      */
     void terminate_execution(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         auto accept = req.find_header("accept");
@@ -722,13 +799,16 @@ public:
         // serde::Ser::serialize_error(), both of which can throw.
         m_ctx.get().get_connector().find<model::WorkflowExecution>(
             exec_id_str,
-            [this, &res, exec_id_str, accept,
-             send = std::move(send)](std::optional<model::WorkflowExecution> result) mutable {
+            [this, &res, exec_id_str, accept, send = std::move(send)](
+                std::optional<model::WorkflowExecution> result
+            ) mutable
+            {
                 if (!result) {
                     // no such execution — 404
                     core::logger::warning("engine", "wf/terminate not found: '{}'", exec_id_str);
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not found"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not found"),
                         interfaces::io::types::Status::NOT_FOUND
                     );
                     send();
@@ -737,10 +817,13 @@ public:
                 if (model::is_terminal(result->get_status())) {
                     // already done/failed/terminated — refuse to terminate it twice, no cap
                     core::logger::warning(
-                        "engine", "wf/terminate already terminal: '{}'", exec_id_str
+                        "engine",
+                        "wf/terminate already terminal: '{}'",
+                        exec_id_str
                     );
                     reply(
-                        res, serde::Ser::serialize_error(accept, "already in terminal state"),
+                        res,
+                        serde::Ser::serialize_error(accept, "already in terminal state"),
                         interfaces::io::types::Status::CONFLICT
                     );
                     send();
@@ -754,11 +837,15 @@ public:
                 // throw; not noexcept, same reasoning as the other connector callbacks in this
                 // class.
                 m_ctx.get().get_connector().update<model::WorkflowExecution>(
-                    execution, [this, &res, exec_id_str, accept, execution,
-                                send = std::move(send)](bool oke) mutable {
+                    execution,
+                    [this, &res, exec_id_str, accept, execution, send = std::move(send)](
+                        bool oke
+                    ) mutable
+                    {
                         if (!oke) {
                             reply(
-                                res, serde::Ser::serialize_error(accept, "not found"),
+                                res,
+                                serde::Ser::serialize_error(accept, "not found"),
                                 interfaces::io::types::Status::NOT_FOUND
                             );
                             send();
@@ -766,10 +853,12 @@ public:
                         }
                         core::logger::info("engine", "exec terminated: '{}'", exec_id_str);
                         core::events::publish(
-                            "engine.workflow.terminated", {{"exec_id", exec_id_str}}
+                            "engine.workflow.terminated",
+                            {{"exec_id", exec_id_str}}
                         );
                         m_ctx.get().get_workflow_orchestrator()->on_execution_terminal(
-                            exec_id_str, [](bool) {}
+                            exec_id_str,
+                            [](bool) {}
                         );
                         reply(res, serde::Ser::serialize(accept, execution));
                         send();
@@ -797,15 +886,20 @@ public:
      * RUNNING.
      */
     void pause_execution(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         auto accept = req.find_header("accept");
         m_ctx.get().get_workflow_orchestrator()->pause(
-            exec_id_from_action_path(req), [&res, accept, send = std::move(send)](bool oke) {
+            exec_id_from_action_path(req),
+            [&res, accept, send = std::move(send)](bool oke)
+            {
                 if (!oke) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not found or not running"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not found or not running"),
                         interfaces::io::types::Status::CONFLICT
                     );
                     send();
@@ -824,15 +918,20 @@ public:
      * PAUSED.
      */
     void resume_execution(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         auto accept = req.find_header("accept");
         m_ctx.get().get_workflow_orchestrator()->resume(
-            exec_id_from_action_path(req), [&res, accept, send = std::move(send)](bool oke) {
+            exec_id_from_action_path(req),
+            [&res, accept, send = std::move(send)](bool oke)
+            {
                 if (!oke) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not found or not paused"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not found or not paused"),
                         interfaces::io::types::Status::CONFLICT
                     );
                     send();
@@ -851,15 +950,20 @@ public:
      * FAILED, or the def forbids retry (restartable == false).
      */
     void retry_execution(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         auto accept = req.find_header("accept");
         m_ctx.get().get_workflow_orchestrator()->retry(
-            exec_id_from_action_path(req), [&res, accept, send = std::move(send)](bool oke) {
+            exec_id_from_action_path(req),
+            [&res, accept, send = std::move(send)](bool oke)
+            {
                 if (!oke) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not retryable"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not retryable"),
                         interfaces::io::types::Status::CONFLICT
                     );
                     send();
@@ -878,15 +982,20 @@ public:
      * in a terminal state, or the def forbids restart.
      */
     void restart_execution(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         auto accept = req.find_header("accept");
         m_ctx.get().get_workflow_orchestrator()->restart(
-            exec_id_from_action_path(req), [&res, accept, send = std::move(send)](bool oke) {
+            exec_id_from_action_path(req),
+            [&res, accept, send = std::move(send)](bool oke)
+            {
                 if (!oke) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not restartable"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not restartable"),
                         interfaces::io::types::Status::CONFLICT
                     );
                     send();
@@ -908,7 +1017,9 @@ public:
      * execution/def/node wasn't found or the def forbids it.
      */
     void rerun_execution(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         auto accept = req.find_header("accept");
@@ -917,18 +1028,23 @@ public:
         auto parsed = serde::Ser::deserialize<RerunBody>(content_type, body);
         if (!parsed) {
             reply(
-                res, serde::Ser::serialize_error(accept, parsed.error()),
+                res,
+                serde::Ser::serialize_error(accept, parsed.error()),
                 interfaces::io::types::Status::BAD_REQUEST
             );
             send();
             return;
         }
         m_ctx.get().get_workflow_orchestrator()->rerun(
-            exec_id_from_action_path(req), parsed->get_node_ref(), parsed->get_input(),
-            [&res, accept, send = std::move(send)](bool oke) {
+            exec_id_from_action_path(req),
+            parsed->get_node_ref(),
+            parsed->get_input(),
+            [&res, accept, send = std::move(send)](bool oke)
+            {
                 if (!oke) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not rerunnable"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not rerunnable"),
                         interfaces::io::types::Status::CONFLICT
                     );
                     send();
@@ -950,7 +1066,9 @@ public:
      * IN_PROGRESS instance was found.
      */
     void signal_execution(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         auto accept = req.find_header("accept");
@@ -959,7 +1077,8 @@ public:
         auto parsed = serde::Ser::deserialize<SignalBody>(content_type, body);
         if (!parsed) {
             reply(
-                res, serde::Ser::serialize_error(accept, parsed.error()),
+                res,
+                serde::Ser::serialize_error(accept, parsed.error()),
                 interfaces::io::types::Status::BAD_REQUEST
             );
             send();
@@ -969,8 +1088,11 @@ public:
                                   ? std::optional<std::string_view>{*parsed->get_payload()}
                                   : std::nullopt;
         m_ctx.get().get_workflow_orchestrator()->signal(
-            exec_id_from_action_path(req), parsed->get_node_ref(), signal_payload,
-            [&res, accept, send = std::move(send)](bool oke) {
+            exec_id_from_action_path(req),
+            parsed->get_node_ref(),
+            signal_payload,
+            [&res, accept, send = std::move(send)](bool oke)
+            {
                 if (!oke) {
                     reply(
                         res,
@@ -991,13 +1113,19 @@ public:
     /// parallel — Connector's own op queue serializes them anyway in db-backed mode, and this
     /// keeps the per-id success bookkeeping trivial).
     void bulk_pause(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         bulk_dispatch(
-            req, res, std::move(send),
-            [](interfaces::IWorkflowOrchestrator& orchestrator, std::string exec_id,
-               std::move_only_function<void(bool)> callback) {
+            req,
+            res,
+            std::move(send),
+            [](interfaces::IWorkflowOrchestrator& orchestrator,
+               std::string exec_id,
+               std::move_only_function<void(bool)> callback)
+            {
                 orchestrator.pause(std::move(exec_id), std::move(callback));
             }
         );
@@ -1005,13 +1133,19 @@ public:
 
     /// @brief Handles `POST /api/v1/workflows/bulk/resume`.
     void bulk_resume(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         bulk_dispatch(
-            req, res, std::move(send),
-            [](interfaces::IWorkflowOrchestrator& orchestrator, std::string exec_id,
-               std::move_only_function<void(bool)> callback) {
+            req,
+            res,
+            std::move(send),
+            [](interfaces::IWorkflowOrchestrator& orchestrator,
+               std::string exec_id,
+               std::move_only_function<void(bool)> callback)
+            {
                 orchestrator.resume(std::move(exec_id), std::move(callback));
             }
         );
@@ -1019,13 +1153,19 @@ public:
 
     /// @brief Handles `POST /api/v1/workflows/bulk/retry`.
     void bulk_retry(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         bulk_dispatch(
-            req, res, std::move(send),
-            [](interfaces::IWorkflowOrchestrator& orchestrator, std::string exec_id,
-               std::move_only_function<void(bool)> callback) {
+            req,
+            res,
+            std::move(send),
+            [](interfaces::IWorkflowOrchestrator& orchestrator,
+               std::string exec_id,
+               std::move_only_function<void(bool)> callback)
+            {
                 orchestrator.retry(std::move(exec_id), std::move(callback));
             }
         );
@@ -1033,13 +1173,19 @@ public:
 
     /// @brief Handles `POST /api/v1/workflows/bulk/restart`.
     void bulk_restart(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         bulk_dispatch(
-            req, res, std::move(send),
-            [](interfaces::IWorkflowOrchestrator& orchestrator, std::string exec_id,
-               std::move_only_function<void(bool)> callback) {
+            req,
+            res,
+            std::move(send),
+            [](interfaces::IWorkflowOrchestrator& orchestrator,
+               std::string exec_id,
+               std::move_only_function<void(bool)> callback)
+            {
                 orchestrator.restart(std::move(exec_id), std::move(callback));
             }
         );
@@ -1047,13 +1193,19 @@ public:
 
     /// @brief Handles `POST /api/v1/workflows/bulk/terminate`.
     void bulk_terminate(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         bulk_dispatch(
-            req, res, std::move(send),
-            [](interfaces::IWorkflowOrchestrator& orchestrator, std::string exec_id,
-               std::move_only_function<void(bool)> callback) {
+            req,
+            res,
+            std::move(send),
+            [](interfaces::IWorkflowOrchestrator& orchestrator,
+               std::string exec_id,
+               std::move_only_function<void(bool)> callback)
+            {
                 orchestrator.terminate(std::move(exec_id), std::move(callback));
             }
         );
@@ -1063,17 +1215,24 @@ public:
     /// Orchestrator method (removal is plain storage cleanup, no cascade/propagation involved),
     /// so this reaches straight into the connector instead.
     void bulk_remove(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         bulk_dispatch(
-            req, res, std::move(send),
+            req,
+            res,
+            std::move(send),
             [this](
-                interfaces::IWorkflowOrchestrator& /*orchestrator*/, std::string exec_id,
+                interfaces::IWorkflowOrchestrator& /*orchestrator*/,
+                std::string exec_id,
                 std::move_only_function<void(bool)> callback
-            ) {
+            )
+            {
                 m_ctx.get().get_connector().remove<model::WorkflowExecution>(
-                    exec_id, std::move(callback)
+                    exec_id,
+                    std::move(callback)
                 );
             }
         );
@@ -1100,8 +1259,10 @@ private:
     )
     {
         m_ctx.get().get_connector().find_all<model::TaskDef>(
-            [&res, accept, send = std::move(send),
-             exec = std::move(exec)](std::vector<model::TaskDef> defs) mutable {
+            [&res, accept, send = std::move(send), exec = std::move(exec)](
+                std::vector<model::TaskDef> defs
+            ) mutable
+            {
                 std::unordered_map<std::string, std::vector<std::string>> masks;
                 for (const auto& def: defs) {
                     if (!def.get_masked_fields().empty()) {
@@ -1172,14 +1333,20 @@ private:
         auto parsed = serde::Ser::deserialize<BulkExecIdsBody>(content_type, body);
         if (!parsed) {
             reply(
-                res, serde::Ser::serialize_error(accept, parsed.error()),
+                res,
+                serde::Ser::serialize_error(accept, parsed.error()),
                 interfaces::io::types::Status::BAD_REQUEST
             );
             send();
             return;
         }
         bulk_apply(
-            parsed->get_exec_ids(), 0, {}, std::make_shared<BulkOp>(std::move(op)), res, accept,
+            parsed->get_exec_ids(),
+            0,
+            {},
+            std::make_shared<BulkOp>(std::move(op)),
+            res,
+            accept,
             std::move(send)
         );
     }
@@ -1216,12 +1383,25 @@ private:
         auto exec_id = exec_ids[index];
         interfaces::IWorkflowOrchestrator& orchestrator = *m_ctx.get().get_workflow_orchestrator();
         (*op)(
-            orchestrator, exec_id,
-            [this, exec_ids = std::move(exec_ids), index, results = std::move(results), op, &res,
-             accept, send = std::move(send)](bool oke) mutable {
+            orchestrator,
+            exec_id,
+            [this,
+             exec_ids = std::move(exec_ids),
+             index,
+             results = std::move(results),
+             op,
+             &res,
+             accept,
+             send = std::move(send)](bool oke) mutable
+            {
                 results.emplace_back(exec_ids[index], oke);
                 bulk_apply(
-                    std::move(exec_ids), index + 1, std::move(results), std::move(op), res, accept,
+                    std::move(exec_ids),
+                    index + 1,
+                    std::move(results),
+                    std::move(op),
+                    res,
+                    accept,
                     std::move(send)
                 );
             }
@@ -1288,7 +1468,9 @@ public:
     }
 
     void set(
-        std::string_view key, std::string_view value, shared::QueryReadFn&& result
+        std::string_view key,
+        std::string_view value,
+        shared::QueryReadFn&& result
     ) noexcept override
     {
         m_store[std::string{key}] = std::string{value};
@@ -1384,7 +1566,8 @@ public:
     }
 
     void on_execution_terminal(
-        std::string_view, std::move_only_function<void(bool)> callback
+        std::string_view,
+        std::move_only_function<void(bool)> callback
     ) override
     {
         callback(true);
@@ -1459,8 +1642,10 @@ private:
     std::optional<std::string> m_start_result;
 };
 
-suite<"WorkflowHandler"> workflow_handler_suite = [] {
-    "get_definition replies 404 for a name that was never stored"_test = [] {
+suite<"WorkflowHandler"> workflow_handler_suite = []
+{
+    "get_definition replies 404 for a name that was never stored"_test = []
+    {
         engine::EngineContext ctx;
         FakeCache cache;
         ctx.set_cache(&cache);
@@ -1470,15 +1655,21 @@ suite<"WorkflowHandler"> workflow_handler_suite = [] {
         req.set_header(interfaces::io::types::Token::PATH, "/api/v1/workflows/never-created");
         bool sent = false;
 
-        handler.get_definition(req, res, [&sent] {
-            sent = true;
-        });
+        handler.get_definition(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::NOT_FOUND);
     };
 
-    "bulk_pause replies 400 when the body doesn't parse (no serde format registered)"_test = [] {
+    "bulk_pause replies 400 when the body doesn't parse (no serde format registered)"_test = []
+    {
         serde::SerdeFormatRegistry::set_active(nullptr);
         engine::EngineContext ctx;
         engine::WorkflowHandler handler{ctx};
@@ -1488,9 +1679,14 @@ suite<"WorkflowHandler"> workflow_handler_suite = [] {
         req.set_body(std::move(body));
         bool sent = false;
 
-        handler.bulk_pause(req, res, [&sent] {
-            sent = true;
-        });
+        handler.bulk_pause(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::BAD_REQUEST);
@@ -1513,7 +1709,8 @@ suite<"WorkflowHandler"> workflow_handler_suite = [] {
     // reference sidesteps it. This test drives the real chain end-to-end (1000 exec_ids) and
     // proves both the fix (no crash/throw) and the original finding (no size-cap rejection).
     "bulk_pause drives 1000 exec_ids through the real dispatch chain with no crash and no "
-    "size-cap rejection"_test = [] {
+    "size-cap rejection"_test = []
+    {
         serde::SerdeFormatRegistry registry;
         registry.add_format(std::make_shared<FakeBulkExecIdsFormat>(1'000));
         serde::SerdeFormatRegistry::set_active(&registry);
@@ -1529,9 +1726,14 @@ suite<"WorkflowHandler"> workflow_handler_suite = [] {
         req.set_body(std::move(body));
         bool sent = false;
 
-        handler.bulk_pause(req, res, [&sent] {
-            sent = true;
-        });
+        handler.bulk_pause(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent) << fatal;
         expect(res.get_status() == interfaces::io::types::Status::OK);
@@ -1545,44 +1747,51 @@ suite<"WorkflowHandler"> workflow_handler_suite = [] {
     // malformed JSON text — start_execution() can't tell the two apart either, it only checks
     // whether the `if (auto parsed = ...)` succeeded.
     "start_execution silently falls back to empty variables on a malformed non-empty body instead of 400"_test =
-        [] {
-            serde::SerdeFormatRegistry::set_active(nullptr);
-            engine::EngineContext ctx;
-            FakeCache cache;
-            ctx.set_cache(&cache);
+        []
+    {
+        serde::SerdeFormatRegistry::set_active(nullptr);
+        engine::EngineContext ctx;
+        FakeCache cache;
+        ctx.set_cache(&cache);
 
-            auto exec_id = model::generate_id();
-            model::WorkflowExecution seed;
-            seed.set_exec_id(exec_id);
-            seed.set_def_name("garbled-wf");
-            auto exec_id_str = serde::Cache::pk_string(seed);
-            bool seeded = false;
-            ctx.get_connector().upsert<model::WorkflowExecution>(seed, [&seeded](bool oke) {
+        auto exec_id = model::generate_id();
+        model::WorkflowExecution seed;
+        seed.set_exec_id(exec_id);
+        seed.set_def_name("garbled-wf");
+        auto exec_id_str = serde::Cache::pk_string(seed);
+        bool seeded = false;
+        ctx.get_connector().upsert<model::WorkflowExecution>(
+            seed,
+            [&seeded](bool oke)
+            {
                 seeded = oke;
-            });
-            expect(seeded) << fatal;
+            }
+        );
+        expect(seeded) << fatal;
 
-            FakeWorkflowOrchestrator orchestrator{exec_id_str};
-            ctx.set_workflow_orchestrator(&orchestrator);
-            engine::WorkflowHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            req.set_header(
-                interfaces::io::types::Token::PATH, "/api/v1/workflows/garbled-wf/start"
-            );
-            std::vector<std::byte> body{
-                std::byte{'{'}, std::byte{'n'}, std::byte{'o'}, std::byte{'p'}, std::byte{'e'}
-            };
-            req.set_body(std::move(body));
-            bool sent = false;
+        FakeWorkflowOrchestrator orchestrator{exec_id_str};
+        ctx.set_workflow_orchestrator(&orchestrator);
+        engine::WorkflowHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        req.set_header(interfaces::io::types::Token::PATH, "/api/v1/workflows/garbled-wf/start");
+        std::vector<std::byte>
+            body{std::byte{'{'}, std::byte{'n'}, std::byte{'o'}, std::byte{'p'}, std::byte{'e'}};
+        req.set_body(std::move(body));
+        bool sent = false;
 
-            handler.start_execution(req, res, [&sent] {
+        handler.start_execution(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::ACCEPTED);
-        };
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::ACCEPTED);
+    };
 };
 
 } // namespace engine::workflow_handler_tests

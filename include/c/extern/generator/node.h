@@ -1,10 +1,10 @@
 #ifndef CONGELADO_C_GENERATOR_NODE_H_
 #define CONGELADO_C_GENERATOR_NODE_H_
 
-#include "include/c/macros.h"
+#include "include/c/extern/generator/definition.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
-#include "include/c/extern/generator/definition.h"
+#include "include/c/macros.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -44,8 +44,16 @@ extern "C"
         );
 
         void (*get_operand)(TFGeneratorNode* node_context, int index, TF_String* out_operand);
-        void (*get_output_name)(TFGeneratorNode* node_context, int index, TF_String* out_output_name);
-        void (*get_definition)(TFGeneratorNode* node_context, TFGeneratorDefinition* out_definition, TF_Status* out_status);
+        void (*get_output_name)(
+            TFGeneratorNode* node_context,
+            int index,
+            TF_String* out_output_name
+        );
+        void (*get_definition)(
+            TFGeneratorNode* node_context,
+            TFGeneratorDefinition* out_definition,
+            TF_Status* out_status
+        );
     } TFGeneratorNodeOps;
 
 #define TF_GENERATOR_NODE_STRUCT_SIZE TF_OFFSET_OF_END(TFGeneratorNodeOps, get_definition)

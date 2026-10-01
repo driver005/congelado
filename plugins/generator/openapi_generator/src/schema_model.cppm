@@ -1,12 +1,13 @@
 module;
 #ifdef CONGELADO_TEST
-// Test-only: SchemaType::parse() consumes a serde::Value (== rfl::Generic) tree, but this file
-// deliberately never touches rfl headers directly in production (see document.cppm's own note on
-// that boundary) — no JSON format plugin is registered in this isolated test target though, so
-// serde::Ser::decode_generic() can't produce a Value to parse either. Building fixtures directly
-// via rfl::Generic (same pattern plugins/serde/json/bin/json_plugin.cc's own tests use) is the
-// only way to exercise parse() here; guarded so production builds never see this include.
-#    include <rfl/Generic.hpp>
+    // Test-only: SchemaType::parse() consumes a serde::Value (== rfl::Generic) tree, but this file
+    // deliberately never touches rfl headers directly in production (see document.cppm's own note
+    // on that boundary) — no JSON format plugin is registered in this isolated test target though,
+    // so serde::Ser::decode_generic() can't produce a Value to parse either. Building fixtures
+    // directly via rfl::Generic (same pattern plugins/serde/json/bin/json_plugin.cc's own tests
+    // use) is the only way to exercise parse() here; guarded so production builds never see this
+    // include.
+    #include <rfl/Generic.hpp>
 #endif
 
 export module openapi_generator_plugin:schema_model;
@@ -330,8 +331,10 @@ using congelado::client::SchemaType;
     return serde::Value{object};
 }
 
-suite<"SchemaType"> schema_type_suite = [] {
-    "default state is String-kind, non-nullable, no ref, no properties"_test = [] {
+suite<"SchemaType"> schema_type_suite = []
+{
+    "default state is String-kind, non-nullable, no ref, no properties"_test = []
+    {
         SchemaType schema;
 
         expect(schema.get_kind() == SchemaKind::STRING);
@@ -340,7 +343,8 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(schema.get_properties().empty());
     };
 
-    "set_kind/get_kind round-trip for every kind"_test = [] {
+    "set_kind/get_kind round-trip for every kind"_test = []
+    {
         SchemaType schema;
         schema.set_kind(SchemaKind::OBJECT);
         expect(schema.get_kind() == SchemaKind::OBJECT);
@@ -350,19 +354,22 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(schema.get_kind() == SchemaKind::REF);
     };
 
-    "set_ref/get_ref round-trip"_test = [] {
+    "set_ref/get_ref round-trip"_test = []
+    {
         SchemaType schema;
         schema.set_ref("TaskDef");
         expect(schema.get_ref() == "TaskDef");
     };
 
-    "set_nullable/get_nullable round-trip"_test = [] {
+    "set_nullable/get_nullable round-trip"_test = []
+    {
         SchemaType schema;
         schema.set_nullable(true);
         expect(schema.get_nullable());
     };
 
-    "add_property populates get_properties, keyed by name"_test = [] {
+    "add_property populates get_properties, keyed by name"_test = []
+    {
         SchemaType schema;
         SchemaType child_a;
         child_a.set_kind(SchemaKind::STRING);
@@ -377,7 +384,8 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(schema.get_properties().at("b").get_kind() == SchemaKind::INTEGER);
     };
 
-    "set_items/get_items round-trip"_test = [] {
+    "set_items/get_items round-trip"_test = []
+    {
         SchemaType schema;
         SchemaType items;
         items.set_kind(SchemaKind::STRING);
@@ -386,7 +394,8 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(schema.get_items().get_kind() == SchemaKind::STRING);
     };
 
-    "parse: string type yields String kind, non-nullable"_test = [] {
+    "parse: string type yields String kind, non-nullable"_test = []
+    {
         SchemaType schema;
         auto result = schema.parse(primitive_schema("string"));
 
@@ -395,7 +404,8 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(not schema.get_nullable());
     };
 
-    "parse: integer/number/boolean types map correctly"_test = [] {
+    "parse: integer/number/boolean types map correctly"_test = []
+    {
         SchemaType int_schema;
         [[maybe_unused]] auto r1 = int_schema.parse(primitive_schema("integer"));
         expect(int_schema.get_kind() == SchemaKind::INTEGER);
@@ -409,7 +419,8 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(bool_schema.get_kind() == SchemaKind::BOOLEAN);
     };
 
-    "parse: object with properties recurses into each one"_test = [] {
+    "parse: object with properties recurses into each one"_test = []
+    {
         serde::Value::Object name_prop;
         name_prop.insert(std::string{"type"}, serde::Value{std::string{"string"}});
         serde::Value::Object age_prop;
@@ -431,7 +442,8 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(schema.get_properties().at("age").get_kind() == SchemaKind::INTEGER);
     };
 
-    "parse: object with no properties key yields an empty property map"_test = [] {
+    "parse: object with no properties key yields an empty property map"_test = []
+    {
         SchemaType schema;
         auto result = schema.parse(primitive_schema("object"));
 
@@ -440,7 +452,8 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(schema.get_properties().empty());
     };
 
-    "parse: array with items recurses into the element schema"_test = [] {
+    "parse: array with items recurses into the element schema"_test = []
+    {
         serde::Value::Object items;
         items.insert(std::string{"type"}, serde::Value{std::string{"string"}});
         serde::Value::Object array_object;
@@ -455,7 +468,8 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(schema.get_items().get_kind() == SchemaKind::STRING);
     };
 
-    "parse: nullable:true is honored regardless of type"_test = [] {
+    "parse: nullable:true is honored regardless of type"_test = []
+    {
         serde::Value::Object object;
         object.insert(std::string{"type"}, serde::Value{std::string{"string"}});
         object.insert(std::string{"nullable"}, serde::Value{true});
@@ -466,10 +480,12 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(schema.get_nullable());
     };
 
-    "parse: $ref with a components-schemas pointer extracts the bare name"_test = [] {
+    "parse: $ref with a components-schemas pointer extracts the bare name"_test = []
+    {
         serde::Value::Object object;
         object.insert(
-            std::string{"$ref"}, serde::Value{std::string{"#/components/schemas/TaskDef"}}
+            std::string{"$ref"},
+            serde::Value{std::string{"#/components/schemas/TaskDef"}}
         );
 
         SchemaType schema;
@@ -480,7 +496,8 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(schema.get_ref() == "TaskDef");
     };
 
-    "parse: $ref with no slash uses the whole string as the name"_test = [] {
+    "parse: $ref with no slash uses the whole string as the name"_test = []
+    {
         serde::Value::Object object;
         object.insert(std::string{"$ref"}, serde::Value{std::string{"TaskDef"}});
 
@@ -491,7 +508,8 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(schema.get_ref() == "TaskDef");
     };
 
-    "parse: an empty $ref string is treated as absent, falls through to 'type'"_test = [] {
+    "parse: an empty $ref string is treated as absent, falls through to 'type'"_test = []
+    {
         serde::Value::Object object;
         object.insert(std::string{"$ref"}, serde::Value{std::string{""}});
         object.insert(std::string{"type"}, serde::Value{std::string{"string"}});
@@ -503,7 +521,8 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(schema.get_kind() == SchemaKind::STRING);
     };
 
-    "parse: missing 'type' (and no $ref) is an error"_test = [] {
+    "parse: missing 'type' (and no $ref) is an error"_test = []
+    {
         serde::Value::Object object;
         SchemaType schema;
 
@@ -513,7 +532,8 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(result.error() == "schema missing 'type'");
     };
 
-    "parse: non-string 'type' is an error"_test = [] {
+    "parse: non-string 'type' is an error"_test = []
+    {
         serde::Value::Object object;
         object.insert(std::string{"type"}, serde::Value{std::int64_t{1}});
         SchemaType schema;
@@ -524,7 +544,8 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(result.error() == "schema 'type' must be a string");
     };
 
-    "parse: unrecognized 'type' string is an error naming it"_test = [] {
+    "parse: unrecognized 'type' string is an error naming it"_test = []
+    {
         SchemaType schema;
         auto result = schema.parse(primitive_schema("frobnicator"));
 
@@ -532,7 +553,8 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(result.error() == "unknown schema type 'frobnicator'");
     };
 
-    "parse: array missing 'items' is an error"_test = [] {
+    "parse: array missing 'items' is an error"_test = []
+    {
         SchemaType schema;
         auto result = schema.parse(primitive_schema("array"));
 
@@ -540,7 +562,8 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(result.error() == "array schema missing 'items'");
     };
 
-    "parse: a nested property's parse failure propagates verbatim"_test = [] {
+    "parse: a nested property's parse failure propagates verbatim"_test = []
+    {
         serde::Value::Object bad_prop; // no 'type' key
         serde::Value::Object properties;
         properties.insert(std::string{"broken"}, serde::Value{bad_prop});
@@ -555,7 +578,8 @@ suite<"SchemaType"> schema_type_suite = [] {
         expect(result.error() == "schema missing 'type'");
     };
 
-    "parse: an array item's parse failure propagates verbatim"_test = [] {
+    "parse: an array item's parse failure propagates verbatim"_test = []
+    {
         serde::Value::Object bad_items; // no 'type' key
         serde::Value::Object object;
         object.insert(std::string{"type"}, serde::Value{std::string{"array"}});
@@ -569,8 +593,10 @@ suite<"SchemaType"> schema_type_suite = [] {
     };
 };
 
-suite<"SchemaKind formatter"> schema_kind_formatter_suite = [] {
-    "formats every enumerator by its plain name"_test = [] {
+suite<"SchemaKind formatter"> schema_kind_formatter_suite = []
+{
+    "formats every enumerator by its plain name"_test = []
+    {
         expect(std::format("{}", SchemaKind::OBJECT) == "Object");
         expect(std::format("{}", SchemaKind::ARRAY) == "Array");
         expect(std::format("{}", SchemaKind::STRING) == "String");

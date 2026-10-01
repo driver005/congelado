@@ -120,7 +120,8 @@ public:
      * @param action what happens once the timeout fires.
      */
     TimeoutPolicy(
-        std::uint32_t timeout_ms = 30'000, TimeoutAction action = TimeoutAction::FAIL_WORKFLOW
+        std::uint32_t timeout_ms = 30'000,
+        TimeoutAction action = TimeoutAction::FAIL_WORKFLOW
     ) :
         m_timeout_ms{timeout_ms},
         m_action{action}
@@ -254,12 +255,16 @@ struct serde::Serializable<model::RetryPolicy>
     {
         return std::tuple{
             serde::FieldDesc<
-                "max_attempts", &model::RetryPolicy::get_max_attempts,
+                "max_attempts",
+                &model::RetryPolicy::get_max_attempts,
                 &model::RetryPolicy::set_max_attempts>{},
             serde::FieldDesc<
-                "backoff", &model::RetryPolicy::get_backoff, &model::RetryPolicy::set_backoff>{},
+                "backoff",
+                &model::RetryPolicy::get_backoff,
+                &model::RetryPolicy::set_backoff>{},
             serde::FieldDesc<
-                "interval_ms", &model::RetryPolicy::get_interval_ms,
+                "interval_ms",
+                &model::RetryPolicy::get_interval_ms,
                 &model::RetryPolicy::set_interval_ms>{},
         };
     }
@@ -277,10 +282,13 @@ struct serde::Serializable<model::TimeoutPolicy>
     {
         return std::tuple{
             serde::FieldDesc<
-                "timeout_ms", &model::TimeoutPolicy::get_timeout_ms,
+                "timeout_ms",
+                &model::TimeoutPolicy::get_timeout_ms,
                 &model::TimeoutPolicy::set_timeout_ms>{},
             serde::FieldDesc<
-                "action", &model::TimeoutPolicy::get_action, &model::TimeoutPolicy::set_action>{},
+                "action",
+                &model::TimeoutPolicy::get_action,
+                &model::TimeoutPolicy::set_action>{},
         };
     }
 };
@@ -297,10 +305,12 @@ struct serde::Serializable<model::RateLimitPolicy>
     {
         return std::tuple{
             serde::FieldDesc<
-                "max_concurrent", &model::RateLimitPolicy::get_max_concurrent,
+                "max_concurrent",
+                &model::RateLimitPolicy::get_max_concurrent,
                 &model::RateLimitPolicy::set_max_concurrent>{},
             serde::FieldDesc<
-                "rate_limit_per_second", &model::RateLimitPolicy::get_rate_limit_per_second,
+                "rate_limit_per_second",
+                &model::RateLimitPolicy::get_rate_limit_per_second,
                 &model::RateLimitPolicy::set_rate_limit_per_second>{},
         };
     }
@@ -310,8 +320,10 @@ struct serde::Serializable<model::RateLimitPolicy>
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"RetryPolicy"> retry_policy_suite = [] {
-    "defaults to 3 attempts, fixed backoff, 1000ms interval"_test = [] {
+suite<"RetryPolicy"> retry_policy_suite = []
+{
+    "defaults to 3 attempts, fixed backoff, 1000ms interval"_test = []
+    {
         RetryPolicy policy;
 
         expect(policy.get_max_attempts() == 3);
@@ -319,43 +331,52 @@ suite<"RetryPolicy"> retry_policy_suite = [] {
         expect(policy.get_interval_ms() == 1'000);
         expect(bool(policy.validate()));
     };
-    "rejects zero max_attempts"_test = [] {
+    "rejects zero max_attempts"_test = []
+    {
         RetryPolicy policy{0};
         expect(not policy.validate().has_value());
     };
-    "rejects zero interval_ms"_test = [] {
+    "rejects zero interval_ms"_test = []
+    {
         RetryPolicy policy{3, RetryBackoff::FIXED, 0};
         expect(not policy.validate().has_value());
     };
 };
 
-suite<"TimeoutPolicy"> timeout_policy_suite = [] {
-    "defaults to 30000ms, FAIL_WORKFLOW"_test = [] {
+suite<"TimeoutPolicy"> timeout_policy_suite = []
+{
+    "defaults to 30000ms, FAIL_WORKFLOW"_test = []
+    {
         TimeoutPolicy policy;
 
         expect(policy.get_timeout_ms() == 30'000);
         expect(policy.get_action() == TimeoutAction::FAIL_WORKFLOW);
         expect(bool(policy.validate()));
     };
-    "rejects zero timeout_ms"_test = [] {
+    "rejects zero timeout_ms"_test = []
+    {
         TimeoutPolicy policy{0};
         expect(not policy.validate().has_value());
     };
 };
 
-suite<"RateLimitPolicy"> rate_limit_policy_suite = [] {
-    "defaults to 10 concurrent, 100 req/s"_test = [] {
+suite<"RateLimitPolicy"> rate_limit_policy_suite = []
+{
+    "defaults to 10 concurrent, 100 req/s"_test = []
+    {
         RateLimitPolicy policy;
 
         expect(policy.get_max_concurrent() == 10);
         expect(policy.get_rate_limit_per_second() == 100);
         expect(bool(policy.validate()));
     };
-    "rejects zero max_concurrent"_test = [] {
+    "rejects zero max_concurrent"_test = []
+    {
         RateLimitPolicy policy{0, 100};
         expect(not policy.validate().has_value());
     };
-    "rejects zero rate_limit_per_second"_test = [] {
+    "rejects zero rate_limit_per_second"_test = []
+    {
         RateLimitPolicy policy{10, 0};
         expect(not policy.validate().has_value());
     };

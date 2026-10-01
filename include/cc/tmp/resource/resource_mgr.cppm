@@ -10,7 +10,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         using ResourceHandle = ice::PjRtResource;

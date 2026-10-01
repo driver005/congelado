@@ -39,7 +39,11 @@ extern "C"
             const TF_String* path,
             TF_Status* out_status
         );
-        void (*delete_file)(TFFilesystemTree* manager, const TF_String* path, TF_Status* out_status);
+        void (*delete_file)(
+            TFFilesystemTree* manager,
+            const TF_String* path,
+            TF_Status* out_status
+        );
         void (*delete_dir)(TFFilesystemTree* manager, const TF_String* path, TF_Status* out_status);
         void (*delete_recursively)(
             TFFilesystemTree* manager,
@@ -60,7 +64,11 @@ extern "C"
             const TF_String* dst,
             TF_Status* out_status
         );
-        void (*path_exists)(TFFilesystemTree* manager, const TF_String* path, TF_Status* out_status);
+        void (*path_exists)(
+            TFFilesystemTree* manager,
+            const TF_String* path,
+            TF_Status* out_status
+        );
         void (*paths_exist)(
             TFFilesystemTree* manager,
             const TF_String* paths,
@@ -73,14 +81,23 @@ extern "C"
             TF_FileStatistics* out_stats,
             TF_Status* out_status
         );
-        void (*is_directory)(TFFilesystemTree* manager, const TF_String* path, int* out_is_directory, TF_Status* out_status);
+        void (*is_directory)(
+            TFFilesystemTree* manager,
+            const TF_String* path,
+            int* out_is_directory,
+            TF_Status* out_status
+        );
         void (*get_file_size)(
             TFFilesystemTree* manager,
             const TF_String* path,
             int64_t* out_size,
             TF_Status* out_status
         );
-        void (*translate_name)(TFFilesystemTree* manager, const TF_String* uri, TF_String* out_name);
+        void (*translate_name)(
+            TFFilesystemTree* manager,
+            const TF_String* uri,
+            TF_String* out_name
+        );
         void (*get_children)(
             TFFilesystemTree* manager,
             const TF_String* path,
@@ -94,7 +111,11 @@ extern "C"
             TF_Status* out_status
         );
         void (*flush_caches)(TFFilesystemTree* manager);
-        void (*get_filesystem_configuration)(TFFilesystemTree* manager, TF_Tensor** out_config, TF_Status* out_status);
+        void (*get_filesystem_configuration)(
+            TFFilesystemTree* manager,
+            TF_Tensor** out_config,
+            TF_Status* out_status
+        );
         void (*set_filesystem_configuration)(
             TFFilesystemTree* manager,
             const TF_Tensor* options,
@@ -118,7 +139,7 @@ extern "C"
         );
     } TFFilesystemTreeOps;
 
-#define TF_FILESYSTEM_TREE_STRUCT_SIZE                                                                  \
+#define TF_FILESYSTEM_TREE_STRUCT_SIZE                                                             \
     TF_OFFSET_OF_END(TFFilesystemTreeOps, get_filesystem_configuration_keys)
 
     TF_CAPI_EXPORT void

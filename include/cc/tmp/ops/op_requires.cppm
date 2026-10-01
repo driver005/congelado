@@ -8,7 +8,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
 #define OP_REQUIRES(CTX, EXP, STATUS)                                                              \

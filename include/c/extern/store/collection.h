@@ -1,11 +1,11 @@
 #ifndef CONGELADO_C_STORE_COLLECTION_H_
 #define CONGELADO_C_STORE_COLLECTION_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/map.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 #include "include/c/intern/vector.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -15,9 +15,21 @@ extern "C"
 {
 #endif
 
-    typedef void (*TFStoreGetCompletionFn)(void* user_data, const TF_String* value, TF_Status* out_status);
-    typedef void (*TFStoreMultiGetCompletionFn)(void* user_data, const TF_Map* results, TF_Status* out_status);
-    typedef void (*TFStoreSetCompletionFn)(void* user_data, const TF_String* key, TF_Status* out_status);
+    typedef void (*TFStoreGetCompletionFn)(
+        void* user_data,
+        const TF_String* value,
+        TF_Status* out_status
+    );
+    typedef void (*TFStoreMultiGetCompletionFn)(
+        void* user_data,
+        const TF_Map* results,
+        TF_Status* out_status
+    );
+    typedef void (*TFStoreSetCompletionFn)(
+        void* user_data,
+        const TF_String* key,
+        TF_Status* out_status
+    );
     typedef void (*TFStoreAckFn)(void* user_data, TF_Status* out_status);
     typedef void (*TFStoreExistsFn)(void* user_data, int exists, TF_Status* out_status);
     typedef void (*TFStoreCountFn)(void* user_data, size_t count, TF_Status* out_status);
@@ -56,7 +68,8 @@ extern "C"
             void* user_data,
             TF_Status* out_status
         );
-        // key may be NULL to request a plugin-generated key; completion always receives the effective key. ttl_seconds == 0 means no expiry.
+        // key may be NULL to request a plugin-generated key; completion always receives the
+        // effective key. ttl_seconds == 0 means no expiry.
         void (*set)(
             TFStoreCollection* collection,
             const TF_String* key,
@@ -103,7 +116,12 @@ extern "C"
             void* user_data,
             TF_Status* out_status
         );
-        void (*clear)(TFStoreCollection* collection, TFStoreAckFn completion, void* user_data, TF_Status* out_status);
+        void (*clear)(
+            TFStoreCollection* collection,
+            TFStoreAckFn completion,
+            void* user_data,
+            TF_Status* out_status
+        );
 
         // Atomic primitives.
         void (*increment)(
@@ -133,8 +151,20 @@ extern "C"
             void* user_data,
             TF_Status* out_status
         );
-        void (*get_ttl)(TFStoreCollection* collection, const TF_String* key, TFStoreIntFn completion, void* user_data, TF_Status* out_status);
-        void (*persist)(TFStoreCollection* collection, const TF_String* key, TFStoreAckFn completion, void* user_data, TF_Status* out_status);
+        void (*get_ttl)(
+            TFStoreCollection* collection,
+            const TF_String* key,
+            TFStoreIntFn completion,
+            void* user_data,
+            TF_Status* out_status
+        );
+        void (*persist)(
+            TFStoreCollection* collection,
+            const TF_String* key,
+            TFStoreAckFn completion,
+            void* user_data,
+            TF_Status* out_status
+        );
 
     } TFStoreCollectionOps;
 

@@ -97,12 +97,15 @@ void for_each_cqe(io_uring* ring, Func&& func)
 namespace liburing::leverage_uring_tests {
 using namespace boost::ut;
 
-suite<"liburing constants"> constants_suite = [] {
-    "enomem mirrors the ENOMEM errno macro"_test = [] {
+suite<"liburing constants"> constants_suite = []
+{
+    "enomem mirrors the ENOMEM errno macro"_test = []
+    {
         expect(liburing::enomem == ENOMEM);
     };
 
-    "opcode constants mirror their IORING_OP_* macros"_test = [] {
+    "opcode constants mirror their IORING_OP_* macros"_test = []
+    {
         expect(liburing::OP_READ == IORING_OP_READ);
         expect(liburing::OP_WRITE == IORING_OP_WRITE);
         expect(liburing::OP_SYNC_FILE_RANGE == IORING_OP_SYNC_FILE_RANGE);
@@ -114,8 +117,10 @@ suite<"liburing constants"> constants_suite = [] {
 // stack-backed cq storage exercises the real iteration logic without a single syscall (a live
 // ring, per Leverager's own test-skip note in include/io/base/leverage/types.cppm, is
 // off-limits in this shared test binary).
-suite<"liburing for_each_cqe"> for_each_cqe_suite = [] {
-    "walks every ready cqe from head to tail"_test = [] {
+suite<"liburing for_each_cqe"> for_each_cqe_suite = []
+{
+    "walks every ready cqe from head to tail"_test = []
+    {
         std::array<io_uring_cqe, 4> cqes{};
         cqes[0].res = 10;
         cqes[1].res = 20;
@@ -130,9 +135,13 @@ suite<"liburing for_each_cqe"> for_each_cqe_suite = [] {
         ring.cq.cqes = cqes.data();
 
         std::vector<int> seen;
-        liburing::for_each_cqe(&ring, [&](io_uring_cqe* cqe) {
-            seen.push_back(cqe->res);
-        });
+        liburing::for_each_cqe(
+            &ring,
+            [&](io_uring_cqe* cqe)
+            {
+                seen.push_back(cqe->res);
+            }
+        );
 
         expect(seen.size() == 3) << fatal;
         expect(seen[0] == 10);
@@ -140,7 +149,8 @@ suite<"liburing for_each_cqe"> for_each_cqe_suite = [] {
         expect(seen[2] == 30);
     };
 
-    "an empty ring (head == tail) never invokes func"_test = [] {
+    "an empty ring (head == tail) never invokes func"_test = []
+    {
         std::array<io_uring_cqe, 4> cqes{};
         unsigned head = 5;
         unsigned tail = 5; // nothing ready
@@ -151,14 +161,19 @@ suite<"liburing for_each_cqe"> for_each_cqe_suite = [] {
         ring.cq.cqes = cqes.data();
 
         int calls = 0;
-        liburing::for_each_cqe(&ring, [&](io_uring_cqe*) {
-            ++calls;
-        });
+        liburing::for_each_cqe(
+            &ring,
+            [&](io_uring_cqe*)
+            {
+                ++calls;
+            }
+        );
 
         expect(calls == 0);
     };
 
-    "head wraps around the ring mask once it exceeds the buffer size"_test = [] {
+    "head wraps around the ring mask once it exceeds the buffer size"_test = []
+    {
         std::array<io_uring_cqe, 4> cqes{};
         cqes[2].res = 77; // slot (6 & 3) == 2
 
@@ -171,9 +186,13 @@ suite<"liburing for_each_cqe"> for_each_cqe_suite = [] {
         ring.cq.cqes = cqes.data();
 
         std::vector<int> seen;
-        liburing::for_each_cqe(&ring, [&](io_uring_cqe* cqe) {
-            seen.push_back(cqe->res);
-        });
+        liburing::for_each_cqe(
+            &ring,
+            [&](io_uring_cqe* cqe)
+            {
+                seen.push_back(cqe->res);
+            }
+        );
 
         expect(seen.size() == 1) << fatal;
         expect(seen[0] == 77);

@@ -164,9 +164,12 @@ private:
             // further into the slice — if the middleware never calls it, the chain dies
             // silently right here
             CURRENT_MW(
-                req, res,
-                [&](interfaces::io::IRequest& next_req, interfaces::io::IResponse& next_res,
-                    std::function<void()> next_send) noexcept {
+                req,
+                res,
+                [&](interfaces::io::IRequest& next_req,
+                    interfaces::io::IResponse& next_res,
+                    std::function<void()> next_send) noexcept
+                {
                     this->run_step(next_req, next_res, next_send, offset + 1, border);
                 },
                 send
@@ -188,16 +191,21 @@ private:
 namespace core::router::tests {
 using namespace boost::ut;
 
-suite<"Middleware"> middleware_suite = [] {
-    "starts with zero middlewares"_test = [] {
+suite<"Middleware"> middleware_suite = []
+{
+    "starts with zero middlewares"_test = []
+    {
         Middleware<4> chain;
         expect(chain.get_size() == 0);
         expect(chain.begin() == chain.end());
     };
-    "add_middleware appends in registration order"_test = [] {
+    "add_middleware appends in registration order"_test = []
+    {
         Middleware<4> chain;
-        interfaces::MiddlewareFn noop = [](interfaces::io::IRequest&, interfaces::io::IResponse&,
-                                           interfaces::NextFn&&, std::function<void()>) noexcept {};
+        interfaces::MiddlewareFn noop = [](interfaces::io::IRequest&,
+                                           interfaces::io::IResponse&,
+                                           interfaces::NextFn&&,
+                                           std::function<void()>) noexcept {};
 
         chain.add_middleware(noop);
         chain.add_middleware(noop);
@@ -205,15 +213,23 @@ suite<"Middleware"> middleware_suite = [] {
         expect(chain.get_size() == 2);
         expect(std::distance(chain.begin(), chain.end()) == 2);
     };
-    "add_middleware throws once the chain is full"_test = [] {
+    "add_middleware throws once the chain is full"_test = []
+    {
         Middleware<1> chain;
-        interfaces::MiddlewareFn noop = [](interfaces::io::IRequest&, interfaces::io::IResponse&,
-                                           interfaces::NextFn&&, std::function<void()>) noexcept {};
+        interfaces::MiddlewareFn noop = [](interfaces::io::IRequest&,
+                                           interfaces::io::IResponse&,
+                                           interfaces::NextFn&&,
+                                           std::function<void()>) noexcept {};
 
         chain.add_middleware(noop);
-        expect(throws<std::runtime_error>([&] {
-            chain.add_middleware(noop);
-        }));
+        expect(
+            throws<std::runtime_error>(
+                [&]
+                {
+                    chain.add_middleware(noop);
+                }
+            )
+        );
     };
 };
 

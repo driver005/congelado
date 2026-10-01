@@ -60,7 +60,9 @@ private:
     {
         char buf[256];
         ::ERR_error_string_n(
-            ::ERR_get_error(), buf, sizeof(buf)
+            ::ERR_get_error(),
+            buf,
+            sizeof(buf)
         );                                    // FIXME(clang-tidy): array-to-pointer decay
         return std::string(ctx) + ": " + buf; // FIXME(clang-tidy): array-to-pointer decay
     }
@@ -72,15 +74,18 @@ private:
 namespace io::error::tests {
 using namespace boost::ut;
 
-suite<"handle_error"> handle_error_suite = [] {
-    "invokes the callback with the message and ctx"_test = [] {
+suite<"handle_error"> handle_error_suite = []
+{
+    "invokes the callback with the message and ctx"_test = []
+    {
         std::string captured_message;
         void* captured_ctx = nullptr;
         int marker = 42;
 
         io::error::handle_error<false, false>(
             "test message",
-            [&](std::string_view message, void* ctx) {
+            [&](std::string_view message, void* ctx)
+            {
                 captured_message = std::string(message);
                 captured_ctx = ctx;
             },
@@ -91,21 +96,32 @@ suite<"handle_error"> handle_error_suite = [] {
         expect(captured_ctx == &marker);
     };
 
-    "throws when UseException is set"_test = [] {
-        expect(throws<std::runtime_error>([] {
-            io::error::handle_error<true, false>("boom");
-        }));
+    "throws when UseException is set"_test = []
+    {
+        expect(
+            throws<std::runtime_error>(
+                []
+                {
+                    io::error::handle_error<true, false>("boom");
+                }
+            )
+        );
     };
 };
 
-suite<"TlsError"> tls_error_suite = [] {
+suite<"TlsError"> tls_error_suite = []
+{
     // TlsError privately inherits std::runtime_error (no `public` on the base), so `what()`
     // and any base-class conversion are inaccessible from outside the class — the only
     // observable public surface is that construction itself succeeds.
-    "constructs without throwing"_test = [] {
-        expect(nothrow([] {
-            TlsError error("my-context");
-        }));
+    "constructs without throwing"_test = []
+    {
+        expect(nothrow(
+            []
+            {
+                TlsError error("my-context");
+            }
+        ));
     };
 };
 

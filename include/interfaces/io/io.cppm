@@ -69,7 +69,11 @@ concept IoSyncOps = SyncSendable<T, Status, Args...> && SyncReceivable<T, Status
 
 template<typename T, typename Status, typename... Args>
 concept AsyncSendable = requires(
-    T sock, const std::byte* buf, std::size_t len, IoCallback<Status> callback, Args... args
+    T sock,
+    const std::byte* buf,
+    std::size_t len,
+    IoCallback<Status> callback,
+    Args... args
 ) {
     { sock.async_send(buf, len, std::move(callback), args...) } noexcept -> std::same_as<void>;
 };

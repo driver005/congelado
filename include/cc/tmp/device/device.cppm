@@ -10,7 +10,6 @@ import cc_abi;
 import :allocator_allocator;
 
 export {
-
     namespace tensorflow {
 
         class Device

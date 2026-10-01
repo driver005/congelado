@@ -1,26 +1,26 @@
 module;
 
 #ifdef _WIN32
-#    ifndef WIN32_LEAN_AND_MEAN
-#        define WIN32_LEAN_AND_MEAN
-#    endif
-#    include <winsock2.h>
-#    include <ws2tcpip.h>
-// break
-#    include <cerrno>
-#    include <ctime>
-#    include <mswsock.h>
-#    include <windows.h>
-#    pragma comment(lib, "ws2_32.lib")
-#    pragma comment(lib, "mswsock.lib")
+    #ifndef WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN
+    #endif
+    #include <winsock2.h>
+    #include <ws2tcpip.h>
+    // break
+    #include <cerrno>
+    #include <ctime>
+    #include <mswsock.h>
+    #include <windows.h>
+    #pragma comment(lib, "ws2_32.lib")
+    #pragma comment(lib, "mswsock.lib")
 
 #else
-#    include <cerrno>
-#    include <linux/time_types.h>
-#    include <sys/socket.h>
-#    include <sys/stat.h>
-#    include <sys/uio.h>
-#    include <unistd.h>
+    #include <cerrno>
+    #include <linux/time_types.h>
+    #include <sys/socket.h>
+    #include <sys/stat.h>
+    #include <sys/uio.h>
+    #include <unistd.h>
 #endif
 
 export module io_base_leverage:types;
@@ -273,7 +273,9 @@ constexpr void verbose_print(std::string_view fmt, Args&&... args)
 panic(std::string_view msg, int err, std::source_location loc = std::source_location::current())
 {
     throw std::system_error(
-        err, std::system_category(), std::format("{} at {}:{}", msg, loc.file_name(), loc.line())
+        err,
+        std::system_category(),
+        std::format("{} at {}:{}", msg, loc.file_name(), loc.line())
     );
 }
 
@@ -497,7 +499,10 @@ public:
      * @param iflags io_uring SQE flags — no-op on win32.
      */
     void fsync(
-        int descriptor, unsigned fsync_flags, completion_callback callback, std::uint8_t iflags = 0
+        int descriptor,
+        unsigned fsync_flags,
+        completion_callback callback,
+        std::uint8_t iflags = 0
     );
 
     /**
@@ -603,7 +608,10 @@ public:
      * @param iflags io_uring SQE flags — no-op on win32.
      */
     void poll(
-        int descriptor, short poll_mask, completion_callback callback, std::uint8_t iflags = 0
+        int descriptor,
+        short poll_mask,
+        completion_callback callback,
+        std::uint8_t iflags = 0
     );
 
     /**
@@ -658,7 +666,9 @@ public:
      * @param iflags io_uring SQE flags — no-op on win32.
      */
     void timeout(
-        __kernel_timespec* timeout_spec, completion_callback callback, std::uint8_t iflags = 0
+        __kernel_timespec* timeout_spec,
+        completion_callback callback,
+        std::uint8_t iflags = 0
     );
 
     /**
@@ -970,7 +980,8 @@ public:
     {
         // pump one run() cycle, then re-queue this handler so it keeps getting scheduled
         // forever
-        return [this]() {
+        return [this]()
+        {
             run();
             shared::this_handler::shedule();
         };
@@ -983,7 +994,8 @@ public:
      */
     shared::ReleaseFunction on_released() noexcept override
     {
-        return [this]() noexcept {
+        return [this]() noexcept
+        {
             stop();
         };
     }
@@ -1004,43 +1016,75 @@ using namespace boost::ut;
 // meaningful, so it's not unit-testable in isolation — skipped here. panic()/panic_on_err()/
 // verbose_enabled() are pure logic with no syscalls involved, so those are covered for real.
 
-suite<"leverage_panic"> panic_suite = [] {
-    "panic_on_err does not throw on a non-negative result"_test = [] {
-        expect(nothrow([] {
-            panic_on_err("op", 0);
-        }));
-        expect(nothrow([] {
-            panic_on_err("op", 42);
-        }));
+suite<"leverage_panic"> panic_suite = []
+{
+    "panic_on_err does not throw on a non-negative result"_test = []
+    {
+        expect(nothrow(
+            []
+            {
+                panic_on_err("op", 0);
+            }
+        ));
+        expect(nothrow(
+            []
+            {
+                panic_on_err("op", 42);
+            }
+        ));
     };
 
-    "panic_on_err throws std::system_error on a negative result"_test = [] {
-        expect(throws<std::system_error>([] {
-            panic_on_err("op", -1);
-        }));
+    "panic_on_err throws std::system_error on a negative result"_test = []
+    {
+        expect(
+            throws<std::system_error>(
+                []
+                {
+                    panic_on_err("op", -1);
+                }
+            )
+        );
     };
 
-    "panic_on_err swallows EAGAIN when ignore_eagain is set"_test = [] {
-        expect(nothrow([] {
-            panic_on_err("op", -EAGAIN, true);
-        }));
+    "panic_on_err swallows EAGAIN when ignore_eagain is set"_test = []
+    {
+        expect(nothrow(
+            []
+            {
+                panic_on_err("op", -EAGAIN, true);
+            }
+        ));
     };
 
-    "panic_on_err still throws EAGAIN when ignore_eagain is not set"_test = [] {
-        expect(throws<std::system_error>([] {
-            panic_on_err("op", -EAGAIN, false);
-        }));
+    "panic_on_err still throws EAGAIN when ignore_eagain is not set"_test = []
+    {
+        expect(
+            throws<std::system_error>(
+                []
+                {
+                    panic_on_err("op", -EAGAIN, false);
+                }
+            )
+        );
     };
 
-    "panic() itself always throws std::system_error"_test = [] {
-        expect(throws<std::system_error>([] {
-            panic("boom", EINVAL);
-        }));
+    "panic() itself always throws std::system_error"_test = []
+    {
+        expect(
+            throws<std::system_error>(
+                []
+                {
+                    panic("boom", EINVAL);
+                }
+            )
+        );
     };
 };
 
-suite<"leverage_verbose"> verbose_suite = [] {
-    "verbose_enabled is compiled off by default"_test = [] {
+suite<"leverage_verbose"> verbose_suite = []
+{
+    "verbose_enabled is compiled off by default"_test = []
+    {
         expect(not verbose_enabled());
     };
 };

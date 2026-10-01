@@ -126,7 +126,8 @@ template<typename T>
             SchemaObject object_schema;
             object_schema.set_type("object");
             std::apply(
-                [&](auto... fields) {
+                [&](auto... fields)
+                {
                     (object_schema.add_property(
                          std::string{decltype(fields)::name.string_view()},
                          build_schema<typename decltype(fields)::ValueType>()
@@ -177,36 +178,45 @@ template<typename T>
 namespace utils::openapi::tests {
 using namespace boost::ut;
 
-suite<"build_schema primitives"> build_schema_primitives_suite = [] {
-    "bool maps to boolean"_test = [] {
+suite<"build_schema primitives"> build_schema_primitives_suite = []
+{
+    "bool maps to boolean"_test = []
+    {
         expect(build_schema<bool>().get_type() == "boolean");
     };
-    "integral types map to integer"_test = [] {
+    "integral types map to integer"_test = []
+    {
         expect(build_schema<int>().get_type() == "integer");
         expect(build_schema<std::uint64_t>().get_type() == "integer");
     };
-    "floating-point types map to number"_test = [] {
+    "floating-point types map to number"_test = []
+    {
         expect(build_schema<double>().get_type() == "number");
         expect(build_schema<float>().get_type() == "number");
     };
-    "string falls back to the string type"_test = [] {
+    "string falls back to the string type"_test = []
+    {
         expect(build_schema<std::string>().get_type() == "string");
     };
 };
 
-suite<"build_schema optional/vector/map"> build_schema_containers_suite = [] {
-    "optional<T> derives T's schema and marks it nullable"_test = [] {
+suite<"build_schema optional/vector/map"> build_schema_containers_suite = []
+{
+    "optional<T> derives T's schema and marks it nullable"_test = []
+    {
         auto schema = build_schema<std::optional<int>>();
         expect(schema.get_type() == "integer");
         expect(schema.get_nullable());
     };
-    "vector<T> becomes an array with T's schema as items"_test = [] {
+    "vector<T> becomes an array with T's schema as items"_test = []
+    {
         auto schema = build_schema<std::vector<std::string>>();
         expect(schema.get_type() == "array");
         expect(schema.get_items() != nullptr);
         expect(schema.get_items()->get_type() == "string");
     };
-    "string-keyed maps become a bare object"_test = [] {
+    "string-keyed maps become a bare object"_test = []
+    {
         expect(build_schema<std::unordered_map<std::string, int>>().get_type() == "object");
         expect(build_schema<std::map<std::string, int>>().get_type() == "object");
     };

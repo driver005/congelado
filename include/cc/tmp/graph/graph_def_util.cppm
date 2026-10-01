@@ -40,7 +40,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // Forward declare proto so that it's symbols can be removed from .so exports
@@ -75,7 +74,9 @@ export {
         //
         // REQUIRES: 'graph_def' and 'op_registry' are not nullptr.
         absl::Status AddDefaultAttrsToGraphDef(
-            GraphDef* graph_def, const OpRegistryInterface& op_registry, int node_offset
+            GraphDef* graph_def,
+            const OpRegistryInterface& op_registry,
+            int node_offset
         );
 
         // Same as above, except for the fact that it skips nodes that aren't found in
@@ -134,7 +135,8 @@ export {
         // nodes calling functions, e.g. PartitionCallOp or FunctionalIf, this
         // function does not "recurse" into them.
         void StripDefaultAttributes(
-            const OpRegistryInterface& op_registry, protobuf::RepeatedPtrField<NodeDef>* nodes
+            const OpRegistryInterface& op_registry,
+            protobuf::RepeatedPtrField<NodeDef>* nodes
         );
 
         // Two functions that collect the ops used by a graph.
@@ -184,7 +186,9 @@ export {
         }
 
         absl::Status AddDefaultAttrsToGraphDef(
-            GraphDef* graph_def, const OpRegistryInterface& op_registry, int node_offset
+            GraphDef* graph_def,
+            const OpRegistryInterface& op_registry,
+            int node_offset
         )
         {
             return AddDefaultAttrsToGraphDef(graph_def, op_registry, node_offset, false);
@@ -202,7 +206,9 @@ export {
                     absl::StrCat(
                         "Tried to add default attrs to GraphDef "
                         "starting at offset ",
-                        node_offset, " with total nodes in graph: ", graph_def->node_size()
+                        node_offset,
+                        " with total nodes in graph: ",
+                        graph_def->node_size()
                     )
                 );
             }
@@ -243,9 +249,12 @@ export {
                     if (producer_attr_def == nullptr) {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                "Attr '", attr.first,
-                                "' missing in producer's OpDef: ", SummarizeOpDef(*producer_op_def),
-                                " but found in node: ", FormatNodeDefForError(*node_def)
+                                "Attr '",
+                                attr.first,
+                                "' missing in producer's OpDef: ",
+                                SummarizeOpDef(*producer_op_def),
+                                " but found in node: ",
+                                FormatNodeDefForError(*node_def)
                             )
                         );
                     }
@@ -293,7 +302,10 @@ export {
                 NodeDef* node_def = graph_def->mutable_node(n);
                 if (!IsFunction(*graph_def, node_def->op())) {
                     TF_RETURN_IF_ERROR(RemoveNewDefaultAttrsFromNodeDef(
-                        node_def, consumer_op_registry, producer_op_registry, op_attr_removed
+                        node_def,
+                        consumer_op_registry,
+                        producer_op_registry,
+                        op_attr_removed
                     ));
                 }
             }
@@ -304,7 +316,10 @@ export {
                     if (!IsFunction(*graph_def, node_def->op())) {
                         // TODO(josh11b): Better handling of attrs with placeholder values.
                         TF_RETURN_IF_ERROR(RemoveNewDefaultAttrsFromNodeDef(
-                            node_def, consumer_op_registry, producer_op_registry, op_attr_removed
+                            node_def,
+                            consumer_op_registry,
+                            producer_op_registry,
+                            op_attr_removed
                         ));
                     }
                 }
@@ -314,7 +329,8 @@ export {
         }
 
         void StripDefaultAttributes(
-            const OpRegistryInterface& op_registry, protobuf::RepeatedPtrField<NodeDef>* nodes
+            const OpRegistryInterface& op_registry,
+            protobuf::RepeatedPtrField<NodeDef>* nodes
         )
         {
             for (int i = 0; i < nodes->size(); ++i) {
@@ -342,7 +358,8 @@ export {
                             // larger than 32MB so allow false negatives  for efficient
                             // comparison.
                             if (AreAttrValuesEqual(
-                                    iter->second, default_value,
+                                    iter->second,
+                                    default_value,
                                     /*allow_false_negatives=*/true
                                 )) {
                                 attrs->erase(name);
@@ -366,8 +383,9 @@ export {
             std::set<std::string> used_ops; // Includes both primitive ops and functions
             std::vector<const FunctionDef*> functions_to_process; // A subset of used_ops
             // Collect the logic to mark an op in a lambda; it'll be used twice below.
-            const auto mark_op_as_used = [&used_ops, &functions_to_process,
-                                          &name_to_function](const std::string& op) {
+            const auto mark_op_as_used =
+                [&used_ops, &functions_to_process, &name_to_function](const std::string& op)
+            {
                 if (used_ops.insert(op).second) {
                     // If it's a function, we'll need to process further
                     const auto it = name_to_function.find(op);

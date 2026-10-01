@@ -88,9 +88,8 @@ public:
             return;
         }
 
-        *out_free = static_cast<int64_t>(
-            native.get_info<sycl::ext::intel::info::device::free_memory>()
-        );
+        *out_free =
+            static_cast<int64_t>(native.get_info<sycl::ext::intel::info::device::free_memory>());
         *out_total = static_cast<int64_t>(native.get_info<sycl::info::device::global_mem_size>());
         *out_success = true;
     }
@@ -101,9 +100,10 @@ public:
         return create_stream_with_priority(device, /*priority=*/0, stream);
     }
 
-    void
-    destroy_stream_internal(ice::builder::Device& device, ice::builder::Stream& stream) noexcept
-        override
+    void destroy_stream_internal(
+        ice::builder::Device& device,
+        ice::builder::Stream& stream
+    ) noexcept override
     {
         (void)device;
         remove_owned_stream(&stream);
@@ -147,9 +147,10 @@ public:
         return {};
     }
 
-    void
-    destroy_event_internal(ice::builder::Device& device, ice::builder::Event& event) noexcept
-        override
+    void destroy_event_internal(
+        ice::builder::Device& device,
+        ice::builder::Event& event
+    ) noexcept override
     {
         (void)device;
         remove_owned_event(&event);
@@ -163,12 +164,12 @@ public:
     {
         (void)device;
 
-        const auto status =
-            as_event(event).get_native_event().get_info<sycl::info::event::command_execution_status>();
+        const auto status = as_event(event)
+                                .get_native_event()
+                                .get_info<sycl::info::event::command_execution_status>();
 
-        *out_event_status = status == sycl::info::event_command_status::complete
-                                 ? TF_EVENT_COMPLETE
-                                 : TF_EVENT_PENDING;
+        *out_event_status = status == sycl::info::event_command_status::complete ? TF_EVENT_COMPLETE
+                                                                                 : TF_EVENT_PENDING;
     }
 
     [[nodiscard]] std::expected<void, ice::sonic::Status> record_event(
@@ -180,7 +181,9 @@ public:
         (void)device;
 
         try {
-            as_event(event).set_native_event(as_stream(stream).get_native_queue().ext_oneapi_submit_barrier());
+            as_event(event).set_native_event(
+                as_stream(stream).get_native_queue().ext_oneapi_submit_barrier()
+            );
         } catch (const sycl::exception& error) {
             return std::unexpected{ice::sonic::Status::from_message(error.what())};
         }
@@ -197,7 +200,9 @@ public:
         (void)device;
 
         try {
-            as_stream(stream).get_native_queue().ext_oneapi_submit_barrier({as_event(event).get_native_event()});
+            as_stream(stream).get_native_queue().ext_oneapi_submit_barrier(
+                {as_event(event).get_native_event()}
+            );
         } catch (const sycl::exception& error) {
             return std::unexpected{ice::sonic::Status::from_message(error.what())};
         }
@@ -215,9 +220,10 @@ public:
         return {};
     }
 
-    void
-    destroy_timer_internal(ice::builder::Device& device, ice::builder::Timer& timer) noexcept
-        override
+    void destroy_timer_internal(
+        ice::builder::Device& device,
+        ice::builder::Timer& timer
+    ) noexcept override
     {
         (void)device;
         remove_owned_timer(&timer);
@@ -233,7 +239,9 @@ public:
 
         auto& native_timer = as_timer(timer);
         try {
-            native_timer.set_start_event(as_stream(stream).get_native_queue().ext_oneapi_submit_barrier());
+            native_timer.set_start_event(
+                as_stream(stream).get_native_queue().ext_oneapi_submit_barrier()
+            );
         } catch (const sycl::exception& error) {
             return std::unexpected{ice::sonic::Status::from_message(error.what())};
         }
@@ -251,7 +259,9 @@ public:
 
         auto& native_timer = as_timer(timer);
         try {
-            native_timer.set_stop_event(as_stream(stream).get_native_queue().ext_oneapi_submit_barrier());
+            native_timer.set_stop_event(
+                as_stream(stream).get_native_queue().ext_oneapi_submit_barrier()
+            );
         } catch (const sycl::exception& error) {
             return std::unexpected{ice::sonic::Status::from_message(error.what())};
         }
@@ -326,8 +336,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::sonic::Status>
-    block_host_for_event(ice::builder::Device& device, ice::builder::Event& event) noexcept
-        override
+    block_host_for_event(ice::builder::Device& device, ice::builder::Event& event) noexcept override
     {
         (void)device;
 
@@ -340,9 +349,10 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    block_host_until_done(ice::builder::Device& device, ice::builder::Stream& stream) noexcept
-        override
+    [[nodiscard]] std::expected<void, ice::sonic::Status> block_host_until_done(
+        ice::builder::Device& device,
+        ice::builder::Stream& stream
+    ) noexcept override
     {
         (void)device;
 
@@ -425,7 +435,9 @@ public:
             as_stream(stream).get_native_queue().parallel_for(
                 sycl::range<1>{element_count},
                 [typed_destination, pattern](sycl::id<1> index)
-                { typed_destination[index] = pattern; }
+                {
+                    typed_destination[index] = pattern;
+                }
             );
         } catch (const sycl::exception& error) {
             return std::unexpected{ice::sonic::Status::from_message(error.what())};
@@ -472,9 +484,11 @@ public:
         return create_stream_with_priority(device, options->priority, stream);
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_stream_from_pool(ice::builder::Device& device, int32_t priority, TF_Stream* out_stream)
-        noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_stream_from_pool(
+        ice::builder::Device& device,
+        int32_t priority,
+        TF_Stream* out_stream
+    ) noexcept
     {
         auto& pool = pool_for(priority);
 
@@ -514,8 +528,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::sonic::Status>
-    set_current_stream(ice::builder::Device& device, ice::builder::Stream& stream) noexcept
-        override
+    set_current_stream(ice::builder::Device& device, ice::builder::Stream& stream) noexcept override
     {
         (void)device;
         current_stream_slot() = &as_stream(stream);
@@ -562,7 +575,9 @@ public:
         (void)device;
         (void)handle;
         (void)out_event;
-        return std::unexpected{ice::sonic::Status::from_message("SyclExecutor: IPC events not implemented")};
+        return std::unexpected{
+            ice::sonic::Status::from_message("SyclExecutor: IPC events not implemented")
+        };
     }
 
     [[nodiscard]] std::expected<void, ice::sonic::Status> create_random_generator_internal(
@@ -594,13 +609,16 @@ public:
         std::erase_if(
             m_random_generators,
             [&generator](const std::unique_ptr<SyclRandomGenerator>& candidate)
-            { return candidate.get() == &generator; }
+            {
+                return candidate.get() == &generator;
+            }
         );
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    get_default_random_generator(ice::builder::Device& device, TF_RandomGenerator* out_generator)
-        noexcept
+    [[nodiscard]] std::expected<void, ice::sonic::Status> get_default_random_generator(
+        ice::builder::Device& device,
+        TF_RandomGenerator* out_generator
+    ) noexcept
     {
         if (!m_default_random_generator) {
             m_default_random_generator =
@@ -631,11 +649,8 @@ private:
                 sycl::property_list{sycl::property::queue::in_order{}}
             };
 
-            auto owned = std::make_unique<SyclStream>(
-                std::move(queue),
-                device_index_of(device),
-                priority
-            );
+            auto owned =
+                std::make_unique<SyclStream>(std::move(queue), device_index_of(device), priority);
             stream->plugin_data = owned.get();
             m_owned_streams.push_back(std::move(owned));
         } catch (const sycl::exception& error) {
@@ -676,7 +691,10 @@ private:
     ) noexcept
     {
         try {
-            sycl::queue temporary{m_platform.get_shared_context(), as_device(device).get_native_device()};
+            sycl::queue temporary{
+                m_platform.get_shared_context(),
+                as_device(device).get_native_device()
+            };
             temporary.memcpy(dst, src, size).wait_and_throw();
         } catch (const sycl::exception& error) {
             return std::unexpected{ice::sonic::Status::from_message(error.what())};
@@ -695,7 +713,9 @@ private:
         std::erase_if(
             m_owned_streams,
             [stream](const std::unique_ptr<SyclStream>& candidate)
-            { return candidate.get() == stream; }
+            {
+                return candidate.get() == stream;
+            }
         );
     }
 
@@ -704,7 +724,9 @@ private:
         std::erase_if(
             m_events,
             [event](const std::unique_ptr<SyclEvent>& candidate)
-            { return candidate.get() == event; }
+            {
+                return candidate.get() == event;
+            }
         );
     }
 
@@ -713,7 +735,9 @@ private:
         std::erase_if(
             m_timers,
             [timer](const std::unique_ptr<SyclTimer>& candidate)
-            { return candidate.get() == timer; }
+            {
+                return candidate.get() == timer;
+            }
         );
     }
 

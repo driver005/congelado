@@ -40,29 +40,38 @@ void register_routes(core::router::RouterContext<>& router)
                     Router(router, "/worker")
                         .add_route(
                             Route{"/health"}
-                                .get([](interfaces::io::IRequest& req,
-                                        interfaces::io::IResponse& res,
-                                        std::function<void()> send) {
-                                    StatusHandler::health_check(req, res, std::move(send));
-                                })
+                                .get(
+                                    [](interfaces::io::IRequest& req,
+                                       interfaces::io::IResponse& res,
+                                       std::function<void()> send)
+                                    {
+                                        StatusHandler::health_check(req, res, std::move(send));
+                                    }
+                                )
                                 .summary("Worker liveness probe")
                         )
                         .add_route(
                             Route{"/info"}
-                                .get([](interfaces::io::IRequest& req,
-                                        interfaces::io::IResponse& res,
-                                        std::function<void()> send) {
-                                    StatusHandler::worker_info(req, res, std::move(send));
-                                })
+                                .get(
+                                    [](interfaces::io::IRequest& req,
+                                       interfaces::io::IResponse& res,
+                                       std::function<void()> send)
+                                    {
+                                        StatusHandler::worker_info(req, res, std::move(send));
+                                    }
+                                )
                                 .summary("Worker identity + registered task types")
                         )
                         .add_route(
                             Route{"/poll/:type"}
-                                .post([](interfaces::io::IRequest& req,
-                                         interfaces::io::IResponse& res,
-                                         std::function<void()> send) {
-                                    PollHandler::poll(req, res, std::move(send));
-                                })
+                                .post(
+                                    [](interfaces::io::IRequest& req,
+                                       interfaces::io::IResponse& res,
+                                       std::function<void()> send)
+                                    {
+                                        PollHandler::poll(req, res, std::move(send));
+                                    }
+                                )
                                 .summary(
                                     "Poll, execute, and submit a scheduled task "
                                     "instance of the given type"
@@ -70,11 +79,14 @@ void register_routes(core::router::RouterContext<>& router)
                         )
                         .add_route(
                             Route{"/ack/:id"}
-                                .post([](interfaces::io::IRequest& req,
-                                         interfaces::io::IResponse& res,
-                                         std::function<void()> send) {
-                                    PollHandler::ack(req, res, std::move(send));
-                                })
+                                .post(
+                                    [](interfaces::io::IRequest& req,
+                                       interfaces::io::IResponse& res,
+                                       std::function<void()> send)
+                                    {
+                                        PollHandler::ack(req, res, std::move(send));
+                                    }
+                                )
                                 .summary(
                                     "Heartbeat a task so the engine doesn't time "
                                     "it out"
@@ -82,11 +94,18 @@ void register_routes(core::router::RouterContext<>& router)
                         )
                         .add_route(
                             Route{"/executions"}
-                                .get([](interfaces::io::IRequest& req,
-                                        interfaces::io::IResponse& res,
-                                        std::function<void()> send) {
-                                    ExecutionHandler::list_executions(req, res, std::move(send));
-                                })
+                                .get(
+                                    [](interfaces::io::IRequest& req,
+                                       interfaces::io::IResponse& res,
+                                       std::function<void()> send)
+                                    {
+                                        ExecutionHandler::list_executions(
+                                            req,
+                                            res,
+                                            std::move(send)
+                                        );
+                                    }
+                                )
                                 .summary(
                                     "List this worker's in-progress task "
                                     "executions"
@@ -94,17 +113,27 @@ void register_routes(core::router::RouterContext<>& router)
                         )
                         .add_route(
                             Route{"/executions/:id"}
-                                .get([](interfaces::io::IRequest& req,
-                                        interfaces::io::IResponse& res,
-                                        std::function<void()> send) {
-                                    ExecutionHandler::get_execution(req, res, std::move(send));
-                                })
+                                .get(
+                                    [](interfaces::io::IRequest& req,
+                                       interfaces::io::IResponse& res,
+                                       std::function<void()> send)
+                                    {
+                                        ExecutionHandler::get_execution(req, res, std::move(send));
+                                    }
+                                )
                                 .summary("Get a single task execution by id")
-                                .delt([](interfaces::io::IRequest& req,
-                                         interfaces::io::IResponse& res,
-                                         std::function<void()> send) {
-                                    ExecutionHandler::cancel_execution(req, res, std::move(send));
-                                })
+                                .delt(
+                                    [](interfaces::io::IRequest& req,
+                                       interfaces::io::IResponse& res,
+                                       std::function<void()> send)
+                                    {
+                                        ExecutionHandler::cancel_execution(
+                                            req,
+                                            res,
+                                            std::move(send)
+                                        );
+                                    }
+                                )
                                 .summary("Cancel a task execution by id")
                         )
                 )
@@ -145,57 +174,69 @@ has_route_with_summary(std::size_t since, std::uint8_t method, std::string_view 
     return false;
 }
 
-suite<"register_routes"> register_routes_suite = [] {
+suite<"register_routes"> register_routes_suite = []
+{
     "populates the OpenAPI Registry with every worker route (relative to whatever's already registered)"_test =
-        [] {
-            core::router::RouterContext<> router;
-            auto before = utils::openapi::Registry::get_routes().size();
+        []
+    {
+        core::router::RouterContext<> router;
+        auto before = utils::openapi::Registry::get_routes().size();
 
-            register_routes(router);
+        register_routes(router);
 
-            expect(utils::openapi::Registry::get_routes().size() > before) << fatal;
+        expect(utils::openapi::Registry::get_routes().size() > before) << fatal;
 
-            expect(has_route_with_summary(
-                before, std::to_underlying(Method::GET), "Worker liveness probe"
-            ));
-            expect(has_route_with_summary(
-                before, std::to_underlying(Method::GET), "Worker identity + registered task types"
-            ));
-            expect(has_route_with_summary(
-                before, std::to_underlying(Method::POST),
-                "Poll, execute, and submit a scheduled task instance of the given type"
-            ));
-            expect(has_route_with_summary(
-                before, std::to_underlying(Method::POST),
-                "Heartbeat a task so the engine doesn't time it out"
-            ));
-            expect(has_route_with_summary(
-                before, std::to_underlying(Method::GET),
-                "List this worker's in-progress task executions"
-            ));
-            expect(has_route_with_summary(
-                before, std::to_underlying(Method::GET), "Get a single task execution by id"
-            ));
-            expect(has_route_with_summary(
-                before, std::to_underlying(Method::DELETE), "Cancel a task execution by id"
-            ));
-        };
+        expect(
+            has_route_with_summary(before, std::to_underlying(Method::GET), "Worker liveness probe")
+        );
+        expect(has_route_with_summary(
+            before,
+            std::to_underlying(Method::GET),
+            "Worker identity + registered task types"
+        ));
+        expect(has_route_with_summary(
+            before,
+            std::to_underlying(Method::POST),
+            "Poll, execute, and submit a scheduled task instance of the given type"
+        ));
+        expect(has_route_with_summary(
+            before,
+            std::to_underlying(Method::POST),
+            "Heartbeat a task so the engine doesn't time it out"
+        ));
+        expect(has_route_with_summary(
+            before,
+            std::to_underlying(Method::GET),
+            "List this worker's in-progress task executions"
+        ));
+        expect(has_route_with_summary(
+            before,
+            std::to_underlying(Method::GET),
+            "Get a single task execution by id"
+        ));
+        expect(has_route_with_summary(
+            before,
+            std::to_underlying(Method::DELETE),
+            "Cancel a task execution by id"
+        ));
+    };
 
     "calling it twice against fresh RouterContexts just re-adds the same route set (Registry is append-only)"_test =
-        [] {
-            core::router::RouterContext<> first_router;
-            auto before_first = utils::openapi::Registry::get_routes().size();
-            register_routes(first_router);
-            auto after_first = utils::openapi::Registry::get_routes().size();
-            expect(after_first > before_first) << fatal;
-            auto first_pass_count = after_first - before_first;
+        []
+    {
+        core::router::RouterContext<> first_router;
+        auto before_first = utils::openapi::Registry::get_routes().size();
+        register_routes(first_router);
+        auto after_first = utils::openapi::Registry::get_routes().size();
+        expect(after_first > before_first) << fatal;
+        auto first_pass_count = after_first - before_first;
 
-            core::router::RouterContext<> second_router;
-            register_routes(second_router);
-            auto after_second = utils::openapi::Registry::get_routes().size();
+        core::router::RouterContext<> second_router;
+        register_routes(second_router);
+        auto after_second = utils::openapi::Registry::get_routes().size();
 
-            expect(after_second - after_first == first_pass_count);
-        };
+        expect(after_second - after_first == first_pass_count);
+    };
 };
 
 } // namespace worker::routes_tests

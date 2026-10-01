@@ -87,7 +87,8 @@ export namespace core::events {
  * @param payload flat key/value payload, JSON-encoded internally before reaching any sink.
  */
 inline void publish(
-    std::string_view event_name, std::unordered_map<std::string, std::string> payload = {}
+    std::string_view event_name,
+    std::unordered_map<std::string, std::string> payload = {}
 ) noexcept
 {
     auto* registry = EventBusRegistry::get_active();
@@ -127,19 +128,25 @@ public:
     int m_publish_count{0};
 };
 
-suite<"events::publish"> publish_suite = [] {
-    "publish with no active registry does not throw"_test = [] {
+suite<"events::publish"> publish_suite = []
+{
+    "publish with no active registry does not throw"_test = []
+    {
         auto* previous = EventBusRegistry::get_active();
         EventBusRegistry::set_active(nullptr);
 
-        expect(nothrow([] {
-            core::events::publish("test.event", {{"key", "value"}});
-        }));
+        expect(nothrow(
+            []
+            {
+                core::events::publish("test.event", {{"key", "value"}});
+            }
+        ));
 
         EventBusRegistry::set_active(previous);
     };
 
-    "publish fans out a JSON-encoded payload to every registered sink"_test = [] {
+    "publish fans out a JSON-encoded payload to every registered sink"_test = []
+    {
         auto* previous = EventBusRegistry::get_active();
         EventBusRegistry registry;
         auto sink = std::make_shared<EventsPublishFakeSink>();
@@ -155,7 +162,8 @@ suite<"events::publish"> publish_suite = [] {
         EventBusRegistry::set_active(previous);
     };
 
-    "publish escapes quotes and backslashes in the JSON payload"_test = [] {
+    "publish escapes quotes and backslashes in the JSON payload"_test = []
+    {
         auto* previous = EventBusRegistry::get_active();
         EventBusRegistry registry;
         auto sink = std::make_shared<EventsPublishFakeSink>();

@@ -27,7 +27,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
         // GetWindowedOutputSize(): Given an input tensor, kernel, stride and padding
         // type, the function computes the output and padding dimensions.
@@ -201,7 +200,8 @@ export {
             }
             if (dilation_rate < 1) {
                 return errors::InvalidArgument(
-                    "Dilation rate must be >= 1, but got ", dilation_rate
+                    "Dilation rate must be >= 1, but got ",
+                    dilation_rate
                 );
             }
 
@@ -220,7 +220,8 @@ export {
                 case Padding::SAME:
                     *output_size = (input_size + stride - 1) / stride;
                     const int64_t padding_needed = std::max(
-                        int64_t{0}, (*output_size - 1) * stride + effective_filter_size - input_size
+                        int64_t{0},
+                        (*output_size - 1) * stride + effective_filter_size - input_size
                     );
                     // For odd values of total padding, add more padding at the 'right'
                     // side of the given dimension.
@@ -230,9 +231,15 @@ export {
             }
             if (*output_size < 0) {
                 return errors::InvalidArgument(
-                    "Computed output size would be negative: ", *output_size,
-                    " [input_size: ", input_size,
-                    ", effective_filter_size: ", effective_filter_size, ", stride: ", stride, "]"
+                    "Computed output size would be negative: ",
+                    *output_size,
+                    " [input_size: ",
+                    input_size,
+                    ", effective_filter_size: ",
+                    effective_filter_size,
+                    ", stride: ",
+                    stride,
+                    "]"
                 );
             }
             return OkStatus();
@@ -249,8 +256,13 @@ export {
         )
         {
             return GetWindowedOutputSizeVerboseV2(
-                input_size, filter_size,
-                /*dilation_rate=*/1, stride, padding_type, output_size, padding_before,
+                input_size,
+                filter_size,
+                /*dilation_rate=*/1,
+                stride,
+                padding_type,
+                output_size,
+                padding_before,
                 padding_after
             );
         }
@@ -272,7 +284,12 @@ export {
             }
             int64_t padding_after_unused;
             return GetWindowedOutputSizeVerbose(
-                input_size, filter_size, stride, padding_type, output_size, padding_size,
+                input_size,
+                filter_size,
+                stride,
+                padding_type,
+                output_size,
+                padding_size,
                 &padding_after_unused
             );
         }
@@ -295,8 +312,14 @@ export {
             }
             int64_t padding_after_unused;
             return GetWindowedOutputSizeVerboseV2(
-                input_size, filter_size, dilation_rate, stride, padding_type, output_size,
-                padding_size, &padding_after_unused
+                input_size,
+                filter_size,
+                dilation_rate,
+                stride,
+                padding_type,
+                output_size,
+                padding_size,
+                &padding_after_unused
             );
         }
 
@@ -311,7 +334,11 @@ export {
         {
             for (size_t i = 0; i < input.size(); ++i) {
                 TF_RETURN_IF_ERROR(GetWindowedOutputSize(
-                    input[i], window[i], strides[i], padding_type, &(*output_ptr)[i],
+                    input[i],
+                    window[i],
+                    strides[i],
+                    padding_type,
+                    &(*output_ptr)[i],
                     &(*padding_ptr)[i]
                 ));
             }
@@ -330,7 +357,12 @@ export {
         {
             for (size_t i = 0; i < input.size(); ++i) {
                 TF_RETURN_IF_ERROR(GetWindowedOutputSizeV2(
-                    input[i], window[i], dilations[i], strides[i], padding_type, &(*output_ptr)[i],
+                    input[i],
+                    window[i],
+                    dilations[i],
+                    strides[i],
+                    padding_type,
+                    &(*output_ptr)[i],
                     &(*padding_ptr)[i]
                 ));
             }

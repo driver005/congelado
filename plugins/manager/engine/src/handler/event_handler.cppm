@@ -1,7 +1,7 @@
 module;
 #ifdef CONGELADO_TEST
-#    include <rfl/Generic.hpp>
-#    include <rfl/json.hpp>
+    #include <rfl/Generic.hpp>
+    #include <rfl/json.hpp>
 #endif
 
 export module engine:event_handler;
@@ -56,13 +56,15 @@ public:
      * @param res the response this writes the serialized list into.
      */
     void list_handlers(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     ) noexcept
     {
         auto accept = req.find_header("accept");
         m_ctx.get().get_connector().find_all<model::EventHandler>(
-            [&res, accept,
-             send = std::move(send)](const std::vector<model::EventHandler>& handlers) {
+            [&res, accept, send = std::move(send)](const std::vector<model::EventHandler>& handlers)
+            {
                 reply(res, serde::Ser::serialize(accept, handlers));
                 send();
             }
@@ -75,7 +77,9 @@ public:
      * @param res the response — 200 with the handler, or 404 if nothing matched.
      */
     void get_handler(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     ) noexcept
     {
         auto accept = req.find_header("accept");
@@ -83,10 +87,12 @@ public:
         auto name = std::string{target.substr(target.rfind('/') + 1)};
         m_ctx.get().get_connector().find<model::EventHandler>(
             name,
-            [&res, accept, send = std::move(send)](std::optional<model::EventHandler> result) {
+            [&res, accept, send = std::move(send)](std::optional<model::EventHandler> result)
+            {
                 if (!result) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not found"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not found"),
                         interfaces::io::types::Status::NOT_FOUND
                     );
                     send();
@@ -108,7 +114,9 @@ public:
      * validation failure, or 500 if the upsert fails.
      */
     void create_handler(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         auto accept = req.find_header("accept");
@@ -119,7 +127,8 @@ public:
         if (!parsed) {
             core::logger::warning("engine", "event-handler/create bad request: {}", parsed.error());
             reply(
-                res, serde::Ser::serialize_error(accept, parsed.error()),
+                res,
+                serde::Ser::serialize_error(accept, parsed.error()),
                 interfaces::io::types::Status::BAD_REQUEST
             );
             send();
@@ -128,7 +137,8 @@ public:
         if (auto validate = parsed->validate(); !validate) {
             core::logger::warning("engine", "event-handler/create invalid: {}", validate.error());
             reply(
-                res, serde::Ser::serialize_error(accept, validate.error()),
+                res,
+                serde::Ser::serialize_error(accept, validate.error()),
                 interfaces::io::types::Status::UNPROCESSABLE_CONTENT
             );
             send();
@@ -137,11 +147,14 @@ public:
 
         model::EventHandler handler = *parsed;
         m_ctx.get().get_connector().upsert<model::EventHandler>(
-            handler, [&res, accept, handler, send = std::move(send)](bool oke) {
+            handler,
+            [&res, accept, handler, send = std::move(send)](bool oke)
+            {
                 if (!oke) {
                     core::logger::error("engine", "event-handler/create db upsert failed");
                     reply(
-                        res, serde::Ser::serialize_error(accept, "upsert failed"),
+                        res,
+                        serde::Ser::serialize_error(accept, "upsert failed"),
                         interfaces::io::types::Status::INTERNAL_SERVER_ERROR
                     );
                     send();
@@ -149,10 +162,12 @@ public:
                 }
                 core::logger::info("engine", "event handler created: '{}'", handler.get_name());
                 core::events::publish(
-                    "engine.event_handler.created", {{"name", handler.get_name()}}
+                    "engine.event_handler.created",
+                    {{"name", handler.get_name()}}
                 );
                 reply(
-                    res, serde::Ser::serialize(accept, handler),
+                    res,
+                    serde::Ser::serialize(accept, handler),
                     interfaces::io::types::Status::CREATED
                 );
                 send();
@@ -167,7 +182,9 @@ public:
      * failure, or 404 if `update()` can't find that name.
      */
     void update_handler(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         auto accept = req.find_header("accept");
@@ -177,7 +194,8 @@ public:
         auto parsed = serde::Ser::deserialize<model::EventHandler>(content_type, body);
         if (!parsed) {
             reply(
-                res, serde::Ser::serialize_error(accept, parsed.error()),
+                res,
+                serde::Ser::serialize_error(accept, parsed.error()),
                 interfaces::io::types::Status::BAD_REQUEST
             );
             send();
@@ -185,7 +203,8 @@ public:
         }
         if (auto validate = parsed->validate(); !validate) {
             reply(
-                res, serde::Ser::serialize_error(accept, validate.error()),
+                res,
+                serde::Ser::serialize_error(accept, validate.error()),
                 interfaces::io::types::Status::UNPROCESSABLE_CONTENT
             );
             send();
@@ -194,10 +213,13 @@ public:
 
         model::EventHandler handler = *parsed;
         m_ctx.get().get_connector().update<model::EventHandler>(
-            handler, [&res, accept, handler, send = std::move(send)](bool oke) {
+            handler,
+            [&res, accept, handler, send = std::move(send)](bool oke)
+            {
                 if (!oke) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not found"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not found"),
                         interfaces::io::types::Status::NOT_FOUND
                     );
                     send();
@@ -215,17 +237,22 @@ public:
      * @param res the response — 204 on success, 404 if that name wasn't found.
      */
     void remove_handler(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     ) noexcept
     {
         auto accept = req.find_header("accept");
         auto target = req.get_path();
         auto name = std::string{target.substr(target.rfind('/') + 1)};
         m_ctx.get().get_connector().remove<model::EventHandler>(
-            name, [&res, accept, name, send = std::move(send)](bool oke) {
+            name,
+            [&res, accept, name, send = std::move(send)](bool oke)
+            {
                 if (!oke) {
                     reply(
-                        res, serde::Ser::serialize_error(accept, "not found"),
+                        res,
+                        serde::Ser::serialize_error(accept, "not found"),
                         interfaces::io::types::Status::NOT_FOUND
                     );
                     send();
@@ -289,7 +316,9 @@ public:
     }
 
     void set(
-        std::string_view key, std::string_view value, shared::QueryReadFn&& result
+        std::string_view key,
+        std::string_view value,
+        shared::QueryReadFn&& result
     ) noexcept override
     {
         m_store[std::string{key}] = std::string{value};
@@ -352,50 +381,68 @@ public:
     return out;
 }
 
-suite<"EventHandlerHandler"> event_handler_handler_suite = [] {
-    "list_handlers replies 200 with an empty list on a freshly-constructed context"_test = [] {
+suite<"EventHandlerHandler"> event_handler_handler_suite = []
+{
+    "list_handlers replies 200 with an empty list on a freshly-constructed context"_test = []
+    {
         engine::EngineContext ctx;
         engine::EventHandlerHandler handler{ctx};
         io::layer::http2::HttpRequest req{1};
         io::layer::http2::HttpResponse res{1};
         bool sent = false;
 
-        handler.list_handlers(req, res, [&sent] {
-            sent = true;
-        });
+        handler.list_handlers(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::OK);
     };
 
     "list_handlers replies 200 after a handler was upserted directly through the connector"_test =
-        [] {
-            engine::EngineContext ctx;
-            FakeCache cache;
-            ctx.set_cache(&cache);
-            model::EventHandler seeded;
-            seeded.set_name("on_order_shipped");
-            seeded.set_event("order_shipped");
-            bool upserted = false;
-            ctx.get_connector().upsert<model::EventHandler>(seeded, [&upserted](bool oke) {
+        []
+    {
+        engine::EngineContext ctx;
+        FakeCache cache;
+        ctx.set_cache(&cache);
+        model::EventHandler seeded;
+        seeded.set_name("on_order_shipped");
+        seeded.set_event("order_shipped");
+        bool upserted = false;
+        ctx.get_connector().upsert<model::EventHandler>(
+            seeded,
+            [&upserted](bool oke)
+            {
                 upserted = oke;
-            });
-            expect(upserted) << fatal;
+            }
+        );
+        expect(upserted) << fatal;
 
-            engine::EventHandlerHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            bool sent = false;
+        engine::EventHandlerHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        bool sent = false;
 
-            handler.list_handlers(req, res, [&sent] {
+        handler.list_handlers(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::OK);
-        };
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::OK);
+    };
 
-    "list_handlers returns every seeded record with no pagination limit applied"_test = [] {
+    "list_handlers returns every seeded record with no pagination limit applied"_test = []
+    {
         engine::EngineContext ctx;
         FakeCache cache;
         ctx.set_cache(&cache);
@@ -409,9 +456,13 @@ suite<"EventHandlerHandler"> event_handler_handler_suite = [] {
             seeded.set_name(std::format("handler_{}", i));
             seeded.set_event("order_shipped");
             bool upserted = false;
-            ctx.get_connector().upsert<model::EventHandler>(seeded, [&upserted](bool oke) {
-                upserted = oke;
-            });
+            ctx.get_connector().upsert<model::EventHandler>(
+                seeded,
+                [&upserted](bool oke)
+                {
+                    upserted = oke;
+                }
+            );
             expect(upserted) << fatal;
         }
 
@@ -429,9 +480,14 @@ suite<"EventHandlerHandler"> event_handler_handler_suite = [] {
         req.set_header("accept", "application/json");
         bool sent = false;
 
-        handler.list_handlers(req, res, [&sent] {
-            sent = true;
-        });
+        handler.list_handlers(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::OK);
@@ -446,7 +502,8 @@ suite<"EventHandlerHandler"> event_handler_handler_suite = [] {
         serde::SerdeFormatRegistry::set_active(nullptr);
     };
 
-    "get_handler replies 404 for a name that was never stored"_test = [] {
+    "get_handler replies 404 for a name that was never stored"_test = []
+    {
         engine::EngineContext ctx;
         FakeCache cache;
         ctx.set_cache(&cache);
@@ -456,83 +513,109 @@ suite<"EventHandlerHandler"> event_handler_handler_suite = [] {
         req.set_header(interfaces::io::types::Token::PATH, "/api/v1/event_handlers/missing");
         bool sent = false;
 
-        handler.get_handler(req, res, [&sent] {
-            sent = true;
-        });
+        handler.get_handler(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::NOT_FOUND);
     };
 
-    "get_handler replies 200 for a name that was upserted directly through the connector"_test =
-        [] {
-            engine::EngineContext ctx;
-            FakeCache cache;
-            ctx.set_cache(&cache);
-            model::EventHandler seeded;
-            seeded.set_name("on_order_shipped");
-            seeded.set_event("order_shipped");
-            bool upserted = false;
-            ctx.get_connector().upsert<model::EventHandler>(seeded, [&upserted](bool oke) {
+    "get_handler replies 200 for a name that was upserted directly through the connector"_test = []
+    {
+        engine::EngineContext ctx;
+        FakeCache cache;
+        ctx.set_cache(&cache);
+        model::EventHandler seeded;
+        seeded.set_name("on_order_shipped");
+        seeded.set_event("order_shipped");
+        bool upserted = false;
+        ctx.get_connector().upsert<model::EventHandler>(
+            seeded,
+            [&upserted](bool oke)
+            {
                 upserted = oke;
-            });
-            expect(upserted) << fatal;
+            }
+        );
+        expect(upserted) << fatal;
 
-            engine::EventHandlerHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            req.set_header(
-                interfaces::io::types::Token::PATH, "/api/v1/event_handlers/on_order_shipped"
-            );
-            bool sent = false;
+        engine::EventHandlerHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        req.set_header(
+            interfaces::io::types::Token::PATH,
+            "/api/v1/event_handlers/on_order_shipped"
+        );
+        bool sent = false;
 
-            handler.get_handler(req, res, [&sent] {
+        handler.get_handler(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::OK);
-        };
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::OK);
+    };
 
-    "create_handler replies 400 when the body doesn't parse (no serde format registered)"_test =
-        [] {
-            serde::SerdeFormatRegistry::set_active(nullptr);
-            engine::EngineContext ctx;
-            engine::EventHandlerHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            std::vector<std::byte> body{std::byte{'{'}, std::byte{'}'}};
-            req.set_body(std::move(body));
-            bool sent = false;
+    "create_handler replies 400 when the body doesn't parse (no serde format registered)"_test = []
+    {
+        serde::SerdeFormatRegistry::set_active(nullptr);
+        engine::EngineContext ctx;
+        engine::EventHandlerHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        std::vector<std::byte> body{std::byte{'{'}, std::byte{'}'}};
+        req.set_body(std::move(body));
+        bool sent = false;
 
-            handler.create_handler(req, res, [&sent] {
+        handler.create_handler(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::BAD_REQUEST);
-        };
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::BAD_REQUEST);
+    };
 
-    "update_handler replies 400 when the body doesn't parse (no serde format registered)"_test =
-        [] {
-            serde::SerdeFormatRegistry::set_active(nullptr);
-            engine::EngineContext ctx;
-            engine::EventHandlerHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            std::vector<std::byte> body{std::byte{'{'}, std::byte{'}'}};
-            req.set_body(std::move(body));
-            bool sent = false;
+    "update_handler replies 400 when the body doesn't parse (no serde format registered)"_test = []
+    {
+        serde::SerdeFormatRegistry::set_active(nullptr);
+        engine::EngineContext ctx;
+        engine::EventHandlerHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        std::vector<std::byte> body{std::byte{'{'}, std::byte{'}'}};
+        req.set_body(std::move(body));
+        bool sent = false;
 
-            handler.update_handler(req, res, [&sent] {
+        handler.update_handler(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::BAD_REQUEST);
-        };
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::BAD_REQUEST);
+    };
 
-    "remove_handler replies 404 for a name that was never stored"_test = [] {
+    "remove_handler replies 404 for a name that was never stored"_test = []
+    {
         engine::EngineContext ctx;
         FakeCache cache;
         ctx.set_cache(&cache);
@@ -542,9 +625,14 @@ suite<"EventHandlerHandler"> event_handler_handler_suite = [] {
         req.set_header(interfaces::io::types::Token::PATH, "/api/v1/event_handlers/missing");
         bool sent = false;
 
-        handler.remove_handler(req, res, [&sent] {
-            sent = true;
-        });
+        handler.remove_handler(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::NOT_FOUND);
@@ -555,80 +643,101 @@ suite<"EventHandlerHandler"> event_handler_handler_suite = [] {
     // embedded control character sails through untouched and 404s normally, same as any other
     // never-stored name — nothing rejects it earlier as malformed input.
     "get_handler applies no charset validation — a name with an embedded control character reaches the connector lookup and 404s normally"_test =
-        [] {
-            engine::EngineContext ctx;
-            FakeCache cache;
-            ctx.set_cache(&cache);
-            engine::EventHandlerHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            req.set_header(
-                interfaces::io::types::Token::PATH,
-                std::string{"/api/v1/event_handlers/weird\x01name"}
-            );
-            bool sent = false;
+        []
+    {
+        engine::EngineContext ctx;
+        FakeCache cache;
+        ctx.set_cache(&cache);
+        engine::EventHandlerHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        req.set_header(
+            interfaces::io::types::Token::PATH,
+            std::string{"/api/v1/event_handlers/weird\x01name"}
+        );
+        bool sent = false;
 
-            handler.get_handler(req, res, [&sent] {
+        handler.get_handler(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::NOT_FOUND);
-        };
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::NOT_FOUND);
+    };
 
     // Same gap, length axis this time — a 4096-character name is just as unvalidated as a
     // normal one, reaching the connector lookup unfiltered.
     "get_handler applies no length validation — a 4096-character name reaches the connector lookup and 404s normally"_test =
-        [] {
-            engine::EngineContext ctx;
-            FakeCache cache;
-            ctx.set_cache(&cache);
-            engine::EventHandlerHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            std::string long_name(4'096, 'a');
-            req.set_header(
-                interfaces::io::types::Token::PATH, "/api/v1/event_handlers/" + long_name
-            );
-            bool sent = false;
+        []
+    {
+        engine::EngineContext ctx;
+        FakeCache cache;
+        ctx.set_cache(&cache);
+        engine::EventHandlerHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        std::string long_name(4'096, 'a');
+        req.set_header(interfaces::io::types::Token::PATH, "/api/v1/event_handlers/" + long_name);
+        bool sent = false;
 
-            handler.get_handler(req, res, [&sent] {
+        handler.get_handler(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::NOT_FOUND);
-        };
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::NOT_FOUND);
+    };
 
     "remove_handler replies 204 after removing a handler upserted directly through the connector"_test =
-        [] {
-            engine::EngineContext ctx;
-            FakeCache cache;
-            ctx.set_cache(&cache);
-            model::EventHandler seeded;
-            seeded.set_name("on_order_cancelled");
-            seeded.set_event("order_cancelled");
-            bool upserted = false;
-            ctx.get_connector().upsert<model::EventHandler>(seeded, [&upserted](bool oke) {
+        []
+    {
+        engine::EngineContext ctx;
+        FakeCache cache;
+        ctx.set_cache(&cache);
+        model::EventHandler seeded;
+        seeded.set_name("on_order_cancelled");
+        seeded.set_event("order_cancelled");
+        bool upserted = false;
+        ctx.get_connector().upsert<model::EventHandler>(
+            seeded,
+            [&upserted](bool oke)
+            {
                 upserted = oke;
-            });
-            expect(upserted) << fatal;
+            }
+        );
+        expect(upserted) << fatal;
 
-            engine::EventHandlerHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            req.set_header(
-                interfaces::io::types::Token::PATH, "/api/v1/event_handlers/on_order_cancelled"
-            );
-            bool sent = false;
+        engine::EventHandlerHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        req.set_header(
+            interfaces::io::types::Token::PATH,
+            "/api/v1/event_handlers/on_order_cancelled"
+        );
+        bool sent = false;
 
-            handler.remove_handler(req, res, [&sent] {
+        handler.remove_handler(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::NO_CONTENT);
-        };
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::NO_CONTENT);
+    };
 };
 
 } // namespace engine::event_handler_tests

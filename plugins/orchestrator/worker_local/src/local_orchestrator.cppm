@@ -40,7 +40,10 @@ public:
     ) override
     {
         OrchestratorStore::enqueue(
-            m_connector_ctx, std::string{task_type}, input, std::move(callback)
+            m_connector_ctx,
+            std::string{task_type},
+            input,
+            std::move(callback)
         );
     }
 
@@ -53,7 +56,10 @@ public:
         auto domain_owned =
             domain ? std::optional<std::string>{std::string{*domain}} : std::nullopt;
         OrchestratorStore::claim(
-            m_connector_ctx, std::string{worker_type}, std::move(domain_owned), std::move(callback)
+            m_connector_ctx,
+            std::string{worker_type},
+            std::move(domain_owned),
+            std::move(callback)
         );
     }
 
@@ -65,23 +71,31 @@ public:
     ) override
     {
         OrchestratorStore::submit_result(
-            m_connector_ctx, std::string{task_id}, success, output, std::move(callback)
+            m_connector_ctx,
+            std::string{task_id},
+            success,
+            output,
+            std::move(callback)
         );
     }
 
     void requeue(
-        std::string_view worker_type, std::move_only_function<void(std::size_t)> callback
+        std::string_view worker_type,
+        std::move_only_function<void(std::size_t)> callback
     ) override
     {
         OrchestratorStore::requeue(m_connector_ctx, std::string{worker_type}, std::move(callback));
     }
 
     void queue_size(
-        std::string_view worker_type, std::move_only_function<void(std::size_t)> callback
+        std::string_view worker_type,
+        std::move_only_function<void(std::size_t)> callback
     ) override
     {
         OrchestratorStore::queue_size(
-            m_connector_ctx, std::string{worker_type}, std::move(callback)
+            m_connector_ctx,
+            std::string{worker_type},
+            std::move(callback)
         );
     }
 
@@ -92,7 +106,10 @@ public:
     ) override
     {
         OrchestratorStore::start_workflow(
-            m_connector_ctx, std::string{def_name}, variables, std::move(callback)
+            m_connector_ctx,
+            std::string{def_name},
+            variables,
+            std::move(callback)
         );
     }
 
@@ -135,7 +152,9 @@ public:
     }
 
     void set(
-        std::string_view key, std::string_view value, shared::QueryReadFn&& result
+        std::string_view key,
+        std::string_view value,
+        shared::QueryReadFn&& result
     ) noexcept override
     {
         m_store[std::string{key}] = std::string{value};
@@ -152,89 +171,137 @@ private:
     std::unordered_map<std::string, std::string> m_store;
 };
 
-suite<"LocalOrchestrator identity"> local_orchestrator_identity_suite = [] {
-    "backend_name reports 'local'"_test = [] {
+suite<"LocalOrchestrator identity"> local_orchestrator_identity_suite = []
+{
+    "backend_name reports 'local'"_test = []
+    {
         LocalOrchestrator orchestrator;
         expect(orchestrator.backend_name() == "local");
     };
 
-    "start_server/shutdown_all are harmless no-ops"_test = [] {
+    "start_server/shutdown_all are harmless no-ops"_test = []
+    {
         LocalOrchestrator orchestrator;
-        expect(nothrow([&] {
-            orchestrator.start_server();
-            orchestrator.shutdown_all();
-        }));
+        expect(nothrow(
+            [&]
+            {
+                orchestrator.start_server();
+                orchestrator.shutdown_all();
+            }
+        ));
     };
 
     "set_health_callback stores the callback without invoking it — this backend never "
-    "publishes a health snapshot"_test = [] {
+    "publishes a health snapshot"_test = []
+    {
         LocalOrchestrator orchestrator;
         bool invoked = false;
-        expect(nothrow([&] {
-            orchestrator.set_health_callback([&invoked](const interfaces::OrchestratorInfo&) {
-                invoked = true;
-            });
-        }));
+        expect(nothrow(
+            [&]
+            {
+                orchestrator.set_health_callback(
+                    [&invoked](const interfaces::OrchestratorInfo&)
+                    {
+                        invoked = true;
+                    }
+                );
+            }
+        ));
         expect(!invoked);
     };
 };
 
-suite<"LocalOrchestrator with no connector wired"> local_orchestrator_no_connector_suite = [] {
-    "enqueue reports std::nullopt before set_connector_ctx is ever called"_test = [] {
+suite<"LocalOrchestrator with no connector wired"> local_orchestrator_no_connector_suite = []
+{
+    "enqueue reports std::nullopt before set_connector_ctx is ever called"_test = []
+    {
         LocalOrchestrator orchestrator;
         std::optional<std::string> result{"unset"};
         orchestrator.enqueue(
-            "echo", interfaces::Value{std::string{"x"}}, [&result](std::optional<std::string> id) {
+            "echo",
+            interfaces::Value{std::string{"x"}},
+            [&result](std::optional<std::string> id)
+            {
                 result = id;
             }
         );
         expect(!result.has_value());
     };
 
-    "claim reports std::nullopt"_test = [] {
+    "claim reports std::nullopt"_test = []
+    {
         LocalOrchestrator orchestrator;
         std::optional<std::string> result{"unset"};
-        orchestrator.claim("echo", std::nullopt, [&result](std::optional<std::string> id) {
-            result = id;
-        });
+        orchestrator.claim(
+            "echo",
+            std::nullopt,
+            [&result](std::optional<std::string> id)
+            {
+                result = id;
+            }
+        );
         expect(!result.has_value());
     };
 
-    "submit_result reports false"_test = [] {
+    "submit_result reports false"_test = []
+    {
         LocalOrchestrator orchestrator;
         bool result = true;
-        orchestrator.submit_result("some-id", true, {}, [&result](bool ok) {
-            result = ok;
-        });
+        orchestrator.submit_result(
+            "some-id",
+            true,
+            {},
+            [&result](bool ok)
+            {
+                result = ok;
+            }
+        );
         expect(!result);
     };
 
-    "requeue/queue_size report 0"_test = [] {
+    "requeue/queue_size report 0"_test = []
+    {
         LocalOrchestrator orchestrator;
         std::size_t requeue_result = 99;
         std::size_t queue_size_result = 99;
-        orchestrator.requeue("echo", [&requeue_result](std::size_t n) {
-            requeue_result = n;
-        });
-        orchestrator.queue_size("echo", [&queue_size_result](std::size_t n) {
-            queue_size_result = n;
-        });
+        orchestrator.requeue(
+            "echo",
+            [&requeue_result](std::size_t n)
+            {
+                requeue_result = n;
+            }
+        );
+        orchestrator.queue_size(
+            "echo",
+            [&queue_size_result](std::size_t n)
+            {
+                queue_size_result = n;
+            }
+        );
         expect(requeue_result == std::size_t{0});
         expect(queue_size_result == std::size_t{0});
     };
 
-    "start_workflow reports std::nullopt"_test = [] {
+    "start_workflow reports std::nullopt"_test = []
+    {
         LocalOrchestrator orchestrator;
         std::optional<std::string> result{"unset"};
-        orchestrator.start_workflow("order_pipeline", {}, [&result](std::optional<std::string> id) {
-            result = id;
-        });
+        orchestrator.start_workflow(
+            "order_pipeline",
+            {},
+            [&result](std::optional<std::string> id)
+            {
+                result = id;
+            }
+        );
         expect(!result.has_value());
     };
 };
 
-suite<"LocalOrchestrator delegates to a wired connector"> local_orchestrator_wired_suite = [] {
-    "set_connector_ctx wires a real connector through to enqueue/claim/submit_result"_test = [] {
+suite<"LocalOrchestrator delegates to a wired connector"> local_orchestrator_wired_suite = []
+{
+    "set_connector_ctx wires a real connector through to enqueue/claim/submit_result"_test = []
+    {
         FakeCache cache;
         connector::Connector real_connector;
         real_connector.set_cache(&cache);
@@ -249,27 +316,41 @@ suite<"LocalOrchestrator delegates to a wired connector"> local_orchestrator_wir
 
         std::optional<std::string> enqueued_id;
         orchestrator.enqueue(
-            "send_email", interfaces::Value{serde::Value::Object{}},
-            [&enqueued_id](std::optional<std::string> id) {
+            "send_email",
+            interfaces::Value{serde::Value::Object{}},
+            [&enqueued_id](std::optional<std::string> id)
+            {
                 enqueued_id = id;
             }
         );
         expect(enqueued_id.has_value()) << fatal;
 
         std::optional<std::string> claimed;
-        orchestrator.claim("echo", std::nullopt, [&claimed](std::optional<std::string> value) {
-            claimed = value;
-        });
+        orchestrator.claim(
+            "echo",
+            std::nullopt,
+            [&claimed](std::optional<std::string> value)
+            {
+                claimed = value;
+            }
+        );
         expect(claimed.has_value()) << fatal;
 
         bool submit_ok = false;
-        orchestrator.submit_result(*enqueued_id, true, {{"k", "v"}}, [&submit_ok](bool ok) {
-            submit_ok = ok;
-        });
+        orchestrator.submit_result(
+            *enqueued_id,
+            true,
+            {{"k", "v"}},
+            [&submit_ok](bool ok)
+            {
+                submit_ok = ok;
+            }
+        );
         expect(submit_ok);
     };
 
-    "set_connector_ctx wires start_workflow through to a real WorkflowDef lookup"_test = [] {
+    "set_connector_ctx wires start_workflow through to a real WorkflowDef lookup"_test = []
+    {
         FakeCache cache;
         connector::Connector real_connector;
         real_connector.set_cache(&cache);
@@ -281,9 +362,14 @@ suite<"LocalOrchestrator delegates to a wired connector"> local_orchestrator_wir
         orchestrator.set_connector_ctx(&real_connector);
 
         std::optional<std::string> result;
-        orchestrator.start_workflow("order_pipeline", {}, [&result](std::optional<std::string> id) {
-            result = id;
-        });
+        orchestrator.start_workflow(
+            "order_pipeline",
+            {},
+            [&result](std::optional<std::string> id)
+            {
+                result = id;
+            }
+        );
         expect(result.has_value());
     };
 };

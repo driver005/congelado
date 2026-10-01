@@ -1,8 +1,8 @@
 #ifndef TENSORFLOW_C_TF_DEQUE_H_
 #define TENSORFLOW_C_TF_DEQUE_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -11,7 +11,8 @@ extern "C"
 {
 #endif
 
-    // TF_Deque — plugin vtable for a type-erased double-ended growable collection (std::deque<T> equivalent), fixed to element_size bytes per element at creation.
+    // TF_Deque — plugin vtable for a type-erased double-ended growable collection (std::deque<T>
+    // equivalent), fixed to element_size bytes per element at creation.
 
     typedef struct TF_Deque
     {
@@ -40,7 +41,12 @@ extern "C"
         void (*pop_back)(TF_Deque* deque);
 
         // Non-owning pointer to the element at index; NULL if out of range.
-        void (*get)(const TF_Deque* deque, size_t index, const void** out_value, TF_Status* out_status);
+        void (*get)(
+            const TF_Deque* deque,
+            size_t index,
+            const void** out_value,
+            TF_Status* out_status
+        );
 
         // Current element count.
         void (*size)(const TF_Deque* deque, size_t* out_size);
@@ -50,7 +56,8 @@ extern "C"
 
 #define TF_DEQUE_STRUCT_SIZE TF_OFFSET_OF_END(TF_DequeOps, size)
 
-    TF_CAPI_EXPORT void create_deque(TF_DequeOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void
+    create_deque(TF_DequeOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_deque(void* plugin_context);
 
     // Real implementation, not declared-only — calls create_deque

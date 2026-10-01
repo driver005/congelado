@@ -1,9 +1,9 @@
 #ifndef CONGELADO_C_REGISTRATION_H_
 #define CONGELADO_C_REGISTRATION_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -12,9 +12,14 @@ extern "C"
 {
 #endif
 
-    // Generic named-value registry. Maps (type, provider name) to an opaque pointer. The sonic runtime stores each domain's ops table and create/destroy functions here. An empty provider name selects the default provider of a type; the first registered provider of a type becomes its default.
+    // Generic named-value registry. Maps (type, provider name) to an opaque pointer. The sonic
+    // runtime stores each domain's ops table and create/destroy functions here. An empty provider
+    // name selects the default provider of a type; the first registered provider of a type becomes
+    // its default.
     //
-    // TF_Registration is an opaque pointer to one plugin-owned registry instance. Callers that want a single process-wide registry just allocate one handle up front and share it everywhere; nothing here forces that — multiple independent registries are equally valid.
+    // TF_Registration is an opaque pointer to one plugin-owned registry instance. Callers that want
+    // a single process-wide registry just allocate one handle up front and share it everywhere;
+    // nothing here forces that — multiple independent registries are equally valid.
     typedef struct TF_Registration
     {
         void* plugin_data;

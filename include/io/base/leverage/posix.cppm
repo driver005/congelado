@@ -20,30 +20,70 @@ export namespace io::base::leverage {
 
 
 // Pending operation structure
-class PendingOp {
-  public:
-    void set_callback(completion_callback callback) { m_callback = std::move(callback); }
-    void set_buffer(void *buffer) { m_buffer = buffer; }
-    void set_buffer_size(unsigned buffer_size) { m_buffer_size = buffer_size; }
-    void set_offset(off_t offset) { m_offset = offset; }
-    void set_op_type(int op_type) { m_op_type = op_type; }
+class PendingOp
+{
+public:
+    void set_callback(completion_callback callback)
+    {
+        m_callback = std::move(callback);
+    }
 
-    [[nodiscard]] completion_callback &get_callback() { return m_callback; }
-    [[nodiscard]] void *get_buffer() const { return m_buffer; }
-    [[nodiscard]] unsigned get_buffer_size() const { return m_buffer_size; }
-    [[nodiscard]] off_t get_offset() const { return m_offset; }
-    [[nodiscard]] int get_op_type() const { return m_op_type; }
+    void set_buffer(void* buffer)
+    {
+        m_buffer = buffer;
+    }
 
-  private:
+    void set_buffer_size(unsigned buffer_size)
+    {
+        m_buffer_size = buffer_size;
+    }
+
+    void set_offset(off_t offset)
+    {
+        m_offset = offset;
+    }
+
+    void set_op_type(int op_type)
+    {
+        m_op_type = op_type;
+    }
+
+    [[nodiscard]] completion_callback& get_callback()
+    {
+        return m_callback;
+    }
+
+    [[nodiscard]] void* get_buffer() const
+    {
+        return m_buffer;
+    }
+
+    [[nodiscard]] unsigned get_buffer_size() const
+    {
+        return m_buffer_size;
+    }
+
+    [[nodiscard]] off_t get_offset() const
+    {
+        return m_offset;
+    }
+
+    [[nodiscard]] int get_op_type() const
+    {
+        return m_op_type;
+    }
+
+private:
     completion_callback m_callback;
-    void *m_buffer = nullptr;
+    void* m_buffer = nullptr;
     unsigned m_buffer_size = 0;
     off_t m_offset = 0;
     int m_op_type = 0;
 };
 
-class Context {
-  public:
+class Context
+{
+public:
     /**
      * @brief Builds the io_uring ring right away — no lazy init here, by the time this ctor
      * returns the ring is live and ready to take SQEs.
@@ -52,7 +92,9 @@ class Context {
      * @param wq_fd shared async worker-queue fd to attach to, or 0 for a fresh one.
      * @throws std::system_error via panic_on_err() if `io_uring_queue_init_params` fails.
      */
-    Context(int entries = 64, std::uint32_t flags = 0, std::uint32_t wq_fd = 0) : m_ring{} {
+    Context(int entries = 64, std::uint32_t flags = 0, std::uint32_t wq_fd = 0) :
+        m_ring{}
+    {
         // m_probe_ops{}
         init(entries, flags, wq_fd);
     };
@@ -66,13 +108,13 @@ class Context {
 
     // Non-copyable, non-movable
     /** @brief Deleted — copying an owning `io_uring` ring would double-own kernel resources. */
-    Context(const Context &) = delete;
+    Context(const Context&) = delete;
     /** @brief Deleted — same reasoning as the copy ctor. */
-    Context &operator=(const Context &) = delete;
+    Context& operator=(const Context&) = delete;
     /** @brief Deleted — no move either, the ring's address is baked into in-flight SQEs. */
-    Context(Context &&) = delete;
+    Context(Context&&) = delete;
     /** @brief Deleted — mirrors the move ctor. */
-    Context &operator=(Context &&) = delete;
+    Context& operator=(Context&&) = delete;
 
     /**
      * @brief Actually stands up the io_uring ring via `io_uring_queue_init_params`. Called from
@@ -82,7 +124,8 @@ class Context {
      * @param wq_fd shared async worker-queue fd to attach to, or 0 for a fresh one.
      * @throws std::system_error via panic_on_err() if the underlying init call fails.
      */
-    void init(int entries, std::uint32_t flags, std::uint32_t wq_fd) {
+    void init(int entries, std::uint32_t flags, std::uint32_t wq_fd)
+    {
         // build the params struct the kernel wants — sq/cq_entries stay 0 so the kernel picks
         // its own sizing off of `entries`
         liburing::io_uring_params params = {
@@ -109,7 +152,10 @@ class Context {
 
     /** @brief Tears down the io_uring ring via `io_uring_queue_exit`. Not called automatically —
      * see the dtor's note, this thing is invoked manually elsewhere in the teardown path. */
-    void cleanup() noexcept { liburing::io_uring_queue_exit(&m_ring); };
+    void cleanup() noexcept
+    {
+        liburing::io_uring_queue_exit(&m_ring);
+    };
 
     /**
      * @brief Grabs a fresh submission queue entry, force-flushing pending completions and
@@ -120,9 +166,10 @@ class Context {
      * @throws std::system_error via panic() if the ring is out of memory (`ENOMEM`) even after
      * a flush-and-retry.
      */
-    liburing::io_uring_sqe *get_sqe_safe() {
+    liburing::io_uring_sqe* get_sqe_safe()
+    {
         // fast path, bet — SQ isn't full, hand back the SQE straight away
-        auto *sqe = liburing::io_uring_get_sqe(&m_ring);
+        auto* sqe = liburing::io_uring_get_sqe(&m_ring);
         if (__builtin_expect(static_cast<long>(sqe != nullptr), 1L) != 0) {
             return sqe;
         }
@@ -155,7 +202,9 @@ class Context {
      * @param callback completion callback to run once the matching CQE lands.
      * @param iflags io_uring SQE flags (e.g. `IOSQE_IO_LINK`).
      */
-    static void submit_async(liburing::io_uring_sqe *sqe, completion_callback callback, std::uint8_t iflags) {
+    static void
+    submit_async(liburing::io_uring_sqe* sqe, completion_callback callback, std::uint8_t iflags)
+    {
         // stamp the requested SQE flags onto the already-prepped entry
         liburing::io_uring_sqe_set_flags(sqe, iflags);
 
@@ -170,24 +219,31 @@ class Context {
      * @brief Drains every ready CQE, reclaims its `PendingOp`, and fires the stashed callback
      * with the syscall result — the other half of submit_async()'s handoff.
      */
-    void process_completions() {
+    void process_completions()
+    {
         // walk every ready cqe, reclaim its PendingOp, and fire the stashed callback with the
         // syscall result — this is the other half of submit_async()'s handoff
-        liburing::for_each_cqe(&m_ring, [&](auto cqe) {
-            ++m_cqe_count;
+        liburing::for_each_cqe(
+            &m_ring,
+            [&](auto cqe)
+            {
+                ++m_cqe_count;
 
-            // a null op means this cqe wasn't tagged with user_data — no cap, nothing to reclaim/call
-            auto *op = static_cast<PendingOp *>(liburing::io_uring_cqe_get_data(cqe));
-            if (op) {
-                int result = cqe->res;
-                auto callback = std::move(op->get_callback());
-                delete op;  // NOLINT(cppcoreguidelines-owning-memory) — would need gsl::owner<> annotation; no GSL dependency in this codebase
+                // a null op means this cqe wasn't tagged with user_data — no cap, nothing to
+                // reclaim/call
+                auto* op = static_cast<PendingOp*>(liburing::io_uring_cqe_get_data(cqe));
+                if (op) {
+                    int result = cqe->res;
+                    auto callback = std::move(op->get_callback());
+                    delete op; // NOLINT(cppcoreguidelines-owning-memory) — would need gsl::owner<>
+                               // annotation; no GSL dependency in this codebase
 
-                if (callback) {
-                    callback(result);
+                    if (callback) {
+                        callback(result);
+                    }
                 }
             }
-        });
+        );
 
         verbose_print("{}: Found {} cqe(s), looping...\n", __FILE__, m_cqe_count);
 
@@ -201,34 +257,43 @@ class Context {
      * @param count the new count to set — mostly here for tests/edge cases, normal flow just lets
      * process_completions() manage this itself.
      */
-    void set_cqe_count(unsigned count) { m_cqe_count = count; }
+    void set_cqe_count(unsigned count)
+    {
+        m_cqe_count = count;
+    }
 
     /**
      * @brief Grabs the raw ring pointer for handing to `liburing::io_uring_prep_*` calls.
      * @return a mutable pointer to `m_ring`.
      */
-    [[nodiscard]] liburing::io_uring *get_ring() noexcept { return &m_ring; }
+    [[nodiscard]] liburing::io_uring* get_ring() noexcept
+    {
+        return &m_ring;
+    }
+
     /**
      * @brief Const overload of get_ring().
      * @return a const pointer to `m_ring`.
      */
-    [[nodiscard]] const liburing::io_uring *get_ring() const noexcept { return &m_ring; }
+    [[nodiscard]] const liburing::io_uring* get_ring() const noexcept
+    {
+        return &m_ring;
+    }
 
 
-  private:
+private:
     liburing::io_uring m_ring;
     unsigned m_cqe_count = 0;
     // std::array<bool, 128> m_probe_ops;
 };
 
-
 /**
  * @brief io_uring specialization ctor — builds `m_context` as a live `Context{entries, flags,
  * wq_fd}` right away. Full param contract lives on the primary declaration in types.cppm.
  */
-template <>
-Leverager<Context>::Leverager(int entries, std::uint32_t flags, std::uint32_t wq_fd)
-    : m_context{Context{entries, flags, wq_fd}} {};
+template<>
+Leverager<Context>::Leverager(int entries, std::uint32_t flags, std::uint32_t wq_fd) :
+    m_context{Context{entries, flags, wq_fd}} {};
 
 /**
  * @brief io_uring specialization dtor — defaulted, so `m_context` is torn down exactly once via
@@ -236,29 +301,35 @@ Leverager<Context>::Leverager(int entries, std::uint32_t flags, std::uint32_t wq
  * since `Context::~Context()` is an empty no-op — see its own note). Don't copy this pattern onto
  * a `Context` with a non-trivial dtor without re-checking that equivalence.
  */
-template <>
+template<>
 Leverager<Context>::~Leverager() noexcept = default;
-
 
 /**
  * @brief io_uring specialization of run() — submits whatever's queued and blocks for at least
  * one completion, then drains the completion queue.
  */
-template <>
-void Leverager<Context>::run() {
+template<>
+void Leverager<Context>::run()
+{
     liburing::io_uring_submit_and_wait(m_context.get_ring(), 1);
     m_context.process_completions();
 }
-
 
 /**
  * @brief io_uring specialization of readv() — preps via `io_uring_prep_readv`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::readv(int file_descriptor, const iovec *iovecs, unsigned nr_vecs, off_t offset,
-                               completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::readv(
+    int file_descriptor,
+    const iovec* iovecs,
+    unsigned nr_vecs,
+    off_t offset,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_readv(sqe, file_descriptor, iovecs, nr_vecs, offset);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -267,10 +338,18 @@ void Leverager<Context>::readv(int file_descriptor, const iovec *iovecs, unsigne
  * @brief io_uring specialization of readv2() — preps via `io_uring_prep_readv2`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::readv2(int file_descriptor, const iovec *iovecs, unsigned nr_vecs, off_t offset, int flags,
-                                completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::readv2(
+    int file_descriptor,
+    const iovec* iovecs,
+    unsigned nr_vecs,
+    off_t offset,
+    int flags,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_readv2(sqe, file_descriptor, iovecs, nr_vecs, offset, flags);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -279,10 +358,17 @@ void Leverager<Context>::readv2(int file_descriptor, const iovec *iovecs, unsign
  * @brief io_uring specialization of writev() — preps via `io_uring_prep_writev`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::writev(int file_descriptor, const iovec *iovecs, unsigned nr_vecs, off_t offset,
-                                completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::writev(
+    int file_descriptor,
+    const iovec* iovecs,
+    unsigned nr_vecs,
+    off_t offset,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_writev(sqe, file_descriptor, iovecs, nr_vecs, offset);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -291,10 +377,18 @@ void Leverager<Context>::writev(int file_descriptor, const iovec *iovecs, unsign
  * @brief io_uring specialization of writev2() — preps via `io_uring_prep_writev2`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::writev2(int file_descriptor, const iovec *iovecs, unsigned nr_vecs, off_t offset, int flags,
-                                 completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::writev2(
+    int file_descriptor,
+    const iovec* iovecs,
+    unsigned nr_vecs,
+    off_t offset,
+    int flags,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_writev2(sqe, file_descriptor, iovecs, nr_vecs, offset, flags);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -303,10 +397,17 @@ void Leverager<Context>::writev2(int file_descriptor, const iovec *iovecs, unsig
  * @brief io_uring specialization of read() — preps via `io_uring_prep_read`. Full param contract
  * lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::read(int file_descriptor, void *buf, unsigned nbytes, off_t offset,
-                              completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::read(
+    int file_descriptor,
+    void* buf,
+    unsigned nbytes,
+    off_t offset,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_read(sqe, file_descriptor, buf, nbytes, offset);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -315,10 +416,17 @@ void Leverager<Context>::read(int file_descriptor, void *buf, unsigned nbytes, o
  * @brief io_uring specialization of write() — preps via `io_uring_prep_write`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::write(int file_descriptor, const void *buf, unsigned nbytes, off_t offset,
-                               completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::write(
+    int file_descriptor,
+    const void* buf,
+    unsigned nbytes,
+    off_t offset,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_write(sqe, file_descriptor, buf, nbytes, offset);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -328,10 +436,18 @@ void Leverager<Context>::write(int file_descriptor, const void *buf, unsigned nb
  * param contract (including the buffer-registration requirement) lives on the primary
  * declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::read_fixed(int file_descriptor, void *buf, unsigned nbytes, off_t offset, int buf_index,
-                                    completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::read_fixed(
+    int file_descriptor,
+    void* buf,
+    unsigned nbytes,
+    off_t offset,
+    int buf_index,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_read_fixed(sqe, file_descriptor, buf, nbytes, offset, buf_index);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -340,10 +456,18 @@ void Leverager<Context>::read_fixed(int file_descriptor, void *buf, unsigned nby
  * @brief io_uring specialization of write_fixed() — preps via `io_uring_prep_write_fixed`. Full
  * param contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::write_fixed(int file_descriptor, const void *buf, unsigned nbytes, off_t offset,
-                                     int buf_index, completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::write_fixed(
+    int file_descriptor,
+    const void* buf,
+    unsigned nbytes,
+    off_t offset,
+    int buf_index,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_write_fixed(sqe, file_descriptor, buf, nbytes, offset, buf_index);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -352,10 +476,15 @@ void Leverager<Context>::write_fixed(int file_descriptor, const void *buf, unsig
  * @brief io_uring specialization of fsync() — preps via `io_uring_prep_fsync`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::fsync(int file_descriptor, unsigned fsync_flags, completion_callback callback,
-                               std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::fsync(
+    int file_descriptor,
+    unsigned fsync_flags,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_fsync(sqe, file_descriptor, fsync_flags);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -366,15 +495,29 @@ void Leverager<Context>::fsync(int file_descriptor, unsigned fsync_flags, comple
  * SQE directly since there's no dedicated `io_uring_prep_sync_file_range` helper here. Full
  * param contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::sync_file_range(int file_descriptor, off64_t offset, off64_t nbytes,
-                                         unsigned sync_range_flags, completion_callback callback,
-                                         std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
-    liburing::io_uring_prep_rw(liburing::OP_SYNC_FILE_RANGE, sqe, file_descriptor, nullptr, nbytes, offset);
-    sqe->sync_range_flags = sync_range_flags;  // NOLINT(cppcoreguidelines-pro-type-union-access) — sqe is a
-                                                // kernel io_uring_sqe C struct with a union layout; no encapsulation
-                                                // possible without wrapping the liburing ABI type
+template<>
+void Leverager<Context>::sync_file_range(
+    int file_descriptor,
+    off64_t offset,
+    off64_t nbytes,
+    unsigned sync_range_flags,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
+    liburing::io_uring_prep_rw(
+        liburing::OP_SYNC_FILE_RANGE,
+        sqe,
+        file_descriptor,
+        nullptr,
+        nbytes,
+        offset
+    );
+    sqe->sync_range_flags =
+        sync_range_flags; // NOLINT(cppcoreguidelines-pro-type-union-access) — sqe is a
+                          // kernel io_uring_sqe C struct with a union layout; no encapsulation
+                          // possible without wrapping the liburing ABI type
     Context::submit_async(sqe, std::move(callback), iflags);
 }
 
@@ -382,10 +525,16 @@ void Leverager<Context>::sync_file_range(int file_descriptor, off64_t offset, of
  * @brief io_uring specialization of recvmsg() — preps via `io_uring_prep_recvmsg`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::recvmsg(int sockfd, msghdr *msg, std::uint32_t flags, completion_callback callback,
-                                 std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::recvmsg(
+    int sockfd,
+    msghdr* msg,
+    std::uint32_t flags,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_recvmsg(sqe, sockfd, msg, flags);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -394,10 +543,16 @@ void Leverager<Context>::recvmsg(int sockfd, msghdr *msg, std::uint32_t flags, c
  * @brief io_uring specialization of sendmsg() — preps via `io_uring_prep_sendmsg`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::sendmsg(int sockfd, const msghdr *msg, std::uint32_t flags, completion_callback callback,
-                                 std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::sendmsg(
+    int sockfd,
+    const msghdr* msg,
+    std::uint32_t flags,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_sendmsg(sqe, sockfd, msg, flags);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -406,10 +561,17 @@ void Leverager<Context>::sendmsg(int sockfd, const msghdr *msg, std::uint32_t fl
  * @brief io_uring specialization of recv() — preps via `io_uring_prep_recv`. Full param contract
  * lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::recv(int sockfd, void *buf, unsigned nbytes, std::uint32_t flags,
-                              completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::recv(
+    int sockfd,
+    void* buf,
+    unsigned nbytes,
+    std::uint32_t flags,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_recv(sqe, sockfd, buf, nbytes, static_cast<int>(flags));
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -418,10 +580,17 @@ void Leverager<Context>::recv(int sockfd, void *buf, unsigned nbytes, std::uint3
  * @brief io_uring specialization of send() — preps via `io_uring_prep_send`. Full param contract
  * lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::send(int sockfd, const void *buf, unsigned nbytes, std::uint32_t flags,
-                              completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::send(
+    int sockfd,
+    const void* buf,
+    unsigned nbytes,
+    std::uint32_t flags,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_send(sqe, sockfd, buf, nbytes, static_cast<int>(flags));
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -431,10 +600,15 @@ void Leverager<Context>::send(int sockfd, const void *buf, unsigned nbytes, std:
  * watch (unlike the win32 backend's stub). Full param contract lives on the primary declaration
  * in types.cppm.
  */
-template <>
-void Leverager<Context>::poll(int file_descriptor, short poll_mask, completion_callback callback,
-                              std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::poll(
+    int file_descriptor,
+    short poll_mask,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_poll_add(sqe, file_descriptor, poll_mask);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -443,9 +617,10 @@ void Leverager<Context>::poll(int file_descriptor, short poll_mask, completion_c
  * @brief io_uring specialization of yield() — preps via `io_uring_prep_nop`. Full param contract
  * lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::yield(completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::yield(completion_callback callback, std::uint8_t iflags)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_nop(sqe);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -454,10 +629,17 @@ void Leverager<Context>::yield(completion_callback callback, std::uint8_t iflags
  * @brief io_uring specialization of accept() — preps via `io_uring_prep_accept`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::accept(int file_descriptor, sockaddr *addr, socklen_t *addrlen, int flags,
-                                completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::accept(
+    int file_descriptor,
+    sockaddr* addr,
+    socklen_t* addrlen,
+    int flags,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_accept(sqe, file_descriptor, addr, addrlen, flags);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -466,10 +648,16 @@ void Leverager<Context>::accept(int file_descriptor, sockaddr *addr, socklen_t *
  * @brief io_uring specialization of connect() — preps via `io_uring_prep_connect`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::connect(int file_descriptor, sockaddr *addr, socklen_t addrlen,
-                                 completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::connect(
+    int file_descriptor,
+    sockaddr* addr,
+    socklen_t addrlen,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_connect(sqe, file_descriptor, addr, addrlen);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -478,10 +666,14 @@ void Leverager<Context>::connect(int file_descriptor, sockaddr *addr, socklen_t 
  * @brief io_uring specialization of timeout() — preps via `io_uring_prep_timeout` with a fixed
  * count/flags of 0. Full param contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::timeout(__kernel_timespec *timeout_spec, completion_callback callback,
-                                 std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::timeout(
+    __kernel_timespec* timeout_spec,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_timeout(sqe, timeout_spec, 0, 0);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -490,10 +682,17 @@ void Leverager<Context>::timeout(__kernel_timespec *timeout_spec, completion_cal
  * @brief io_uring specialization of openat() — preps via `io_uring_prep_openat`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::openat(int dfd, const char *path, int flags, mode_t mode,
-                                completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::openat(
+    int dfd,
+    const char* path,
+    int flags,
+    mode_t mode,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_openat(sqe, dfd, path, flags, mode);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -502,9 +701,14 @@ void Leverager<Context>::openat(int dfd, const char *path, int flags, mode_t mod
  * @brief io_uring specialization of close() — preps via `io_uring_prep_close`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::close(int file_descriptor, completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::close(
+    int file_descriptor,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_close(sqe, file_descriptor);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -513,10 +717,18 @@ void Leverager<Context>::close(int file_descriptor, completion_callback callback
  * @brief io_uring specialization of statx() — preps via `io_uring_prep_statx`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::statx(int dfd, const char *path, int flags, unsigned mask, struct statx *statxbuf,
-                               completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::statx(
+    int dfd,
+    const char* path,
+    int flags,
+    unsigned mask,
+    struct statx* statxbuf,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_statx(sqe, dfd, path, flags, mask, statxbuf);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -525,10 +737,19 @@ void Leverager<Context>::statx(int dfd, const char *path, int flags, unsigned ma
  * @brief io_uring specialization of splice() — preps via `io_uring_prep_splice`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::splice(int fd_in, off_t off_in, int fd_out, off_t off_out, std::size_t nbytes, unsigned flags,
-                                completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::splice(
+    int fd_in,
+    off_t off_in,
+    int fd_out,
+    off_t off_out,
+    std::size_t nbytes,
+    unsigned flags,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_splice(sqe, fd_in, off_in, fd_out, off_out, nbytes, flags);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -537,10 +758,17 @@ void Leverager<Context>::splice(int fd_in, off_t off_in, int fd_out, off_t off_o
  * @brief io_uring specialization of tee() — preps via `io_uring_prep_tee`. Full param contract
  * lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::tee(int fd_in, int fd_out, std::size_t nbytes, unsigned flags,
-                             completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::tee(
+    int fd_in,
+    int fd_out,
+    std::size_t nbytes,
+    unsigned flags,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_tee(sqe, fd_in, fd_out, nbytes, flags);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -549,10 +777,15 @@ void Leverager<Context>::tee(int fd_in, int fd_out, std::size_t nbytes, unsigned
  * @brief io_uring specialization of shutdown() — preps via `io_uring_prep_shutdown`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::shutdown(int file_descriptor, int how, completion_callback callback,
-                                  std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::shutdown(
+    int file_descriptor,
+    int how,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_shutdown(sqe, file_descriptor, how);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -561,10 +794,18 @@ void Leverager<Context>::shutdown(int file_descriptor, int how, completion_callb
  * @brief io_uring specialization of renameat() — preps via `io_uring_prep_renameat`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::renameat(int olddfd, const char *oldpath, int newdfd, const char *newpath, unsigned flags,
-                                  completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::renameat(
+    int olddfd,
+    const char* oldpath,
+    int newdfd,
+    const char* newpath,
+    unsigned flags,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_renameat(sqe, olddfd, oldpath, newdfd, newpath, flags);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -573,10 +814,16 @@ void Leverager<Context>::renameat(int olddfd, const char *oldpath, int newdfd, c
  * @brief io_uring specialization of mkdirat() — preps via `io_uring_prep_mkdirat`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::mkdirat(int dirfd, const char *pathname, mode_t mode, completion_callback callback,
-                                 std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::mkdirat(
+    int dirfd,
+    const char* pathname,
+    mode_t mode,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_mkdirat(sqe, dirfd, pathname, mode);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -585,10 +832,16 @@ void Leverager<Context>::mkdirat(int dirfd, const char *pathname, mode_t mode, c
  * @brief io_uring specialization of symlinkat() — preps via `io_uring_prep_symlinkat`. Full
  * param contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::symlinkat(const char *target, int newdirfd, const char *linkpath,
-                                   completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::symlinkat(
+    const char* target,
+    int newdirfd,
+    const char* linkpath,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_symlinkat(sqe, target, newdirfd, linkpath);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -597,10 +850,18 @@ void Leverager<Context>::symlinkat(const char *target, int newdirfd, const char 
  * @brief io_uring specialization of linkat() — preps via `io_uring_prep_linkat`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::linkat(int olddirfd, const char *oldpath, int newdirfd, const char *newpath, int flags,
-                                completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::linkat(
+    int olddirfd,
+    const char* oldpath,
+    int newdirfd,
+    const char* newpath,
+    int flags,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_linkat(sqe, olddirfd, oldpath, newdirfd, newpath, flags);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -609,10 +870,16 @@ void Leverager<Context>::linkat(int olddirfd, const char *oldpath, int newdirfd,
  * @brief io_uring specialization of unlinkat() — preps via `io_uring_prep_unlinkat`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::unlinkat(int dfd, const char *path, unsigned flags, completion_callback callback,
-                                  std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::unlinkat(
+    int dfd,
+    const char* path,
+    unsigned flags,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_unlinkat(sqe, dfd, path, static_cast<int>(flags));
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -621,10 +888,17 @@ void Leverager<Context>::unlinkat(int dfd, const char *path, unsigned flags, com
  * @brief io_uring specialization of msg_ring() — preps via `io_uring_prep_msg_ring`. Full param
  * contract lives on the primary declaration in types.cppm.
  */
-template <>
-void Leverager<Context>::msg_ring(int file_descriptor, unsigned len, std::uint64_t data, unsigned flags,
-                                  completion_callback callback, std::uint8_t iflags) {
-    auto *sqe = m_context.get_sqe_safe();
+template<>
+void Leverager<Context>::msg_ring(
+    int file_descriptor,
+    unsigned len,
+    std::uint64_t data,
+    unsigned flags,
+    completion_callback callback,
+    std::uint8_t iflags
+)
+{
+    auto* sqe = m_context.get_sqe_safe();
     liburing::io_uring_prep_msg_ring(sqe, file_descriptor, len, data, flags);
     Context::submit_async(sqe, std::move(callback), iflags);
 }
@@ -634,10 +908,11 @@ void Leverager<Context>::msg_ring(int file_descriptor, unsigned len, std::uint64
  * drains completions if one's actually ready. Full contract lives on the primary declaration
  * in types.cppm.
  */
-template <>
-void Leverager<Context>::poll() {
+template<>
+void Leverager<Context>::poll()
+{
     // non-blocking peek — only drain the completion queue if something's actually ready
-    liburing::io_uring_cqe *cqe = nullptr;
+    liburing::io_uring_cqe* cqe = nullptr;
     if (liburing::io_uring_peek_cqe(m_context.get_ring(), &cqe) == 0) {
         m_context.process_completions();
     }
@@ -648,19 +923,24 @@ void Leverager<Context>::poll() {
  * since a blocked `io_uring_submit_and_wait` call isn't parked on this flag anyway (unlike the
  * win32 IOCP backend, which has to explicitly wake the completion port).
  */
-template <>
-void Leverager<Context>::stop() {
+template<>
+void Leverager<Context>::stop()
+{
     m_running = false;
 }
-
 
 /**
  * @brief io_uring specialization of register_files() — wraps `io_uring_register_files`.
  * @throws std::system_error via panic_on_err() if the registration syscall fails.
  */
-template <>
-void Leverager<Context>::register_files(std::span<const int> fds) {
-    int ret = liburing::io_uring_register_files(m_context.get_ring(), fds.data(), static_cast<unsigned>(fds.size()));
+template<>
+void Leverager<Context>::register_files(std::span<const int> fds)
+{
+    int ret = liburing::io_uring_register_files(
+        m_context.get_ring(),
+        fds.data(),
+        static_cast<unsigned>(fds.size())
+    );
     panic_on_err("liburing::io_uring_register_files", ret, false);
 }
 
@@ -669,10 +949,15 @@ void Leverager<Context>::register_files(std::span<const int> fds) {
  * `io_uring_register_files_update`.
  * @throws std::system_error via panic_on_err() if the update syscall fails.
  */
-template <>
-void Leverager<Context>::register_files_update(unsigned off, std::span<int> files) {
-    int ret = liburing::io_uring_register_files_update(m_context.get_ring(), off, files.data(),
-                                                       static_cast<unsigned>(files.size()));
+template<>
+void Leverager<Context>::register_files_update(unsigned off, std::span<int> files)
+{
+    int ret = liburing::io_uring_register_files_update(
+        m_context.get_ring(),
+        off,
+        files.data(),
+        static_cast<unsigned>(files.size())
+    );
     panic_on_err("liburing::io_uring_register_files_update", ret, false);
 }
 
@@ -680,8 +965,9 @@ void Leverager<Context>::register_files_update(unsigned off, std::span<int> file
  * @brief io_uring specialization of unregister_files() — wraps `io_uring_unregister_files`.
  * @return the raw syscall result.
  */
-template <>
-int Leverager<Context>::unregister_files() noexcept {
+template<>
+int Leverager<Context>::unregister_files() noexcept
+{
     return liburing::io_uring_unregister_files(m_context.get_ring());
 }
 
@@ -689,10 +975,14 @@ int Leverager<Context>::unregister_files() noexcept {
  * @brief io_uring specialization of register_buffers() — wraps `io_uring_register_buffers`.
  * @throws std::system_error via panic_on_err() if the registration syscall fails.
  */
-template <>
-void Leverager<Context>::register_buffers(std::span<const iovec> iovecs) {
-    int ret =
-        liburing::io_uring_register_buffers(m_context.get_ring(), iovecs.data(), static_cast<unsigned>(iovecs.size()));
+template<>
+void Leverager<Context>::register_buffers(std::span<const iovec> iovecs)
+{
+    int ret = liburing::io_uring_register_buffers(
+        m_context.get_ring(),
+        iovecs.data(),
+        static_cast<unsigned>(iovecs.size())
+    );
     panic_on_err("liburing::io_uring_register_buffers", ret, false);
 }
 
@@ -700,18 +990,19 @@ void Leverager<Context>::register_buffers(std::span<const iovec> iovecs) {
  * @brief io_uring specialization of unregister_buffers() — wraps `io_uring_unregister_buffers`.
  * @return the raw syscall result.
  */
-template <>
-int Leverager<Context>::unregister_buffers() noexcept {
+template<>
+int Leverager<Context>::unregister_buffers() noexcept
+{
     return liburing::io_uring_unregister_buffers(m_context.get_ring());
 }
-
 
 /**
  * @brief io_uring specialization of register_file() — forwards to register_files() with a
  * one-element span over `fd`.
  */
-template <>
-void Leverager<Context>::register_file(int file_descriptor) {
+template<>
+void Leverager<Context>::register_file(int file_descriptor)
+{
     register_files({&file_descriptor, 1});
 }
 
@@ -724,8 +1015,9 @@ void Leverager<Context>::register_file(int file_descriptor) {
 // primary template (types.cppm:693), so an explicit specialization here can't drop noexcept
 // without also changing that shared declaration, which every backend (posix/uring/win32)
 // specializes against. Needs a cross-backend audit, not a local guess.
-template <>
-void Leverager<Context>::unregister_file(unsigned int file_descriptor) noexcept {
+template<>
+void Leverager<Context>::unregister_file(unsigned int file_descriptor) noexcept
+{
     int sentinel = -1;
     register_files_update(file_descriptor, {&sentinel, 1});
 }
@@ -740,8 +1032,10 @@ using namespace boost::ut;
 // do anything meaningful — not unit-testable in isolation, skipped here. PendingOp is a plain
 // value type with no syscalls involved, so that's covered for real.
 
-suite<"PendingOp"> pending_op_suite = [] {
-    "fields round-trip through their setters/getters"_test = [] {
+suite<"PendingOp"> pending_op_suite = []
+{
+    "fields round-trip through their setters/getters"_test = []
+    {
         PendingOp op;
         int buffer = 0;
         op.set_buffer(&buffer);
@@ -755,7 +1049,8 @@ suite<"PendingOp"> pending_op_suite = [] {
         expect(op.get_op_type() == 3);
     };
 
-    "starts with a null buffer, zeroed size/offset/op_type"_test = [] {
+    "starts with a null buffer, zeroed size/offset/op_type"_test = []
+    {
         PendingOp op;
 
         expect(op.get_buffer() == nullptr);
@@ -764,10 +1059,16 @@ suite<"PendingOp"> pending_op_suite = [] {
         expect(op.get_op_type() == 0);
     };
 
-    "stashed callback fires with the value it's invoked with"_test = [] {
+    "stashed callback fires with the value it's invoked with"_test = []
+    {
         PendingOp op;
         int seen = 0;
-        op.set_callback([&seen](int result) { seen = result; });
+        op.set_callback(
+            [&seen](int result)
+            {
+                seen = result;
+            }
+        );
 
         op.get_callback()(42);
 

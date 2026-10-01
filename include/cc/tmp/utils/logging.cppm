@@ -9,7 +9,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         class Logging

@@ -8,9 +8,10 @@
 
 module;
 
-#include "include/c/extern/kernel/builder.h"
-#include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
 #include "docs/aten_xpu/sycl_backend/kernels/kernel_construction_view.h"
+#include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
+#include "include/c/extern/kernel/builder.h"
+
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_sycl.hpp>
 
@@ -173,16 +174,11 @@ private:
             attributes.set_post_ops(post_ops);
         }
 
-        dnnl::matmul::primitive_desc primitive_desc = bias_data != nullptr
-            ? dnnl::matmul::primitive_desc{
-                  engine,
-                  m1_md,
-                  m2_md,
-                  dnnl::memory::desc{bias_dims, data_type, dnnl::memory::format_tag::ab},
-                  dst_md,
-                  attributes
-              }
-            : dnnl::matmul::primitive_desc{engine, m1_md, m2_md, dst_md, attributes};
+        dnnl::matmul::primitive_desc primitive_desc =
+            bias_data != nullptr
+                ? dnnl::matmul::
+                      primitive_desc{engine, m1_md, m2_md, dnnl::memory::desc{bias_dims, data_type, dnnl::memory::format_tag::ab}, dst_md, attributes}
+                : dnnl::matmul::primitive_desc{engine, m1_md, m2_md, dst_md, attributes};
 
         dnnl::matmul matmul{primitive_desc};
 

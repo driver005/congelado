@@ -243,7 +243,8 @@ public:
         request->set_header(interfaces::io::types::Token::PATH, m_path);
         for (const auto& [name_or_token, value]: m_headers) {
             std::visit(
-                [&](const auto& name) {
+                [&](const auto& name)
+                {
                     request->set_header(name, value);
                 },
                 name_or_token
@@ -317,36 +318,79 @@ private:
 namespace core::client::tests {
 using namespace boost::ut;
 
-suite<"Client"> client_suite = [] {
-    "send() throws when no runtime has been bound"_test = [] {
+suite<"Client"> client_suite = []
+{
+    "send() throws when no runtime has been bound"_test = []
+    {
         Client client = Client::get("/foo");
-        expect(throws<std::runtime_error>([&] {
-            client.send();
-        }));
+        expect(
+            throws<std::runtime_error>(
+                [&]
+                {
+                    client.send();
+                }
+            )
+        );
     };
 
-    "every verb factory produces a usable Client that still needs a runtime to send"_test = [] {
-        expect(throws<std::runtime_error>([] {
-            Client::post("/x").send();
-        }));
-        expect(throws<std::runtime_error>([] {
-            Client::put("/x").send();
-        }));
-        expect(throws<std::runtime_error>([] {
-            Client::del("/x").send();
-        }));
-        expect(throws<std::runtime_error>([] {
-            Client::patch("/x").send();
-        }));
-        expect(throws<std::runtime_error>([] {
-            Client::head("/x").send();
-        }));
-        expect(throws<std::runtime_error>([] {
-            Client::options("/x").send();
-        }));
-        expect(throws<std::runtime_error>([] {
-            Client::custom("TRACE", "/x").send();
-        }));
+    "every verb factory produces a usable Client that still needs a runtime to send"_test = []
+    {
+        expect(
+            throws<std::runtime_error>(
+                []
+                {
+                    Client::post("/x").send();
+                }
+            )
+        );
+        expect(
+            throws<std::runtime_error>(
+                []
+                {
+                    Client::put("/x").send();
+                }
+            )
+        );
+        expect(
+            throws<std::runtime_error>(
+                []
+                {
+                    Client::del("/x").send();
+                }
+            )
+        );
+        expect(
+            throws<std::runtime_error>(
+                []
+                {
+                    Client::patch("/x").send();
+                }
+            )
+        );
+        expect(
+            throws<std::runtime_error>(
+                []
+                {
+                    Client::head("/x").send();
+                }
+            )
+        );
+        expect(
+            throws<std::runtime_error>(
+                []
+                {
+                    Client::options("/x").send();
+                }
+            )
+        );
+        expect(
+            throws<std::runtime_error>(
+                []
+                {
+                    Client::custom("TRACE", "/x").send();
+                }
+            )
+        );
     };
 };
 

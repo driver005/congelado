@@ -1,19 +1,19 @@
 #ifndef CONGELADO_C_GENERATOR_H_
 #define CONGELADO_C_GENERATOR_H_
 
-#include "include/c/macros.h"
+#include "include/c/extern/generator/attribute.h"
+#include "include/c/extern/generator/block.h"
+#include "include/c/extern/generator/catalog.h"
+#include "include/c/extern/generator/definition.h"
+#include "include/c/extern/generator/function.h"
+#include "include/c/extern/generator/module.h"
+#include "include/c/extern/generator/node.h"
+#include "include/c/extern/generator/parameter.h"
+#include "include/c/extern/generator/typeinfo.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tensor.h"
 #include "include/c/intern/tstring.h"
-#include "include/c/extern/generator/catalog.h"
-#include "include/c/extern/generator/function.h"
-#include "include/c/extern/generator/definition.h"
-#include "include/c/extern/generator/parameter.h"
-#include "include/c/extern/generator/typeinfo.h"
-#include "include/c/extern/generator/attribute.h"
-#include "include/c/extern/generator/module.h"
-#include "include/c/extern/generator/block.h"
-#include "include/c/extern/generator/node.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -50,8 +50,10 @@ extern "C"
     create_generator(TF_GeneratorOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_generator(void* plugin_context);
 
-    // Real implementation, not declared-only like create_generator — calls every generator/*.h create_x and fills in generator's ops fields.
-    static inline void init_generator(TF_GeneratorOps** ops, TF_Generator* generator, TF_Status* out_status)
+    // Real implementation, not declared-only like create_generator — calls every generator/*.h
+    // create_x and fills in generator's ops fields.
+    static inline void
+    init_generator(TF_GeneratorOps** ops, TF_Generator* generator, TF_Status* out_status)
     {
         create_generator(ops, &generator->plugin_data, out_status);
 

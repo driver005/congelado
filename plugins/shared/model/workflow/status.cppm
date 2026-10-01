@@ -29,14 +29,17 @@ enum class WorkflowStatus : std::uint8_t
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"is_terminal(WorkflowStatus)"> is_terminal_workflow_status_suite = [] {
-    "COMPLETED, FAILED, TIMED_OUT, TERMINATED are terminal"_test = [] {
+suite<"is_terminal(WorkflowStatus)"> is_terminal_workflow_status_suite = []
+{
+    "COMPLETED, FAILED, TIMED_OUT, TERMINATED are terminal"_test = []
+    {
         expect(is_terminal(WorkflowStatus::COMPLETED));
         expect(is_terminal(WorkflowStatus::FAILED));
         expect(is_terminal(WorkflowStatus::TIMED_OUT));
         expect(is_terminal(WorkflowStatus::TERMINATED));
     };
-    "RUNNING and PAUSED are not terminal"_test = [] {
+    "RUNNING and PAUSED are not terminal"_test = []
+    {
         expect(not is_terminal(WorkflowStatus::RUNNING));
         expect(not is_terminal(WorkflowStatus::PAUSED));
     };

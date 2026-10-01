@@ -250,25 +250,37 @@ struct serde::Serializable<model::WorkflowDef>
     {
         return std::tuple{
             serde::FieldDesc<
-                "name", &model::WorkflowDef::get_name, &model::WorkflowDef::set_name,
+                "name",
+                &model::WorkflowDef::get_name,
+                &model::WorkflowDef::set_name,
                 serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
             serde::FieldDesc<
-                "version", &model::WorkflowDef::get_version, &model::WorkflowDef::set_version>{},
+                "version",
+                &model::WorkflowDef::get_version,
+                &model::WorkflowDef::set_version>{},
             serde::FieldDesc<
-                "nodes", &model::WorkflowDef::get_nodes, &model::WorkflowDef::set_nodes>{},
+                "nodes",
+                &model::WorkflowDef::get_nodes,
+                &model::WorkflowDef::set_nodes>{},
             serde::FieldDesc<
-                "input_params", &model::WorkflowDef::get_input_params,
+                "input_params",
+                &model::WorkflowDef::get_input_params,
                 &model::WorkflowDef::set_input_params>{},
             serde::FieldDesc<
-                "output_mappings", &model::WorkflowDef::get_output_mappings,
+                "output_mappings",
+                &model::WorkflowDef::get_output_mappings,
                 &model::WorkflowDef::set_output_mappings>{},
             serde::FieldDesc<
-                "failure_workflow", &model::WorkflowDef::get_failure_workflow,
+                "failure_workflow",
+                &model::WorkflowDef::get_failure_workflow,
                 &model::WorkflowDef::set_failure_workflow>{},
             serde::FieldDesc<
-                "timeout", &model::WorkflowDef::get_timeout, &model::WorkflowDef::set_timeout>{},
+                "timeout",
+                &model::WorkflowDef::get_timeout,
+                &model::WorkflowDef::set_timeout>{},
             serde::FieldDesc<
-                "restartable", &model::WorkflowDef::get_restartable,
+                "restartable",
+                &model::WorkflowDef::get_restartable,
                 &model::WorkflowDef::set_restartable>{},
             serde::FieldDesc<
                 "workflow_status_listener_enabled",
@@ -282,8 +294,10 @@ struct serde::Serializable<model::WorkflowDef>
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"WorkflowDef"> workflow_def_suite = [] {
-    "defaults to version 1, restartable, no nodes, and fails validation"_test = [] {
+suite<"WorkflowDef"> workflow_def_suite = []
+{
+    "defaults to version 1, restartable, no nodes, and fails validation"_test = []
+    {
         WorkflowDef def;
 
         expect(def.get_version() == 1);
@@ -292,13 +306,15 @@ suite<"WorkflowDef"> workflow_def_suite = [] {
         expect(def.get_nodes().empty());
         expect(not def.validate().has_value());
     };
-    "requires at least one node even with a valid name/version"_test = [] {
+    "requires at least one node even with a valid name/version"_test = []
+    {
         WorkflowDef def;
         def.set_name("order_pipeline");
 
         expect(not def.validate().has_value());
     };
-    "add_node/add_input_param/add_output_mapping accumulate"_test = [] {
+    "add_node/add_input_param/add_output_mapping accumulate"_test = []
+    {
         WorkflowDef def;
         def.set_name("order_pipeline");
 
@@ -314,7 +330,8 @@ suite<"WorkflowDef"> workflow_def_suite = [] {
         expect(def.get_output_mappings().size() == 1);
         expect(bool(def.validate()));
     };
-    "a busted nested node propagates through validate"_test = [] {
+    "a busted nested node propagates through validate"_test = []
+    {
         WorkflowDef def;
         def.set_name("order_pipeline");
         def.add_node(TaskNode{});

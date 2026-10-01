@@ -34,7 +34,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         class NodeDef;
@@ -137,7 +136,12 @@ export {
         )
         {
             return MemoryTypesForNode(
-                op_registry, device_type, ndef, inp_mtypes, out_mtypes, nullptr
+                op_registry,
+                device_type,
+                ndef,
+                inp_mtypes,
+                out_mtypes,
+                nullptr
             );
         }
 
@@ -166,13 +170,15 @@ export {
             inp_mtypes->clear();
             out_mtypes->clear();
 
-            bool has_xla_compile = [&] {
+            bool has_xla_compile = [&]
+            {
                 const auto& it = ndef.attr().find(kXlaMustCompileAttr);
                 return it != ndef.attr().end() && it->second.b();
             }();
 
             bool has_kernel_def = status.ok() && !IsFunctionCallOp(ndef.op());
-            auto host_memory_required = [&](const DataType& dt) {
+            auto host_memory_required = [&](const DataType& dt)
+            {
                 bool int32_on_device =
                     has_kernel_def || device_type.type_string() == "TPU" || has_xla_compile;
                 return DataTypeAlwaysOnHost(dt) || (dt == DT_INT32 && !int32_on_device);
@@ -196,8 +202,10 @@ export {
                 if (!host_memory_args.empty()) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "HostMemory args '", absl::StrJoin(host_memory_args, "', '"),
-                            "' not found in OpDef: ", SummarizeOpDef(*op_def)
+                            "HostMemory args '",
+                            absl::StrJoin(host_memory_args, "', '"),
+                            "' not found in OpDef: ",
+                            SummarizeOpDef(*op_def)
                         )
                     );
                 }

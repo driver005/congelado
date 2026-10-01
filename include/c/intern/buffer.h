@@ -16,9 +16,9 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_BUFFER_H_
 #define TENSORFLOW_C_TF_BUFFER_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -27,7 +27,9 @@ extern "C"
 {
 #endif
 
-    // TFBufferData — passive value type holding a pointer to a block of data and its length.  Typically the data is a serialised protocol buffer. By default TFBufferData does not manage the pointed-to memory; set data_deallocator if the block needs freeing.
+    // TFBufferData — passive value type holding a pointer to a block of data and its length.
+    // Typically the data is a serialised protocol buffer. By default TFBufferData does not manage
+    // the pointed-to memory; set data_deallocator if the block needs freeing.
     typedef struct TFBufferData
     {
         const void* data;
@@ -35,7 +37,8 @@ extern "C"
         void (*data_deallocator)(void* data, size_t length);
     } TFBufferData;
 
-    // Legacy alias kept so existing call sites that use TF_Buffer as a value type continue to compile without changes.
+    // Legacy alias kept so existing call sites that use TF_Buffer as a value type continue to
+    // compile without changes.
     typedef TFBufferData TFBufferValue;
 
     // Global helper functions that operate on TFBufferData values.
@@ -51,7 +54,8 @@ extern "C"
         void* plugin_data;
     } TF_Buffer;
 
-    // Plugin-facing vtable registered via create_buffer so the mainframe can drive buffer operations across the C ABI.
+    // Plugin-facing vtable registered via create_buffer so the mainframe can drive buffer
+    // operations across the C ABI.
     typedef struct TF_BufferOps
     {
         size_t struct_size;
@@ -73,7 +77,8 @@ extern "C"
 
 #define TF_BUFFER_STRUCT_SIZE TF_OFFSET_OF_END(TF_BufferOps, get_buffer)
 
-    TF_CAPI_EXPORT void create_buffer(TF_BufferOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void
+    create_buffer(TF_BufferOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_buffer(void* plugin_context);
 
     // Real implementation, not declared-only — calls create_buffer

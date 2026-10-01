@@ -104,13 +104,16 @@ struct serde::Serializable<model::ExecutionTimings>
     {
         return std::tuple{
             serde::FieldDesc<
-                "scheduled_at", &model::ExecutionTimings::get_scheduled_at,
+                "scheduled_at",
+                &model::ExecutionTimings::get_scheduled_at,
                 &model::ExecutionTimings::set_scheduled_at>{},
             serde::FieldDesc<
-                "started_at", &model::ExecutionTimings::get_started_at,
+                "started_at",
+                &model::ExecutionTimings::get_started_at,
                 &model::ExecutionTimings::set_started_at>{},
             serde::FieldDesc<
-                "completed_at", &model::ExecutionTimings::get_completed_at,
+                "completed_at",
+                &model::ExecutionTimings::get_completed_at,
                 &model::ExecutionTimings::set_completed_at>{},
         };
     }
@@ -120,8 +123,10 @@ struct serde::Serializable<model::ExecutionTimings>
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"ExecutionTimings"> execution_timings_suite = [] {
-    "defaults to all-unset timestamps and passes validation"_test = [] {
+suite<"ExecutionTimings"> execution_timings_suite = []
+{
+    "defaults to all-unset timestamps and passes validation"_test = []
+    {
         ExecutionTimings timings;
 
         expect(not timings.get_scheduled_at().has_value());
@@ -129,7 +134,8 @@ suite<"ExecutionTimings"> execution_timings_suite = [] {
         expect(not timings.get_completed_at().has_value());
         expect(bool(timings.validate()));
     };
-    "setters round-trip through their getters"_test = [] {
+    "setters round-trip through their getters"_test = []
+    {
         ExecutionTimings timings;
         auto now = std::chrono::system_clock::now();
 
@@ -141,7 +147,8 @@ suite<"ExecutionTimings"> execution_timings_suite = [] {
         expect(timings.get_started_at() == now);
         expect(timings.get_completed_at() == now);
     };
-    "rejects started_at before scheduled_at"_test = [] {
+    "rejects started_at before scheduled_at"_test = []
+    {
         ExecutionTimings timings;
         auto now = std::chrono::system_clock::now();
 
@@ -150,7 +157,8 @@ suite<"ExecutionTimings"> execution_timings_suite = [] {
 
         expect(not timings.validate().has_value());
     };
-    "rejects completed_at before started_at"_test = [] {
+    "rejects completed_at before started_at"_test = []
+    {
         ExecutionTimings timings;
         auto now = std::chrono::system_clock::now();
 

@@ -100,16 +100,20 @@ public:
 
 using namespace boost::ut;
 
-suite<"FlowLayer/FlowBase concepts"> flow_concepts_suite = [] {
-    "MockFlowLayer satisfies FlowLayer"_test = [] {
+suite<"FlowLayer/FlowBase concepts"> flow_concepts_suite = []
+{
+    "MockFlowLayer satisfies FlowLayer"_test = []
+    {
         expect(FlowLayer<MockFlowLayer>);
     };
 
-    "a type missing on_read() does not satisfy FlowLayer"_test = [] {
+    "a type missing on_read() does not satisfy FlowLayer"_test = []
+    {
         expect(!FlowLayer<NotAFlowLayer>);
     };
 
-    "MockFlowBase satisfies FlowBase over MockFlowController/MockLeverager"_test = [] {
+    "MockFlowBase satisfies FlowBase over MockFlowController/MockLeverager"_test = []
+    {
         expect((FlowBase<MockFlowBase, MockFlowController, MockLeverager>));
     };
 };

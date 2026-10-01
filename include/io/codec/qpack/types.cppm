@@ -49,20 +49,24 @@ enum class IndexType : std::uint8_t
 namespace io::codec::qpack::tests {
 using namespace boost::ut;
 
-suite<"policy_for"> policy_for_suite = [] {
-    "sensitive headers get flagged never-indexed"_test = [] {
+suite<"policy_for"> policy_for_suite = []
+{
+    "sensitive headers get flagged never-indexed"_test = []
+    {
         expect(policy_for("authorization") == EncodePolicy::NEVER_INDEXED);
         expect(policy_for("proxy-authorization") == EncodePolicy::NEVER_INDEXED);
         expect(policy_for("cookie") == EncodePolicy::NEVER_INDEXED);
         expect(policy_for("set-cookie") == EncodePolicy::NEVER_INDEXED);
     };
 
-    "ordinary headers are free to be indexed"_test = [] {
+    "ordinary headers are free to be indexed"_test = []
+    {
         expect(policy_for("content-type") == EncodePolicy::WITH_INDEXING);
         expect(policy_for("x-custom-header") == EncodePolicy::WITH_INDEXING);
     };
 
-    "empty name is not flagged"_test = [] {
+    "empty name is not flagged"_test = []
+    {
         expect(policy_for("") == EncodePolicy::WITH_INDEXING);
     };
 };

@@ -32,7 +32,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // These functions return values that may be passed to
@@ -96,7 +95,10 @@ export {
             };
 
             FakeInputImpl::FakeInputImpl(
-                const OpDef* op_def, int in_index, const NodeDef* node_def, NodeDefBuilder* builder
+                const OpDef* op_def,
+                int in_index,
+                const NodeDef* node_def,
+                NodeDefBuilder* builder
             ) :
                 op_def_(op_def),
                 arg_(&op_def->input_arg(in_index)),
@@ -150,8 +152,10 @@ export {
                         if (!status.ok()) {
                             return absl::InvalidArgumentError(
                                 absl::StrCat(
-                                    "Could not infer list of types for input '", arg_->name(),
-                                    "': ", status.message()
+                                    "Could not infer list of types for input '",
+                                    arg_->name(),
+                                    "': ",
+                                    status.message()
                                 )
                             );
                         }
@@ -182,8 +186,10 @@ export {
                     if (!status.ok()) {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                "Could not infer length of input '", arg_->name(),
-                                "': ", status.message()
+                                "Could not infer length of input '",
+                                arg_->name(),
+                                "': ",
+                                status.message()
                             )
                         );
                     }
@@ -208,8 +214,10 @@ export {
                         } else {
                             return absl::InvalidArgumentError(
                                 absl::StrCat(
-                                    "Could not infer type for input '", arg_->name(),
-                                    "': ", status.message()
+                                    "Could not infer type for input '",
+                                    arg_->name(),
+                                    "': ",
+                                    status.message()
                                 )
                             );
                         }
@@ -251,8 +259,11 @@ export {
 
         FakeInputFunctor FakeInput()
         {
-            return [](const OpDef& op_def, int in_index, const NodeDef& node_def,
-                      NodeDefBuilder* builder) {
+            return [](const OpDef& op_def,
+                      int in_index,
+                      const NodeDef& node_def,
+                      NodeDefBuilder* builder)
+            {
                 FakeInputImpl impl(&op_def, in_index, &node_def, builder);
                 return impl.AddInputToBuilder();
             };
@@ -261,9 +272,12 @@ export {
         FakeInputFunctor FakeInput(DataType dt)
         {
             return [dt](
-                       const OpDef& op_def, int in_index, const NodeDef& node_def,
+                       const OpDef& op_def,
+                       int in_index,
+                       const NodeDef& node_def,
                        NodeDefBuilder* builder
-                   ) {
+                   )
+            {
                 FakeInputImpl impl(&op_def, in_index, &node_def, builder);
                 impl.SetDataType(dt);
                 return impl.AddInputToBuilder();
@@ -272,8 +286,11 @@ export {
 
         FakeInputFunctor FakeInput(int n)
         {
-            return [n](const OpDef& op_def, int in_index, const NodeDef& node_def,
-                       NodeDefBuilder* builder) {
+            return [n](const OpDef& op_def,
+                       int in_index,
+                       const NodeDef& node_def,
+                       NodeDefBuilder* builder)
+            {
                 FakeInputImpl impl(&op_def, in_index, &node_def, builder);
                 impl.SetN(n);
                 return impl.AddInputToBuilder();
@@ -283,9 +300,12 @@ export {
         FakeInputFunctor FakeInput(int n, DataType dt)
         {
             return [n, dt](
-                       const OpDef& op_def, int in_index, const NodeDef& node_def,
+                       const OpDef& op_def,
+                       int in_index,
+                       const NodeDef& node_def,
                        NodeDefBuilder* builder
-                   ) {
+                   )
+            {
                 FakeInputImpl impl(&op_def, in_index, &node_def, builder);
                 impl.SetN(n);
                 impl.SetDataType(dt);
@@ -299,9 +319,12 @@ export {
             // called.
             DataTypeVector dtv(dts.begin(), dts.end());
             return [dtv](
-                       const OpDef& op_def, int in_index, const NodeDef& node_def,
+                       const OpDef& op_def,
+                       int in_index,
+                       const NodeDef& node_def,
                        NodeDefBuilder* builder
-                   ) {
+                   )
+            {
                 FakeInputImpl impl(&op_def, in_index, &node_def, builder);
                 impl.SetTypeList(dtv);
                 return impl.AddInputToBuilder();

@@ -31,7 +31,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // NOTE: This is now a very thin layer over ResourceOpKernel.
@@ -61,9 +60,13 @@ export {
                     // Install cancellation
                     CancellationManager* cm = context->cancellation_manager();
                     CancellationToken token = cm->get_cancellation_token();
-                    bool already_cancelled = !cm->RegisterCallback(token, [this]() {
-                        this->Cancel();
-                    });
+                    bool already_cancelled = !cm->RegisterCallback(
+                        token,
+                        [this]()
+                        {
+                            this->Cancel();
+                        }
+                    );
 
                     if (!already_cancelled) {
                         ResourceOpKernel<ReaderInterface>::Compute(context);

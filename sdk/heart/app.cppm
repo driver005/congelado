@@ -309,7 +309,9 @@ private:
      * plugin's in by default); `false` if the entry exists but doesn't name `stem`.
      */
     static bool is_provider_listed(
-        const core::config::Config& cfg, std::string_view capability, std::string_view stem
+        const core::config::Config& cfg,
+        std::string_view capability,
+        std::string_view stem
     )
     {
         auto it = cfg.get_providers().find(std::string{capability});
@@ -398,7 +400,9 @@ private:
         auto open_res = m_store.open_all();
         if (!open_res) {
             std::println(
-                stderr, "[heart] plugin load failed: {} — aborting", open_res.error().get_message()
+                stderr,
+                "[heart] plugin load failed: {} — aborting",
+                open_res.error().get_message()
             );
             std::abort();
         }
@@ -432,74 +436,81 @@ private:
      */
     void discard_unlisted_provider_gated_plugins(const core::config::Config& cfg)
     {
-        auto loses_pick = [&](std::string_view capability, std::string_view stem) {
+        auto loses_pick = [&](std::string_view capability, std::string_view stem)
+        {
             auto preferred = preferred_provider(cfg, capability);
             return preferred.has_value() && *preferred != stem;
         };
 
         std::vector<std::string> to_discard;
-        m_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime) {
-            auto plugin = runtime->get_plugin();
-            if (!plugin) {
-                return;
-            }
-            auto stem = plugin_stem(*plugin);
-
-            bool participates = false;
-            bool wins = false;
-            auto check = [&](bool exports_capability, bool wins_this_one) {
-                if (!exports_capability) {
+        m_store.for_each(
+            [&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime)
+            {
+                auto plugin = runtime->get_plugin();
+                if (!plugin) {
                     return;
                 }
-                participates = true;
-                wins = wins || wins_this_one;
-            };
+                auto stem = plugin_stem(*plugin);
 
-            check(
-                static_cast<bool>(congelado::heart::resolve_event_sink(*plugin)),
-                is_provider_listed(cfg, "events", stem)
-            );
-            check(
-                static_cast<bool>(congelado::heart::LoggerAdapter::register_from(*plugin)),
-                is_provider_listed(cfg, "logger", stem)
-            );
-            check(
-                static_cast<bool>(congelado::heart::resolve_storage(*plugin)),
-                !loses_pick("database", stem)
-            );
-            check(
-                static_cast<bool>(congelado::heart::resolve_search_provider(*plugin)),
-                !loses_pick("search", stem)
-            );
-            check(
-                static_cast<bool>(congelado::heart::resolve_cache(*plugin)),
-                !loses_pick("cache", stem)
-            );
-            check(
-                static_cast<bool>(congelado::heart::resolve_cron_provider(*plugin)),
-                !loses_pick("cron", stem)
-            );
-            check(
-                static_cast<bool>(congelado::heart::resolve_worker_manager(*plugin)),
-                !loses_pick("worker_manager", stem)
-            );
-            check(
-                static_cast<bool>(congelado::heart::resolve_worker_orchestrator(*plugin)),
-                !loses_pick("worker_orchestrator", stem)
-            );
-            check(
-                static_cast<bool>(congelado::heart::resolve_workflow_orchestrator(*plugin)),
-                !loses_pick("workflow_orchestrator", stem)
-            );
-            check(
-                static_cast<bool>(congelado::heart::resolve_payload_storage(*plugin)),
-                !loses_pick("payload_storage", stem)
-            );
+                bool participates = false;
+                bool wins = false;
+                auto check = [&](bool exports_capability, bool wins_this_one)
+                {
+                    if (!exports_capability) {
+                        return;
+                    }
+                    participates = true;
+                    wins = wins || wins_this_one;
+                };
 
-            if (participates && !wins) {
-                to_discard.push_back(std::any_cast<const std::string&>(plugin->m_data.at("name")));
+                check(
+                    static_cast<bool>(congelado::heart::resolve_event_sink(*plugin)),
+                    is_provider_listed(cfg, "events", stem)
+                );
+                check(
+                    static_cast<bool>(congelado::heart::LoggerAdapter::register_from(*plugin)),
+                    is_provider_listed(cfg, "logger", stem)
+                );
+                check(
+                    static_cast<bool>(congelado::heart::resolve_storage(*plugin)),
+                    !loses_pick("database", stem)
+                );
+                check(
+                    static_cast<bool>(congelado::heart::resolve_search_provider(*plugin)),
+                    !loses_pick("search", stem)
+                );
+                check(
+                    static_cast<bool>(congelado::heart::resolve_cache(*plugin)),
+                    !loses_pick("cache", stem)
+                );
+                check(
+                    static_cast<bool>(congelado::heart::resolve_cron_provider(*plugin)),
+                    !loses_pick("cron", stem)
+                );
+                check(
+                    static_cast<bool>(congelado::heart::resolve_worker_manager(*plugin)),
+                    !loses_pick("worker_manager", stem)
+                );
+                check(
+                    static_cast<bool>(congelado::heart::resolve_worker_orchestrator(*plugin)),
+                    !loses_pick("worker_orchestrator", stem)
+                );
+                check(
+                    static_cast<bool>(congelado::heart::resolve_workflow_orchestrator(*plugin)),
+                    !loses_pick("workflow_orchestrator", stem)
+                );
+                check(
+                    static_cast<bool>(congelado::heart::resolve_payload_storage(*plugin)),
+                    !loses_pick("payload_storage", stem)
+                );
+
+                if (participates && !wins) {
+                    to_discard.push_back(
+                        std::any_cast<const std::string&>(plugin->m_data.at("name"))
+                    );
+                }
             }
-        });
+        );
         for (const auto& name: to_discard) {
             m_store.discard(name);
         }
@@ -522,25 +533,28 @@ private:
         auto preferred_database = preferred_provider(cfg, "database");
         void* resolved_database = nullptr;
         void* fallback_database = nullptr;
-        m_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime) {
-            if (resolved_database != nullptr) {
-                return;
+        m_store.for_each(
+            [&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime)
+            {
+                if (resolved_database != nullptr) {
+                    return;
+                }
+                auto plugin = runtime->get_plugin();
+                if (!plugin) {
+                    return;
+                }
+                auto database = congelado::heart::resolve_storage(*plugin);
+                if (!database) {
+                    return;
+                }
+                if (fallback_database == nullptr) {
+                    fallback_database = database.get();
+                }
+                if (preferred_database && plugin_stem(*plugin) == *preferred_database) {
+                    resolved_database = database.get();
+                }
             }
-            auto plugin = runtime->get_plugin();
-            if (!plugin) {
-                return;
-            }
-            auto database = congelado::heart::resolve_storage(*plugin);
-            if (!database) {
-                return;
-            }
-            if (fallback_database == nullptr) {
-                fallback_database = database.get();
-            }
-            if (preferred_database && plugin_stem(*plugin) == *preferred_database) {
-                resolved_database = database.get();
-            }
-        });
+        );
         return resolved_database != nullptr ? resolved_database : fallback_database;
     }
 
@@ -556,15 +570,18 @@ private:
     [[nodiscard]] utils::openapi::OpenApiGeneratorRegistry resolve_openapi_generators()
     {
         utils::openapi::OpenApiGeneratorRegistry generator_registry;
-        m_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime) {
-            auto plugin = runtime->get_plugin();
-            if (!plugin) {
-                return;
+        m_store.for_each(
+            [&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime)
+            {
+                auto plugin = runtime->get_plugin();
+                if (!plugin) {
+                    return;
+                }
+                if (auto generator = congelado::heart::resolve_openapi_generator(*plugin)) {
+                    generator_registry.add_generator(std::move(generator));
+                }
             }
-            if (auto generator = congelado::heart::resolve_openapi_generator(*plugin)) {
-                generator_registry.add_generator(std::move(generator));
-            }
-        });
+        );
         return generator_registry;
     }
 
@@ -583,7 +600,8 @@ private:
     {
         void* resolved_lua_bridge = nullptr;
         m_store.for_each(
-            [&resolved_lua_bridge](const std::shared_ptr<core::plugin::FfiRuntime>& runtime) {
+            [&resolved_lua_bridge](const std::shared_ptr<core::plugin::FfiRuntime>& runtime)
+            {
                 if (resolved_lua_bridge != nullptr) {
                     return;
                 }
@@ -619,25 +637,28 @@ private:
         auto preferred_search = preferred_provider(cfg, "search");
         void* resolved_search = nullptr;
         void* fallback_search = nullptr;
-        m_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime) {
-            if (resolved_search != nullptr) {
-                return;
+        m_store.for_each(
+            [&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime)
+            {
+                if (resolved_search != nullptr) {
+                    return;
+                }
+                auto plugin = runtime->get_plugin();
+                if (!plugin) {
+                    return;
+                }
+                auto search = congelado::heart::resolve_search_provider(*plugin);
+                if (!search) {
+                    return;
+                }
+                if (fallback_search == nullptr) {
+                    fallback_search = search.get();
+                }
+                if (preferred_search && plugin_stem(*plugin) == *preferred_search) {
+                    resolved_search = search.get();
+                }
             }
-            auto plugin = runtime->get_plugin();
-            if (!plugin) {
-                return;
-            }
-            auto search = congelado::heart::resolve_search_provider(*plugin);
-            if (!search) {
-                return;
-            }
-            if (fallback_search == nullptr) {
-                fallback_search = search.get();
-            }
-            if (preferred_search && plugin_stem(*plugin) == *preferred_search) {
-                resolved_search = search.get();
-            }
-        });
+        );
         return resolved_search != nullptr ? resolved_search : fallback_search;
     }
 
@@ -657,25 +678,28 @@ private:
         auto preferred_cache = preferred_provider(cfg, "cache");
         void* resolved_cache = nullptr;
         void* fallback_cache = nullptr;
-        m_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime) {
-            if (resolved_cache != nullptr) {
-                return;
+        m_store.for_each(
+            [&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime)
+            {
+                if (resolved_cache != nullptr) {
+                    return;
+                }
+                auto plugin = runtime->get_plugin();
+                if (!plugin) {
+                    return;
+                }
+                auto cache = congelado::heart::resolve_cache(*plugin);
+                if (!cache) {
+                    return;
+                }
+                if (fallback_cache == nullptr) {
+                    fallback_cache = cache.get();
+                }
+                if (preferred_cache && plugin_stem(*plugin) == *preferred_cache) {
+                    resolved_cache = cache.get();
+                }
             }
-            auto plugin = runtime->get_plugin();
-            if (!plugin) {
-                return;
-            }
-            auto cache = congelado::heart::resolve_cache(*plugin);
-            if (!cache) {
-                return;
-            }
-            if (fallback_cache == nullptr) {
-                fallback_cache = cache.get();
-            }
-            if (preferred_cache && plugin_stem(*plugin) == *preferred_cache) {
-                resolved_cache = cache.get();
-            }
-        });
+        );
         return resolved_cache != nullptr ? resolved_cache : fallback_cache;
     }
 
@@ -694,25 +718,28 @@ private:
         auto preferred_cron = preferred_provider(cfg, "cron");
         void* resolved_cron = nullptr;
         void* fallback_cron = nullptr;
-        m_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime) {
-            if (resolved_cron != nullptr) {
-                return;
+        m_store.for_each(
+            [&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime)
+            {
+                if (resolved_cron != nullptr) {
+                    return;
+                }
+                auto plugin = runtime->get_plugin();
+                if (!plugin) {
+                    return;
+                }
+                auto cron = congelado::heart::resolve_cron_provider(*plugin);
+                if (!cron) {
+                    return;
+                }
+                if (fallback_cron == nullptr) {
+                    fallback_cron = cron.get();
+                }
+                if (preferred_cron && plugin_stem(*plugin) == *preferred_cron) {
+                    resolved_cron = cron.get();
+                }
             }
-            auto plugin = runtime->get_plugin();
-            if (!plugin) {
-                return;
-            }
-            auto cron = congelado::heart::resolve_cron_provider(*plugin);
-            if (!cron) {
-                return;
-            }
-            if (fallback_cron == nullptr) {
-                fallback_cron = cron.get();
-            }
-            if (preferred_cron && plugin_stem(*plugin) == *preferred_cron) {
-                resolved_cron = cron.get();
-            }
-        });
+        );
         return resolved_cron != nullptr ? resolved_cron : fallback_cron;
     }
 
@@ -733,25 +760,28 @@ private:
         auto preferred_manager = preferred_provider(cfg, "worker_manager");
         void* resolved_manager = nullptr;
         void* fallback_manager = nullptr;
-        m_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime) {
-            if (resolved_manager != nullptr) {
-                return;
+        m_store.for_each(
+            [&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime)
+            {
+                if (resolved_manager != nullptr) {
+                    return;
+                }
+                auto plugin = runtime->get_plugin();
+                if (!plugin) {
+                    return;
+                }
+                auto manager = congelado::heart::resolve_worker_manager(*plugin);
+                if (!manager) {
+                    return;
+                }
+                if (fallback_manager == nullptr) {
+                    fallback_manager = manager.get();
+                }
+                if (preferred_manager && plugin_stem(*plugin) == *preferred_manager) {
+                    resolved_manager = manager.get();
+                }
             }
-            auto plugin = runtime->get_plugin();
-            if (!plugin) {
-                return;
-            }
-            auto manager = congelado::heart::resolve_worker_manager(*plugin);
-            if (!manager) {
-                return;
-            }
-            if (fallback_manager == nullptr) {
-                fallback_manager = manager.get();
-            }
-            if (preferred_manager && plugin_stem(*plugin) == *preferred_manager) {
-                resolved_manager = manager.get();
-            }
-        });
+        );
         return resolved_manager != nullptr ? resolved_manager : fallback_manager;
     }
 
@@ -771,25 +801,28 @@ private:
         auto preferred_orchestrator = preferred_provider(cfg, "worker_orchestrator");
         void* resolved_orchestrator = nullptr;
         void* fallback_orchestrator = nullptr;
-        m_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime) {
-            if (resolved_orchestrator != nullptr) {
-                return;
+        m_store.for_each(
+            [&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime)
+            {
+                if (resolved_orchestrator != nullptr) {
+                    return;
+                }
+                auto plugin = runtime->get_plugin();
+                if (!plugin) {
+                    return;
+                }
+                auto orchestrator = congelado::heart::resolve_worker_orchestrator(*plugin);
+                if (!orchestrator) {
+                    return;
+                }
+                if (fallback_orchestrator == nullptr) {
+                    fallback_orchestrator = orchestrator.get();
+                }
+                if (preferred_orchestrator && plugin_stem(*plugin) == *preferred_orchestrator) {
+                    resolved_orchestrator = orchestrator.get();
+                }
             }
-            auto plugin = runtime->get_plugin();
-            if (!plugin) {
-                return;
-            }
-            auto orchestrator = congelado::heart::resolve_worker_orchestrator(*plugin);
-            if (!orchestrator) {
-                return;
-            }
-            if (fallback_orchestrator == nullptr) {
-                fallback_orchestrator = orchestrator.get();
-            }
-            if (preferred_orchestrator && plugin_stem(*plugin) == *preferred_orchestrator) {
-                resolved_orchestrator = orchestrator.get();
-            }
-        });
+        );
         return resolved_orchestrator != nullptr ? resolved_orchestrator : fallback_orchestrator;
     }
 
@@ -809,25 +842,28 @@ private:
         auto preferred_workflow = preferred_provider(cfg, "workflow_orchestrator");
         void* resolved_workflow = nullptr;
         void* fallback_workflow = nullptr;
-        m_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime) {
-            if (resolved_workflow != nullptr) {
-                return;
+        m_store.for_each(
+            [&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime)
+            {
+                if (resolved_workflow != nullptr) {
+                    return;
+                }
+                auto plugin = runtime->get_plugin();
+                if (!plugin) {
+                    return;
+                }
+                auto workflow = congelado::heart::resolve_workflow_orchestrator(*plugin);
+                if (!workflow) {
+                    return;
+                }
+                if (fallback_workflow == nullptr) {
+                    fallback_workflow = workflow.get();
+                }
+                if (preferred_workflow && plugin_stem(*plugin) == *preferred_workflow) {
+                    resolved_workflow = workflow.get();
+                }
             }
-            auto plugin = runtime->get_plugin();
-            if (!plugin) {
-                return;
-            }
-            auto workflow = congelado::heart::resolve_workflow_orchestrator(*plugin);
-            if (!workflow) {
-                return;
-            }
-            if (fallback_workflow == nullptr) {
-                fallback_workflow = workflow.get();
-            }
-            if (preferred_workflow && plugin_stem(*plugin) == *preferred_workflow) {
-                resolved_workflow = workflow.get();
-            }
-        });
+        );
         return resolved_workflow != nullptr ? resolved_workflow : fallback_workflow;
     }
 
@@ -845,25 +881,28 @@ private:
         auto preferred_payload = preferred_provider(cfg, "payload_storage");
         void* resolved_payload = nullptr;
         void* fallback_payload = nullptr;
-        m_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime) {
-            if (resolved_payload != nullptr) {
-                return;
+        m_store.for_each(
+            [&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime)
+            {
+                if (resolved_payload != nullptr) {
+                    return;
+                }
+                auto plugin = runtime->get_plugin();
+                if (!plugin) {
+                    return;
+                }
+                auto payload = congelado::heart::resolve_payload_storage(*plugin);
+                if (!payload) {
+                    return;
+                }
+                if (fallback_payload == nullptr) {
+                    fallback_payload = payload.get();
+                }
+                if (preferred_payload && plugin_stem(*plugin) == *preferred_payload) {
+                    resolved_payload = payload.get();
+                }
             }
-            auto plugin = runtime->get_plugin();
-            if (!plugin) {
-                return;
-            }
-            auto payload = congelado::heart::resolve_payload_storage(*plugin);
-            if (!payload) {
-                return;
-            }
-            if (fallback_payload == nullptr) {
-                fallback_payload = payload.get();
-            }
-            if (preferred_payload && plugin_stem(*plugin) == *preferred_payload) {
-                resolved_payload = payload.get();
-            }
-        });
+        );
         return resolved_payload != nullptr ? resolved_payload : fallback_payload;
     }
 
@@ -912,7 +951,8 @@ private:
         auto build_res = m_store.build(cb, configs);
         if (!build_res) {
             std::println(
-                stderr, "[heart] plugin build failed: {} — aborting",
+                stderr,
+                "[heart] plugin build failed: {} — aborting",
                 build_res.error().get_message()
             );
             std::abort();
@@ -936,52 +976,58 @@ private:
      */
     void wire_post_build_capabilities(AppContext& ctx)
     {
-        m_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime) {
-            auto plugin = runtime->get_plugin();
-            if (!plugin) {
-                return;
-            }
-            if (auto logger_adapter = congelado::heart::LoggerAdapter::register_from(*plugin)) {
-                logger_adapter->register_logger(ctx.get_logger_registry());
-            }
-            if (auto format = congelado::heart::resolve_serde_format(*plugin)) {
-                ctx.get_serde_format_registry().add_format(std::move(format));
-            }
-            if (auto sink = congelado::heart::resolve_event_sink(*plugin)) {
-                ctx.get_event_bus_registry().add_sink(std::move(sink));
-            }
-            if (auto bridge = congelado::heart::resolve_bridge(*plugin)) {
-                // The bridge self-identifies via runtime_name() — nothing here needs to guess
-                // from the plugin's own display name. broadcast_bridge() pushes it into every
-                // already-opened plugin's FfiRuntime and seeds any opened afterward.
-                m_store.broadcast_bridge(std::move(bridge));
-            }
-            if (auto otel_provider = congelado::heart::resolve_otel_provider(*plugin)) {
-                // A provider may support any subset of the three signals — each accessor
-                // defaults to nullptr, register only whichever ones this plugin actually has.
-                if (auto* tracer = otel_provider->get_tracer_provider()) {
-                    ctx.get_tracer_registry().add_provider(
-                        std::shared_ptr<interfaces::ITracerProvider>(
-                            tracer, [](interfaces::ITracerProvider*) {}
-                        )
-                    );
+        m_store.for_each(
+            [&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime)
+            {
+                auto plugin = runtime->get_plugin();
+                if (!plugin) {
+                    return;
                 }
-                if (auto* meter = otel_provider->get_meter_provider()) {
-                    ctx.get_meter_registry().add_provider(
-                        std::shared_ptr<interfaces::IMeterProvider>(
-                            meter, [](interfaces::IMeterProvider*) {}
-                        )
-                    );
+                if (auto logger_adapter = congelado::heart::LoggerAdapter::register_from(*plugin)) {
+                    logger_adapter->register_logger(ctx.get_logger_registry());
                 }
-                if (auto* log_provider = otel_provider->get_log_provider()) {
-                    ctx.get_log_record_registry().add_provider(
-                        std::shared_ptr<interfaces::ILogRecordProvider>(
-                            log_provider, [](interfaces::ILogRecordProvider*) {}
-                        )
-                    );
+                if (auto format = congelado::heart::resolve_serde_format(*plugin)) {
+                    ctx.get_serde_format_registry().add_format(std::move(format));
+                }
+                if (auto sink = congelado::heart::resolve_event_sink(*plugin)) {
+                    ctx.get_event_bus_registry().add_sink(std::move(sink));
+                }
+                if (auto bridge = congelado::heart::resolve_bridge(*plugin)) {
+                    // The bridge self-identifies via runtime_name() — nothing here needs to guess
+                    // from the plugin's own display name. broadcast_bridge() pushes it into every
+                    // already-opened plugin's FfiRuntime and seeds any opened afterward.
+                    m_store.broadcast_bridge(std::move(bridge));
+                }
+                if (auto otel_provider = congelado::heart::resolve_otel_provider(*plugin)) {
+                    // A provider may support any subset of the three signals — each accessor
+                    // defaults to nullptr, register only whichever ones this plugin actually has.
+                    if (auto* tracer = otel_provider->get_tracer_provider()) {
+                        ctx.get_tracer_registry().add_provider(
+                            std::shared_ptr<interfaces::ITracerProvider>(
+                                tracer,
+                                [](interfaces::ITracerProvider*) {}
+                            )
+                        );
+                    }
+                    if (auto* meter = otel_provider->get_meter_provider()) {
+                        ctx.get_meter_registry().add_provider(
+                            std::shared_ptr<interfaces::IMeterProvider>(
+                                meter,
+                                [](interfaces::IMeterProvider*) {}
+                            )
+                        );
+                    }
+                    if (auto* log_provider = otel_provider->get_log_provider()) {
+                        ctx.get_log_record_registry().add_provider(
+                            std::shared_ptr<interfaces::ILogRecordProvider>(
+                                log_provider,
+                                [](interfaces::ILogRecordProvider*) {}
+                            )
+                        );
+                    }
                 }
             }
-        });
+        );
     }
 
     /**
@@ -997,14 +1043,18 @@ private:
      * @param cb the host callback table, supplying the resolved `database_ctx`.
      */
     void run_migrations(
-        const core::config::Config& cfg, AppContext& ctx, const CongeladoHostCallbacks& cb
+        const core::config::Config& cfg,
+        AppContext& ctx,
+        const CongeladoHostCallbacks& cb
     )
     {
         auto* migration_db = static_cast<interfaces::IDatabase*>(cb.database_ctx);
         if (migration_db != nullptr && migration_db->is_connected()) {
             core::logger::info("heart", "running migrations from {}", cfg.get_migrations_dir());
             if (!migration::Runner::run_all_blocking(
-                    migration_db, ctx.get_connector(), cfg.get_migrations_dir()
+                    migration_db,
+                    ctx.get_connector(),
+                    cfg.get_migrations_dir()
                 )) {
                 core::logger::fatal("heart", "migrations failed — aborting startup");
                 std::abort();
@@ -1012,7 +1062,8 @@ private:
             core::logger::important("heart", "migrations complete");
         } else if (migration_db != nullptr) {
             core::logger::warning(
-                "heart", "database resolved but not connected — skipping migrations"
+                "heart",
+                "database resolved but not connected — skipping migrations"
             );
         }
         // Success, skip-no-DB, or skip-not-connected all count as "the global pass is as done

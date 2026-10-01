@@ -61,15 +61,18 @@ enum class TaskResult : std::uint8_t
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"is_terminal(TaskStatus)"> is_terminal_task_status_suite = [] {
-    "COMPLETED, FAILED, TIMED_OUT, SKIPPED, CANCELED are terminal"_test = [] {
+suite<"is_terminal(TaskStatus)"> is_terminal_task_status_suite = []
+{
+    "COMPLETED, FAILED, TIMED_OUT, SKIPPED, CANCELED are terminal"_test = []
+    {
         expect(is_terminal(TaskStatus::COMPLETED));
         expect(is_terminal(TaskStatus::FAILED));
         expect(is_terminal(TaskStatus::TIMED_OUT));
         expect(is_terminal(TaskStatus::SKIPPED));
         expect(is_terminal(TaskStatus::CANCELED));
     };
-    "SCHEDULED and IN_PROGRESS are not terminal"_test = [] {
+    "SCHEDULED and IN_PROGRESS are not terminal"_test = []
+    {
         expect(not is_terminal(TaskStatus::SCHEDULED));
         expect(not is_terminal(TaskStatus::IN_PROGRESS));
     };

@@ -343,7 +343,8 @@ std::string_view pk_column_name()
     // Fold over every reflected field looking for the one flagged primary_key — linear
     // scan wearing a fold-expression trenchcoat.
     std::apply(
-        [&](auto... fields) {
+        [&](auto... fields)
+        {
             ((fields.options.m_db.m_primary_key ? (result = fields.name.string_view())
                                                 : std::string_view{}),
              ...);
@@ -416,7 +417,9 @@ struct serde::Serializable<serde::tests::CoreTestRecord>
     {
         return std::tuple{
             serde::FieldDesc<
-                "id", &serde::tests::CoreTestRecord::get_id, &serde::tests::CoreTestRecord::set_id,
+                "id",
+                &serde::tests::CoreTestRecord::get_id,
+                &serde::tests::CoreTestRecord::set_id,
                 serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
         };
     }
@@ -430,29 +433,34 @@ struct serde::Serializable<serde::tests::CoreTestRecord>
 namespace serde::tests {
 using namespace boost::ut;
 
-suite<"StringLiteral"> string_literal_suite = [] {
-    "string_view excludes the trailing NUL"_test = [] {
+suite<"StringLiteral"> string_literal_suite = []
+{
+    "string_view excludes the trailing NUL"_test = []
+    {
         constexpr StringLiteral literal{"hello"};
 
         expect(literal.string_view() == "hello");
         expect(literal.string_view().size() == 5);
     };
 
-    "equal literals of the same length compare equal"_test = [] {
+    "equal literals of the same length compare equal"_test = []
+    {
         constexpr StringLiteral first{"abc"};
         constexpr StringLiteral second{"abc"};
 
         expect(first == second);
     };
 
-    "same-length literals with different content compare unequal"_test = [] {
+    "same-length literals with different content compare unequal"_test = []
+    {
         constexpr StringLiteral first{"abc"};
         constexpr StringLiteral second{"abd"};
 
         expect(not(first == second));
     };
 
-    "different-length literals compare unequal"_test = [] {
+    "different-length literals compare unequal"_test = []
+    {
         constexpr StringLiteral first{"abc"};
         constexpr StringLiteral second{"abcd"};
 
@@ -460,8 +468,10 @@ suite<"StringLiteral"> string_literal_suite = [] {
     };
 };
 
-suite<"FieldOptionsDb"> field_options_db_suite = [] {
-    "init defaults to nullable, no PK, no unique, no skip flags"_test = [] {
+suite<"FieldOptionsDb"> field_options_db_suite = []
+{
+    "init defaults to nullable, no PK, no unique, no skip flags"_test = []
+    {
         constexpr auto options = FieldOptionsDb::init();
 
         expect(not options.m_primary_key);
@@ -471,7 +481,8 @@ suite<"FieldOptionsDb"> field_options_db_suite = [] {
         expect(not options.m_skip_update);
     };
 
-    "pk/not_null/no_insert/no_update chain without mutating the original"_test = [] {
+    "pk/not_null/no_insert/no_update chain without mutating the original"_test = []
+    {
         constexpr auto base = FieldOptionsDb::init();
         constexpr auto derived = base.pk().not_null().no_insert().no_update();
 
@@ -484,7 +495,8 @@ suite<"FieldOptionsDb"> field_options_db_suite = [] {
         expect(base.m_nullable);
     };
 
-    "references stores the referenced table/column pointers"_test = [] {
+    "references stores the referenced table/column pointers"_test = []
+    {
         constexpr auto derived = FieldOptionsDb::init().references("users", "id");
 
         expect(std::string_view{derived.m_ref_table} == "users");
@@ -492,8 +504,10 @@ suite<"FieldOptionsDb"> field_options_db_suite = [] {
     };
 };
 
-suite<"FieldOptions"> field_options_suite = [] {
-    "with_db attaches the db options block without mutating the original"_test = [] {
+suite<"FieldOptions"> field_options_suite = []
+{
+    "with_db attaches the db options block without mutating the original"_test = []
+    {
         constexpr auto db_options = FieldOptionsDb::init().pk();
         constexpr auto options = FieldOptions::init().with_db(db_options);
 
@@ -501,8 +515,10 @@ suite<"FieldOptions"> field_options_suite = [] {
     };
 };
 
-suite<"value_kind_of"> value_kind_of_suite = [] {
-    "classifies every known C++ type into its ValueKind tag"_test = [] {
+suite<"value_kind_of"> value_kind_of_suite = []
+{
+    "classifies every known C++ type into its ValueKind tag"_test = []
+    {
         expect(value_kind_of<std::string>() == ValueKind::STRING);
         expect(value_kind_of<bool>() == ValueKind::BOOLEAN);
         expect(value_kind_of<std::int64_t>() == ValueKind::INT64);
@@ -515,13 +531,16 @@ suite<"value_kind_of"> value_kind_of_suite = [] {
         expect(value_kind_of<std::chrono::system_clock::time_point>() == ValueKind::TIMESTAMP);
     };
 
-    "an unrecognized type falls back to OTHER"_test = [] {
+    "an unrecognized type falls back to OTHER"_test = []
+    {
         expect(value_kind_of<std::vector<int>>() == ValueKind::OTHER);
     };
 };
 
-suite<"pk_column_name"> pk_column_name_suite = [] {
-    "finds the field flagged primary_key in FieldOptionsDb"_test = [] {
+suite<"pk_column_name"> pk_column_name_suite = []
+{
+    "finds the field flagged primary_key in FieldOptionsDb"_test = []
+    {
         expect(pk_column_name<CoreTestRecord>() == "id");
     };
 };

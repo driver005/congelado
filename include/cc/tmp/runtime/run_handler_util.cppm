@@ -30,7 +30,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // Assign thread ranges to requests.

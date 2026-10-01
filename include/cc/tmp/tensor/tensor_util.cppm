@@ -36,7 +36,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
         namespace tensor {
 
@@ -73,12 +72,15 @@ export {
             //
             // Split() and Concat() are inverse operations.
             absl::Status Split(
-                const Tensor& tensor, absl::Span<const int64_t> sizes, std::vector<Tensor>* result
+                const Tensor& tensor,
+                absl::Span<const int64_t> sizes,
+                std::vector<Tensor>* result
             );
 
             namespace internal {
                 void SetTensorProtoShape(
-                    absl::Span<const size_t> shape, TensorShapeProto* shape_proto
+                    absl::Span<const size_t> shape,
+                    TensorShapeProto* shape_proto
                 );
 
                 template<typename Type>
@@ -138,9 +140,15 @@ export {
                     {
                         using SrcType = typename std::iterator_traits<SrcIter>::value_type;
                         using DstType = typename std::iterator_traits<DstIter>::value_type;
-                        std::transform(begin, end, dst, [](const SrcType& x) -> DstType {
-                            return static_cast<DstType>(x);
-                        });
+                        std::transform(
+                            begin,
+                            end,
+                            dst,
+                            [](const SrcType& x) -> DstType
+                            {
+                                return static_cast<DstType>(x);
+                            }
+                        );
                     }
 
                     template<typename SrcIter>
@@ -164,17 +172,31 @@ export {
                     template<typename SrcIter>
                     static void ToArray(SrcIter begin, SrcIter end, Eigen::half* dst)
                     {
-                        std::transform(begin, end, dst, [](int x) -> Eigen::half {
-                            return Eigen::numext::bit_cast<Eigen::half>(static_cast<uint16_t>(x));
-                        });
+                        std::transform(
+                            begin,
+                            end,
+                            dst,
+                            [](int x) -> Eigen::half
+                            {
+                                return Eigen::numext::bit_cast<Eigen::half>(
+                                    static_cast<uint16_t>(x)
+                                );
+                            }
+                        );
                     }
 
                     template<typename SrcIter, typename DstIter>
                     static void FromArray(SrcIter begin, SrcIter end, DstIter dst)
                     {
-                        std::transform(begin, end, dst, [](Eigen::half h) -> int {
-                            return static_cast<int>(Eigen::numext::bit_cast<uint16_t>(h));
-                        });
+                        std::transform(
+                            begin,
+                            end,
+                            dst,
+                            [](Eigen::half h) -> int
+                            {
+                                return static_cast<int>(Eigen::numext::bit_cast<uint16_t>(h));
+                            }
+                        );
                     }
                 };
 
@@ -184,17 +206,29 @@ export {
                     template<typename SrcIter>
                     static void ToArray(SrcIter begin, SrcIter end, bfloat16* dst)
                     {
-                        std::transform(begin, end, dst, [](int x) -> bfloat16 {
-                            return Eigen::numext::bit_cast<bfloat16>(static_cast<uint16_t>(x));
-                        });
+                        std::transform(
+                            begin,
+                            end,
+                            dst,
+                            [](int x) -> bfloat16
+                            {
+                                return Eigen::numext::bit_cast<bfloat16>(static_cast<uint16_t>(x));
+                            }
+                        );
                     }
 
                     template<typename SrcIter, typename DstIter>
                     static void FromArray(SrcIter begin, SrcIter end, DstIter dst)
                     {
-                        std::transform(begin, end, dst, [](bfloat16 bf16) -> int {
-                            return static_cast<int>(Eigen::numext::bit_cast<uint16_t>(bf16));
-                        });
+                        std::transform(
+                            begin,
+                            end,
+                            dst,
+                            [](bfloat16 bf16) -> int
+                            {
+                                return static_cast<int>(Eigen::numext::bit_cast<uint16_t>(bf16));
+                            }
+                        );
                     }
                 };
 
@@ -252,7 +286,8 @@ export {
                         T val;
                         CopyHelper<T>::ToArray(
                             FieldHelper::GetField(proto).begin() + stride * index,
-                            FieldHelper::GetField(proto).begin() + stride * (index + 1), &val
+                            FieldHelper::GetField(proto).begin() + stride * (index + 1),
+                            &val
                         );
                         return val;
                     }
@@ -270,7 +305,8 @@ export {
                     {
                         CopyHelper<T>::ToArray(
                             FieldHelper::GetField(proto).begin(),
-                            FieldHelper::GetField(proto).end(), dst
+                            FieldHelper::GetField(proto).end(),
+                            dst
                         );
                     }
 
@@ -359,11 +395,15 @@ export {
             template<typename Type>
             typename std::enable_if<internal::TensorProtoHelper<Type>::value, TensorProto>::type
             CreateTensorProtoSpan(
-                const absl::Span<const Type> values, const absl::Span<const size_t> shape
+                const absl::Span<const Type> values,
+                const absl::Span<const size_t> shape
             )
             {
                 return internal::CreateTensorProto<Type>(
-                    values.begin(), values.end(), values.size(), shape
+                    values.begin(),
+                    values.end(),
+                    values.size(),
+                    shape
                 );
             }
 
@@ -377,7 +417,10 @@ export {
                 // This awkward iterator passing is essentially just to support vector<bool>,
                 // otherwise we could just represent the vector as a Span.
                 return internal::CreateTensorProto<Type>(
-                    values.begin(), values.end(), values.size(), shape
+                    values.begin(),
+                    values.end(),
+                    values.size(),
+                    shape
                 );
             }
 
@@ -403,7 +446,9 @@ export {
             //
             // Returns true if the tensor was compressed.
             bool CompressTensorProtoInPlace(
-                int64_t min_num_elements, float min_compression_ratio, TensorProto* tensor
+                int64_t min_num_elements,
+                float min_compression_ratio,
+                TensorProto* tensor
             );
 
             inline bool CompressTensorProtoInPlace(TensorProto* tensor)
@@ -411,7 +456,9 @@ export {
                 static const int64_t kDefaultMinNumElements = 64;
                 static const float kDefaultMinCompressionRatio = 2.0f;
                 return CompressTensorProtoInPlace(
-                    kDefaultMinNumElements, kDefaultMinCompressionRatio, tensor
+                    kDefaultMinNumElements,
+                    kDefaultMinCompressionRatio,
+                    tensor
                 );
             }
 
@@ -447,7 +494,8 @@ export {
                         // copy.
                         absl::string_view output_data = output->tensor_data();
                         memcpy(
-                            const_cast<char*>(output_data.data()), input_data.data(),
+                            const_cast<char*>(output_data.data()),
+                            input_data.data(),
                             input_data.size()
                         );
                     }
@@ -482,8 +530,11 @@ export {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
                                 "Cannot concatenate tensors that have different data types.",
-                                " Got ", DataTypeString(dtype), " and ",
-                                DataTypeString(tensors[i].dtype()), "."
+                                " Got ",
+                                DataTypeString(dtype),
+                                " and ",
+                                DataTypeString(tensors[i].dtype()),
+                                "."
                             )
                         );
                     }
@@ -501,7 +552,8 @@ export {
                         absl::string_view from_data = tensor.tensor_data();
                         CHECK_LE(offset + from_data.size(), to_data.size());
                         memcpy(
-                            const_cast<char*>(to_data.data()) + offset, from_data.data(),
+                            const_cast<char*>(to_data.data()) + offset,
+                            from_data.data(),
                             from_data.size()
                         );
 
@@ -564,7 +616,8 @@ export {
                         absl::string_view to_data = split->tensor_data();
                         CHECK_LE(offset + to_data.size(), from_data.size());
                         memcpy(
-                            const_cast<char*>(to_data.data()), from_data.data() + offset,
+                            const_cast<char*>(to_data.data()),
+                            from_data.data() + offset,
                             to_data.size()
                         );
 
@@ -598,7 +651,8 @@ export {
 
             namespace internal {
                 void SetTensorProtoShape(
-                    const absl::Span<const size_t> shape, TensorShapeProto* shape_proto
+                    const absl::Span<const size_t> shape,
+                    TensorShapeProto* shape_proto
                 )
                 {
                     for (auto dim: shape) {
@@ -608,7 +662,9 @@ export {
 
                 template<typename T>
                 bool CompressTensorContent(
-                    float min_compression_ratio, const TensorShape& shape, TensorProto* tensor
+                    float min_compression_ratio,
+                    const TensorShape& shape,
+                    TensorProto* tensor
                 )
                 {
                     using TypeHelper = internal::TensorProtoHelper<T>;
@@ -638,7 +694,9 @@ export {
                         // erase the content.
                         T splat_value;
                         port::CopySubrangeToArray(
-                            tensor->tensor_content(), 0, sizeof(T),
+                            tensor->tensor_content(),
+                            0,
+                            sizeof(T),
                             reinterpret_cast<char*>(&splat_value)
                         );
                         if (splat_value == T(0)) {
@@ -657,7 +715,9 @@ export {
                         FieldType* dst_ptr =
                             TypeHelper::AppendUninitialized(new_num_values, tensor);
                         port::CopySubrangeToArray(
-                            tensor->tensor_content(), 0, new_num_values * sizeof(T),
+                            tensor->tensor_content(),
+                            0,
+                            new_num_values * sizeof(T),
                             reinterpret_cast<char*>(dst_ptr)
                         );
                         tensor->clear_tensor_content();
@@ -670,7 +730,9 @@ export {
                         tmp.resize(new_num_values);
 
                         port::CopySubrangeToArray(
-                            tensor->tensor_content(), 0, new_num_values * sizeof(T),
+                            tensor->tensor_content(),
+                            0,
+                            new_num_values * sizeof(T),
                             reinterpret_cast<char*>(tmp.data())
                         );
                         tensor->clear_tensor_content();
@@ -706,7 +768,8 @@ export {
 
                 template<typename RealType>
                 inline bool PackedValuesNotEqual(
-                    const std::complex<RealType>& a, const std::complex<RealType>& b
+                    const std::complex<RealType>& a,
+                    const std::complex<RealType>& b
                 )
                 {
                     return PackedValuesNotEqual(a.real(), b.real()) ||
@@ -773,7 +836,9 @@ export {
 
                 template<typename T>
                 bool CompressRepeatedField(
-                    float min_compression_ratio, const TensorShape& shape, TensorProto* tensor
+                    float min_compression_ratio,
+                    const TensorShape& shape,
+                    TensorProto* tensor
                 )
                 {
                     using TypeHelper = internal::TensorProtoHelper<T>;
@@ -828,7 +893,8 @@ export {
                         TypeHelper::Truncate(0, tensor);
                         port::CopyFromArray(
                             tensor->mutable_tensor_content(),
-                            reinterpret_cast<const char*>(tmp.data()), num_bytes_as_tensor_content
+                            reinterpret_cast<const char*>(tmp.data()),
+                            num_bytes_as_tensor_content
                         );
                     }
                     return true;
@@ -836,7 +902,9 @@ export {
 
                 template<typename T>
                 bool CompressTensorProtoInPlaceImpl(
-                    int64_t min_num_elements, float min_compression_ratio, TensorProto* tensor
+                    int64_t min_num_elements,
+                    float min_compression_ratio,
+                    TensorProto* tensor
                 )
                 {
                     const TensorShape shape(tensor->tensor_shape());
@@ -857,12 +925,16 @@ export {
 #define HANDLE_COMPRESS_CASE(TF_TYPE)                                                              \
     case TF_TYPE:                                                                                  \
         return internal::CompressTensorProtoInPlaceImpl<EnumToDataType<TF_TYPE>::Type>(            \
-            min_num_elements, min_compression_ratio, tensor                                        \
+            min_num_elements,                                                                      \
+            min_compression_ratio,                                                                 \
+            tensor                                                                                 \
         );                                                                                         \
         break
 
             bool CompressTensorProtoInPlace(
-                int64_t min_num_elements, float min_compression_ratio, TensorProto* tensor
+                int64_t min_num_elements,
+                float min_compression_ratio,
+                TensorProto* tensor
             )
             {
                 switch (tensor->dtype()) {

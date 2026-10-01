@@ -114,7 +114,11 @@ public:
     auto create(TController& controller, Args&&... args) -> HandlerTemplate auto
     {
         return controller.create(
-            get_name(), on_execute(), on_released(), on_error(), std::forward<Args>(args)...
+            get_name(),
+            on_execute(),
+            on_released(),
+            on_error(),
+            std::forward<Args>(args)...
         );
     }
 
@@ -313,66 +317,94 @@ public:
 
 using namespace boost::ut;
 
-suite<"HandlerTemplate/HandlerController/ExecutionPattern concepts"> handler_concepts_suite = [] {
-    "MockScheduledHandler satisfies HandlerTemplate"_test = [] {
+suite<"HandlerTemplate/HandlerController/ExecutionPattern concepts"> handler_concepts_suite = []
+{
+    "MockScheduledHandler satisfies HandlerTemplate"_test = []
+    {
         expect(HandlerTemplate<MockScheduledHandler>);
     };
 
-    "MockController satisfies HandlerController"_test = [] {
+    "MockController satisfies HandlerController"_test = []
+    {
         expect(HandlerController<MockController>);
     };
 
-    "a controller missing create() does not satisfy HandlerController"_test = [] {
+    "a controller missing create() does not satisfy HandlerController"_test = []
+    {
         expect(!HandlerController<MissingCreateController>);
     };
 
-    "MockInstaller satisfies ExecutionPattern"_test = [] {
+    "MockInstaller satisfies ExecutionPattern"_test = []
+    {
         expect((ExecutionPattern<MockInstaller>));
     };
 };
 
-suite<"HandlerBase::create"> handler_base_create_suite = [] {
+suite<"HandlerBase::create"> handler_base_create_suite = []
+{
     "create() forwards this handler's name into the controller and returns a HandlerTemplate"_test =
-        [] {
-            MockHandler handler;
-            MockController controller;
-            auto scheduled = handler.create(controller);
-            expect(controller.m_created_name == "mock-handler");
-            scheduled.schedule();
-            scheduled.deschedule();
-            scheduled.release();
-        };
+        []
+    {
+        MockHandler handler;
+        MockController controller;
+        auto scheduled = handler.create(controller);
+        expect(controller.m_created_name == "mock-handler");
+        scheduled.schedule();
+        scheduled.deschedule();
+        scheduled.release();
+    };
 
-    "default on_released/on_error hooks are null"_test = [] {
+    "default on_released/on_error hooks are null"_test = []
+    {
         MockHandler handler;
         expect(!handler.on_released());
         expect(!handler.on_error());
     };
 };
 
-suite<"this_handler free functions"> this_handler_suite = [] {
-    "shedule() throws when no handler is bound to this thread"_test = [] {
+suite<"this_handler free functions"> this_handler_suite = []
+{
+    "shedule() throws when no handler is bound to this thread"_test = []
+    {
         this_handler::current = nullptr;
-        expect(throws<std::runtime_error>([] {
-            this_handler::shedule();
-        }));
+        expect(
+            throws<std::runtime_error>(
+                []
+                {
+                    this_handler::shedule();
+                }
+            )
+        );
     };
 
-    "deschedule() throws when no handler is bound to this thread"_test = [] {
+    "deschedule() throws when no handler is bound to this thread"_test = []
+    {
         this_handler::current = nullptr;
-        expect(throws<std::runtime_error>([] {
-            this_handler::deschedule();
-        }));
+        expect(
+            throws<std::runtime_error>(
+                []
+                {
+                    this_handler::deschedule();
+                }
+            )
+        );
     };
 
-    "release() throws when no handler is bound to this thread"_test = [] {
+    "release() throws when no handler is bound to this thread"_test = []
+    {
         this_handler::current = nullptr;
-        expect(throws<std::runtime_error>([] {
-            this_handler::release();
-        }));
+        expect(
+            throws<std::runtime_error>(
+                []
+                {
+                    this_handler::release();
+                }
+            )
+        );
     };
 
-    "shedule/deschedule/release forward current_id to the bound handler"_test = [] {
+    "shedule/deschedule/release forward current_id to the bound handler"_test = []
+    {
         MockHandlerInterface mock;
         this_handler::current = &mock;
         this_handler::current_id = 42;

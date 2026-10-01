@@ -1,9 +1,9 @@
 #ifndef CONGELADO_C_FILESYSTEM_READ_ONLY_MEMORY_REGION_H_
 #define CONGELADO_C_FILESYSTEM_READ_ONLY_MEMORY_REGION_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -30,8 +30,11 @@ extern "C"
 
 #define TF_READ_ONLY_MEMORY_REGION_STRUCT_SIZE TF_OFFSET_OF_END(TF_ReadOnlyMemoryRegionOps, length)
 
-    TF_CAPI_EXPORT void
-    create_read_only_memory_region(TF_ReadOnlyMemoryRegionOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void create_read_only_memory_region(
+        TF_ReadOnlyMemoryRegionOps** ops,
+        void** plugin_context,
+        TF_Status* out_status
+    );
     TF_CAPI_EXPORT void destroy_read_only_memory_region(void* plugin_context);
 
 #ifdef __cplusplus

@@ -26,7 +26,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         template<typename T>

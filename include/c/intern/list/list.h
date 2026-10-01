@@ -1,9 +1,9 @@
 #ifndef TENSORFLOW_C_TF_LIST_LIST_H_
 #define TENSORFLOW_C_TF_LIST_LIST_H_
 
-#include "include/c/macros.h"
-#include "include/c/intern/status.h"
 #include "include/c/intern/list/node.h"
+#include "include/c/intern/status.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -12,7 +12,9 @@ extern "C"
 {
 #endif
 
-    // TF_List — plugin vtable for a type-erased doubly linked list (std::list<T> equivalent), fixed to element_size bytes per element at creation. Node handles returned by push_front/push_back remain valid for the node's lifetime, independent of other insertions/erasures.
+    // TF_List — plugin vtable for a type-erased doubly linked list (std::list<T> equivalent), fixed
+    // to element_size bytes per element at creation. Node handles returned by push_front/push_back
+    // remain valid for the node's lifetime, independent of other insertions/erasures.
 
     typedef struct TF_List
     {
@@ -31,21 +33,29 @@ extern "C"
 
         void (*set_element_size)(TF_List* list, size_t element_size);
 
-        // Copy one element_size-byte element from value onto the front, returning a handle to the new node.
-        void (*push_front)(TF_List* list, const void* value, TFListNode* out_node, TF_Status* out_status);
+        // Copy one element_size-byte element from value onto the front, returning a handle to the
+        // new node.
+        void (*push_front)(
+            TF_List* list,
+            const void* value,
+            TFListNode* out_node,
+            TF_Status* out_status
+        );
 
-        // Copy one element_size-byte element from value onto the back, returning a handle to the new node.
-        void (*push_back)(TF_List* list, const void* value, TFListNode* out_node, TF_Status* out_status);
+        // Copy one element_size-byte element from value onto the back, returning a handle to the
+        // new node.
+        void (*push_back)(
+            TF_List* list,
+            const void* value,
+            TFListNode* out_node,
+            TF_Status* out_status
+        );
 
         // Remove node from the list, invalidating it.
         void (*erase)(TF_List* list, TFListNode* node);
 
         // Call visitor(capture, element) once per element, front to back.
-        void (*for_each)(
-            const TF_List* list,
-            TF_ListVisitor visitor,
-            void* capture
-        );
+        void (*for_each)(const TF_List* list, TF_ListVisitor visitor, void* capture);
 
         // Current element count.
         void (*size)(const TF_List* list, size_t* out_size);

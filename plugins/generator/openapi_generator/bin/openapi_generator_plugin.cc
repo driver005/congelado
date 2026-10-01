@@ -30,24 +30,34 @@ import boost.ut;
 // sdk/client/{document,schema_model,dto_writer,route_writer,generator}.cppm) — both now sit
 // behind interfaces::IOpenApiGenerator, discovered via the plugin ABI like json_plugin/http2/
 // toml_plugin, instead of being directly `import`ed by build.cc/app.cppm/worker_main.cc.
-class OpenApiGeneratorPlugin : public congelado::Plugin, public interfaces::IOpenApiGenerator {
-  public:
+class OpenApiGeneratorPlugin : public congelado::Plugin, public interfaces::IOpenApiGenerator
+{
+public:
     /**
      * @brief Plugin name reported to the host.
      * @return `"openapi_generator"`.
      */
-    [[nodiscard]] std::string_view get_name() const noexcept override { return "openapi_generator"; }
+    [[nodiscard]] std::string_view get_name() const noexcept override
+    {
+        return "openapi_generator";
+    }
+
     /**
      * @brief Version string for this build of the OpenAPI generator plugin.
      * @return `"0.1.0"`.
      */
-    [[nodiscard]] std::string_view get_version() const noexcept override { return "0.1.0"; }
+    [[nodiscard]] std::string_view get_version() const noexcept override
+    {
+        return "0.1.0";
+    }
+
     /**
      * @brief Flags this as an OpenAPI-generator-capable plugin, so the host wires `openapi_get`
      * into the `_cap_dispatch` routing.
      * @return `CONGELADO_CAP_OPENAPI`.
      */
-    [[nodiscard]] std::uint32_t capabilities() const noexcept override {
+    [[nodiscard]] std::uint32_t capabilities() const noexcept override
+    {
         return CONGELADO_CAP_OPENAPI;
     }
 
@@ -57,8 +67,8 @@ class OpenApiGeneratorPlugin : public congelado::Plugin, public interfaces::IOpe
      * ordering constraint the engine plugin declares for its own routes.
      * @return a span containing `"protocol"`.
      */
-    [[nodiscard]] std::span<const std::string_view>
-    get_load_before_types() const noexcept override {
+    [[nodiscard]] std::span<const std::string_view> get_load_before_types() const noexcept override
+    {
         static constexpr std::string_view TYPES[] = {"protocol"};
         return TYPES;
     }
@@ -75,8 +85,9 @@ class OpenApiGeneratorPlugin : public congelado::Plugin, public interfaces::IOpe
      * @param cfg optional per-process `title`/`version` override (a `[plugins.openapi_generator]`
      * table in that process's own config file) — defaults to `"Congelado API"`/`"1.0.0"` if unset.
      */
-    void on_load(CongeladoHostCallbacks const &host, CongeladoConfigView const &cfg) override {
-        auto *router_ctx = congelado::router_ctx<core::router::RouterContext<>>(host);
+    void on_load(const CongeladoHostCallbacks& host, const CongeladoConfigView& cfg) override
+    {
+        auto* router_ctx = congelado::router_ctx<core::router::RouterContext<>>(host);
         if (router_ctx == nullptr) {
             core::logger::error("openapi_generator", "no router context");
             core::events::publish("openapi_generator.no_router_context");
@@ -93,18 +104,27 @@ class OpenApiGeneratorPlugin : public congelado::Plugin, public interfaces::IOpe
         }
 
         router_ctx->add_route(serve_document(title, version));
-        core::logger::important("openapi_generator", "serving live '{}' v{} document at /openapi",
-                                title, version);
+        core::logger::important(
+            "openapi_generator",
+            "serving live '{}' v{} document at /openapi",
+            title,
+            version
+        );
     }
 
     /**
      * @brief Capability hook the host calls to get at this plugin's `IOpenApiGenerator` surface.
      * @return this instance, upcast to `interfaces::IOpenApiGenerator*`.
      */
-    void *openapi_get() noexcept { return static_cast<interfaces::IOpenApiGenerator *>(this); }
+    void* openapi_get() noexcept
+    {
+        return static_cast<interfaces::IOpenApiGenerator*>(this);
+    }
 
-    /// @brief Generator backend name reported through the capability interface. @return `"openapi_generator"`.
-    [[nodiscard]] std::string_view generator_name() const noexcept override {
+    /// @brief Generator backend name reported through the capability interface. @return
+    /// `"openapi_generator"`.
+    [[nodiscard]] std::string_view generator_name() const noexcept override
+    {
         return "openapi_generator";
     }
 
@@ -116,19 +136,28 @@ class OpenApiGeneratorPlugin : public congelado::Plugin, public interfaces::IOpe
      * @param output_path the filesystem path to write the serialized document to.
      * @return nothing on success, or an error string if serialization/write failed.
      */
-    [[nodiscard]] std::expected<void, std::string>
-    write_document(std::string_view title, std::string_view version,
-                   std::filesystem::path const &output_path) const override {
-        core::logger::debug("openapi_generator", "writing '{}' v{} to {}", title, version,
-                            output_path.string());
-        auto generator = utils::openapi::Generator{}
-                              .title(title)
-                              .version(version)
-                              .output_path(output_path);
+    [[nodiscard]] std::expected<void, std::string> write_document(
+        std::string_view title,
+        std::string_view version,
+        const std::filesystem::path& output_path
+    ) const override
+    {
+        core::logger::debug(
+            "openapi_generator",
+            "writing '{}' v{} to {}",
+            title,
+            version,
+            output_path.string()
+        );
+        auto generator =
+            utils::openapi::Generator{}.title(title).version(version).output_path(output_path);
         auto result = generator.write(generator.generate());
         if (!result) {
             core::logger::warning("openapi_generator", "write_document failed: {}", result.error());
-            core::events::publish("openapi_generator.write_document_failed", {{"error", result.error()}});
+            core::events::publish(
+                "openapi_generator.write_document_failed",
+                {{"error", result.error()}}
+            );
         }
         return result;
     }
@@ -141,7 +170,8 @@ class OpenApiGeneratorPlugin : public congelado::Plugin, public interfaces::IOpe
      * @return a route wired up to serve the live-generated OpenAPI JSON.
      */
     [[nodiscard]] core::router::Route<>
-    serve_document(std::string_view title, std::string_view version) const override {
+    serve_document(std::string_view title, std::string_view version) const override
+    {
         // Logged once here, at route-build time — not inside the route's own handler, which
         // regenerates the document on every hit; a per-request debug line there would just spam
         // the log on every /openapi fetch for no diagnostic gain.
@@ -159,23 +189,35 @@ class OpenApiGeneratorPlugin : public congelado::Plugin, public interfaces::IOpe
      * fresh one, or empty to generate `"{namespace_name}_dto"` as usual.
      * @return nothing on success, or an error string describing whatever step failed.
      */
-    [[nodiscard]] std::expected<void, std::string>
-    generate_client_sdk(std::filesystem::path const &openapi_path,
-                        std::filesystem::path const &output_dir,
-                        std::string_view namespace_name,
-                        std::optional<std::string_view> shared_models) const override {
-        core::logger::debug("openapi_generator", "generating client SDK '{}' from {} into {}",
-                            namespace_name, openapi_path.string(), output_dir.string());
+    [[nodiscard]] std::expected<void, std::string> generate_client_sdk(
+        const std::filesystem::path& openapi_path,
+        const std::filesystem::path& output_dir,
+        std::string_view namespace_name,
+        std::optional<std::string_view> shared_models
+    ) const override
+    {
+        core::logger::debug(
+            "openapi_generator",
+            "generating client SDK '{}' from {} into {}",
+            namespace_name,
+            openapi_path.string(),
+            output_dir.string()
+        );
         auto generator = congelado::client::Generator{}.namespace_name(namespace_name);
         if (shared_models) {
             generator = std::move(generator).shared_models(*shared_models);
         }
         auto result = std::move(generator).generate(openapi_path, output_dir);
         if (!result) {
-            core::logger::warning("openapi_generator", "generate_client_sdk failed: {}",
-                                  result.error());
-            core::events::publish("openapi_generator.generate_client_sdk_failed",
-                                  {{"error", result.error()}});
+            core::logger::warning(
+                "openapi_generator",
+                "generate_client_sdk failed: {}",
+                result.error()
+            );
+            core::events::publish(
+                "openapi_generator.generate_client_sdk_failed",
+                {{"error", result.error()}}
+            );
         }
         return result;
     }
@@ -187,26 +229,31 @@ CONGELADO_PLUGIN(OpenApiGeneratorPlugin);
 namespace openapi_generator_plugin_tests {
 using namespace boost::ut;
 
-suite<"OpenApiGeneratorPlugin"> openapi_generator_plugin_suite = [] {
-    "get_name() reports the plugin's own name"_test = [] {
+suite<"OpenApiGeneratorPlugin"> openapi_generator_plugin_suite = []
+{
+    "get_name() reports the plugin's own name"_test = []
+    {
         OpenApiGeneratorPlugin plugin;
 
         expect(plugin.get_name() == "openapi_generator");
     };
 
-    "get_version() reports this build's version string"_test = [] {
+    "get_version() reports this build's version string"_test = []
+    {
         OpenApiGeneratorPlugin plugin;
 
         expect(plugin.get_version() == "0.1.0");
     };
 
-    "capabilities() flags this as an OpenAPI-generator-capable plugin"_test = [] {
+    "capabilities() flags this as an OpenAPI-generator-capable plugin"_test = []
+    {
         OpenApiGeneratorPlugin plugin;
 
         expect(plugin.capabilities() == CONGELADO_CAP_OPENAPI);
     };
 
-    "get_load_before_types() declares protocol plugins must load after this one"_test = [] {
+    "get_load_before_types() declares protocol plugins must load after this one"_test = []
+    {
         OpenApiGeneratorPlugin plugin;
 
         auto types = plugin.get_load_before_types();
@@ -215,35 +262,43 @@ suite<"OpenApiGeneratorPlugin"> openapi_generator_plugin_suite = [] {
         expect(types[0] == "protocol");
     };
 
-    "openapi_get() upcasts to a non-null IOpenApiGenerator*, usable through the interface"_test =
-        [] {
+    "openapi_get() upcasts to a non-null IOpenApiGenerator*, usable through the interface"_test = []
+    {
         OpenApiGeneratorPlugin plugin;
 
-        void *handle = plugin.openapi_get();
+        void* handle = plugin.openapi_get();
 
         expect(handle != nullptr) << fatal;
-        auto *generator = static_cast<interfaces::IOpenApiGenerator *>(handle);
+        auto* generator = static_cast<interfaces::IOpenApiGenerator*>(handle);
         expect(generator->generator_name() == "openapi_generator");
     };
 
-    "generator_name() reports the same name via the capability interface"_test = [] {
+    "generator_name() reports the same name via the capability interface"_test = []
+    {
         OpenApiGeneratorPlugin plugin;
 
         expect(plugin.generator_name() == "openapi_generator");
     };
 
-    "on_load(): a host with no router_ctx logs and bails without crashing"_test = [] {
+    "on_load(): a host with no router_ctx logs and bails without crashing"_test = []
+    {
         OpenApiGeneratorPlugin plugin;
         CongeladoHostCallbacks host{}; // zero-initialized -- router_ctx is nullptr
         CongeladoConfigView cfg{};     // zero-initialized -- count == 0
 
-        expect(nothrow([&] { plugin.on_load(host, cfg); }));
+        expect(nothrow(
+            [&]
+            {
+                plugin.on_load(host, cfg);
+            }
+        ));
     };
 
-    "write_document(): writes the serialized document to output_path"_test = [] {
+    "write_document(): writes the serialized document to output_path"_test = []
+    {
         OpenApiGeneratorPlugin plugin;
         auto path = std::filesystem::temp_directory_path() /
-                   "congelado_openapi_generator_plugin_test_write.json";
+                    "congelado_openapi_generator_plugin_test_write.json";
 
         auto result = plugin.write_document("Plugin Test API", "3.3.3", path);
 
@@ -258,18 +313,22 @@ suite<"OpenApiGeneratorPlugin"> openapi_generator_plugin_suite = [] {
         std::filesystem::remove(path);
     };
 
-    "write_document(): fails cleanly when output_path's directory doesn't exist"_test = [] {
+    "write_document(): fails cleanly when output_path's directory doesn't exist"_test = []
+    {
         OpenApiGeneratorPlugin plugin;
 
         auto result = plugin.write_document(
-            "Plugin Test API", "3.3.3", "/nonexistent_dir_xyz_plugin_test/out.json");
+            "Plugin Test API",
+            "3.3.3",
+            "/nonexistent_dir_xyz_plugin_test/out.json"
+        );
 
         expect(not result.has_value()) << fatal;
         expect(result.error().contains("failed to write"));
     };
 
-    "serve_document(): builds a Route with a GET handler at the default '/openapi' path"_test =
-        [] {
+    "serve_document(): builds a Route with a GET handler at the default '/openapi' path"_test = []
+    {
         OpenApiGeneratorPlugin plugin;
 
         auto route = plugin.serve_document("Plugin Test API", "3.3.3");
@@ -278,29 +337,38 @@ suite<"OpenApiGeneratorPlugin"> openapi_generator_plugin_suite = [] {
         expect(route.get_handlers().find(interfaces::io::types::Method::GET) != nullptr);
     };
 
-    "generate_client_sdk(): a nonexistent openapi document path fails to open"_test = [] {
+    "generate_client_sdk(): a nonexistent openapi document path fails to open"_test = []
+    {
         OpenApiGeneratorPlugin plugin;
 
-        auto result = plugin.generate_client_sdk("/nonexistent/path/does/not/exist.json", "/tmp",
-                                                  "plugin_test_client", std::nullopt);
+        auto result = plugin.generate_client_sdk(
+            "/nonexistent/path/does/not/exist.json",
+            "/tmp",
+            "plugin_test_client",
+            std::nullopt
+        );
 
         expect(not result.has_value()) << fatal;
         expect(result.error().contains("failed to open"));
     };
 
     "generate_client_sdk(): an existing file still fails at the parse step (no format plugin)"_test =
-        [] {
+        []
+    {
         OpenApiGeneratorPlugin plugin;
         auto path = std::filesystem::temp_directory_path() /
-                   "congelado_openapi_generator_plugin_test_sdk.json";
+                    "congelado_openapi_generator_plugin_test_sdk.json";
         {
             std::ofstream out{path};
             out << R"({"paths": {}})";
         }
 
-        auto result =
-            plugin.generate_client_sdk(path, std::filesystem::temp_directory_path(),
-                                       "plugin_test_client", std::nullopt);
+        auto result = plugin.generate_client_sdk(
+            path,
+            std::filesystem::temp_directory_path(),
+            "plugin_test_client",
+            std::nullopt
+        );
 
         expect(not result.has_value()) << fatal;
         expect(result.error().contains("failed to parse"));
@@ -310,12 +378,16 @@ suite<"OpenApiGeneratorPlugin"> openapi_generator_plugin_suite = [] {
     };
 
     "generate_client_sdk(): a shared_models override is accepted without crashing (same "
-    "early-failure path as no override)"_test = [] {
+    "early-failure path as no override)"_test = []
+    {
         OpenApiGeneratorPlugin plugin;
 
-        auto result = plugin.generate_client_sdk("/nonexistent/path/does/not/exist.json", "/tmp",
-                                                  "plugin_test_client",
-                                                  std::optional<std::string_view>{"shared_dto"});
+        auto result = plugin.generate_client_sdk(
+            "/nonexistent/path/does/not/exist.json",
+            "/tmp",
+            "plugin_test_client",
+            std::optional<std::string_view>{"shared_dto"}
+        );
 
         expect(not result.has_value()) << fatal;
         expect(result.error().contains("failed to open"));

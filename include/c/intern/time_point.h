@@ -1,9 +1,9 @@
 #ifndef TENSORFLOW_C_TF_TIME_POINT_H_
 #define TENSORFLOW_C_TF_TIME_POINT_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/duration.h"
 #include "include/c/intern/status.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 #include <stdint.h>

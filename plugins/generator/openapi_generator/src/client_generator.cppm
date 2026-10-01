@@ -55,7 +55,8 @@ public:
      * load, schema/operation parsing, DTO/route generation, or file write).
      */
     [[nodiscard]] std::expected<void, std::string> generate(
-        const std::filesystem::path& openapi_path, const std::filesystem::path& output_dir
+        const std::filesystem::path& openapi_path,
+        const std::filesystem::path& output_dir
     ) const
     {
         // Load the OpenAPI document first — nothing downstream can happen without it.
@@ -185,7 +186,9 @@ private:
      * @return the parsed operation, or an error if the request/response schema fails to parse.
      */
     [[nodiscard]] static std::expected<OperationInfo, std::string> parse_operation(
-        const std::string& path, const std::string& method, const serde::Value& operation_element
+        const std::string& path,
+        const std::string& method,
+        const serde::Value& operation_element
     )
     {
         OperationInfo operation;
@@ -195,7 +198,8 @@ private:
         // Request body schema is optional — only grab it if the JSON content type actually
         // shows up under requestBody.
         if (auto request_schema = Document::at(
-                operation_element, {"requestBody", "content", "application/json", "schema"}
+                operation_element,
+                {"requestBody", "content", "application/json", "schema"}
             )) {
             SchemaType schema;
             if (auto result = schema.parse(*request_schema); !result) {
@@ -271,8 +275,10 @@ namespace openapi_gen_client_generator_tests {
 using namespace boost::ut;
 using congelado::client::Generator;
 
-suite<"Generator"> client_generator_suite = [] {
-    "generate(): a nonexistent openapi document path fails to open"_test = [] {
+suite<"Generator"> client_generator_suite = []
+{
+    "generate(): a nonexistent openapi document path fails to open"_test = []
+    {
         Generator generator;
 
         auto result = generator.generate("/nonexistent/path/does/not/exist.json", "/tmp");
@@ -281,39 +287,40 @@ suite<"Generator"> client_generator_suite = [] {
         expect(result.error().contains("failed to open"));
     };
 
-    "generate(): an existing file still fails at the parse step (no format plugin loaded)"_test =
-        [] {
-            auto path =
-                std::filesystem::temp_directory_path() / "congelado_client_generator_test.json";
-            {
-                std::ofstream out{path};
-                out << R"({"paths": {}})";
-            }
-            Generator generator;
+    "generate(): an existing file still fails at the parse step (no format plugin loaded)"_test = []
+    {
+        auto path = std::filesystem::temp_directory_path() / "congelado_client_generator_test.json";
+        {
+            std::ofstream out{path};
+            out << R"({"paths": {}})";
+        }
+        Generator generator;
 
-            auto result = generator.generate(path, std::filesystem::temp_directory_path());
+        auto result = generator.generate(path, std::filesystem::temp_directory_path());
 
-            expect(not result.has_value()) << fatal;
-            expect(result.error().contains("failed to parse"));
-            expect(result.error().contains("no format plugin loaded for 'application/json'"));
+        expect(not result.has_value()) << fatal;
+        expect(result.error().contains("failed to parse"));
+        expect(result.error().contains("no format plugin loaded for 'application/json'"));
 
-            std::filesystem::remove(path);
-        };
+        std::filesystem::remove(path);
+    };
 
     "namespace_name()/shared_models() fluent chain builds without crashing or double-moving"_test =
-        [] {
-            auto generator = Generator{}.namespace_name("my_client").shared_models("shared_dto");
+        []
+    {
+        auto generator = Generator{}.namespace_name("my_client").shared_models("shared_dto");
 
-            // Still fails the same way -- generate() bails at Document::load() before ever
-            // touching m_namespace/m_shared_models_module -- this just confirms the chained,
-            // moved-through Generator is otherwise usable (no crash, no UB from the moves).
-            auto result = generator.generate("/nonexistent/path/does/not/exist.json", "/tmp");
+        // Still fails the same way -- generate() bails at Document::load() before ever
+        // touching m_namespace/m_shared_models_module -- this just confirms the chained,
+        // moved-through Generator is otherwise usable (no crash, no UB from the moves).
+        auto result = generator.generate("/nonexistent/path/does/not/exist.json", "/tmp");
 
-            expect(not result.has_value()) << fatal;
-            expect(result.error().contains("failed to open"));
-        };
+        expect(not result.has_value()) << fatal;
+        expect(result.error().contains("failed to open"));
+    };
 
-    "namespace_name() alone (no shared_models) also builds and behaves the same way"_test = [] {
+    "namespace_name() alone (no shared_models) also builds and behaves the same way"_test = []
+    {
         auto generator = Generator{}.namespace_name("solo_client");
 
         auto result = generator.generate("/nonexistent/path/does/not/exist.json", "/tmp");

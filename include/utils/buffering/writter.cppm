@@ -4,19 +4,26 @@ import std;
 import :node;
 import :reader;
 
-
 export namespace utils::buffering {
 
-class BufferWriter {
-  public:
+class BufferWriter
+{
+public:
     /**
      * @brief Sets up sizing bounds — starts predicting chunks at `min_size`, never predicts
      * bigger than `max_size`. Keeps the allocator from going full send on chunk size, bet.
      * @param min_size the smallest chunk size this writer will ever predict/allocate.
      * @param max_size the largest chunk size this writer will ever predict/allocate.
      */
-    explicit BufferWriter(std::size_t min_size = 8ULL * 1024ULL, std::size_t max_size = 64ULL * 1024ULL)
-        : m_min_size{min_size}, m_max_size{max_size}, m_current_size{min_size} {}
+    explicit BufferWriter(
+        std::size_t min_size = 8ULL * 1'024ULL,
+        std::size_t max_size = 64ULL * 1'024ULL
+    ) :
+        m_min_size{min_size},
+        m_max_size{max_size},
+        m_current_size{min_size}
+    {
+    }
 
     /**
      * @brief Default dtor — the underlying `BufferReader` member cleans itself up.
@@ -26,19 +33,19 @@ class BufferWriter {
     /**
      * @brief Deleted — no copying, this owns a live buffer chain.
      */
-    BufferWriter(const BufferWriter &) = delete;
+    BufferWriter(const BufferWriter&) = delete;
     /**
      * @brief Deleted, same reasoning as the copy ctor.
      */
-    BufferWriter &operator=(const BufferWriter &) = delete;
+    BufferWriter& operator=(const BufferWriter&) = delete;
     /**
      * @brief Deleted — not movable either.
      */
-    BufferWriter(BufferWriter &&) = delete;
+    BufferWriter(BufferWriter&&) = delete;
     /**
      * @brief Deleted, same reasoning as the move ctor.
      */
-    BufferWriter &operator=(BufferWriter &&) = delete;
+    BufferWriter& operator=(BufferWriter&&) = delete;
 
     /**
      * @brief Grabs a writable slot — reuses the current tail node if it's still got room, or
@@ -49,8 +56,9 @@ class BufferWriter {
      * debugging that later.
      * @return a `NodeReader` slot with room to write into.
      */
-    [[nodiscard]] NodeReader *acquire() noexcept {
-        auto *tail = m_view.get_tail();
+    [[nodiscard]] NodeReader* acquire() noexcept
+    {
+        auto* tail = m_view.get_tail();
 
         // No tail yet, or the current one's full — allocate a fresh node sized at the current
         // prediction and append it.
@@ -62,7 +70,9 @@ class BufferWriter {
             // terminate on bad_alloc; this whole buffering subsystem has no error-return channel
             // (every push_back()/acquire() across reader/view/writter is noexcept, raw-pointer,
             // terminate-on-OOM by convention) — leaving as-is rather than inventing one locally.
-            auto *node = m_view.push_back(new BufferNode{m_current_size});  // NOLINT(cppcoreguidelines-owning-memory)
+            auto* node = m_view.push_back(
+                new BufferNode{m_current_size}
+            ); // NOLINT(cppcoreguidelines-owning-memory)
             // The chain owns the NodeReader (freed on unlink) and holds the BufferNode ref its
             // ctor took. Take a SECOND BufferNode ref for the slot handed back — notify_read()/
             // release() drops exactly this one, leaving the chain's stake intact until consume().
@@ -81,14 +91,16 @@ class BufferWriter {
      * acquire()-then-write flow.
      * @param node the node to move in and append.
      */
-    void push(BufferNode node) noexcept {
+    void push(BufferNode node) noexcept
+    {
         // FIXME(clang-tidy): cppcoreguidelines-owning-memory — would need
         // gsl::owner<BufferNode *>, but this codebase has no GSL dependency; not a mechanical
         // fix.
         // FIXME(clang-tidy): bugprone-unhandled-exception-at-new — noexcept push() would
         // terminate on bad_alloc; same no-error-channel reasoning as acquire() above — leaving
         // as-is rather than inventing one locally.
-        auto *owned_node = new BufferNode{std::move(node)};  // NOLINT(cppcoreguidelines-owning-memory)
+        auto* owned_node =
+            new BufferNode{std::move(node)}; // NOLINT(cppcoreguidelines-owning-memory)
         m_view.push_back(owned_node);
     }
 
@@ -103,7 +115,8 @@ class BufferWriter {
      * @param node the slot previously returned by acquire().
      * @param bytes_read how many bytes actually got written into `node`.
      */
-    void notify_read(NodeReader *node, std::size_t bytes_read) noexcept {
+    void notify_read(NodeReader* node, std::size_t bytes_read) noexcept
+    {
         // Safe no-op if acquire() somehow didn't hand back anything usable.
         if (node == nullptr) {
             return;
@@ -132,7 +145,8 @@ class BufferWriter {
      * @note No-ops on a null node, same as notify_read().
      * @param node the slot previously returned by acquire().
      */
-    void release(NodeReader *node) noexcept {
+    void release(NodeReader* node) noexcept
+    {
         if (node == nullptr) {
             return;
         }
@@ -143,14 +157,21 @@ class BufferWriter {
      * @brief Grabs the current size prediction for the next allocated chunk.
      * @return the predicted next chunk size, in bytes.
      */
-    [[nodiscard]] std::size_t get_predicted_size() const noexcept { return m_current_size; }
+    [[nodiscard]] std::size_t get_predicted_size() const noexcept
+    {
+        return m_current_size;
+    }
+
     /**
      * @brief Grabs the underlying reader chain this writer feeds into.
      * @return a mutable reference to the backing `BufferReader`.
      */
-    [[nodiscard]] BufferReader &get_view() noexcept { return m_view; }
+    [[nodiscard]] BufferReader& get_view() noexcept
+    {
+        return m_view;
+    }
 
-  private:
+private:
     std::size_t m_min_size;
     std::size_t m_max_size;
     std::size_t m_current_size;

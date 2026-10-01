@@ -110,9 +110,13 @@ public:
         // (HMAC-SHA256 with a zero-length key is well-defined, not an error), indistinguishable
         // from one signed with a real key to any verifier that trusts this worker's output.
         if (HMAC(
-                EVP_sha256(), secret.data(), static_cast<int>(secret.size()),
-                reinterpret_cast<const unsigned char*>(signing_input.data()), signing_input.size(),
-                mac.data(), &mac_length
+                EVP_sha256(),
+                secret.data(),
+                static_cast<int>(secret.size()),
+                reinterpret_cast<const unsigned char*>(signing_input.data()),
+                signing_input.size(),
+                mac.data(),
+                &mac_length
             ) == nullptr) {
             return std::unexpected{interfaces::WorkerError{"hmac failed"}};
         }
@@ -127,7 +131,9 @@ private:
         std::string out;
         out.resize(4 * ((length + 2) / 3));
         int written = EVP_EncodeBlock(
-            reinterpret_cast<unsigned char*>(out.data()), data, static_cast<int>(length)
+            reinterpret_cast<unsigned char*>(out.data()),
+            data,
+            static_cast<int>(length)
         );
         out.resize(static_cast<std::size_t>(written));
         return out;
@@ -192,7 +198,8 @@ public:
         decoded.resize(padded.size() / 4 * 3);
         int written = EVP_DecodeBlock(
             reinterpret_cast<unsigned char*>(decoded.data()),
-            reinterpret_cast<const unsigned char*>(padded.data()), static_cast<int>(padded.size())
+            reinterpret_cast<const unsigned char*>(padded.data()),
+            static_cast<int>(padded.size())
         );
         if (written < 0) {
             return {};
@@ -202,26 +209,31 @@ public:
     }
 };
 
-suite<"JwtInput"> jwt_input_suite = [] {
-    "setSecret/getSecret round-trips"_test = [] {
+suite<"JwtInput"> jwt_input_suite = []
+{
+    "setSecret/getSecret round-trips"_test = []
+    {
         JwtInput input;
         input.setSecret("topsecret");
         expect(input.getSecret() == "topsecret");
     };
 
-    "default-constructed secret is empty"_test = [] {
+    "default-constructed secret is empty"_test = []
+    {
         JwtInput input;
         expect(input.getSecret().empty());
     };
 
-    "from_value fails entirely when 'secret' is omitted"_test = [] {
+    "from_value fails entirely when 'secret' is omitted"_test = []
+    {
         auto value = rfl::json::read<rfl::Generic>(R"({"sub":"alice"})").value();
         auto parsed = serde::Ser::from_value<JwtInput>(value);
         expect(!parsed.has_value()) << fatal;
         expect(parsed.error().contains("secret")) << parsed.error();
     };
 
-    "from_value succeeds when 'secret' is present"_test = [] {
+    "from_value succeeds when 'secret' is present"_test = []
+    {
         auto value = rfl::json::read<rfl::Generic>(R"({"secret":"s"})").value();
         auto parsed = serde::Ser::from_value<JwtInput>(value);
         expect(parsed.has_value()) << fatal;
@@ -229,13 +241,16 @@ suite<"JwtInput"> jwt_input_suite = [] {
     };
 };
 
-suite<"JwtWorker"> jwt_worker_suite = [] {
-    "get_task_type reports 'jwt'"_test = [] {
+suite<"JwtWorker"> jwt_worker_suite = []
+{
+    "get_task_type reports 'jwt'"_test = []
+    {
         JwtWorker worker;
         expect(worker.get_task_type() == "jwt");
     };
 
-    "execute produces the exact expected HS256 token for a known secret/claim"_test = [] {
+    "execute produces the exact expected HS256 token for a known secret/claim"_test = []
+    {
         JwtWorker worker;
         auto value =
             rfl::json::read<rfl::Generic>(R"({"secret":"mysecret","sub":"alice"})").value();
@@ -251,7 +266,8 @@ suite<"JwtWorker"> jwt_worker_suite = [] {
         );
     };
 
-    "execute excludes 'secret' and 'algo' from the signed claims payload"_test = [] {
+    "execute excludes 'secret' and 'algo' from the signed claims payload"_test = []
+    {
         JwtWorker worker;
         auto value =
             rfl::json::read<rfl::Generic>(R"({"secret":"s","algo":"ignored","sub":"bob"})").value();
@@ -266,7 +282,8 @@ suite<"JwtWorker"> jwt_worker_suite = [] {
         expect(decoded_payload.contains("bob")) << decoded_payload;
     };
 
-    "execute with no extra claims signs an empty claims object"_test = [] {
+    "execute with no extra claims signs an empty claims object"_test = []
+    {
         JwtWorker worker;
         auto value = rfl::json::read<rfl::Generic>(R"({"secret":"s"})").value();
         auto result = worker.execute(value);
@@ -278,7 +295,8 @@ suite<"JwtWorker"> jwt_worker_suite = [] {
         expect(JwtSegmentDecoder::decode(payload_segment) == "{}");
     };
 
-    "execute propagates the from_value error when 'secret' is missing"_test = [] {
+    "execute propagates the from_value error when 'secret' is missing"_test = []
+    {
         JwtWorker worker;
         auto value = rfl::json::read<rfl::Generic>(R"({"sub":"alice"})").value();
         auto result = worker.execute(value);
@@ -290,7 +308,8 @@ suite<"JwtWorker"> jwt_worker_suite = [] {
     // injects an unrelated sibling claim into the signed payload. Here a single input claim
     // ("name") ends up producing TWO claims in the signed JSON: the legitimate "name":"x" and a
     // forged "admin":"true" the caller never actually requested as a top-level claim.
-    "SECURITY: unescaped claim values allow injecting extra top-level JSON claims"_test = [] {
+    "SECURITY: unescaped claim values allow injecting extra top-level JSON claims"_test = []
+    {
         JwtWorker worker;
         auto value =
             rfl::json::read<rfl::Generic>(R"({"secret":"s","name":"x\",\"admin\":\"true"})")
@@ -322,7 +341,8 @@ suite<"JwtWorker"> jwt_worker_suite = [] {
 
     // SECURITY: pins the finding documented above the HMAC call in execute() — an empty
     // `secret` is accepted with no validation and still produces a "successfully" signed token.
-    "SECURITY: an empty secret is accepted and still produces a signed token"_test = [] {
+    "SECURITY: an empty secret is accepted and still produces a signed token"_test = []
+    {
         JwtWorker worker;
         auto value = rfl::json::read<rfl::Generic>(R"({"secret":""})").value();
         auto result = worker.execute(value);

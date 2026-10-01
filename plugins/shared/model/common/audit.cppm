@@ -75,15 +75,18 @@ private:
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"AuditRecord"> audit_record_suite = [] {
-    "defaults to epoch timestamps and version 0"_test = [] {
+suite<"AuditRecord"> audit_record_suite = []
+{
+    "defaults to epoch timestamps and version 0"_test = []
+    {
         AuditRecord record;
 
         expect(record.get_created_at() == std::chrono::system_clock::time_point{});
         expect(record.get_updated_at() == std::chrono::system_clock::time_point{});
         expect(record.get_version() == 0);
     };
-    "setters round-trip through their getters"_test = [] {
+    "setters round-trip through their getters"_test = []
+    {
         AuditRecord record;
         auto now = std::chrono::system_clock::now();
 

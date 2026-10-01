@@ -259,35 +259,45 @@ struct serde::Serializable<model::WorkflowExecution>
     {
         return std::tuple{
             serde::FieldDesc<
-                "exec_id", &model::WorkflowExecution::get_exec_id,
+                "exec_id",
+                &model::WorkflowExecution::get_exec_id,
                 &model::WorkflowExecution::set_exec_id,
                 serde::FieldOptions::init().with_db(serde::FieldOptionsDb::init().pk())>{},
             serde::FieldDesc<
-                "def_name", &model::WorkflowExecution::get_def_name,
+                "def_name",
+                &model::WorkflowExecution::get_def_name,
                 &model::WorkflowExecution::set_def_name>{},
             serde::FieldDesc<
-                "def_version", &model::WorkflowExecution::get_def_version,
+                "def_version",
+                &model::WorkflowExecution::get_def_version,
                 &model::WorkflowExecution::set_def_version>{},
             serde::FieldDesc<
-                "status", &model::WorkflowExecution::get_status,
+                "status",
+                &model::WorkflowExecution::get_status,
                 &model::WorkflowExecution::set_status>{},
             serde::FieldDesc<
-                "correlation_id", &model::WorkflowExecution::get_correlation_id,
+                "correlation_id",
+                &model::WorkflowExecution::get_correlation_id,
                 &model::WorkflowExecution::set_correlation_id>{},
             serde::FieldDesc<
-                "variables", &model::WorkflowExecution::get_variables,
+                "variables",
+                &model::WorkflowExecution::get_variables,
                 &model::WorkflowExecution::set_variables>{},
             serde::FieldDesc<
-                "task_instances", &model::WorkflowExecution::get_task_instances,
+                "task_instances",
+                &model::WorkflowExecution::get_task_instances,
                 &model::WorkflowExecution::set_task_instances>{},
             serde::FieldDesc<
-                "timings", &model::WorkflowExecution::get_timings,
+                "timings",
+                &model::WorkflowExecution::get_timings,
                 &model::WorkflowExecution::set_timings>{},
             serde::FieldDesc<
-                "dynamic_nodes", &model::WorkflowExecution::get_dynamic_nodes,
+                "dynamic_nodes",
+                &model::WorkflowExecution::get_dynamic_nodes,
                 &model::WorkflowExecution::set_dynamic_nodes>{},
             serde::FieldDesc<
-                "parent_exec_id", &model::WorkflowExecution::get_parent_exec_id,
+                "parent_exec_id",
+                &model::WorkflowExecution::get_parent_exec_id,
                 &model::WorkflowExecution::set_parent_exec_id>{},
         };
     }
@@ -297,23 +307,27 @@ struct serde::Serializable<model::WorkflowExecution>
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"WorkflowExecution"> workflow_execution_suite = [] {
+suite<"WorkflowExecution"> workflow_execution_suite = []
+{
     "defaults to def_version 1, RUNNING, no instances, and fails validation on empty def_name"_test =
-        [] {
-            WorkflowExecution exec;
+        []
+    {
+        WorkflowExecution exec;
 
-            expect(exec.get_def_version() == 1);
-            expect(exec.get_status() == WorkflowStatus::RUNNING);
-            expect(exec.get_task_instances().empty());
-            expect(not exec.validate().has_value());
-        };
-    "a valid def_name passes validation"_test = [] {
+        expect(exec.get_def_version() == 1);
+        expect(exec.get_status() == WorkflowStatus::RUNNING);
+        expect(exec.get_task_instances().empty());
+        expect(not exec.validate().has_value());
+    };
+    "a valid def_name passes validation"_test = []
+    {
         WorkflowExecution exec;
         exec.set_def_name("order_pipeline");
 
         expect(bool(exec.validate()));
     };
-    "add_variable accumulates by key, last write wins"_test = [] {
+    "add_variable accumulates by key, last write wins"_test = []
+    {
         WorkflowExecution exec;
         exec.add_variable("order_id", "1");
         exec.add_variable("order_id", "2");
@@ -321,7 +335,8 @@ suite<"WorkflowExecution"> workflow_execution_suite = [] {
         expect(exec.get_variables().size() == 1);
         expect(exec.get_variables().at("order_id") == "2");
     };
-    "add_task_instance and add_dynamic_node accumulate"_test = [] {
+    "add_task_instance and add_dynamic_node accumulate"_test = []
+    {
         WorkflowExecution exec;
         exec.add_task_instance(TaskInstance{});
         exec.add_dynamic_node(TaskNode{});
@@ -329,7 +344,8 @@ suite<"WorkflowExecution"> workflow_execution_suite = [] {
         expect(exec.get_task_instances().size() == 1);
         expect(exec.get_dynamic_nodes().size() == 1);
     };
-    "a busted nested task instance propagates through validate"_test = [] {
+    "a busted nested task instance propagates through validate"_test = []
+    {
         WorkflowExecution exec;
         exec.set_def_name("order_pipeline");
         TaskInstance bad_instance; // empty def_name fails TaskInstance::validate

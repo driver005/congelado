@@ -1,8 +1,8 @@
 module;
 
 #ifdef CONGELADO_TEST
-#    include <rfl/Generic.hpp>
-#    include <rfl/json.hpp>
+    #include <rfl/Generic.hpp>
+    #include <rfl/json.hpp>
 #endif
 
 export module database_worker;
@@ -96,11 +96,15 @@ public:
         // `database` tasks into a workflow reachable by untrusted input.
         auto shared_complete =
             std::make_shared<interfaces::WorkerCompletion>(std::move(on_complete));
-        database->query(parsed->getSql(), [shared_complete](std::string_view rows) {
-            (*shared_complete)(
-                interfaces::WorkerOutput{{"db_status", "ok"}, {"result", std::string{rows}}}
-            );
-        });
+        database->query(
+            parsed->getSql(),
+            [shared_complete](std::string_view rows)
+            {
+                (*shared_complete)(
+                    interfaces::WorkerOutput{{"db_status", "ok"}, {"result", std::string{rows}}}
+                );
+            }
+        );
     }
 
 private:
@@ -160,26 +164,31 @@ public:
     int m_query_count{0};
 };
 
-suite<"DatabaseInput"> database_input_suite = [] {
-    "setSql/getSql round-trips"_test = [] {
+suite<"DatabaseInput"> database_input_suite = []
+{
+    "setSql/getSql round-trips"_test = []
+    {
         DatabaseInput input;
         input.setSql("SELECT 1");
         expect(input.getSql() == "SELECT 1");
     };
 
-    "default-constructed sql is empty"_test = [] {
+    "default-constructed sql is empty"_test = []
+    {
         DatabaseInput input;
         expect(input.getSql().empty());
     };
 
-    "from_value fails when 'sql' is omitted"_test = [] {
+    "from_value fails when 'sql' is omitted"_test = []
+    {
         auto value = make_value(R"({})");
         auto parsed = serde::Ser::from_value<DatabaseInput>(value);
         expect(!parsed.has_value()) << fatal;
         expect(parsed.error().contains("sql")) << parsed.error();
     };
 
-    "from_value succeeds when 'sql' is present"_test = [] {
+    "from_value succeeds when 'sql' is present"_test = []
+    {
         auto value = make_value(R"({"sql":"SELECT 1"})");
         auto parsed = serde::Ser::from_value<DatabaseInput>(value);
         expect(parsed.has_value()) << fatal;
@@ -187,43 +196,56 @@ suite<"DatabaseInput"> database_input_suite = [] {
     };
 };
 
-suite<"DatabaseWorker"> database_worker_suite = [] {
-    "get_task_type reports 'database'"_test = [] {
+suite<"DatabaseWorker"> database_worker_suite = []
+{
+    "get_task_type reports 'database'"_test = []
+    {
         DatabaseWorker worker;
         expect(worker.get_task_type() == "database");
     };
 
-    "run() with no database backend resolved (nullptr default) fails cleanly"_test = [] {
+    "run() with no database backend resolved (nullptr default) fails cleanly"_test = []
+    {
         DatabaseWorker worker;
         auto value = make_value(R"({"sql":"SELECT 1"})");
         interfaces::WorkerResult observed = interfaces::WorkerOutput{};
         bool called = false;
 
-        worker.run(value, [&](interfaces::WorkerResult result) {
-            called = true;
-            observed = std::move(result);
-        });
+        worker.run(
+            value,
+            [&](interfaces::WorkerResult result)
+            {
+                called = true;
+                observed = std::move(result);
+            }
+        );
 
         expect(called) << fatal;
         expect(!observed.has_value()) << fatal;
         expect(observed.error().getMessage() == "no database backend resolved");
     };
 
-    "run() with set_database_ctx(nullptr) behaves identically to never wiring one"_test = [] {
+    "run() with set_database_ctx(nullptr) behaves identically to never wiring one"_test = []
+    {
         DatabaseWorker worker;
         worker.set_database_ctx(nullptr);
         auto value = make_value(R"({"sql":"SELECT 1"})");
         interfaces::WorkerResult observed = interfaces::WorkerOutput{};
 
-        worker.run(value, [&](interfaces::WorkerResult result) {
-            observed = std::move(result);
-        });
+        worker.run(
+            value,
+            [&](interfaces::WorkerResult result)
+            {
+                observed = std::move(result);
+            }
+        );
 
         expect(!observed.has_value()) << fatal;
         expect(observed.error().getMessage() == "no database backend resolved");
     };
 
-    "run() with a resolved backend runs the query and returns its result verbatim"_test = [] {
+    "run() with a resolved backend runs the query and returns its result verbatim"_test = []
+    {
         DatabaseWorker worker;
         DatabaseWorkerFakeDatabase database;
         database.m_canned_result = "alice,bob";
@@ -232,9 +254,13 @@ suite<"DatabaseWorker"> database_worker_suite = [] {
         auto value = make_value(R"({"sql":"SELECT name FROM users"})");
         interfaces::WorkerResult observed = std::unexpected{interfaces::WorkerError{"unset"}};
 
-        worker.run(value, [&](interfaces::WorkerResult result) {
-            observed = std::move(result);
-        });
+        worker.run(
+            value,
+            [&](interfaces::WorkerResult result)
+            {
+                observed = std::move(result);
+            }
+        );
 
         expect(observed.has_value()) << fatal;
         expect(observed->at("db_status") == "ok");
@@ -246,41 +272,51 @@ suite<"DatabaseWorker"> database_worker_suite = [] {
     // SECURITY pin: the worker forwards ANY sql text verbatim, with zero inspection — pins the
     // finding documented above DatabaseWorker::run(). A destructive statement goes through
     // exactly like a SELECT would.
-    "SECURITY: run() forwards a destructive statement to the backend with no restriction"_test =
-        [] {
-            DatabaseWorker worker;
-            DatabaseWorkerFakeDatabase database;
-            worker.set_database_ctx(&database);
+    "SECURITY: run() forwards a destructive statement to the backend with no restriction"_test = []
+    {
+        DatabaseWorker worker;
+        DatabaseWorkerFakeDatabase database;
+        worker.set_database_ctx(&database);
 
-            auto value = make_value(R"({"sql":"DROP TABLE users; --"})");
-            interfaces::WorkerResult observed = std::unexpected{interfaces::WorkerError{"unset"}};
+        auto value = make_value(R"({"sql":"DROP TABLE users; --"})");
+        interfaces::WorkerResult observed = std::unexpected{interfaces::WorkerError{"unset"}};
 
-            worker.run(value, [&](interfaces::WorkerResult result) {
+        worker.run(
+            value,
+            [&](interfaces::WorkerResult result)
+            {
                 observed = std::move(result);
-            });
+            }
+        );
 
-            expect(observed.has_value()) << fatal;
-            expect(database.m_last_query == "DROP TABLE users; --");
-        };
+        expect(observed.has_value()) << fatal;
+        expect(database.m_last_query == "DROP TABLE users; --");
+    };
 
     "run() with input that doesn't decode into DatabaseInput reports the parse error, never touches the backend"_test =
-        [] {
-            DatabaseWorker worker;
-            DatabaseWorkerFakeDatabase database;
-            worker.set_database_ctx(&database);
+        []
+    {
+        DatabaseWorker worker;
+        DatabaseWorkerFakeDatabase database;
+        worker.set_database_ctx(&database);
 
-            auto value = make_value(R"({})"); // missing 'sql'
-            interfaces::WorkerResult observed = interfaces::WorkerOutput{};
+        auto value = make_value(R"({})"); // missing 'sql'
+        interfaces::WorkerResult observed = interfaces::WorkerOutput{};
 
-            worker.run(value, [&](interfaces::WorkerResult result) {
+        worker.run(
+            value,
+            [&](interfaces::WorkerResult result)
+            {
                 observed = std::move(result);
-            });
+            }
+        );
 
-            expect(!observed.has_value()) << fatal;
-            expect(database.m_query_count == 0);
-        };
+        expect(!observed.has_value()) << fatal;
+        expect(database.m_query_count == 0);
+    };
 
-    "run() with an empty sql string still reaches the backend — no empty-query guard"_test = [] {
+    "run() with an empty sql string still reaches the backend — no empty-query guard"_test = []
+    {
         DatabaseWorker worker;
         DatabaseWorkerFakeDatabase database;
         worker.set_database_ctx(&database);
@@ -288,9 +324,13 @@ suite<"DatabaseWorker"> database_worker_suite = [] {
         auto value = make_value(R"({"sql":""})");
         interfaces::WorkerResult observed = std::unexpected{interfaces::WorkerError{"unset"}};
 
-        worker.run(value, [&](interfaces::WorkerResult result) {
-            observed = std::move(result);
-        });
+        worker.run(
+            value,
+            [&](interfaces::WorkerResult result)
+            {
+                observed = std::move(result);
+            }
+        );
 
         expect(observed.has_value()) << fatal;
         expect(database.m_query_count == 1);

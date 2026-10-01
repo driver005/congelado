@@ -43,12 +43,11 @@ import std;
 import cc_abi;
 
 export {
-
     // Class and associated machinery for specifying an Op's OpDef and shape
     // inference function for Op registration.
 
 #ifndef TENSORFLOW_CORE_FRAMEWORK_OP_DEF_BUILDER_H_
-#    define TENSORFLOW_CORE_FRAMEWORK_OP_DEF_BUILDER_H_
+    #define TENSORFLOW_CORE_FRAMEWORK_OP_DEF_BUILDER_H_
 
     namespace tensorflow {
 
@@ -95,7 +94,9 @@ export {
             }
 
             OpRegistrationData(
-                const OpDef& def, const OpShapeInferenceFn& fn, bool is_function = false
+                const OpDef& def,
+                const OpShapeInferenceFn& fn,
+                bool is_function = false
             ) :
                 op_def(def),
                 shape_inference_fn(fn),
@@ -483,7 +484,8 @@ export {
                     AttrValue* allowed = attr->mutable_allowed_values();
                     VERIFY(
                         ProcessCompoundType(type_string, allowed),
-                        "Expected to see a compound type, saw: ", type_string
+                        "Expected to see a compound type, saw: ",
+                        type_string
                     );
                 } else if (absl::ConsumePrefix(&spec, "{")) {
                     // e.g. "{ int32, float, bool }" or "{ \"foo\", \"bar\" }"
@@ -496,13 +498,18 @@ export {
                             VERIFY(
                                 ConsumeQuotedString('"', &spec, &escaped_string) ||
                                     ConsumeQuotedString('\'', &spec, &escaped_string),
-                                "Trouble parsing allowed string at '", spec, "'"
+                                "Trouble parsing allowed string at '",
+                                spec,
+                                "'"
                             );
                             std::string unescaped;
                             std::string error;
                             VERIFY(
                                 absl::CUnescape(escaped_string, &unescaped, &error),
-                                "Trouble unescaping \"", escaped_string, "\", got error: ", error
+                                "Trouble unescaping \"",
+                                escaped_string,
+                                "\", got error: ",
+                                error
                             );
                             allowed->mutable_list()->add_s(unescaped);
                             if (absl::ConsumePrefix(&spec, ",")) {
@@ -513,7 +520,9 @@ export {
                             } else {
                                 VERIFY(
                                     absl::ConsumePrefix(&spec, "}"),
-                                    "Expected , or } after strings in list, not: '", spec, "'"
+                                    "Expected , or } after strings in list, not: '",
+                                    spec,
+                                    "'"
                                 );
                                 break;
                             }
@@ -523,7 +532,9 @@ export {
                         while (true) {
                             VERIFY(
                                 ConsumeAttrType(&spec, &type_string),
-                                "Trouble parsing type string at '", spec, "'"
+                                "Trouble parsing type string at '",
+                                spec,
+                                "'"
                             );
                             if (ProcessCompoundType(type_string, allowed)) {
                                 // Processed a compound type.
@@ -531,7 +542,9 @@ export {
                                 DataType dt;
                                 VERIFY(
                                     DataTypeFromString(type_string, &dt),
-                                    "Unrecognized type string '", type_string, "'"
+                                    "Unrecognized type string '",
+                                    type_string,
+                                    "'"
                                 );
                                 allowed->mutable_list()->add_type(dt);
                             }
@@ -543,7 +556,9 @@ export {
                             } else {
                                 VERIFY(
                                     absl::ConsumePrefix(&spec, "}"),
-                                    "Expected , or } after types in list, not: '", spec, "'"
+                                    "Expected , or } after types in list, not: '",
+                                    spec,
+                                    "'"
                                 );
                                 break;
                             }
@@ -557,8 +572,10 @@ export {
                 // Write the type into *attr.
                 if (is_list) {
                     VERIFY(
-                        absl::ConsumePrefix(&spec, ")"), "Expected ) to close 'list(', not: '",
-                        spec, "'"
+                        absl::ConsumePrefix(&spec, ")"),
+                        "Expected ) to close 'list(', not: '",
+                        spec,
+                        "'"
                     );
                     str_util::RemoveLeadingWhitespace(&spec);
                     attr->set_type(absl::StrCat("list(", type, ")"));
@@ -571,7 +588,9 @@ export {
                     int64_t min_limit = -999;
                     VERIFY(
                         ConsumeAttrNumber(&spec, &min_limit),
-                        "Could not parse integer lower limit after '>=', found '", spec, "' instead"
+                        "Could not parse integer lower limit after '>=', found '",
+                        spec,
+                        "' instead"
                     );
                     attr->set_has_minimum(true);
                     attr->set_minimum(min_limit);
@@ -582,7 +601,9 @@ export {
                     str_util::RemoveLeadingWhitespace(&spec);
                     VERIFY(
                         ParseAttrValue(attr->type(), spec, attr->mutable_default_value()),
-                        "Could not parse default value '", spec, "'"
+                        "Could not parse default value '",
+                        spec,
+                        "'"
                     );
                 } else {
                     VERIFY(spec.empty(), "Extra '", spec, "' unparsed at the end");
@@ -595,7 +616,12 @@ export {
             InOutError(bool is_output, absl::string_view orig, const std::string& op_name)
             {
                 return strings::StrCat(
-                    " from ", is_output ? "Output" : "Input", "(\"", orig, "\") for Op ", op_name
+                    " from ",
+                    is_output ? "Output" : "Input",
+                    "(\"",
+                    orig,
+                    "\") for Op ",
+                    op_name
                 );
             }
 
@@ -693,7 +719,9 @@ export {
                     absl::string_view first, second, type_or_attr;
                     VERIFY(
                         ConsumeInOutNameOrType(&spec, &first),
-                        "Trouble parsing either a type or an attr name at '", spec, "'"
+                        "Trouble parsing either a type or an attr name at '",
+                        spec,
+                        "'"
                     );
                     if (ConsumeInOutTimesType(&spec, &second)) {
                         arg->set_number_attr(first.data(), first.size());
@@ -711,8 +739,12 @@ export {
                             arg->set_type_attr(type_or_attr.data(), type_or_attr.size());
                         } else {
                             VERIFY(
-                                attr->type() == "list(type)", "Reference to attr '", type_or_attr,
-                                "' with type ", attr->type(), " that isn't type or list(type)"
+                                attr->type() == "list(type)",
+                                "Reference to attr '",
+                                type_or_attr,
+                                "' with type ",
+                                attr->type(),
+                                " that isn't type or list(type)"
                             );
                             arg->set_type_list_attr(type_or_attr.data(), type_or_attr.size());
                         }
@@ -723,7 +755,9 @@ export {
                 if (arg->is_ref()) {
                     VERIFY(
                         ConsumeInOutRefClose(&spec),
-                        "Did not find closing ')' for 'Ref(', instead found: '", spec, "'"
+                        "Did not find closing ')' for 'Ref(', instead found: '",
+                        spec,
+                        "'"
                     );
                 }
 
@@ -766,7 +800,9 @@ export {
             }
 
             void FinalizeControlOutput(
-                absl::string_view name, OpDef* op_def, std::vector<std::string>* errors
+                absl::string_view name,
+                OpDef* op_def,
+                std::vector<std::string>* errors
             )
             {
                 absl::string_view orig(name);
@@ -776,7 +812,8 @@ export {
                 if (!ConsumeControlOutName(&orig, &tmp_name)) {
                     errors->push_back(
                         absl::StrCat(
-                            "Trouble parsing 'name:'", ControlOutError(orig, op_def->name())
+                            "Trouble parsing 'name:'",
+                            ControlOutError(orig, op_def->name())
                         )
                     );
                 }
@@ -811,7 +848,9 @@ export {
             }
 
             void FinalizeDoc(
-                const std::string& text, OpDef* op_def, std::vector<std::string>* errors
+                const std::string& text,
+                OpDef* op_def,
+                std::vector<std::string>* errors
             )
             {
                 std::vector<std::string> lines = str_util::Split(text, '\n');
@@ -845,7 +884,8 @@ export {
                     --end_l;
                 }
                 std::string desc = absl::StrJoin(
-                    absl::Span<const std::string>(lines.data() + start_l, end_l - start_l), "\n"
+                    absl::Span<const std::string>(lines.data() + start_l, end_l - start_l),
+                    "\n"
                 );
                 if (!desc.empty()) {
                     op_def->set_description(desc);
@@ -911,8 +951,10 @@ export {
                     if (!found) {
                         errors->push_back(
                             absl::StrCat(
-                                "No matching input/output/attr for name '", name,
-                                "' from Doc() for Op ", op_def->name()
+                                "No matching input/output/attr for name '",
+                                name,
+                                "' from Doc() for Op ",
+                                op_def->name()
                             )
                         );
                         return;

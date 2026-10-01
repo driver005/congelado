@@ -27,7 +27,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         class Summary;
@@ -56,7 +55,9 @@ export {
                 // Add the given `values` to the histogram with the given `name`. Each
                 // element of `values` will be treated as a separate sample in the histogram.
                 virtual void AddToHistogram(
-                    const std::string& name, absl::Span<const double> values, int64_t global_step
+                    const std::string& name,
+                    absl::Span<const double> values,
+                    int64_t global_step
                 ) = 0;
 
                 // TODO(shivaniagrawal): consistency in double and float usage.
@@ -73,7 +74,9 @@ export {
 
                 // Increment the `label` cell of metrics mapped with `name` by given `value`.
                 virtual void IncrementCounter(
-                    const std::string& name, const std::string& label, int64_t val
+                    const std::string& name,
+                    const std::string& label,
+                    int64_t val
                 ) = 0;
             };
 

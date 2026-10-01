@@ -11,7 +11,6 @@ import cc_abi;
 import :tensor_tensor;
 
 export {
-
     namespace tensorflow {
 
         class TensorKey

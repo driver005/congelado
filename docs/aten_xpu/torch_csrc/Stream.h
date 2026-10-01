@@ -15,13 +15,13 @@
 
 #pragma once
 
-#include <sycl/sycl.hpp>
-#include <cstdint>
-
-#include "include/c/macros.h"
-#include "include/c/intern/status.h"
-#include "include/c/extern/stream_executor/stream.h"
 #include "include/c/extern/stream_executor/executor.h"
+#include "include/c/extern/stream_executor/stream.h"
+#include "include/c/intern/status.h"
+#include "include/c/macros.h"
+
+#include <cstdint>
+#include <sycl/sycl.hpp>
 
 namespace ice::sycl_stream {
 
@@ -31,13 +31,15 @@ namespace ice::sycl_stream {
 
 // ice: replaces THXPStream.xpu_stream (at::xpu::XPUStream).
 //   c10::xpu::XPUStream → sycl::queue* (ordinal tracked alongside).
-struct SyclStreamHandle {
-    sycl::queue* queue{nullptr};  // never null after create_sycl_stream()
-    int          device_index{-1};
-    int          priority{0};
+struct SyclStreamHandle
+{
+    sycl::queue* queue{nullptr}; // never null after create_sycl_stream()
+    int device_index{-1};
+    int priority{0};
 
     // ice: replaces stream.id() — use the queue's pointer address as opaque id.
-    uint64_t stream_id() const noexcept {
+    uint64_t stream_id() const noexcept
+    {
         return reinterpret_cast<uint64_t>(queue);
     }
 };
@@ -91,8 +93,9 @@ void sycl_stream_priority_range(int* out_least, int* out_greatest);
 } // namespace ice::sycl_stream
 
 // ice: these two C symbols are the mandatory stream_executor plugin hooks.
-extern "C" {
-TF_CAPI_EXPORT void create_stream(TF_StreamOps** ops, void** plugin_context,
-                                   TF_Status* out_status);
-TF_CAPI_EXPORT void destroy_stream(void* plugin_context);
+extern "C"
+{
+    TF_CAPI_EXPORT void
+    create_stream(TF_StreamOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void destroy_stream(void* plugin_context);
 } // extern "C"

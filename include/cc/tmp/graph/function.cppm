@@ -82,7 +82,6 @@ import std;
 import cc_abi;
 
 export {
-
     // clang-format off
 // Required for IS_MOBILE_PLATFORM
     // clang-format on
@@ -446,7 +445,9 @@ export {
         {
         public:
             FunctionRecord(
-                const FunctionDef& fdef, const StackTracesMap& stack_traces, bool finalized
+                const FunctionDef& fdef,
+                const StackTracesMap& stack_traces,
+                bool finalized
             );
             FunctionRecord(FunctionDef&& fdef, StackTracesMap&& stack_traces, bool finalized);
 
@@ -506,7 +507,8 @@ export {
                 const FunctionDefLibraryStackTraces& library_traces = {}
             );
             FunctionLibraryDefinition(
-                const OpRegistryInterface* default_registry, const GraphDef& graph_def
+                const OpRegistryInterface* default_registry,
+                const GraphDef& graph_def
             );
             ~FunctionLibraryDefinition() override;
 
@@ -538,10 +540,12 @@ export {
             // Associates `graph` with a function `func_name`. Lifetime assumption:
             // `graph` has to outlive all instantiated graphs.
             absl::Status AddFunctionDef(
-                const FunctionDef& fdef, const StackTracesMap& stack_traces = {}
+                const FunctionDef& fdef,
+                const StackTracesMap& stack_traces = {}
             ) TF_LOCKS_EXCLUDED(mu_);
             absl::Status AddFunctionDef(
-                FunctionDef&& fdef, StackTracesMap&& stack_traces = {}
+                FunctionDef&& fdef,
+                StackTracesMap&& stack_traces = {}
             ) TF_LOCKS_EXCLUDED(mu_);
             absl::Status
             AddFunctionRecord(core::RefCountPtr<FunctionRecord> record) TF_LOCKS_EXCLUDED(mu_);
@@ -598,7 +602,8 @@ export {
                 const FunctionDefLibraryStackTraces& library_traces
             ) TF_LOCKS_EXCLUDED(mu_);
             absl::Status AddLibrary(
-                FunctionDefLibrary&& lib_def, const FunctionDefLibraryStackTraces& library_traces
+                FunctionDefLibrary&& lib_def,
+                const FunctionDefLibraryStackTraces& library_traces
             ) TF_LOCKS_EXCLUDED(mu_);
 
             // If the gradient function for 'func' is specified explicitly in
@@ -615,7 +620,8 @@ export {
             // NB: This function outputs a borrowed pointer, which can be invalidated by a
             // subsequent call to `ReplaceFunction()` with the given name.
             absl::Status LookUp(
-                const std::string& op_type_name, const OpRegistrationData** op_reg_data
+                const std::string& op_type_name,
+                const OpRegistrationData** op_reg_data
             ) const override TF_LOCKS_EXCLUDED(mu_);
 
             // Generates new function name with the specified prefix that is unique
@@ -694,10 +700,12 @@ export {
             ABSL_DEPRECATED("Use the lazy `creator` function overload in new code.")
 
             void AddOptimizedFunctionGraph(
-                const std::string& function_name, const OptimizedFunctionGraph& graph
+                const std::string& function_name,
+                const OptimizedFunctionGraph& graph
             ) TF_LOCKS_EXCLUDED(mu_)
             {
-                std::function<absl::StatusOr<OptimizedFunctionGraph>()> creator = [graph]() {
+                std::function<absl::StatusOr<OptimizedFunctionGraph>()> creator = [graph]()
+                {
                     return graph;
                 };
                 AddOptimizedFunctionGraph(function_name, std::move(creator));
@@ -741,7 +749,8 @@ export {
 
             // Creates a map of function names to stack traces for a FunctionDefLibrary.
             static FunctionDefLibraryStackTraces CreateStackTracesForFunctionDefLibrary(
-                const FunctionDefLibrary& library, const GraphDebugInfo& debug_info
+                const FunctionDefLibrary& library,
+                const GraphDebugInfo& debug_info
             );
 
         private:
@@ -750,7 +759,8 @@ export {
                 const FunctionDefLibraryStackTraces& library_traces
             );
             void Initialize(
-                FunctionDefLibrary&& library, const FunctionDefLibraryStackTraces& library_traces
+                FunctionDefLibrary&& library,
+                const FunctionDefLibraryStackTraces& library_traces
             );
 
             core::RefCountPtr<FunctionRecord>
@@ -764,10 +774,13 @@ export {
             // Same as AddFunctionDef/AddGradientDef except these methods set
             // `added` to true if the `fdef`/`grad` were actually added to this.
             absl::Status AddFunctionDefHelper(
-                FunctionDef&& fdef, StackTracesMap&& stack_traces, bool* added
+                FunctionDef&& fdef,
+                StackTracesMap&& stack_traces,
+                bool* added
             ) TF_EXCLUSIVE_LOCKS_REQUIRED(mu_);
             absl::Status AddGradientDefHelper(
-                const GradientDef& grad, bool* added
+                const GradientDef& grad,
+                bool* added
             ) TF_EXCLUSIVE_LOCKS_REQUIRED(mu_);
 
             // Helper function for GetAttr. Returns the FunctionDef* to get the
@@ -1527,7 +1540,10 @@ export {
                     } else if (!attr.has_default_value()) {
                         return absl::NotFoundError(
                             absl::StrCat(
-                                "Attr ", attr.name(), " is not found from ", SummarizeOpDef(sig)
+                                "Attr ",
+                                attr.name(),
+                                " is not found from ",
+                                SummarizeOpDef(sig)
                             )
                         );
                     }
@@ -1565,7 +1581,8 @@ export {
             {
             public:
                 FunctionInstantiationHelper(
-                    GetFunctionSignature get_function, InstantiationResult* result
+                    GetFunctionSignature get_function,
+                    InstantiationResult* result
                 ) :
                     get_function_(std ::move(get_function)),
                     result_(*result)
@@ -1605,7 +1622,10 @@ export {
                                 absl::StrCat(
                                     "Expected arg_index to be equal to the number of nodes in "
                                     "result.",
-                                    " Got ", arg_index, " and ", result_.nodes.size()
+                                    " Got ",
+                                    arg_index,
+                                    " and ",
+                                    result_.nodes.size()
                                 )
                             );
                         }
@@ -1624,7 +1644,8 @@ export {
                             if (IsRefType(dtypes[i])) {
                                 return absl::InvalidArgumentError(
                                     absl::StrCat(
-                                        "Cannot make a ref type for a ref type ", dtypes[i]
+                                        "Cannot make a ref type for a ref type ",
+                                        dtypes[i]
                                     )
                                 );
                             }
@@ -1707,8 +1728,10 @@ export {
                                 // Should never happen if we computed dtypes correctly.
                                 return absl::InvalidArgumentError(
                                     absl::StrCat(
-                                        "Attempt to access beyond input size: ", fnode_arg_index,
-                                        " >= ", fnode.input_size()
+                                        "Attempt to access beyond input size: ",
+                                        fnode_arg_index,
+                                        " >= ",
+                                        fnode.input_size()
                                     )
                                 );
                             }
@@ -1718,15 +1741,19 @@ export {
                             if (item == nullptr) {
                                 return absl::InvalidArgumentError(
                                     absl::StrCat(
-                                        "input ", input_name,
-                                        " is not found: ", FormatNodeDefForError(fnode)
+                                        "input ",
+                                        input_name,
+                                        " is not found: ",
+                                        FormatNodeDefForError(fnode)
                                     )
                                 );
                             }
                             if (item->dtypes.size() > dtypes.size() - j) {
                                 return absl::InvalidArgumentError(
                                     absl::StrCat(
-                                        "Input ", input_name, " too long for ",
+                                        "Input ",
+                                        input_name,
+                                        " too long for ",
                                         fnode_sig->input_arg(i).name()
                                     )
                                 );
@@ -1736,10 +1763,19 @@ export {
                             for (int k = 0; k < item->dtypes.size(); ++k, ++j) {
                                 if (item->dtypes[k] != dtypes[j]) {
                                     return errors::InvalidArgument(
-                                        "input ", fnode_sig->input_arg(i).name(), "[", j,
-                                        "] expected type ", DataTypeString(dtypes[j]),
-                                        " != ", DataTypeString(item->dtypes[k]), ", the type of ",
-                                        input_name, "[", k, "]"
+                                        "input ",
+                                        fnode_sig->input_arg(i).name(),
+                                        "[",
+                                        j,
+                                        "] expected type ",
+                                        DataTypeString(dtypes[j]),
+                                        " != ",
+                                        DataTypeString(item->dtypes[k]),
+                                        ", the type of ",
+                                        input_name,
+                                        "[",
+                                        k,
+                                        "]"
                                     );
                                 }
                                 if (item->is_func_arg) {
@@ -1757,7 +1793,10 @@ export {
                         if (input.empty() || input[0] != '^') {
                             return absl::InvalidArgumentError(
                                 absl::StrCat(
-                                    "Expected input[", i, "] == '", input,
+                                    "Expected input[",
+                                    i,
+                                    "] == '",
+                                    input,
                                     "' to be a control input."
                                 )
                             );
@@ -1827,7 +1866,10 @@ export {
                     if (item == nullptr) {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                "Return ", ret_def.name(), " -> ", ret_iter->second,
+                                "Return ",
+                                ret_def.name(),
+                                " -> ",
+                                ret_iter->second,
                                 " is not found."
                             )
                         );
@@ -1835,8 +1877,11 @@ export {
                     if (dtypes != item->dtypes) {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                "Invalid ret types ", ret_def.name(), " : ",
-                                DataTypeVectorString(dtypes), " vs. ",
+                                "Invalid ret types ",
+                                ret_def.name(),
+                                " : ",
+                                DataTypeVectorString(dtypes),
+                                " vs. ",
                                 DataTypeVectorString(item->dtypes)
                             )
                         );
@@ -1905,7 +1950,9 @@ export {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
                                 absl::StrCat(
-                                    "Duplicated ", item.is_func_arg ? "arg" : "ret", " name: "
+                                    "Duplicated ",
+                                    item.is_func_arg ? "arg" : "ret",
+                                    " name: "
                                 ),
                                 name
                             )
@@ -2036,7 +2083,10 @@ export {
                     }
                     std::sort(entries.begin(), entries.end());
                     return absl::StrCat(
-                        attr_value.func().name(), "[", absl::StrJoin(entries, ", "), "]"
+                        attr_value.func().name(),
+                        "[",
+                        absl::StrJoin(entries, ", "),
+                        "]"
                     );
                 } else if (attr_value.value_case() == AttrValue::kS && hash_string_attrs) {
                     return absl::StrCat(Fingerprint64(attr_value.s()));
@@ -2149,7 +2199,8 @@ export {
                         body.push_back(n);
                     }
                 }
-                auto comp = [](const NodeDef* x, const NodeDef* y) {
+                auto comp = [](const NodeDef* x, const NodeDef* y)
+                {
                     int xi;
                     CHECK_OK(GetNodeAttr(*x, "index", &xi));
                     int yi;
@@ -2160,7 +2211,8 @@ export {
                 std::sort(ret.begin(), ret.end(), comp);
                 std::string out;
                 absl::StrAppend(&out, "\n(");
-                auto get_type_and_device = [](const NodeDef& n) {
+                auto get_type_and_device = [](const NodeDef& n)
+                {
                     DataType dt;
                     if (!TryGetNodeAttr(n, "T", &dt)) {
                         dt = DT_INVALID;
@@ -2169,13 +2221,19 @@ export {
                         DeviceNameUtils::ParsedName parsed;
                         if (DeviceNameUtils::ParseFullName(n.device(), &parsed)) {
                             return strings::StrCat(
-                                DataTypeString(dt), "@", parsed.type, ":", parsed.id
+                                DataTypeString(dt),
+                                "@",
+                                parsed.type,
+                                ":",
+                                parsed.id
                             );
                         } else {
                             LOG(WARNING) << "Failed to parse device \"" << n.device() << "\" in "
                                          << n.op() << ":" << n.name();
                             return absl::StrCat(
-                                DataTypeString(dt), "@", "<FAILED_TO_PARSE_DEVICE>"
+                                DataTypeString(dt),
+                                "@",
+                                "<FAILED_TO_PARSE_DEVICE>"
                             );
                         }
                     }
@@ -2222,7 +2280,9 @@ export {
             }
 
             absl::Status AddDefaultAttrs(
-                const std::string& op, const GetFunctionSignature& get_function, AttrValueMap* attrs
+                const std::string& op,
+                const GetFunctionSignature& get_function,
+                AttrValueMap* attrs
             )
             {
                 const OpDef* op_def = nullptr;
@@ -2282,7 +2342,11 @@ export {
                     resource_id_it != fdef.resource_arg_unique_id().end() ? resource_id_it->second
                                                                           : -1LL;
                 s = helper.BuildInputArgIndex(
-                    arg_def, attr_values, arg_attrs, ints_on_device, resource_arg_unique_id
+                    arg_def,
+                    attr_values,
+                    arg_attrs,
+                    ints_on_device,
+                    resource_arg_unique_id
                 );
 
                 if (!s.ok()) {
@@ -2291,7 +2355,8 @@ export {
                 }
             }
 
-            auto substitute = [attr_values, &sig](const std::string& name, AttrValue* val) {
+            auto substitute = [attr_values, &sig](const std::string& name, AttrValue* val)
+            {
                 // Look for a specified value...
                 if (const AttrValue* v = attr_values.FindByString(name)) {
                     *val = *v;
@@ -2335,7 +2400,9 @@ export {
 
             for (int i = 0; i < fdef.node_def_size(); ++i) {
                 s = helper.BuildNodeOutputIndex(
-                    fdef.node_def(i), AttrSlice(&node_attrs[i]), result->nodes.size() + i
+                    fdef.node_def(i),
+                    AttrSlice(&node_attrs[i]),
+                    result->nodes.size() + i
                 );
                 if (!s.ok()) {
                     errors::AppendToMessage(&s, "In ", FormatNodeDefForError(fdef.node_def(i)));
@@ -2355,7 +2422,11 @@ export {
             int ret_index = 0;
             for (const OpDef::ArgDef& ret_def: sig.output_arg()) {
                 s = helper.AddReturnNode(
-                    ret_def, attr_values, fdef.ret(), ints_on_device, &ret_index
+                    ret_def,
+                    attr_values,
+                    fdef.ret(),
+                    ints_on_device,
+                    &ret_index
                 );
                 if (!s.ok()) {
                     errors::AppendToMessage(&s, "In function output ", Print(ret_def));
@@ -2455,10 +2526,12 @@ export {
             }
 
             std::map<std::string, std::string> control_ret1(
-                f1.control_ret().begin(), f1.control_ret().end()
+                f1.control_ret().begin(),
+                f1.control_ret().end()
             );
             std::map<std::string, std::string> control_ret2(
-                f2.control_ret().begin(), f2.control_ret().end()
+                f2.control_ret().begin(),
+                f2.control_ret().end()
             );
             if (control_ret1 != control_ret2) {
                 return false;
@@ -2491,7 +2564,8 @@ export {
 
             // control output names
             std::map<std::string, std::string> control_ret(
-                fdef.control_ret().begin(), fdef.control_ret().end()
+                fdef.control_ret().begin(),
+                fdef.control_ret().end()
             );
             for (const auto& p: control_ret) {
                 h = Hash64(p.first.data(), p.first.size(), h);
@@ -2643,26 +2717,38 @@ export {
             }
             for (int i = 0; i < options.input_devices.size(); ++i) {
                 entries.push_back(AttrKeyAndValue(
-                    "_input_dev", i, options.input_devices[i], AttrKeyAndValue::kCEscape
+                    "_input_dev",
+                    i,
+                    options.input_devices[i],
+                    AttrKeyAndValue::kCEscape
                 ));
             }
             for (int i = 0; i < options.output_devices.size(); ++i) {
                 entries.push_back(AttrKeyAndValue(
-                    "_output_dev", i, options.output_devices[i], AttrKeyAndValue::kCEscape
+                    "_output_dev",
+                    i,
+                    options.output_devices[i],
+                    AttrKeyAndValue::kCEscape
                 ));
             }
             for (const auto& iter: options.input_resource_dtypes_and_shapes) {
                 entries.push_back(AttrKeyAndValue(
-                    "_input_resource_dtype", iter.first, DataTypeString(iter.second.dtype)
+                    "_input_resource_dtype",
+                    iter.first,
+                    DataTypeString(iter.second.dtype)
                 ));
                 entries.push_back(AttrKeyAndValue(
-                    "_input_resource_shape", iter.first, iter.second.shape.DebugString(),
+                    "_input_resource_shape",
+                    iter.first,
+                    iter.second.shape.DebugString(),
                     AttrKeyAndValue::kCEscape
                 ));
             }
             if (options.lib_def) {
                 entries.push_back(AttrKeyAndValue(
-                    "_lib_def", -1, absl::StrCat("", reinterpret_cast<uintptr_t>(options.lib_def))
+                    "_lib_def",
+                    -1,
+                    absl::StrCat("", reinterpret_cast<uintptr_t>(options.lib_def))
                 ));
             }
             if (!options.state_handle.empty()) {
@@ -2676,7 +2762,10 @@ export {
                 std::string config_proto_serialized;
                 SerializeToStringDeterministic(options.config_proto, &config_proto_serialized);
                 entries.push_back(AttrKeyAndValue(
-                    "_config_proto", -1, config_proto_serialized, AttrKeyAndValue::kCEscape
+                    "_config_proto",
+                    -1,
+                    config_proto_serialized,
+                    AttrKeyAndValue::kCEscape
                 ));
             }
             std::sort(entries.begin(), entries.end());
@@ -2713,7 +2802,10 @@ export {
             if (args.size() != arg_types_.size()) {
                 return absl::InvalidArgumentError(
                     absl::StrCat(
-                        "Expects ", arg_types_.size(), " arguments, but ", args.size(),
+                        "Expects ",
+                        arg_types_.size(),
+                        " arguments, but ",
+                        args.size(),
                         " is provided"
                     )
                 );
@@ -2722,8 +2814,13 @@ export {
                 if (arg_types_[i] != args[i].dtype()) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Expects arg[", i, "] to be ", DataTypeString(arg_types_[i]), " but ",
-                            DataTypeString(args[i].dtype()), " is provided"
+                            "Expects arg[",
+                            i,
+                            "] to be ",
+                            DataTypeString(arg_types_[i]),
+                            " but ",
+                            DataTypeString(args[i].dtype()),
+                            " is provided"
                         )
                     );
                 }
@@ -2785,8 +2882,13 @@ export {
             if (val.dtype() != ret_types_[index]) {
                 return absl::InvalidArgumentError(
                     absl::StrCat(
-                        "Expects ret[", index, "] to be ", DataTypeString(ret_types_[index]),
-                        ", but ", DataTypeString(val.dtype()), " is provided."
+                        "Expects ret[",
+                        index,
+                        "] to be ",
+                        DataTypeString(ret_types_[index]),
+                        ", but ",
+                        DataTypeString(val.dtype()),
+                        " is provided."
                     )
                 );
             }
@@ -2803,14 +2905,18 @@ export {
         }
 
         FunctionRecord::FunctionRecord(
-            const FunctionDef& fdef, const StackTracesMap& stack_traces, bool finalized
+            const FunctionDef& fdef,
+            const StackTracesMap& stack_traces,
+            bool finalized
         ) :
             FunctionRecord(FunctionDef(fdef), StackTracesMap(stack_traces), finalized)
         {
         }
 
         FunctionRecord::FunctionRecord(
-            FunctionDef&& fdef, StackTracesMap&& stack_traces, bool finalized
+            FunctionDef&& fdef,
+            StackTracesMap&& stack_traces,
+            bool finalized
         ) :
             finalized_(finalized),
             fdef_(std::move(fdef)),
@@ -2818,7 +2924,9 @@ export {
             // Exact shape inference for functions is handled by ShapeRefiner.
             // Here we pass a dummy shape inference function for legacy code paths.
             op_registration_data_(
-                fdef_.signature(), shape_inference::UnknownShape, true /* is_function */
+                fdef_.signature(),
+                shape_inference::UnknownShape,
+                true /* is_function */
             )
         {
         }
@@ -2900,7 +3008,8 @@ export {
         }
 
         FunctionLibraryDefinition::FunctionLibraryDefinition(
-            const OpRegistryInterface* default_registry, const GraphDef& graph_def
+            const OpRegistryInterface* default_registry,
+            const GraphDef& graph_def
         ) :
             default_registry_(default_registry)
         {
@@ -2934,7 +3043,8 @@ export {
 
         FunctionDefLibraryStackTraces
         FunctionLibraryDefinition::CreateStackTracesForFunctionDefLibrary(
-            const FunctionDefLibrary& library, const GraphDebugInfo& debug_info
+            const FunctionDefLibrary& library,
+            const GraphDebugInfo& debug_info
         )
         {
             FunctionDefLibraryStackTraces library_traces;
@@ -2958,7 +3068,8 @@ export {
         }
 
         void FunctionLibraryDefinition::Initialize(
-            const FunctionDefLibrary& library, const FunctionDefLibraryStackTraces& library_traces
+            const FunctionDefLibrary& library,
+            const FunctionDefLibraryStackTraces& library_traces
         )
         {
             mutex_lock lock(mu_);
@@ -2982,7 +3093,8 @@ export {
         }
 
         void FunctionLibraryDefinition::Initialize(
-            FunctionDefLibrary&& library, const FunctionDefLibraryStackTraces& library_traces
+            FunctionDefLibrary&& library,
+            const FunctionDefLibraryStackTraces& library_traces
         )
         {
             mutex_lock lock(mu_);
@@ -3051,7 +3163,8 @@ export {
         }
 
         absl::Status FunctionLibraryDefinition::AddFunctionDef(
-            const FunctionDef& fdef, const StackTracesMap& stack_traces
+            const FunctionDef& fdef,
+            const StackTracesMap& stack_traces
         )
         {
             mutex_lock l(mu_);
@@ -3075,7 +3188,9 @@ export {
         }
 
         absl::Status FunctionLibraryDefinition::AddFunctionDefHelper(
-            FunctionDef&& fdef, StackTracesMap&& stack_traces, bool* added
+            FunctionDef&& fdef,
+            StackTracesMap&& stack_traces,
+            bool* added
         )
         {
             FunctionRecord* record =
@@ -3102,7 +3217,8 @@ export {
                 if (!FunctionDefsEqual(iter->second->fdef(), registration->fdef())) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Cannot add function '", registration->fdef().signature().name(),
+                            "Cannot add function '",
+                            registration->fdef().signature().name(),
                             "' because a different function with the same name already "
                             "exists."
                         )
@@ -3116,7 +3232,8 @@ export {
                     .ok()) {
                 return absl::InvalidArgumentError(
                     absl::StrCat(
-                        "Cannot add function '", registration->fdef().signature().name(),
+                        "Cannot add function '",
+                        registration->fdef().signature().name(),
                         "' because an op with the same name already exists."
                     )
                 );
@@ -3129,13 +3246,15 @@ export {
         }
 
         absl::Status FunctionLibraryDefinition::CopyFunctionDefFrom(
-            const std::string& name, const FunctionLibraryDefinition& other
+            const std::string& name,
+            const FunctionLibraryDefinition& other
         )
         {
             if (default_registry() != other.default_registry()) {
                 return absl::InvalidArgumentError(
                     absl::StrCat(
-                        "Cannot copy function '", name,
+                        "Cannot copy function '",
+                        name,
                         "' because CopyFunctionDefFrom() requires that both libraries have the "
                         "same default registry."
                     )
@@ -3145,7 +3264,8 @@ export {
             if (!other_record) {
                 return absl::InvalidArgumentError(
                     absl::StrCat(
-                        "Cannot copy function '", name,
+                        "Cannot copy function '",
+                        name,
                         "' because no function with that name exists in the other library."
                     )
                 );
@@ -3155,7 +3275,8 @@ export {
                 if (!FunctionDefsEqual(self_record->fdef(), other_record->fdef())) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Cannot copy function '", name,
+                            "Cannot copy function '",
+                            name,
                             "' because a different function with the same name already "
                             "exists."
                         )
@@ -3188,9 +3309,14 @@ export {
                 if (*entry != grad.gradient_func()) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Cannot assign gradient function '", grad.gradient_func(), "' to '",
-                            grad.function_name(), "' because it already has gradient function ",
-                            "'", *entry, "'"
+                            "Cannot assign gradient function '",
+                            grad.gradient_func(),
+                            "' to '",
+                            grad.function_name(),
+                            "' because it already has gradient function ",
+                            "'",
+                            *entry,
+                            "'"
                         )
                     );
                 }
@@ -3262,14 +3388,16 @@ export {
         }
 
         absl::Status FunctionLibraryDefinition::AddLibrary(
-            const FunctionDefLibrary& lib_def, const FunctionDefLibraryStackTraces& library_traces
+            const FunctionDefLibrary& lib_def,
+            const FunctionDefLibraryStackTraces& library_traces
         )
         {
             return AddLibrary(FunctionDefLibrary(lib_def), library_traces);
         }
 
         absl::Status FunctionLibraryDefinition::AddLibrary(
-            FunctionDefLibrary&& lib_def, const FunctionDefLibraryStackTraces& library_traces
+            FunctionDefLibrary&& lib_def,
+            const FunctionDefLibraryStackTraces& library_traces
         )
         {
             // Remember the funcs and grads that we added successfully so that
@@ -3313,7 +3441,9 @@ export {
         }
 
         absl::Status FunctionLibraryDefinition::ReplaceFunction(
-            const std::string& func, const FunctionDef& fdef, const StackTracesMap& stack_traces
+            const std::string& func,
+            const FunctionDef& fdef,
+            const StackTracesMap& stack_traces
         )
         {
             mutex_lock l(mu_);
@@ -3378,7 +3508,8 @@ export {
         }
 
         absl::Status FunctionLibraryDefinition::Remove(
-            const std::vector<std::string>& funcs, const std::vector<std::string>& funcs_with_grads
+            const std::vector<std::string>& funcs,
+            const std::vector<std::string>& funcs_with_grads
         )
         {
             absl::Status s;
@@ -3409,7 +3540,8 @@ export {
         }
 
         absl::Status FunctionLibraryDefinition::LookUp(
-            const std::string& op, const OpRegistrationData** op_reg_data
+            const std::string& op,
+            const OpRegistrationData** op_reg_data
         ) const
         {
             tf_shared_lock l(mu_);
@@ -3494,7 +3626,9 @@ export {
 
         template<typename T>
         absl::Status FunctionLibraryDefinition::GetAttr(
-            const NodeDef& ndef, const std::string& attr, T* value
+            const NodeDef& ndef,
+            const std::string& attr,
+            T* value
         ) const
         {
             const FunctionDef* fdef = GetAttrImpl(ndef);
@@ -3506,7 +3640,9 @@ export {
 
         template<typename T>
         absl::Status FunctionLibraryDefinition::GetAttr(
-            const Node& node, const std::string& attr, T* value
+            const Node& node,
+            const std::string& attr,
+            T* value
         ) const
         {
             return GetAttr(node.def(), attr, value);
@@ -3550,7 +3686,8 @@ export {
                 absl::InlinedVector<core::RefCountPtr<FunctionRecord>, 4> func_queue;
 
                 // Add reachable and not already processed functions to the functions queue.
-                const auto add_to_func_queue = [&](const std::string& func_name) {
+                const auto add_to_func_queue = [&](const std::string& func_name)
+                {
                     auto record = flib.FindRecord(func_name);
                     if (record && reachable_funcs.find(func_name) == reachable_funcs.end()) {
                         func_queue.push_back(std::move(record));
@@ -3559,7 +3696,8 @@ export {
 
                 // If any function with certain API name is reachable, all the other functions
                 // with same API name should also be checked.
-                const auto add_function_with_api_interface = [&](const std::string& api_name) {
+                const auto add_function_with_api_interface = [&](const std::string& api_name)
+                {
                     if (!reachable_api_interface.contains(api_name)) {
                         reachable_api_interface.insert(api_name);
                         for (const auto& func_name: flib.ListFunctionNames()) {
@@ -3573,7 +3711,8 @@ export {
                     }
                 };
 
-                const auto process_attr_value = [&](const AttrValue& attr_value) {
+                const auto process_attr_value = [&](const AttrValue& attr_value)
+                {
                     // 1. AttrValue.func
                     if (attr_value.has_func()) {
                         add_to_func_queue(attr_value.func().name());
@@ -3588,7 +3727,8 @@ export {
                 };
 
                 // Add all the functions that are reachable from the given node to the queue.
-                const auto process_node = [&](NodeType node) {
+                const auto process_node = [&](NodeType node)
+                {
                     // Node itself can be a call to the function.
                     add_to_func_queue(op_type_getter(node));
 
@@ -3617,7 +3757,8 @@ export {
                     // Find all the functions called from the function body.
                     const auto& func_body = func->fdef().node_def();
 
-                    const auto process_node_def = [&](const NodeDef node) {
+                    const auto process_node_def = [&](const NodeDef node)
+                    {
                         // Node itself can be a call to the function.
                         add_to_func_queue(node.op());
 
@@ -3656,7 +3797,8 @@ export {
                     ReachableFunctions<NodeType>(flib, begin, end, op_type_getter, attr_getter);
 
                 FunctionLibraryDefinition reachable_flib(
-                    flib.default_registry(), FunctionDefLibrary()
+                    flib.default_registry(),
+                    FunctionDefLibrary()
                 );
 
                 for (const std::string& func_name: reachable_funcs) {
@@ -3706,11 +3848,15 @@ export {
         FunctionLibraryDefinition::ReachableDefinitions(const GraphDef& graph) const
         {
             return ReachableFunctionLibraryDefinition<const NodeDef&>(
-                *this, graph.node().begin(), graph.node().end(),
-                [](const NodeDef& ndef) {
+                *this,
+                graph.node().begin(),
+                graph.node().end(),
+                [](const NodeDef& ndef)
+                {
                     return ndef.op();
                 },
-                [](const NodeDef& ndef) {
+                [](const NodeDef& ndef)
+                {
                     return ndef.attr();
                 }
             );
@@ -3720,11 +3866,15 @@ export {
         FunctionLibraryDefinition::ReachableDefinitions(const FunctionDef& func) const
         {
             return ReachableFunctionLibraryDefinition<const NodeDef&>(
-                *this, func.node_def().begin(), func.node_def().end(),
-                [](const NodeDef& ndef) {
+                *this,
+                func.node_def().begin(),
+                func.node_def().end(),
+                [](const NodeDef& ndef)
+                {
                     return ndef.op();
                 },
-                [](const NodeDef& ndef) {
+                [](const NodeDef& ndef)
+                {
                     return ndef.attr();
                 }
             );
@@ -3734,11 +3884,15 @@ export {
         FunctionLibraryDefinition::ReachableDefinitions(const Graph& graph) const
         {
             return ReachableFunctionLibraryDefinition<const Node*>(
-                *this, graph.nodes().begin(), graph.nodes().end(),
-                [](const Node* node) {
+                *this,
+                graph.nodes().begin(),
+                graph.nodes().end(),
+                [](const Node* node)
+                {
                     return node->type_string();
                 },
-                [](const Node* node) {
+                [](const Node* node)
+                {
                     return node->attrs();
                 }
             );
@@ -3750,11 +3904,15 @@ export {
             auto* func = Find(function_name);
             if (func) {
                 FunctionLibraryDefinition ret = ReachableFunctionLibraryDefinition<const NodeDef&>(
-                    *this, func->node_def().begin(), func->node_def().end(),
-                    [](const NodeDef& ndef) {
+                    *this,
+                    func->node_def().begin(),
+                    func->node_def().end(),
+                    [](const NodeDef& ndef)
+                    {
                         return ndef.op();
                     },
-                    [](const NodeDef& ndef) {
+                    [](const NodeDef& ndef)
+                    {
                         return ndef.attr();
                     }
                 );
@@ -3768,16 +3926,33 @@ export {
         std::string FunctionLibraryRuntime::Options::DebugString() const
         {
             return absl::StrCat(
-                "FLR::Options(step_id=", step_id, " rendezvous=", IsSet(rendezvous),
-                " cancellation_manager=", IsSet(cancellation_manager),
-                " collective_executor=", IsSet(collective_executor),
-                " step_container=", IsSet(step_container),
-                " stats_collector=", IsSet(stats_collector), " runner=", IsSet(runner),
-                " remote_execution=", remote_execution, " source_device=", source_device,
-                " create_rendezvous=", create_rendezvous,
-                " allow_dead_tensors=", allow_dead_tensors,
-                " args_alloc_attrs=", AllocatorAttributesToString(args_alloc_attrs),
-                " rets_alloc_attrs=", AllocatorAttributesToString(rets_alloc_attrs), ")"
+                "FLR::Options(step_id=",
+                step_id,
+                " rendezvous=",
+                IsSet(rendezvous),
+                " cancellation_manager=",
+                IsSet(cancellation_manager),
+                " collective_executor=",
+                IsSet(collective_executor),
+                " step_container=",
+                IsSet(step_container),
+                " stats_collector=",
+                IsSet(stats_collector),
+                " runner=",
+                IsSet(runner),
+                " remote_execution=",
+                remote_execution,
+                " source_device=",
+                source_device,
+                " create_rendezvous=",
+                create_rendezvous,
+                " allow_dead_tensors=",
+                allow_dead_tensors,
+                " args_alloc_attrs=",
+                AllocatorAttributesToString(args_alloc_attrs),
+                " rets_alloc_attrs=",
+                AllocatorAttributesToString(rets_alloc_attrs),
+                ")"
             );
         }
 
@@ -3822,12 +3997,14 @@ export {
             }
             if (!this->original_node_names.empty()) {
                 *n.mutable_experimental_debug_info()->mutable_original_node_names() = {
-                    this->original_node_names.begin(), this->original_node_names.end()
+                    this->original_node_names.begin(),
+                    this->original_node_names.end()
                 };
             }
             if (!this->original_func_names.empty()) {
                 *n.mutable_experimental_debug_info()->mutable_original_func_names() = {
-                    this->original_func_names.begin(), this->original_func_names.end()
+                    this->original_func_names.begin(),
+                    this->original_func_names.end()
                 };
             }
             return n;
@@ -3906,7 +4083,12 @@ export {
         )
         {
             return Create(
-                function_name, in_def, out_def, attr_def, node_def, ret_def,
+                function_name,
+                in_def,
+                out_def,
+                attr_def,
+                node_def,
+                ret_def,
                 /*control_ret_def=*/{}
             );
         }

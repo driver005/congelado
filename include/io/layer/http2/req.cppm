@@ -156,7 +156,8 @@ public:
     ) & override
     {
         std::visit(
-            [this, value](auto&& name) {
+            [this, value](auto&& name)
+            {
                 using T = std::decay_t<decltype(name)>;
 
                 // String-name path — needs to tokenize first to figure out where it lands.
@@ -203,7 +204,8 @@ public:
                             m_static_headers[IDX] = // FIXME(clang-tidy): unchecked operator[],
                                                     // consider .at()
                                 std::make_shared<interfaces::io::HeaderField<true>>(
-                                    interfaces::io::types::Token::COOKIE, std::string(value)
+                                    interfaces::io::types::Token::COOKIE,
+                                    std::string(value)
                                 );
                         } else if (!value.empty()) {
                             m_static_headers[IDX]->set_value(
@@ -225,7 +227,8 @@ public:
                                                                  // operator[], consider .at();
                                                                  // non-constant array index
                         std::make_shared<interfaces::io::HeaderField<true>>(
-                            name, std::string(value)
+                            name,
+                            std::string(value)
                         );
                 }
             },
@@ -244,7 +247,8 @@ public:
     ) & override
     {
         std::visit(
-            [&](const auto& name) {
+            [&](const auto& name)
+            {
                 using T = std::decay_t<decltype(name)>;
                 // Direct token — null out its static-header slot.
                 if constexpr (std::is_same_v<T, interfaces::io::types::Token>) {
@@ -287,10 +291,15 @@ public:
 
         // Sum up every set static header field's size first.
         std::size_t header_block = std::ranges::fold_left(
-            m_static_headers | std::views::filter([](const auto& field) noexcept {
-                return field != nullptr;
-            }),
-            std::size_t{0}, [](std::size_t acc, const auto& field) noexcept {
+            m_static_headers | std::views::filter(
+                                   [](const auto& field) noexcept
+                                   {
+                                       return field != nullptr;
+                                   }
+                               ),
+            std::size_t{0},
+            [](std::size_t acc, const auto& field) noexcept
+            {
                 return acc + field->size();
             }
         );
@@ -655,9 +664,11 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
         // HPACK-encode every header entry, letting the encoder decide where the chunk
         // boundaries fall — each chunk gets its own frame header written on flush.
         codec::hpack::HpackEncoder<std::uint32_t>{
-            m_table.get(), std::span<const interfaces::io::HeaderEntry>(header_entries),
+            m_table.get(),
+            std::span<const interfaces::io::HeaderEntry>(header_entries),
             m_max_frame_size,
-            [&](std::span<const std::byte> data, codec::hpack::HpackFlushReason reason) {
+            [&](std::span<const std::byte> data, codec::hpack::HpackFlushReason reason)
+            {
                 const auto TYPE = first_frame ? shared_layer::FrameType::HEADERS
                                               : shared_layer::FrameType::CONTINUATION;
                 // END_HEADERS only lands on the final chunk — the encoder tells us via
@@ -671,10 +682,12 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
                 // here rather than forwarded; forwarding it on every call would make each call
                 // after the first a use-after-move.
                 output.append_range(
-                    std::views::empty<std::byte> |
-                    FrameHeaderClosureAdaptor{
-                        static_cast<std::uint32_t>(data.size()), TYPE, FLAGS, STREAM_ID
-                    }
+                    std::views::empty<std::byte> | FrameHeaderClosureAdaptor{
+                                                       static_cast<std::uint32_t>(data.size()),
+                                                       TYPE,
+                                                       FLAGS,
+                                                       STREAM_ID
+                                                   }
                 );
                 output.append_range(data);
                 first_frame = false;
@@ -700,10 +713,12 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
             // Real body — let WriteFrameClosureAdapter handle the chunking and END_STREAM
             // placement on the last DATA frame.
             output.append_range(
-                m_req.get().get_body() |
-                WriteFrameClosureAdapter{
-                    STREAM_ID, shared_layer::FrameType::DATA, m_flags, m_max_frame_size
-                }
+                m_req.get().get_body() | WriteFrameClosureAdapter{
+                                             STREAM_ID,
+                                             shared_layer::FrameType::DATA,
+                                             m_flags,
+                                             m_max_frame_size
+                                         }
             );
         }
     }
@@ -725,13 +740,16 @@ struct WriteHttpRequestAdaptor : std::ranges::range_adaptor_closure<WriteHttpReq
 namespace io::layer::http2::tests {
 using namespace boost::ut;
 
-suite<"HttpRequest"> http_request_suite = [] {
-    "starts with no headers and an empty body"_test = [] {
+suite<"HttpRequest"> http_request_suite = []
+{
+    "starts with no headers and an empty body"_test = []
+    {
         HttpRequest req{5};
         expect(req.get_headers().empty());
         expect(req.get_body().empty());
     };
-    "set_header/find_header round-trip via the Token overload"_test = [] {
+    "set_header/find_header round-trip via the Token overload"_test = []
+    {
         HttpRequest req{1};
         req.set_header(interfaces::io::types::Token::METHOD, "GET");
         req.set_header(interfaces::io::types::Token::PATH, "/tasks");
@@ -739,71 +757,92 @@ suite<"HttpRequest"> http_request_suite = [] {
         expect(req.get_method() == "GET");
         expect(req.get_path() == "/tasks");
     };
-    "set_header/find_header round-trip via a string name that tokenizes"_test = [] {
+    "set_header/find_header round-trip via a string name that tokenizes"_test = []
+    {
         HttpRequest req{1};
         req.set_header(std::string_view{":method"}, "POST");
         expect(req.get_method() == "POST");
     };
-    "an unrecognized name with a non-empty value lands in the dynamic map"_test = [] {
+    "an unrecognized name with a non-empty value lands in the dynamic map"_test = []
+    {
         HttpRequest req{1};
         req.set_header(std::string_view{"x-custom"}, "value1");
         expect(req.find_header(std::string_view{"x-custom"}) == "value1");
     };
-    "an empty header name throws invalid_argument"_test = [] {
+    "an empty header name throws invalid_argument"_test = []
+    {
         HttpRequest req{1};
-        expect(throws<std::invalid_argument>([&] {
-            req.set_header(std::string_view{}, "v");
-        }));
+        expect(
+            throws<std::invalid_argument>(
+                [&]
+                {
+                    req.set_header(std::string_view{}, "v");
+                }
+            )
+        );
     };
-    "Token::NONE throws invalid_argument"_test = [] {
+    "Token::NONE throws invalid_argument"_test = []
+    {
         HttpRequest req{1};
-        expect(throws<std::invalid_argument>([&] {
-            req.set_header(interfaces::io::types::Token::NONE, "v");
-        }));
+        expect(
+            throws<std::invalid_argument>(
+                [&]
+                {
+                    req.set_header(interfaces::io::types::Token::NONE, "v");
+                }
+            )
+        );
     };
     "COOKIE set via the direct Token overload always overwrites (no name to tokenize with)"_test =
-        [] {
-            HttpRequest req{1};
-            req.set_header(interfaces::io::types::Token::COOKIE, "a=1");
-            req.set_header(interfaces::io::types::Token::COOKIE, "b=2");
-            expect(req.find_header(interfaces::io::types::Token::COOKIE) == "b=2");
-        };
-    "COOKIE set via the string-name path concatenates with an RFC-mandated '; ' separator"_test =
-        [] {
-            HttpRequest req{1};
-            req.set_header(std::string_view{"cookie"}, "a=1");
-            req.set_header(std::string_view{"cookie"}, "b=2");
-            expect(req.find_header(interfaces::io::types::Token::COOKIE) == "a=1; b=2");
-        };
-    "remove_header clears a known token slot"_test = [] {
+        []
+    {
+        HttpRequest req{1};
+        req.set_header(interfaces::io::types::Token::COOKIE, "a=1");
+        req.set_header(interfaces::io::types::Token::COOKIE, "b=2");
+        expect(req.find_header(interfaces::io::types::Token::COOKIE) == "b=2");
+    };
+    "COOKIE set via the string-name path concatenates with an RFC-mandated '; ' separator"_test = []
+    {
+        HttpRequest req{1};
+        req.set_header(std::string_view{"cookie"}, "a=1");
+        req.set_header(std::string_view{"cookie"}, "b=2");
+        expect(req.find_header(interfaces::io::types::Token::COOKIE) == "a=1; b=2");
+    };
+    "remove_header clears a known token slot"_test = []
+    {
         HttpRequest req{1};
         req.set_header(interfaces::io::types::Token::METHOD, "GET");
         req.remove_header(interfaces::io::types::Token::METHOD);
         expect(req.get_method().empty());
     };
-    "remove_header clears a dynamic (unrecognized-name) entry"_test = [] {
+    "remove_header clears a dynamic (unrecognized-name) entry"_test = []
+    {
         HttpRequest req{1};
         req.set_header(std::string_view{"x-custom"}, "value1");
         req.remove_header(std::string_view{"x-custom"});
         expect(req.find_header(std::string_view{"x-custom"}).empty());
     };
-    "set_body/get_body round-trip a non-empty body"_test = [] {
+    "set_body/get_body round-trip a non-empty body"_test = []
+    {
         HttpRequest req{1};
         std::vector<std::byte> body{std::byte{1}, std::byte{2}, std::byte{3}};
         req.set_body(std::move(body));
         expect(req.get_body().size() == 3);
     };
-    "set_body with an empty vector leaves the body untouched"_test = [] {
+    "set_body with an empty vector leaves the body untouched"_test = []
+    {
         HttpRequest req{1};
         req.set_body({});
         expect(req.get_body().empty());
     };
-    "get_size accounts for at least the mandatory empty-body DATA frame"_test = [] {
+    "get_size accounts for at least the mandatory empty-body DATA frame"_test = []
+    {
         HttpRequest req{1};
         req.set_header(interfaces::io::types::Token::METHOD, "GET");
         expect(req.get_size(16'384) > 0);
     };
-    "get_headers collects both static and dynamic entries"_test = [] {
+    "get_headers collects both static and dynamic entries"_test = []
+    {
         HttpRequest req{1};
         req.set_header(interfaces::io::types::Token::METHOD, "GET");
         req.set_header(std::string_view{"x-custom"}, "value1");

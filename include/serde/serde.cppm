@@ -118,9 +118,14 @@ class Ser
     [[nodiscard]] static std::vector<std::byte> to_bytes(std::string_view str)
     {
         std::vector<std::byte> bytes(str.size());
-        std::ranges::transform(str, bytes.begin(), [](char character) noexcept {
-            return std::byte(character);
-        });
+        std::ranges::transform(
+            str,
+            bytes.begin(),
+            [](char character) noexcept
+            {
+                return std::byte(character);
+            }
+        );
         return bytes;
     }
 
@@ -243,9 +248,11 @@ public:
         T value{};
         std::string error;
         std::apply(
-            [&](auto... fields) {
+            [&](auto... fields)
+            {
                 (
-                    [&] {
+                    [&]
+                    {
                         if (!error.empty()) {
                             return;
                         }
@@ -257,7 +264,9 @@ public:
                         auto parsed = field_from_string<typename Fd::ValueType>(found->second);
                         if (!parsed) {
                             error = std::format(
-                                "field '{}': {}", Fd::name.string_view(), parsed.error()
+                                "field '{}': {}",
+                                Fd::name.string_view(),
+                                parsed.error()
                             );
                             return;
                         }
@@ -413,7 +422,8 @@ inline void content_negotiation_middleware(
     if (registry == nullptr || registry->find(accept) == nullptr) {
         res.set_body(
             Ser::serialize_error(
-                accept, std::format("no serde format registered for Accept '{}'", accept)
+                accept,
+                std::format("no serde format registered for Accept '{}'", accept)
             )
         );
         res.set_status(interfaces::io::types::Status::NOT_ACCEPTABLE);
@@ -489,7 +499,8 @@ struct serde::Serializable<serde::tests::NumericTestRecord>
     {
         return std::tuple{
             serde::FieldDesc<
-                "count", &serde::tests::NumericTestRecord::get_count,
+                "count",
+                &serde::tests::NumericTestRecord::get_count,
                 &serde::tests::NumericTestRecord::set_count>{},
         };
     }
@@ -498,32 +509,38 @@ struct serde::Serializable<serde::tests::NumericTestRecord>
 namespace serde::tests {
 using namespace boost::ut;
 
-suite<"SerdeFormatRegistry"> serde_format_registry_suite = [] {
-    "find returns nullptr when no format is registered for that content-type"_test = [] {
+suite<"SerdeFormatRegistry"> serde_format_registry_suite = []
+{
+    "find returns nullptr when no format is registered for that content-type"_test = []
+    {
         SerdeFormatRegistry registry;
         expect(registry.find("application/json") == nullptr);
     };
 
-    "add_format registers a format findable by its content_type"_test = [] {
+    "add_format registers a format findable by its content_type"_test = []
+    {
         SerdeFormatRegistry registry;
         registry.add_format(std::make_shared<MockJsonFormat>());
         expect(registry.find("application/json") != nullptr);
         expect(registry.find("application/toml") == nullptr);
     };
 
-    "add_format(nullptr) is a no-op"_test = [] {
+    "add_format(nullptr) is a no-op"_test = []
+    {
         SerdeFormatRegistry registry;
         registry.add_format(nullptr);
         expect(registry.get_formats().empty());
     };
 
-    "get_formats reflects registration order and count"_test = [] {
+    "get_formats reflects registration order and count"_test = []
+    {
         SerdeFormatRegistry registry;
         registry.add_format(std::make_shared<MockJsonFormat>());
         expect(registry.get_formats().size() == 1);
     };
 
-    "set_active/get_active round-trip, including clearing with nullptr"_test = [] {
+    "set_active/get_active round-trip, including clearing with nullptr"_test = []
+    {
         SerdeFormatRegistry registry;
         expect(SerdeFormatRegistry::get_active() == nullptr);
         SerdeFormatRegistry::set_active(&registry);
@@ -533,8 +550,10 @@ suite<"SerdeFormatRegistry"> serde_format_registry_suite = [] {
     };
 };
 
-suite<"Ser"> ser_suite = [] {
-    "serialize returns an error payload when no format is registered for accept"_test = [] {
+suite<"Ser"> ser_suite = []
+{
+    "serialize returns an error payload when no format is registered for accept"_test = []
+    {
         SerdeFormatRegistry::set_active(nullptr);
         auto bytes = Ser::serialize("application/json", std::string{"hi"});
         std::string text(reinterpret_cast<const char*>(bytes.data()), bytes.size());
@@ -542,7 +561,8 @@ suite<"Ser"> ser_suite = [] {
         expect(text.contains("no format plugin loaded"));
     };
 
-    "serialize dispatches to the registered format's encode"_test = [] {
+    "serialize dispatches to the registered format's encode"_test = []
+    {
         SerdeFormatRegistry registry;
         registry.add_format(std::make_shared<MockJsonFormat>());
         SerdeFormatRegistry::set_active(&registry);
@@ -552,13 +572,15 @@ suite<"Ser"> ser_suite = [] {
         SerdeFormatRegistry::set_active(nullptr);
     };
 
-    "deserialize returns an error when no format is registered for content_type"_test = [] {
+    "deserialize returns an error when no format is registered for content_type"_test = []
+    {
         SerdeFormatRegistry::set_active(nullptr);
         auto result = Ser::deserialize<std::string>("application/json", R"("hi")");
         expect(!result.has_value());
     };
 
-    "deserialize dispatches to the registered format's decode"_test = [] {
+    "deserialize dispatches to the registered format's decode"_test = []
+    {
         SerdeFormatRegistry registry;
         registry.add_format(std::make_shared<MockJsonFormat>());
         SerdeFormatRegistry::set_active(&registry);
@@ -568,49 +590,58 @@ suite<"Ser"> ser_suite = [] {
         SerdeFormatRegistry::set_active(nullptr);
     };
 
-    "from_map populates fields present in the input map"_test = [] {
+    "from_map populates fields present in the input map"_test = []
+    {
         auto result = Ser::from_map<CoreTestRecord>({{"id", "abc123"}});
         expect(result.has_value()) << fatal;
         expect(result->get_id() == "abc123");
     };
 
-    "from_map leaves fields absent from the input map at their default"_test = [] {
+    "from_map leaves fields absent from the input map at their default"_test = []
+    {
         auto result = Ser::from_map<CoreTestRecord>({});
         expect(result.has_value()) << fatal;
         expect(result->get_id().empty());
     };
 
-    "from_map fails on a field that doesn't parse as its declared type"_test = [] {
+    "from_map fails on a field that doesn't parse as its declared type"_test = []
+    {
         auto result = Ser::from_map<NumericTestRecord>({{"count", "not-a-number"}});
         expect(!result.has_value());
     };
 
-    "from_value decodes a Value via rfl::from_generic"_test = [] {
+    "from_value decodes a Value via rfl::from_generic"_test = []
+    {
         Value value = rfl::json::read<rfl::Generic>(R"("hi")").value();
         auto result = Ser::from_value<std::string>(value);
         expect(result.has_value()) << fatal;
         expect(*result == "hi");
     };
 
-    "encode_json JSON-encodes directly, bypassing the registry"_test = [] {
+    "encode_json JSON-encodes directly, bypassing the registry"_test = []
+    {
         expect(Ser::encode_json(std::string{"hi"}) == R"("hi")");
     };
 
-    "serialize_error wraps the message in a minimal error JSON payload"_test = [] {
+    "serialize_error wraps the message in a minimal error JSON payload"_test = []
+    {
         auto bytes = Ser::serialize_error("application/json", "boom");
         std::string text(reinterpret_cast<const char*>(bytes.data()), bytes.size());
         expect(text == R"({"error":"boom"})");
     };
 
-    "serialize_raw passes text straight through to bytes"_test = [] {
+    "serialize_raw passes text straight through to bytes"_test = []
+    {
         auto bytes = Ser::serialize_raw("application/json", "raw-text");
         std::string text(reinterpret_cast<const char*>(bytes.data()), bytes.size());
         expect(text == "raw-text");
     };
 };
 
-suite<"content_negotiation_middleware"> content_negotiation_middleware_suite = [] {
-    "rejects a body with an unregistered Content-Type as 415"_test = [] {
+suite<"content_negotiation_middleware"> content_negotiation_middleware_suite = []
+{
+    "rejects a body with an unregistered Content-Type as 415"_test = []
+    {
         SerdeFormatRegistry::set_active(nullptr);
         io::layer::http2::HttpRequest req{1};
         io::layer::http2::HttpResponse res{1};
@@ -620,12 +651,16 @@ suite<"content_negotiation_middleware"> content_negotiation_middleware_suite = [
         bool next_called = false;
         bool send_called = false;
         content_negotiation_middleware(
-            req, res,
-            [&](interfaces::io::IRequest&, interfaces::io::IResponse&,
-                std::function<void()>) noexcept {
+            req,
+            res,
+            [&](interfaces::io::IRequest&,
+                interfaces::io::IResponse&,
+                std::function<void()>) noexcept
+            {
                 next_called = true;
             },
-            [&] {
+            [&]
+            {
                 send_called = true;
             }
         );
@@ -634,7 +669,8 @@ suite<"content_negotiation_middleware"> content_negotiation_middleware_suite = [
         expect(res.get_status() == interfaces::io::types::Status::UNSUPPORTED_MEDIA_TYPE);
     };
 
-    "rejects an unregistered Accept as 406"_test = [] {
+    "rejects an unregistered Accept as 406"_test = []
+    {
         SerdeFormatRegistry registry;
         registry.add_format(std::make_shared<MockJsonFormat>());
         SerdeFormatRegistry::set_active(&registry);
@@ -644,12 +680,16 @@ suite<"content_negotiation_middleware"> content_negotiation_middleware_suite = [
         bool next_called = false;
         bool send_called = false;
         content_negotiation_middleware(
-            req, res,
-            [&](interfaces::io::IRequest&, interfaces::io::IResponse&,
-                std::function<void()>) noexcept {
+            req,
+            res,
+            [&](interfaces::io::IRequest&,
+                interfaces::io::IResponse&,
+                std::function<void()>) noexcept
+            {
                 next_called = true;
             },
-            [&] {
+            [&]
+            {
                 send_called = true;
             }
         );
@@ -659,7 +699,8 @@ suite<"content_negotiation_middleware"> content_negotiation_middleware_suite = [
         SerdeFormatRegistry::set_active(nullptr);
     };
 
-    "calls next when body-less request has a registered Accept"_test = [] {
+    "calls next when body-less request has a registered Accept"_test = []
+    {
         SerdeFormatRegistry registry;
         registry.add_format(std::make_shared<MockJsonFormat>());
         SerdeFormatRegistry::set_active(&registry);
@@ -668,9 +709,12 @@ suite<"content_negotiation_middleware"> content_negotiation_middleware_suite = [
         req.set_header("accept", "application/json");
         bool next_called = false;
         content_negotiation_middleware(
-            req, res,
-            [&](interfaces::io::IRequest&, interfaces::io::IResponse&,
-                std::function<void()>) noexcept {
+            req,
+            res,
+            [&](interfaces::io::IRequest&,
+                interfaces::io::IResponse&,
+                std::function<void()>) noexcept
+            {
                 next_called = true;
             },
             [] {}

@@ -25,13 +25,14 @@ import congelado_api_routes;
 
 namespace {
 
-std::filesystem::path expand_tilde(const std::filesystem::path &path) {
+std::filesystem::path expand_tilde(const std::filesystem::path& path)
+{
     std::string path_str = path.string();
     // Only a leading '~' gets expanded — nothing to do for a path that doesn't start with one.
     if (!path_str.empty() && path_str.front() == '~') {
         // No HOME env var means no expansion happens — path_str is left with the literal '~'.
         // NOLINTNEXTLINE(concurrency-mt-unsafe)
-        const char *home = std::getenv("HOME");
+        const char* home = std::getenv("HOME");
         if (home != nullptr) {
             path_str.replace(0, 1, home);
         }
@@ -44,19 +45,28 @@ std::atomic<bool> g_shutdown_requested{false};
 
 /// @brief SIGINT/SIGTERM handler — signals the wait loop so run_worker() returns and every local's
 /// destructor runs (including plugin_store's, which calls congelado_on_unload()).
-void request_shutdown(int /*signal*/) noexcept {
+void request_shutdown(int /*signal*/) noexcept
+{
     g_shutdown_requested.store(true, std::memory_order_relaxed);
 }
 
 /// @brief Blocking-adapts a `congelado_api::*` typed call (which takes `(onResponse, onError)` and
 /// returns immediately) into a synchronous `std::expected<T, std::string>`.
-template <typename T, typename Fn>
-[[nodiscard]] std::expected<T, std::string> call_typed_blocking(Fn &&issue_call) {
+template<typename T, typename Fn>
+[[nodiscard]] std::expected<T, std::string> call_typed_blocking(Fn&& issue_call)
+{
     std::promise<std::expected<T, std::string>> promise;
     auto future = promise.get_future();
     issue_call(
-        [&promise](T value) { promise.set_value(std::move(value)); },
-        [&promise](std::string error) { promise.set_value(std::unexpected{std::move(error)}); });
+        [&promise](T value)
+        {
+            promise.set_value(std::move(value));
+        },
+        [&promise](std::string error)
+        {
+            promise.set_value(std::unexpected{std::move(error)});
+        }
+    );
     return future.get();
 }
 
@@ -65,19 +75,29 @@ template <typename T, typename Fn>
 /// typed API's pending map) — each is an independent `core::client::Register`, so a response only
 /// ever matches whichever one actually issued that stream id; the other's dispatch() is a no-op.
 [[nodiscard]] interfaces::io::ReceiveDispatchFn
-make_engine_dispatch(interfaces::IWorkerManager &manager, congelado_api::Client &api_client) {
-    return [&manager, &api_client](interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                                   std::function<void()> /*send*/) {
+make_engine_dispatch(interfaces::IWorkerManager& manager, congelado_api::Client& api_client)
+{
+    return [&manager, &api_client](
+               interfaces::io::IRequest& req,
+               interfaces::io::IResponse& res,
+               std::function<void()> /*send*/
+           )
+    {
         auto status = static_cast<int>(interfaces::io::types::status_code(res.get_status()));
         if (status >= 400) {
-            auto &body_view = res.get_body();
+            auto& body_view = res.get_body();
             std::string body;
             body.reserve(body_view.size());
-            for (auto byte : body_view) {
+            for (auto byte: body_view) {
                 body.push_back(static_cast<char>(byte));
             }
-            core::logger::error("worker/host", "engine response error status={} stream={} body={}",
-                                status, req.get_stream_id(), body);
+            core::logger::error(
+                "worker/host",
+                "engine response error status={} stream={} body={}",
+                status,
+                req.get_stream_id(),
+                body
+            );
         }
         manager.dispatch(req, res);
         api_client.dispatch(req, res);
@@ -87,13 +107,14 @@ make_engine_dispatch(interfaces::IWorkerManager &manager, congelado_api::Client 
 /// @brief Reads every `*.json` file directly under `dir` and returns their raw contents — used to
 /// collect an app's serialized TaskDef/WorkflowDef files for on-load registration. A missing dir
 /// yields an empty list (an app may ship only one def kind, or use the code-builder path instead).
-[[nodiscard]] std::vector<std::string> collect_def_files(const std::filesystem::path &dir) {
+[[nodiscard]] std::vector<std::string> collect_def_files(const std::filesystem::path& dir)
+{
     std::vector<std::string> defs;
     std::error_code error_code;
     if (!std::filesystem::is_directory(dir, error_code)) {
         return defs;
     }
-    for (const auto &entry : std::filesystem::directory_iterator{dir, error_code}) {
+    for (const auto& entry: std::filesystem::directory_iterator{dir, error_code}) {
         if (!entry.is_regular_file() || entry.path().extension() != ".json") {
             continue;
         }
@@ -101,8 +122,10 @@ make_engine_dispatch(interfaces::IWorkerManager &manager, congelado_api::Client 
         if (!stream) {
             continue;
         }
-        std::string content{std::istreambuf_iterator<char>{stream},
-                            std::istreambuf_iterator<char>{}};
+        std::string content{
+            std::istreambuf_iterator<char>{stream},
+            std::istreambuf_iterator<char>{}
+        };
         defs.push_back(std::move(content));
     }
     return defs;
@@ -110,43 +133,62 @@ make_engine_dispatch(interfaces::IWorkerManager &manager, congelado_api::Client 
 
 /// @brief Walks every `<apps_dir>/<app>/<subdir>/*.json` and concatenates the collected def files —
 /// e.g. `subdir = "taskdefs"` or `"workflows"`. Each immediate child of `apps_dir` is one app.
-[[nodiscard]] std::vector<std::string> collect_app_defs(const std::filesystem::path &apps_dir,
-                                                        std::string_view subdir) {
+[[nodiscard]] std::vector<std::string>
+collect_app_defs(const std::filesystem::path& apps_dir, std::string_view subdir)
+{
     std::vector<std::string> defs;
     std::error_code error_code;
     if (!std::filesystem::is_directory(apps_dir, error_code)) {
         return defs;
     }
-    for (const auto &app : std::filesystem::directory_iterator{apps_dir, error_code}) {
+    for (const auto& app: std::filesystem::directory_iterator{apps_dir, error_code}) {
         if (!app.is_directory()) {
             continue;
         }
         auto app_defs = collect_def_files(app.path() / subdir);
-        defs.insert(defs.end(), std::make_move_iterator(app_defs.begin()),
-                    std::make_move_iterator(app_defs.end()));
+        defs.insert(
+            defs.end(),
+            std::make_move_iterator(app_defs.begin()),
+            std::make_move_iterator(app_defs.end())
+        );
     }
     return defs;
 }
 
-/// @brief Binds one manager->poll_slot() cycle into a schedulable contract via `shared::HandlerBase`
-/// — the same `create(group, state)` idiom `connector::Connector`/`core::router::RouterExecutor`
-/// already use, instead of handing `ContractGroup::create()` a raw lambda directly.
-class PollSlotHandler final : public shared::HandlerBase {
-  public:
-    PollSlotHandler(interfaces::IWorkerManager &manager, std::uint32_t slot)
-        : m_manager{manager}, m_slot{slot}, m_name{std::format("poll-{}", slot)} {}
-
-    [[nodiscard]] std::string_view get_name() const noexcept override { return m_name; }
-
-    shared::WorkerFunction on_execute() override {
-        return [this] { m_manager.poll_slot(m_slot); };
+/// @brief Binds one manager->poll_slot() cycle into a schedulable contract via
+/// `shared::HandlerBase` — the same `create(group, state)` idiom
+/// `connector::Connector`/`core::router::RouterExecutor` already use, instead of handing
+/// `ContractGroup::create()` a raw lambda directly.
+class PollSlotHandler final : public shared::HandlerBase
+{
+public:
+    PollSlotHandler(interfaces::IWorkerManager& manager, std::uint32_t slot) :
+        m_manager{manager},
+        m_slot{slot},
+        m_name{std::format("poll-{}", slot)}
+    {
     }
 
-    shared::ErrorHandler on_error() override {
-        return [this](std::exception_ptr eptr) {
+    [[nodiscard]] std::string_view get_name() const noexcept override
+    {
+        return m_name;
+    }
+
+    shared::WorkerFunction on_execute() override
+    {
+        return [this]
+        {
+            m_manager.poll_slot(m_slot);
+        };
+    }
+
+    shared::ErrorHandler on_error() override
+    {
+        return [this](std::exception_ptr eptr)
+        {
             try {
                 std::rethrow_exception(eptr);
-            } catch (const std::exception &error) {
+            } catch (const std::exception& error) {
                 core::logger::error("worker/poll", "poll-{} error: {}", m_slot, error.what());
             }
             // Errors don't auto-reschedule — re-arm so one bad cycle doesn't stop this slot.
@@ -154,8 +196,8 @@ class PollSlotHandler final : public shared::HandlerBase {
         };
     }
 
-  private:
-    interfaces::IWorkerManager &m_manager;
+private:
+    interfaces::IWorkerManager& m_manager;
     std::uint32_t m_slot;
     std::string m_name;
 };
@@ -166,11 +208,13 @@ class PollSlotHandler final : public shared::HandlerBase {
  * contract thread pool until killed. The http2 polling + IWorker dispatch itself lives in the
  * manager/worker_external plugin; this host just wires everything up and drives the pool.
  * @param argc argument count.
- * @param argv `argv[1]` (optional) worker config path (default `~/cc/congelado/config/worker.toml`);
- * `argv[2]` (optional) the worker-plugin directory (default `./workers`).
+ * @param argv `argv[1]` (optional) worker config path (default
+ * `~/cc/congelado/config/worker.toml`); `argv[2]` (optional) the worker-plugin directory (default
+ * `./workers`).
  * @return `0` on clean shutdown, `1` on a fatal setup failure.
  */
-int run_worker(int argc, char *argv[]) {
+int run_worker(int argc, char* argv[])
+{
     backward::SignalHandling sh;
 
     // The engine can close its end mid-write, raising SIGPIPE — ignore it; the send's try/catch
@@ -190,10 +234,10 @@ int run_worker(int argc, char *argv[]) {
 
     std::unordered_map<std::string, core::plugin::types::GenerationConfig> plugin_configs;
     if (auto raw_cfg = core::config::load(expand_tilde(config_path))) {
-        for (const auto &[name, plugin_cfg] : raw_cfg->get_plugins()) {
+        for (const auto& [name, plugin_cfg]: raw_cfg->get_plugins()) {
             core::plugin::types::GenerationConfig generation_config;
             generation_config.add_runtime(plugin_cfg.get_type());
-            for (const auto &[key, value] : plugin_cfg.get_fields()) {
+            for (const auto& [key, value]: plugin_cfg.get_fields()) {
                 auto extra = generation_config.get_extra();
                 extra[key] = value;
                 generation_config.set_extra(std::move(extra));
@@ -212,9 +256,9 @@ int run_worker(int argc, char *argv[]) {
     core::otel::MeterRegistry::set_active(&meter_registry);
     core::otel::LogRecordRegistry::set_active(&log_record_registry);
 
-    // Event bus: the worker host resolves any IEventSink plugins it loaded and fans them out through
-    // core::events::publish — that's how the kafka_publish worker reaches a broker (injected sink),
-    // rather than each worker linking a broker library itself.
+    // Event bus: the worker host resolves any IEventSink plugins it loaded and fans them out
+    // through core::events::publish — that's how the kafka_publish worker reaches a broker
+    // (injected sink), rather than each worker linking a broker library itself.
     core::events::EventBusRegistry event_bus_registry;
     core::events::EventBusRegistry::set_active(&event_bus_registry);
 
@@ -233,12 +277,19 @@ int run_worker(int argc, char *argv[]) {
     }
     core::plugin::SharedLibrary plugin_store{"plugin"};
     plugin_store.scan(plugins_dir);
-    for (const char *plugin_name : {"libtoml_plugin.so", "libotel_otlp_plugin.so",
-                                    "libfile_logger.so", "libjson_plugin.so",
-                                    "libworker_manager_external_plugin.so"}) {
+    for (const char* plugin_name:
+         {"libtoml_plugin.so",
+          "libotel_otlp_plugin.so",
+          "libfile_logger.so",
+          "libjson_plugin.so",
+          "libworker_manager_external_plugin.so"}) {
         if (auto open_res = plugin_store.open(plugins_dir / plugin_name); !open_res) {
-            std::println(stderr, "[worker] plugin '{}' load failed: {}", plugin_name,
-                         open_res.error().get_message());
+            std::println(
+                stderr,
+                "[worker] plugin '{}' load failed: {}",
+                plugin_name,
+                open_res.error().get_message()
+            );
         }
     }
 
@@ -247,8 +298,10 @@ int run_worker(int argc, char *argv[]) {
     core::contract::ContractGroup<> contract_group;
     io::base::leverage::Leverager<io::base::leverage::Context> leverager;
     core::contract::ContractRegistry contract_registry;
-    core::contract::ContractThreadPool<> thread_pool(contract_group,
-                                                     std::thread::hardware_concurrency());
+    core::contract::ContractThreadPool<> thread_pool(
+        contract_group,
+        std::thread::hardware_concurrency()
+    );
 
     // Point the external worker-manager plugin at the worker config so start_server() can read its
     // bind address + worker id (parsed there, once the serde TOML format is registered).
@@ -266,42 +319,57 @@ int run_worker(int argc, char *argv[]) {
     host_cb.controller_ctx = &contract_group;
     host_cb.leverager_ctx = &leverager;
     host_cb.registry_ctx = &contract_registry;
-    interfaces::IWorkerManager *manager = nullptr;
+    interfaces::IWorkerManager* manager = nullptr;
     std::shared_ptr<interfaces::IWorkerManager> manager_holder;
     if (auto build_res = plugin_store.build(host_cb, plugin_configs); build_res) {
-        plugin_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime> &runtime) {
-            auto plugin = runtime->get_plugin();
-            if (!plugin) {
-                return;
-            }
-            if (auto format = congelado::heart::resolve_serde_format(*plugin)) {
-                serde_format_registry.add_format(std::move(format));
-            }
-            if (auto logger_adapter = congelado::heart::LoggerAdapter::register_from(*plugin)) {
-                logger_adapter->register_logger(logger_registry);
-            }
-            if (auto sink = congelado::heart::resolve_event_sink(*plugin)) {
-                event_bus_registry.add_sink(std::move(sink));
-            }
-            if (auto otel_provider = congelado::heart::resolve_otel_provider(*plugin)) {
-                if (auto *tracer = otel_provider->get_tracer_provider()) {
-                    tracer_registry.add_provider(std::shared_ptr<interfaces::ITracerProvider>(
-                        tracer, [](interfaces::ITracerProvider *) {}));
+        plugin_store.for_each(
+            [&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime)
+            {
+                auto plugin = runtime->get_plugin();
+                if (!plugin) {
+                    return;
                 }
-                if (auto *meter = otel_provider->get_meter_provider()) {
-                    meter_registry.add_provider(std::shared_ptr<interfaces::IMeterProvider>(
-                        meter, [](interfaces::IMeterProvider *) {}));
+                if (auto format = congelado::heart::resolve_serde_format(*plugin)) {
+                    serde_format_registry.add_format(std::move(format));
                 }
-                if (auto *log_provider = otel_provider->get_log_provider()) {
-                    log_record_registry.add_provider(std::shared_ptr<interfaces::ILogRecordProvider>(
-                        log_provider, [](interfaces::ILogRecordProvider *) {}));
+                if (auto logger_adapter = congelado::heart::LoggerAdapter::register_from(*plugin)) {
+                    logger_adapter->register_logger(logger_registry);
+                }
+                if (auto sink = congelado::heart::resolve_event_sink(*plugin)) {
+                    event_bus_registry.add_sink(std::move(sink));
+                }
+                if (auto otel_provider = congelado::heart::resolve_otel_provider(*plugin)) {
+                    if (auto* tracer = otel_provider->get_tracer_provider()) {
+                        tracer_registry.add_provider(
+                            std::shared_ptr<interfaces::ITracerProvider>(
+                                tracer,
+                                [](interfaces::ITracerProvider*) {}
+                            )
+                        );
+                    }
+                    if (auto* meter = otel_provider->get_meter_provider()) {
+                        meter_registry.add_provider(
+                            std::shared_ptr<interfaces::IMeterProvider>(
+                                meter,
+                                [](interfaces::IMeterProvider*) {}
+                            )
+                        );
+                    }
+                    if (auto* log_provider = otel_provider->get_log_provider()) {
+                        log_record_registry.add_provider(
+                            std::shared_ptr<interfaces::ILogRecordProvider>(
+                                log_provider,
+                                [](interfaces::ILogRecordProvider*) {}
+                            )
+                        );
+                    }
+                }
+                if (auto worker_manager = congelado::heart::resolve_worker_manager(*plugin)) {
+                    manager_holder = worker_manager;
+                    manager = worker_manager.get();
                 }
             }
-            if (auto worker_manager = congelado::heart::resolve_worker_manager(*plugin)) {
-                manager_holder = worker_manager;
-                manager = worker_manager.get();
-            }
-        });
+        );
     } else {
         std::println(stderr, "[worker] plugin build failed: {}", build_res.error().get_message());
     }
@@ -317,53 +385,69 @@ int run_worker(int argc, char *argv[]) {
     if (!cfg_result) {
         throw std::runtime_error(std::format("config load failed: {}", cfg_result.error()));
     }
-    auto &cfg = *cfg_result;
+    auto& cfg = *cfg_result;
 
     // NOLINTNEXTLINE(concurrency-mt-unsafe) — boot-time only
-    if (const char *env_worker_id = std::getenv("CONGELADO_WORKER_ID"); env_worker_id != nullptr) {
+    if (const char* env_worker_id = std::getenv("CONGELADO_WORKER_ID"); env_worker_id != nullptr) {
         cfg.setWorkerId(env_worker_id);
     }
     // NOLINTNEXTLINE(concurrency-mt-unsafe) — boot-time only
-    if (const char *env_concurrency = std::getenv("CONGELADO_WORKER_CONCURRENCY");
+    if (const char* env_concurrency = std::getenv("CONGELADO_WORKER_CONCURRENCY");
         env_concurrency != nullptr) {
         std::uint32_t concurrency = cfg.getConcurrency();
-        auto parsed = std::from_chars(env_concurrency,
-                                      env_concurrency + std::strlen(env_concurrency), concurrency);
+        auto parsed = std::from_chars(
+            env_concurrency,
+            env_concurrency + std::strlen(env_concurrency),
+            concurrency
+        );
         if (parsed.ec == std::errc{}) {
             cfg.setConcurrency(concurrency);
         }
     }
 
-    std::println("[worker] loaded config: id='{}' engine={}:{} concurrency={}", cfg.getWorkerId(),
-                 cfg.getEngineHost(), cfg.getEnginePort(), cfg.getConcurrency());
+    std::println(
+        "[worker] loaded config: id='{}' engine={}:{} concurrency={}",
+        cfg.getWorkerId(),
+        cfg.getEngineHost(),
+        cfg.getEnginePort(),
+        cfg.getConcurrency()
+    );
 
     // ── Shared connector: resolve DB/cache from the process plugins and inject it into the app
     // workers, the same capability DI the engine host uses. With no storage plugin loaded the
     // connector runs in-process (LocalStore) and executes its ops synchronously.
     connector::Connector shared_connector;
-    interfaces::IDatabase *worker_database = nullptr;
-    interfaces::ICache *worker_cache = nullptr;
-    plugin_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime> &runtime) {
-        auto plugin = runtime->get_plugin();
-        if (!plugin) {
-            return;
-        }
-        if (worker_database == nullptr) {
-            if (auto database = congelado::heart::resolve_storage(*plugin)) {
-                worker_database = database.get();
+    interfaces::IDatabase* worker_database = nullptr;
+    interfaces::ICache* worker_cache = nullptr;
+    plugin_store.for_each(
+        [&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime)
+        {
+            auto plugin = runtime->get_plugin();
+            if (!plugin) {
+                return;
+            }
+            if (worker_database == nullptr) {
+                if (auto database = congelado::heart::resolve_storage(*plugin)) {
+                    worker_database = database.get();
+                }
+            }
+            if (worker_cache == nullptr) {
+                if (auto cache = congelado::heart::resolve_cache(*plugin)) {
+                    worker_cache = cache.get();
+                }
             }
         }
-        if (worker_cache == nullptr) {
-            if (auto cache = congelado::heart::resolve_cache(*plugin)) {
-                worker_cache = cache.get();
-            }
-        }
-    });
+    );
     shared_connector.set_database(worker_database);
     shared_connector.set_cache(worker_cache);
     auto connector_contract =
         shared_connector.create(contract_group, core::contract::ContractState::IDLE);
-    shared_connector.set_wake([contract = connector_contract]() mutable { contract.schedule(); });
+    shared_connector.set_wake(
+        [contract = connector_contract]() mutable
+        {
+            contract.schedule();
+        }
+    );
     contract_registry.add(std::move(connector_contract));
 
     CongeladoHostCallbacks worker_host_cb{};
@@ -408,48 +492,61 @@ int run_worker(int argc, char *argv[]) {
         worker_plugin_configs["client_worker"] = client_cfg;
         worker_plugin_configs["client_pool_worker"] = std::move(client_cfg);
     }
-    worker_host_cb.client_protocol_ctx = downstream_protocol.has_value()
-                                             ? static_cast<void *>(&*downstream_protocol)
-                                             : nullptr;
+    worker_host_cb.client_protocol_ctx =
+        downstream_protocol.has_value() ? static_cast<void*>(&*downstream_protocol) : nullptr;
 
     // ── 2. Load the IWorker worker plugins and register them into the manager ──
     std::vector<std::shared_ptr<interfaces::IWorker>> worker_holders;
     core::plugin::SharedLibrary worker_store{"plugin"};
     worker_store.scan(workers_dir);
     if (auto open_res = worker_store.open_all(); !open_res) {
-        std::println(stderr, "[worker] failed to open worker plugins from '{}': {}", workers_dir,
-                     open_res.error().get_message());
+        std::println(
+            stderr,
+            "[worker] failed to open worker plugins from '{}': {}",
+            workers_dir,
+            open_res.error().get_message()
+        );
     }
     if (auto build_res = worker_store.build(worker_host_cb, worker_plugin_configs); !build_res) {
-        std::println(stderr, "[worker] worker plugin build failed: {}",
-                     build_res.error().get_message());
+        std::println(
+            stderr,
+            "[worker] worker plugin build failed: {}",
+            build_res.error().get_message()
+        );
     }
     std::vector<std::string> builder_task_defs;
     std::vector<std::string> builder_workflow_defs;
-    worker_store.for_each([&](const std::shared_ptr<core::plugin::FfiRuntime> &runtime) {
-        auto plugin = runtime->get_plugin();
-        if (!plugin) {
-            return;
+    worker_store.for_each(
+        [&](const std::shared_ptr<core::plugin::FfiRuntime>& runtime)
+        {
+            auto plugin = runtime->get_plugin();
+            if (!plugin) {
+                return;
+            }
+            if (auto worker = congelado::heart::resolve_worker(*plugin)) {
+                manager->add_worker(*worker);
+                worker_holders.push_back(std::move(worker));
+            }
+            // Code-built defs (IAppDefs) — the C++-builder counterpart to the def files; collect
+            // them here and merge into the on-load registration below.
+            if (auto app_defs = congelado::heart::resolve_app_defs(*plugin)) {
+                auto task_defs = app_defs->get_task_defs();
+                builder_task_defs.insert(
+                    builder_task_defs.end(),
+                    std::make_move_iterator(task_defs.begin()),
+                    std::make_move_iterator(task_defs.end())
+                );
+                auto workflow_defs = app_defs->get_workflow_defs();
+                builder_workflow_defs.insert(
+                    builder_workflow_defs.end(),
+                    std::make_move_iterator(workflow_defs.begin()),
+                    std::make_move_iterator(workflow_defs.end())
+                );
+            }
         }
-        if (auto worker = congelado::heart::resolve_worker(*plugin)) {
-            manager->add_worker(*worker);
-            worker_holders.push_back(std::move(worker));
-        }
-        // Code-built defs (IAppDefs) — the C++-builder counterpart to the def files; collect them
-        // here and merge into the on-load registration below.
-        if (auto app_defs = congelado::heart::resolve_app_defs(*plugin)) {
-            auto task_defs = app_defs->get_task_defs();
-            builder_task_defs.insert(builder_task_defs.end(),
-                                     std::make_move_iterator(task_defs.begin()),
-                                     std::make_move_iterator(task_defs.end()));
-            auto workflow_defs = app_defs->get_workflow_defs();
-            builder_workflow_defs.insert(builder_workflow_defs.end(),
-                                         std::make_move_iterator(workflow_defs.begin()),
-                                         std::make_move_iterator(workflow_defs.end()));
-        }
-    });
+    );
     std::print("[worker] registered {} workers:", worker_holders.size());
-    for (const auto &worker : worker_holders) {
+    for (const auto& worker: worker_holders) {
         std::print(" {}", worker->get_task_type());
     }
     std::println();
@@ -474,15 +571,18 @@ int run_worker(int argc, char *argv[]) {
     auto engine_client = protocol.get_client(std::move(dispatch));
 
     bool verify_peer = !cfg.getEngineCert().empty() || !cfg.getEngineKey().empty();
-    io::base::socket::Endpoint engine_endpoint{cfg.getEngineHost(),
-                                               static_cast<std::uint16_t>(cfg.getEnginePort())};
-    auto *http2_client = dynamic_cast<io::layer::http2::Client *>(engine_client.get());
+    io::base::socket::Endpoint engine_endpoint{
+        cfg.getEngineHost(),
+        static_cast<std::uint16_t>(cfg.getEnginePort())
+    };
+    auto* http2_client = dynamic_cast<io::layer::http2::Client*>(engine_client.get());
     if (http2_client == nullptr) {
         std::println(stderr, "[worker] engine client is not an HTTP/2 client");
         return 1;
     }
     const auto retry_delay = std::chrono::milliseconds{
-        cfg.getConnectRetryDelayMs().value_or(congelado::worker::consts::connect_retry_delay_ms)};
+        cfg.getConnectRetryDelayMs().value_or(congelado::worker::consts::connect_retry_delay_ms)
+    };
     const auto connect_timeout_ms =
         cfg.getConnectTimeoutMs().value_or(congelado::worker::consts::connect_timeout_ms);
     const bool retry_forever = connect_timeout_ms == 0;
@@ -493,8 +593,12 @@ int run_worker(int argc, char *argv[]) {
     auto connected_future = connected_promise->get_future();
 
     auto connect_result = http2_client->connect(
-        engine_endpoint, leverager, contract_group, verify_peer,
-        [connected_promise, http2_client, manager, &engine_api_client] {
+        engine_endpoint,
+        leverager,
+        contract_group,
+        verify_peer,
+        [connected_promise, http2_client, manager, &engine_api_client]
+        {
             // Point both correlators — the worker-manager's own WorkerContext::call_engine() and
             // the generated congelado_api::* typed calls — at this connection. Each owns its own
             // core::client::Register; make_engine_dispatch() above routes every incoming response
@@ -502,7 +606,8 @@ int run_worker(int argc, char *argv[]) {
             manager->set_runtime(*http2_client);
             engine_api_client.setRuntime(*http2_client);
             connected_promise->set_value();
-        });
+        }
+    );
     if (!connect_result) {
         std::println(stderr, "[worker] {}", connect_result.error());
         return 1;
@@ -515,12 +620,19 @@ int run_worker(int argc, char *argv[]) {
             break;
         }
         if (!retry_forever && std::chrono::steady_clock::now() >= connect_deadline) {
-            std::println(stderr, "[worker] gave up connecting to engine at {}:{} after {}ms",
-                         cfg.getEngineHost(), cfg.getEnginePort(), connect_timeout_ms);
+            std::println(
+                stderr,
+                "[worker] gave up connecting to engine at {}:{} after {}ms",
+                cfg.getEngineHost(),
+                cfg.getEnginePort(),
+                connect_timeout_ms
+            );
             return 1;
         }
-        std::println("[worker] engine connect attempt failed, retrying in {}ms",
-                     retry_delay.count());
+        std::println(
+            "[worker] engine connect attempt failed, retrying in {}ms",
+            retry_delay.count()
+        );
         auto retry_result = http2_client->retry();
         if (!retry_result) {
             std::println(stderr, "[worker] {}", retry_result.error());
@@ -539,37 +651,51 @@ int run_worker(int argc, char *argv[]) {
     auto app_workflow_defs = collect_app_defs(apps_dir, "workflows");
     // Merge the code-built (IAppDefs) defs collected above with the def-file defs — both authoring
     // paths register the same way.
-    app_task_defs.insert(app_task_defs.end(), std::make_move_iterator(builder_task_defs.begin()),
-                         std::make_move_iterator(builder_task_defs.end()));
-    app_workflow_defs.insert(app_workflow_defs.end(),
-                             std::make_move_iterator(builder_workflow_defs.begin()),
-                             std::make_move_iterator(builder_workflow_defs.end()));
-    std::println("[worker] registering {} task defs, {} workflow defs from apps",
-                 app_task_defs.size(), app_workflow_defs.size());
+    app_task_defs.insert(
+        app_task_defs.end(),
+        std::make_move_iterator(builder_task_defs.begin()),
+        std::make_move_iterator(builder_task_defs.end())
+    );
+    app_workflow_defs.insert(
+        app_workflow_defs.end(),
+        std::make_move_iterator(builder_workflow_defs.begin()),
+        std::make_move_iterator(builder_workflow_defs.end())
+    );
+    std::println(
+        "[worker] registering {} task defs, {} workflow defs from apps",
+        app_task_defs.size(),
+        app_workflow_defs.size()
+    );
     manager->register_task_defs(app_task_defs);
     manager->register_workflow_defs(app_workflow_defs);
 
     // ── 4. Self-register configured tasks so the engine queue-claim JOIN has something to match ──
-    for (const auto &task_cfg : cfg.getTasks()) {
+    for (const auto& task_cfg: cfg.getTasks()) {
         congelado_api_dto::TaskDef task_def;
         task_def.setName(task_cfg.getName());
         task_def.setWorkerType(task_cfg.getWorkerType());
         task_def.setType("SIMPLE");
         auto reg_result = call_typed_blocking<congelado_api_dto::TaskDef>(
-            [&task_def, &engine_api_client](auto onResponse, auto onError) {
+            [&task_def, &engine_api_client](auto onResponse, auto onError)
+            {
                 engine_api_client.tasks_post(task_def, std::move(onResponse), std::move(onError));
-            });
+            }
+        );
         if (!reg_result) {
-            std::println(stderr, "[worker] task self-registration failed for '{}': {}",
-                         task_cfg.getName(), reg_result.error());
+            std::println(
+                stderr,
+                "[worker] task self-registration failed for '{}': {}",
+                task_cfg.getName(),
+                reg_result.error()
+            );
         } else {
             std::println("[worker] registered task '{}'", task_cfg.getName());
         }
     }
 
     // ── 5. Register poll contracts — each PollSlotHandler drives one manager->poll_slot() slot.
-    // poll_slot() itself decides whether to re-arm immediately (idle/resumed) or park (dispatched an
-    // async task, resumed later via the wake callback registered below) — unlike the old
+    // poll_slot() itself decides whether to re-arm immediately (idle/resumed) or park (dispatched
+    // an async task, resumed later via the wake callback registered below) — unlike the old
     // poll_once(), this loop must NOT unconditionally reschedule.
     std::println("[worker] registering {} poll contracts...", cfg.getConcurrency());
     std::vector<std::unique_ptr<PollSlotHandler>> poll_handlers;
@@ -577,7 +703,13 @@ int run_worker(int argc, char *argv[]) {
     for (std::uint32_t slot = 0; slot < cfg.getConcurrency(); ++slot) {
         auto handler = std::make_unique<PollSlotHandler>(*manager, slot);
         auto contract = handler->create(contract_group, core::contract::ContractState::SCHEDULED);
-        manager->register_poll_slot(slot, [contract]() mutable { contract.schedule(); });
+        manager->register_poll_slot(
+            slot,
+            [contract]() mutable
+            {
+                contract.schedule();
+            }
+        );
         poll_handlers.push_back(std::move(handler));
     }
 
@@ -595,10 +727,11 @@ int run_worker(int argc, char *argv[]) {
 
 } // namespace
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[])
+{
     try {
         return run_worker(argc, argv);
-    } catch (const std::exception &e) {
+    } catch (const std::exception& e) {
         try {
             std::println(stderr, "[worker] fatal: {}", e.what());
         } catch (...) { // NOLINT(bugprone-empty-catch) — best-effort diagnostic only

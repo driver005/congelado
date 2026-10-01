@@ -33,7 +33,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         namespace full_type {
@@ -120,7 +119,9 @@ export {
             // function are parameterized by this factory. See BatchTensor and ShardTensor
             // for examples of "map".
             TypeInferenceFn ContainerMap(
-                FullTypeId t, int input_idx, std::function<FullTypeDef(const FullTypeDef&)> map
+                FullTypeId t,
+                int input_idx,
+                std::function<FullTypeDef(const FullTypeDef&)> map
             );
 
             // Helper for ops with semantics of repacking some element from a container to
@@ -190,7 +191,8 @@ export {
             TypeInferenceFn Tensor(FullTypeId t)
             {
                 return [t](const TypeRefVector& input_types,
-                           const FunctionTypeInferrer& infer_function_rets) {
+                           const FunctionTypeInferrer& infer_function_rets)
+                {
                     FullTypeDef ret_type;
                     ret_type.set_type_id(TFT_PRODUCT);
                     ret_type.add_args()->set_type_id(TFT_TENSOR);
@@ -203,7 +205,8 @@ export {
             {
                 return [i,
                         n](const TypeRefVector& input_types,
-                           const FunctionTypeInferrer& infer_function_rets) {
+                           const FunctionTypeInferrer& infer_function_rets)
+                {
                     const FullTypeDef& in_type = input_types.at(i).get();
                     FullTypeDef ret_type;
                     if (in_type.type_id() != TFT_UNSET) {
@@ -221,7 +224,8 @@ export {
                 return [](
                            const TypeRefVector& input_types,
                            const FunctionTypeInferrer& infer_function_rets
-                       ) -> absl::StatusOr<FullTypeDef> {
+                       ) -> absl::StatusOr<FullTypeDef>
+                {
                     DCHECK(!input_types.empty());
 
                     FullTypeDef merged;
@@ -243,7 +247,9 @@ export {
                         return absl::Status(
                             absl::StatusCode::kInvalidArgument,
                             absl::StrCat(
-                                "expected compatible input types, but input ", i, ":\n",
+                                "expected compatible input types, but input ",
+                                i,
+                                ":\n",
                                 t.DebugString(),
                                 " is neither a subtype nor a supertype of the "
                                 "combined inputs preceding it:\n",
@@ -266,7 +272,8 @@ export {
                 return [t, i](
                            const TypeRefVector& input_types,
                            const FunctionTypeInferrer& infer_function_rets
-                       ) -> absl::StatusOr<FullTypeDef> {
+                       ) -> absl::StatusOr<FullTypeDef>
+                {
                     DCHECK(input_types.size() >= i);
 
                     FullTypeDef ret_type;
@@ -290,7 +297,8 @@ export {
                 return [t, i](
                            const TypeRefVector& input_types,
                            const FunctionTypeInferrer& infer_function_rets
-                       ) -> absl::StatusOr<FullTypeDef> {
+                       ) -> absl::StatusOr<FullTypeDef>
+                {
                     DCHECK(input_types.size() >= i);
 
                     const FullTypeDef& in_t = input_types[i].get();
@@ -300,7 +308,11 @@ export {
                         return absl::Status(
                             absl::StatusCode::kInvalidArgument,
                             absl::StrCat(
-                                "expected encoded type ", t, " for input ", i, ", got ",
+                                "expected encoded type ",
+                                t,
+                                " for input ",
+                                i,
+                                ", got ",
                                 in_t.DebugString()
                             )
                         );
@@ -324,7 +336,8 @@ export {
                 return [t, element_idx](
                            const TypeRefVector& input_types,
                            const FunctionTypeInferrer& infer_function_rets
-                       ) -> absl::StatusOr<FullTypeDef> {
+                       ) -> absl::StatusOr<FullTypeDef>
+                {
                     DCHECK(input_types.size() >= element_idx);
 
                     FullTypeDef ret_type;
@@ -343,7 +356,8 @@ export {
                 return [t, container_idx, element_idx, homogeneous](
                            const TypeRefVector& input_types,
                            const FunctionTypeInferrer& infer_function_rets
-                       ) -> absl::StatusOr<FullTypeDef> {
+                       ) -> absl::StatusOr<FullTypeDef>
+                {
                     DCHECK(input_types.size() >= container_idx);
                     DCHECK(input_types.size() >= element_idx);
 
@@ -360,8 +374,12 @@ export {
                             return absl::Status(
                                 absl::StatusCode::kInvalidArgument,
                                 absl::StrCat(
-                                    "expected container type ", t, " for input ", container_idx,
-                                    ", got ", in_cont_t.DebugString()
+                                    "expected container type ",
+                                    t,
+                                    " for input ",
+                                    container_idx,
+                                    ", got ",
+                                    in_cont_t.DebugString()
                                 )
                             );
                         }
@@ -397,8 +415,13 @@ export {
                         return absl::Status(
                             absl::StatusCode::kInvalidArgument,
                             absl::StrCat(
-                                "expected a subtype of ", el_t.DebugString(), " for input ",
-                                element_idx, " of a homogeneous container ", t, ", got ",
+                                "expected a subtype of ",
+                                el_t.DebugString(),
+                                " for input ",
+                                element_idx,
+                                " of a homogeneous container ",
+                                t,
+                                ", got ",
                                 in_el_t.DebugString()
                             )
                         );
@@ -409,7 +432,10 @@ export {
                             absl::StrCat(
                                 "need union types for heterogeneous containers.\n"
                                 "A homogeneous container would expect a subtype of ",
-                                el_t.DebugString(), " for input ", element_idx, ", but got ",
+                                el_t.DebugString(),
+                                " for input ",
+                                element_idx,
+                                ", but got ",
                                 in_el_t.DebugString()
                             )
                         );
@@ -423,7 +449,8 @@ export {
                 return [t, unstack](
                            const TypeRefVector& input_types,
                            const FunctionTypeInferrer& infer_function_rets
-                       ) -> absl::StatusOr<FullTypeDef> {
+                       ) -> absl::StatusOr<FullTypeDef>
+                {
                     FullTypeDef ret_type;
                     ret_type.set_type_id(TFT_PRODUCT);
                     FullTypeDef* cont_t = ret_type.add_args();
@@ -455,13 +482,16 @@ export {
             }
 
             TypeInferenceFn ContainerMap(
-                FullTypeId t, int input_idx, std::function<FullTypeDef(const FullTypeDef&)> map
+                FullTypeId t,
+                int input_idx,
+                std::function<FullTypeDef(const FullTypeDef&)> map
             )
             {
                 return [t, input_idx, map](
                            const TypeRefVector& input_types,
                            const FunctionTypeInferrer& infer_function_rets
-                       ) -> absl::StatusOr<FullTypeDef> {
+                       ) -> absl::StatusOr<FullTypeDef>
+                {
                     DCHECK_GE(input_types.size(), input_idx);
                     const FullTypeDef& in_cont_t = input_types.at(input_idx).get();
                     FullTypeDef ret_type;
@@ -472,7 +502,11 @@ export {
                         return absl::Status(
                             absl::StatusCode::kInvalidArgument,
                             absl::StrCat(
-                                "expected type ", t, " for input ", input_idx, ", got ",
+                                "expected type ",
+                                t,
+                                " for input ",
+                                input_idx,
+                                ", got ",
                                 in_cont_t.DebugString()
                             )
                         );
@@ -488,7 +522,9 @@ export {
                         return absl::Status(
                             absl::StatusCode::kInvalidArgument,
                             absl::StrCat(
-                                "expected PRODUCT element type for input ", input_idx, ", got ",
+                                "expected PRODUCT element type for input ",
+                                input_idx,
+                                ", got ",
                                 in_el_t.DebugString()
                             )
                         );
@@ -507,7 +543,8 @@ export {
                 return [t, u, input_idx](
                            const TypeRefVector& input_types,
                            const FunctionTypeInferrer& infer_function_rets
-                       ) -> absl::StatusOr<FullTypeDef> {
+                       ) -> absl::StatusOr<FullTypeDef>
+                {
                     DCHECK_GE(input_types.size(), input_idx);
                     const FullTypeDef& in_t = input_types.at(input_idx).get();
                     FullTypeDef ret_type;
@@ -518,7 +555,11 @@ export {
                         return absl::Status(
                             absl::StatusCode::kInvalidArgument,
                             absl::StrCat(
-                                "expected type ", t, " for input ", input_idx, ", got ",
+                                "expected type ",
+                                t,
+                                " for input ",
+                                input_idx,
+                                ", got ",
                                 in_t.DebugString()
                             )
                         );
@@ -536,7 +577,8 @@ export {
                 return [func_attr_name](
                            const TypeRefVector& input_types,
                            const FunctionTypeInferrer& infer_function_rets
-                       ) -> absl::StatusOr<FullTypeDef> {
+                       ) -> absl::StatusOr<FullTypeDef>
+                {
                     // TODO(b/224776031): Look up function name from attribute here.
                     // This could be done by passing the node attributes to the lambda.
                     // TODO(b/224776031): Is there a cleaner way to represent these
@@ -550,7 +592,8 @@ export {
                 return [func_list](
                            const TypeRefVector& input_types,
                            const FunctionTypeInferrer& infer_function_rets
-                       ) -> absl::StatusOr<FullTypeDef> {
+                       ) -> absl::StatusOr<FullTypeDef>
+                {
                     FullTypeDef ret_type;
                     ret_type.set_type_id(TFT_PRODUCT);
                     for (const auto& func: func_list) {
@@ -572,7 +615,8 @@ export {
                                 absl::StrCat(
                                     "for Tuple type inference function, expected result "
                                     "of type inference function ",
-                                    ret_type.args_size(), " to start with TFT_PRODUCT not ",
+                                    ret_type.args_size(),
+                                    " to start with TFT_PRODUCT not ",
                                     t.DebugString()
                                 )
                             );

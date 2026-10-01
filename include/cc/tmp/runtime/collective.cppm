@@ -38,7 +38,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         class BufRendezvous;
@@ -199,7 +198,8 @@ export {
 
             // Returns all device attributes of a task.
             virtual absl::Status GetAllDeviceAttributes(
-                const std::string& task, std::vector<DeviceAttributes>* attributes
+                const std::string& task,
+                std::vector<DeviceAttributes>* attributes
             ) = 0;
 
             // Updates device attributes. It returns error if any device already
@@ -353,7 +353,9 @@ export {
             // alive. Note that if a peer has restarted, it's considered a different one,
             // so CheckPeerHealth fails.
             virtual void CheckPeerHealth(
-                const std::string& peer_task, int64_t timeout_in_ms, const StatusCallback& done
+                const std::string& peer_task,
+                int64_t timeout_in_ms,
+                const StatusCallback& done
             ) = 0;
 
             virtual BufRendezvous* buf_rendezvous() = 0;
@@ -405,9 +407,8 @@ export {
                 StatusCallback done
             )
             {
-                return cem_->GetParamResolver()->CompleteGroupAsync(
-                    device, group_params, cancel_mgr, done
-                );
+                return cem_->GetParamResolver()
+                    ->CompleteGroupAsync(device, group_params, cancel_mgr, done);
             }
 
             virtual absl::Status LookupGroup(int32_t group_key, CollGroupParams* group)
@@ -606,7 +607,8 @@ export {
         {
         public:
             CollectiveRegistration(
-                const std::string& collective_name, CollectiveRegistry::Factory factory
+                const std::string& collective_name,
+                CollectiveRegistry::Factory factory
             )
             {
                 TF_CHECK_OK(CollectiveRegistry::Register(collective_name, factory));
@@ -614,9 +616,13 @@ export {
         };
 
 #define REGISTER_COLLECTIVE(name, implementation)                                                  \
-    static CollectiveRegistration register_##name##_collective(#name, []() {                       \
-        return new implementation;                                                                 \
-    });
+    static CollectiveRegistration register_##name##_collective(                                    \
+        #name,                                                                                     \
+        []()                                                                                       \
+        {                                                                                          \
+            return new implementation;                                                             \
+        }                                                                                          \
+    );
 
     } // namespace tensorflow
 
@@ -658,16 +664,26 @@ export {
         std::string CollGroupRuntimeDetails::ToString() const
         {
             return absl::StrCat(
-                "CollGroupRuntimeDetails {communicator_key=", absl::CEscape(communicator_key), "}"
+                "CollGroupRuntimeDetails {communicator_key=",
+                absl::CEscape(communicator_key),
+                "}"
             );
         }
 
         std::string CollGroupParams::ToString() const
         {
             std::string v = strings::StrCat(
-                "CollGroupParams {group_key=", group_key, " group_size=", group_size,
-                " device_type=", device_type.type_string(), " num_tasks=", num_tasks,
-                " runtime_details=", runtime_details.ToString(), " devices {"
+                "CollGroupParams {group_key=",
+                group_key,
+                " group_size=",
+                group_size,
+                " device_type=",
+                device_type.type_string(),
+                " num_tasks=",
+                num_tasks,
+                " runtime_details=",
+                runtime_details.ToString(),
+                " devices {"
             );
             for (const auto& m: members) {
                 absl::StrAppend(&v, m.device.name(), ",");
@@ -711,12 +727,21 @@ export {
         std::string CollInstanceParams::ToString() const
         {
             std::string v = strings::StrCat(
-                "CollInstanceParams { instance_key=", instance_key, " type=", type,
-                " data_type=", DataTypeString(data_type), " shape=", shape.DebugString(),
+                "CollInstanceParams { instance_key=",
+                instance_key,
+                " type=",
+                type,
+                " data_type=",
+                DataTypeString(data_type),
+                " shape=",
+                shape.DebugString(),
                 " devices {"
             );
             absl::StrAppend(
-                &v, "}, collective_name=", impl_details.collective_name, ", subdiv_offsets={"
+                &v,
+                "}, collective_name=",
+                impl_details.collective_name,
+                ", subdiv_offsets={"
             );
             absl::StrAppend(&v, "}, subdiv_offsets={");
             for (const auto& d: impl_details.subdiv_offsets) {
@@ -756,8 +781,14 @@ export {
             std::string v = absl::StrCat("CollectiveParams ", name, " {", group.ToString());
             absl::StrAppend(&v, " ", instance.ToString());
             strings::StrAppend(
-                &v, " default_rank=", default_rank, " is_source=", is_source,
-                " source_rank=", source_rank, " subdiv_rank={"
+                &v,
+                " default_rank=",
+                default_rank,
+                " is_source=",
+                is_source,
+                " source_rank=",
+                source_rank,
+                " subdiv_rank={"
             );
             for (const auto& r: subdiv_rank) {
                 absl::StrAppend(&v, r, ",");
@@ -803,7 +834,8 @@ export {
 
         /*static*/
         absl::Status CollectiveRegistry::Lookup(
-            const std::string& collective_name, CollectiveImplementationInterface** implementation
+            const std::string& collective_name,
+            CollectiveImplementationInterface** implementation
         )
         {
             return LookupHelper(collective_name, implementation, false);
@@ -811,7 +843,8 @@ export {
 
         /*static*/
         absl::Status CollectiveRegistry::LookupParamResolverInstance(
-            const std::string& collective_name, CollectiveImplementationInterface** implementation
+            const std::string& collective_name,
+            CollectiveImplementationInterface** implementation
         )
         {
             return LookupHelper(collective_name, implementation, true);

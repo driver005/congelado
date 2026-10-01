@@ -16,7 +16,8 @@
 #ifdef CONGELADO_TEST
 import boost.ut;
 
-int main() {
+int main()
+{
     const bool failed = boost::ut::cfg<>.run({.report_errors = true});
     return failed ? 1 : 0;
 }

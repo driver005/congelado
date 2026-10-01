@@ -25,7 +25,7 @@ limitations under the License.
 // plain C (the documented convention is unsigned char for booleans; this lone exception
 // is kept for upstream API compatibility).
 #ifndef __cplusplus
-#    include <stdbool.h>
+    #include <stdbool.h>
 #endif
 
 // --------------------------------------------------------------------------
@@ -209,7 +209,8 @@ extern "C"
     // Returns a plugin-allocated array of the tensor's dimension sizes, in order.
     // The array has TF_GraphGetTensorNumDims() entries; the caller releases it with free().
     // Returns NULL on error (see status). Unknown dimensions are represented by -1.
-    TF_CAPI_EXPORT int64_t* TF_GraphGetTensorShape(TF_Graph* graph, TF_Output output, TF_Status* status);
+    TF_CAPI_EXPORT int64_t*
+    TF_GraphGetTensorShape(TF_Graph* graph, TF_Output output, TF_Status* status);
 
     // Creates a new operation - see `TF_NewOperation` for more details.
     //
@@ -474,7 +475,8 @@ extern "C"
 
     // Returns a plugin-allocated array of all control inputs of `oper`; *num_control_inputs
     // receives the count. The caller releases the array with free().
-    TF_CAPI_EXPORT TF_Operation** TF_OperationGetControlInputs(TF_Operation* oper, int* num_control_inputs);
+    TF_CAPI_EXPORT TF_Operation**
+    TF_OperationGetControlInputs(TF_Operation* oper, int* num_control_inputs);
 
     // Get the number of operations that have `*oper` as a control input.
     // Note that this number can change when new operations are added to
@@ -483,7 +485,8 @@ extern "C"
 
     // Returns a plugin-allocated array of all operations that have `*oper` as a control input;
     // *num_control_outputs receives the count. The caller releases the array with free().
-    TF_CAPI_EXPORT TF_Operation** TF_OperationGetControlOutputs(TF_Operation* oper, int* num_control_outputs);
+    TF_CAPI_EXPORT TF_Operation**
+    TF_OperationGetControlOutputs(TF_Operation* oper, int* num_control_outputs);
 
     // TF_AttrMetadata describes the value of an attribute on an operation.
     typedef struct TF_AttrMetadata
@@ -523,53 +526,107 @@ extern "C"
 
     // Returns a plugin-allocated copy of the string attr's bytes; *length receives the byte
     // count (the bytes may contain NULs). The caller releases the buffer with free().
-    TF_CAPI_EXPORT char* TF_OperationGetAttrString(TF_Operation* oper, const char* attr_name, size_t* length, TF_Status* status);
+    TF_CAPI_EXPORT char* TF_OperationGetAttrString(
+        TF_Operation* oper,
+        const char* attr_name,
+        size_t* length,
+        TF_Status* status
+    );
 
     // Returns a plugin-allocated array of TF_StringView (one per string); *num_values receives
     // the count. The array and all string data it references live in ONE allocation — the
     // caller releases everything with a single free(). Fails (NULL + status) on error.
-    TF_CAPI_EXPORT TF_StringView* TF_OperationGetAttrStringList(TF_Operation* oper, const char* attr_name, int* num_values, TF_Status* status);
+    TF_CAPI_EXPORT TF_StringView* TF_OperationGetAttrStringList(
+        TF_Operation* oper,
+        const char* attr_name,
+        int* num_values,
+        TF_Status* status
+    );
 
-    TF_CAPI_EXPORT int64_t TF_OperationGetAttrInt(TF_Operation* oper, const char* attr_name, TF_Status* status);
+    TF_CAPI_EXPORT int64_t
+    TF_OperationGetAttrInt(TF_Operation* oper, const char* attr_name, TF_Status* status);
 
     // Returns a plugin-allocated array of the int64 list; *num_values receives the count.
     // The caller releases the array with free().
-    TF_CAPI_EXPORT int64_t* TF_OperationGetAttrIntList(TF_Operation* oper, const char* attr_name, int* num_values, TF_Status* status);
+    TF_CAPI_EXPORT int64_t* TF_OperationGetAttrIntList(
+        TF_Operation* oper,
+        const char* attr_name,
+        int* num_values,
+        TF_Status* status
+    );
 
-    TF_CAPI_EXPORT float TF_OperationGetAttrFloat(TF_Operation* oper, const char* attr_name, TF_Status* status);
+    TF_CAPI_EXPORT float
+    TF_OperationGetAttrFloat(TF_Operation* oper, const char* attr_name, TF_Status* status);
 
     // Returns a plugin-allocated array of the float list; *num_values receives the count.
     // The caller releases the array with free().
-    TF_CAPI_EXPORT float* TF_OperationGetAttrFloatList(TF_Operation* oper, const char* attr_name, int* num_values, TF_Status* status);
+    TF_CAPI_EXPORT float* TF_OperationGetAttrFloatList(
+        TF_Operation* oper,
+        const char* attr_name,
+        int* num_values,
+        TF_Status* status
+    );
 
-    TF_CAPI_EXPORT unsigned char TF_OperationGetAttrBool(TF_Operation* oper, const char* attr_name, TF_Status* status);
+    TF_CAPI_EXPORT unsigned char
+    TF_OperationGetAttrBool(TF_Operation* oper, const char* attr_name, TF_Status* status);
 
     // Returns a plugin-allocated array of the bool list (0/1 per element); *num_values receives
     // the count. The caller releases the array with free().
-    TF_CAPI_EXPORT unsigned char* TF_OperationGetAttrBoolList(TF_Operation* oper, const char* attr_name, int* num_values, TF_Status* status);
+    TF_CAPI_EXPORT unsigned char* TF_OperationGetAttrBoolList(
+        TF_Operation* oper,
+        const char* attr_name,
+        int* num_values,
+        TF_Status* status
+    );
 
-    TF_CAPI_EXPORT TF_DataType TF_OperationGetAttrType(TF_Operation* oper, const char* attr_name, TF_Status* status);
+    TF_CAPI_EXPORT TF_DataType
+    TF_OperationGetAttrType(TF_Operation* oper, const char* attr_name, TF_Status* status);
 
     // Returns a plugin-allocated array of the TF_DataType list; *num_values receives the count.
     // The caller releases the array with free().
-    TF_CAPI_EXPORT TF_DataType* TF_OperationGetAttrTypeList(TF_Operation* oper, const char* attr_name, int* num_values, TF_Status* status);
+    TF_CAPI_EXPORT TF_DataType* TF_OperationGetAttrTypeList(
+        TF_Operation* oper,
+        const char* attr_name,
+        int* num_values,
+        TF_Status* status
+    );
 
     // Returns a plugin-allocated array of the shape's dimension sizes; *num_dims receives the
     // count (-1 for unknown rank). The caller releases the array with free().
-    TF_CAPI_EXPORT int64_t* TF_OperationGetAttrShape(TF_Operation* oper, const char* attr_name, int* num_dims, TF_Status* status);
+    TF_CAPI_EXPORT int64_t* TF_OperationGetAttrShape(
+        TF_Operation* oper,
+        const char* attr_name,
+        int* num_dims,
+        TF_Status* status
+    );
 
     // Returns a plugin-allocated array of *num_shapes int64_t* rows, each row a plugin-allocated
     // dims array (row i has num_dims_out[i] entries; -1 means unknown rank). The caller frees
     // each row with free() and then frees the row-pointer array and num_dims_out with free().
-    TF_CAPI_EXPORT int64_t** TF_OperationGetAttrShapeList(TF_Operation* oper, const char* attr_name, int** num_dims_out, int* num_shapes, TF_Status* status);
+    TF_CAPI_EXPORT int64_t** TF_OperationGetAttrShapeList(
+        TF_Operation* oper,
+        const char* attr_name,
+        int** num_dims_out,
+        int* num_shapes,
+        TF_Status* status
+    );
 
     // Returns a plugin-allocated TF_Buffer_Data holding the binary-serialized TensorShapeProto;
     // the caller releases it with delete_buffer(). Returns NULL on error (see status).
-    TF_CAPI_EXPORT TF_Buffer_Data* TF_OperationGetAttrTensorShapeProto(TF_Operation* oper, const char* attr_name, TF_Status* status);
+    TF_CAPI_EXPORT TF_Buffer_Data* TF_OperationGetAttrTensorShapeProto(
+        TF_Operation* oper,
+        const char* attr_name,
+        TF_Status* status
+    );
 
     // Returns a plugin-allocated array of *num_values TF_Buffer_Data* entries; the caller
     // releases each entry with delete_buffer() and the array with free().
-    TF_CAPI_EXPORT TF_Buffer_Data** TF_OperationGetAttrTensorShapeProtoList(TF_Operation* oper, const char* attr_name, int* num_values, TF_Status* status);
+    TF_CAPI_EXPORT TF_Buffer_Data** TF_OperationGetAttrTensorShapeProtoList(
+        TF_Operation* oper,
+        const char* attr_name,
+        int* num_values,
+        TF_Status* status
+    );
 
     // Gets the TF_Tensor valued attribute of `attr_name` of `oper`.
     //
@@ -599,7 +656,8 @@ extern "C"
 
     // Returns a plugin-allocated TF_Buffer_Data holding the binary-serialized AttrValue proto;
     // the caller releases it with delete_buffer(). Returns NULL on error (see status).
-    TF_CAPI_EXPORT TF_Buffer_Data* TF_OperationGetAttrValueProto(TF_Operation* oper, const char* attr_name, TF_Status* status);
+    TF_CAPI_EXPORT TF_Buffer_Data*
+    TF_OperationGetAttrValueProto(TF_Operation* oper, const char* attr_name, TF_Status* status);
 
     // Get the number of attributes the operation has.
     TF_CAPI_EXPORT int TF_OperationGetNumAttrs(TF_Operation* oper);
@@ -861,7 +919,8 @@ extern "C"
     // Returns a plugin-allocated array of TF_Function* registered in `g`; *num_funcs receives
     // the count. The caller takes ownership of each TF_Function (release with TF_DeleteFunction)
     // and releases the array itself with free().
-    TF_CAPI_EXPORT TF_Function** TF_GraphGetFunctions(TF_Graph* g, int* num_funcs, TF_Status* status);
+    TF_CAPI_EXPORT TF_Function**
+    TF_GraphGetFunctions(TF_Graph* g, int* num_funcs, TF_Status* status);
 
     // Note: The following function may fail on very large protos in the future.
 

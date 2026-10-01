@@ -148,7 +148,9 @@ public:
     // Same std::get_if-based dispatch as the string_view overload of is_equal() above — see
     // that overload's comment for why this avoids std::visit's internal throwing fallback.
     [[nodiscard]] bool is_equal(
-        interfaces::io::types::Token token, std::string_view value, HeaderKeyType type
+        interfaces::io::types::Token token,
+        std::string_view value,
+        HeaderKeyType type
     ) const noexcept
     {
         // Same shape as the string_view overload — type mismatch bails immediately.
@@ -233,7 +235,10 @@ struct HeaderEqual
      * @return true if `key` matches the given name/value/type.
      */
     bool operator()(
-        const HeaderKey& key, std::string_view name, std::string_view value, HeaderKeyType type
+        const HeaderKey& key,
+        std::string_view name,
+        std::string_view value,
+        HeaderKeyType type
     ) const noexcept
     {
         return key.is_equal(name, value, type);
@@ -301,7 +306,9 @@ struct HeaderHasher
      * @return the combined hash.
      */
     std::size_t operator()(
-        interfaces::io::types::Token token, std::string_view value, HeaderKeyType type
+        interfaces::io::types::Token token,
+        std::string_view value,
+        HeaderKeyType type
     ) const noexcept
     {
         return hash_impl(token, value, type);
@@ -353,7 +360,9 @@ private:
      * @return the combined hash.
      */
     static std::size_t hash_impl(
-        interfaces::io::types::Token token, std::string_view value, HeaderKeyType type
+        interfaces::io::types::Token token,
+        std::string_view value,
+        HeaderKeyType type
     ) noexcept
     {
         // Same shape as the string overload, just hashing the Token's underlying integer.
@@ -370,7 +379,8 @@ template<typename T>
 concept StaticHeaderTable = requires(T table) {
     { std::size(table) } -> std::convertible_to<std::size_t>;
     requires std::same_as<
-        std::decay_t<decltype(table[0])>, std::shared_ptr<interfaces::io::HeaderField<true>>>;
+        std::decay_t<decltype(table[0])>,
+        std::shared_ptr<interfaces::io::HeaderField<true>>>;
 };
 
 using QpackMap = hashmap::swiss::SwissHashMap<HeaderKey, std::size_t, HeaderHasher, HeaderEqual>;
@@ -486,7 +496,8 @@ private:
     // failed static init would have been, just deferred to first use.
     static const QpackMap& get_map() noexcept
     {
-        static const QpackMap MAP = [] {
+        static const QpackMap MAP = []
+        {
             QpackMap built;
 
             // TODO: We can optimize by adding reserve support to out our map
@@ -499,7 +510,8 @@ private:
                                               // consider .at(); non-constant array index
 
                 built.upsert(
-                    HeaderKey{field->get_name(), field->get_value(), HeaderKeyType::FULL_MATCH}, i
+                    HeaderKey{field->get_name(), field->get_value(), HeaderKeyType::FULL_MATCH},
+                    i
                 );
                 built.upsert(HeaderKey{field->get_name(), "", HeaderKeyType::NAME_ONLY}, i);
             }
@@ -801,7 +813,8 @@ private:
         // Materialize the name/value as owned strings — Token-backed fields need stringifying
         // first, string-backed ones just get copied.
         const auto [name, value] = std::visit(
-            [](const auto& field) -> std::pair<std::string, std::string> {
+            [](const auto& field) -> std::pair<std::string, std::string>
+            {
                 if constexpr (
                     std::is_same_v<
                         std::decay_t<decltype(field)>,
@@ -856,8 +869,10 @@ private:
 namespace io::shared_codec::table::tests {
 using namespace boost::ut;
 
-suite<"DynamicTable"> dynamic_table_suite = [] {
-    "starts empty"_test = [] {
+suite<"DynamicTable"> dynamic_table_suite = []
+{
+    "starts empty"_test = []
+    {
         DynamicTable dyn_table;
 
         expect(dyn_table.get_size() == 0U);
@@ -866,12 +881,14 @@ suite<"DynamicTable"> dynamic_table_suite = [] {
         expect(dyn_table.get_max_size() == 4'096U);
     };
 
-    "custom max_size is stored"_test = [] {
+    "custom max_size is stored"_test = []
+    {
         DynamicTable dyn_table{100};
         expect(dyn_table.get_max_size() == 100U);
     };
 
-    "insert then search finds a full match and a name-only match"_test = [] {
+    "insert then search finds a full match and a name-only match"_test = []
+    {
         DynamicTable dyn_table{10'000};
         dyn_table.insert("content-type", "text/plain");
 
@@ -886,7 +903,8 @@ suite<"DynamicTable"> dynamic_table_suite = [] {
         expect(not dyn_table.search("missing", "value").found());
     };
 
-    "QPACK generations increase monotonically per insert"_test = [] {
+    "QPACK generations increase monotonically per insert"_test = []
+    {
         DynamicTable dyn_table{10'000};
 
         expect(dyn_table.insert("a", "1") == 1U);
@@ -895,14 +913,16 @@ suite<"DynamicTable"> dynamic_table_suite = [] {
         expect(dyn_table.get_insert_count() == 3U);
     };
 
-    "HPACK indexing returns a live position instead of a raw generation"_test = [] {
+    "HPACK indexing returns a live position instead of a raw generation"_test = []
+    {
         DynamicTable dyn_table{10'000};
 
         expect((dyn_table.insert<IndexCalculation::H_PACK>("a", "1")) == 0U);
         expect((dyn_table.insert<IndexCalculation::H_PACK>("b", "2")) == 0U);
     };
 
-    "eviction removes the oldest entries once the byte budget is exceeded"_test = [] {
+    "eviction removes the oldest entries once the byte budget is exceeded"_test = []
+    {
         // Every entry here costs name.size() + value.size() + ENTRY_OVERHEAD(32) = 34 bytes.
         // A budget of 70 fits exactly two, so the third insert evicts the first.
         DynamicTable dyn_table{70};
@@ -920,7 +940,8 @@ suite<"DynamicTable"> dynamic_table_suite = [] {
         expect(dyn_table.search_full_match("c", "3").found());
     };
 
-    "at_positon and at_generation locate live entries, nullopt once evicted"_test = [] {
+    "at_positon and at_generation locate live entries, nullopt once evicted"_test = []
+    {
         DynamicTable dyn_table{70};
         dyn_table.insert("a", "1");
         dyn_table.insert("b", "2");
@@ -932,7 +953,8 @@ suite<"DynamicTable"> dynamic_table_suite = [] {
         expect(by_generation.has_value());
         expect(
             std::visit(
-                [](const auto& field) {
+                [](const auto& field)
+                {
                     return field->get_value();
                 },
                 *by_generation
@@ -943,7 +965,8 @@ suite<"DynamicTable"> dynamic_table_suite = [] {
         expect(by_position.has_value());
         expect(
             std::visit(
-                [](const auto& field) {
+                [](const auto& field)
+                {
                     return field->get_value();
                 },
                 *by_position
@@ -953,7 +976,8 @@ suite<"DynamicTable"> dynamic_table_suite = [] {
         expect(not dyn_table.at_positon(2).has_value());
     };
 
-    "set_max_size shrinks the table by evicting oldest entries"_test = [] {
+    "set_max_size shrinks the table by evicting oldest entries"_test = []
+    {
         DynamicTable dyn_table{70};
         dyn_table.insert("b", "2");
         dyn_table.insert("c", "3");
@@ -967,7 +991,8 @@ suite<"DynamicTable"> dynamic_table_suite = [] {
         expect(dyn_table.search_full_match("c", "3").found());
     };
 
-    "an entry bigger than the whole budget evicts everything and isn't inserted"_test = [] {
+    "an entry bigger than the whole budget evicts everything and isn't inserted"_test = []
+    {
         DynamicTable dyn_table{10};
 
         expect(dyn_table.insert("x", "y") == 0U);

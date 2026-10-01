@@ -44,15 +44,18 @@ enum class EncodePolicy : std::uint8_t
 namespace io::codec::hpack::tests {
 using namespace boost::ut;
 
-suite<"policy_for"> policy_for_suite = [] {
-    "sensitive headers get NEVER_INDEXED"_test = [] {
+suite<"policy_for"> policy_for_suite = []
+{
+    "sensitive headers get NEVER_INDEXED"_test = []
+    {
         expect(policy_for("authorization") == EncodePolicy::NEVER_INDEXED);
         expect(policy_for("proxy-authorization") == EncodePolicy::NEVER_INDEXED);
         expect(policy_for("cookie") == EncodePolicy::NEVER_INDEXED);
         expect(policy_for("set-cookie") == EncodePolicy::NEVER_INDEXED);
     };
 
-    "ordinary headers default to WITH_INDEXING"_test = [] {
+    "ordinary headers default to WITH_INDEXING"_test = []
+    {
         expect(policy_for("content-type") == EncodePolicy::WITH_INDEXING);
         expect(policy_for("") == EncodePolicy::WITH_INDEXING);
     };

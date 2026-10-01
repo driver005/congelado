@@ -22,12 +22,15 @@ inline constexpr std::uint32_t connect_timeout_ms = 0;
 namespace congelado::worker::consts::tests {
 using namespace boost::ut;
 
-suite<"WorkerConsts"> worker_consts_suite = [] {
-    "connect retry delay default is 1000ms"_test = [] {
+suite<"WorkerConsts"> worker_consts_suite = []
+{
+    "connect retry delay default is 1000ms"_test = []
+    {
         expect(connect_retry_delay_ms == 1'000);
     };
 
-    "connect timeout default is 0 (retry forever)"_test = [] {
+    "connect timeout default is 0 (retry forever)"_test = []
+    {
         expect(connect_timeout_ms == 0);
     };
 };

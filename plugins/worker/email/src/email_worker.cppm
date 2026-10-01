@@ -3,8 +3,8 @@ module;
 #include <curl/curl.h>
 
 #ifdef CONGELADO_TEST
-#    include <rfl/Generic.hpp>
-#    include <rfl/json.hpp>
+    #include <rfl/Generic.hpp>
+    #include <rfl/json.hpp>
 #endif
 
 export module email_worker;
@@ -160,8 +160,13 @@ public:
             return;
         }
         on_complete(send_blocking(
-            parsed->getSmtpUrl(), parsed->getFrom(), parsed->getTo(), parsed->getSubject(),
-            parsed->getBody(), parsed->getUsername(), parsed->getPassword()
+            parsed->getSmtpUrl(),
+            parsed->getFrom(),
+            parsed->getTo(),
+            parsed->getSubject(),
+            parsed->getBody(),
+            parsed->getUsername(),
+            parsed->getPassword()
         ));
     }
 
@@ -184,7 +189,8 @@ private:
         const std::string& password
     )
     {
-        static const int global_init = [] {
+        static const int global_init = []
+        {
             curl_global_init(CURL_GLOBAL_DEFAULT);
             return 0;
         }();
@@ -271,57 +277,67 @@ using namespace boost::ut;
     return rfl::json::read<rfl::Generic>(std::string{json}).value();
 }
 
-suite<"EmailInput"> email_input_suite = [] {
-    "setSmtpUrl/getSmtpUrl round-trips"_test = [] {
+suite<"EmailInput"> email_input_suite = []
+{
+    "setSmtpUrl/getSmtpUrl round-trips"_test = []
+    {
         EmailInput input;
         input.setSmtpUrl("smtps://smtp.example.com:465");
         expect(input.getSmtpUrl() == "smtps://smtp.example.com:465");
     };
 
-    "setFrom/getFrom round-trips"_test = [] {
+    "setFrom/getFrom round-trips"_test = []
+    {
         EmailInput input;
         input.setFrom("a@example.com");
         expect(input.getFrom() == "a@example.com");
     };
 
-    "setTo/getTo round-trips"_test = [] {
+    "setTo/getTo round-trips"_test = []
+    {
         EmailInput input;
         input.setTo("b@example.com");
         expect(input.getTo() == "b@example.com");
     };
 
-    "setSubject/getSubject round-trips"_test = [] {
+    "setSubject/getSubject round-trips"_test = []
+    {
         EmailInput input;
         input.setSubject("hi");
         expect(input.getSubject() == "hi");
     };
 
-    "setBody/getBody round-trips"_test = [] {
+    "setBody/getBody round-trips"_test = []
+    {
         EmailInput input;
         input.setBody("body text");
         expect(input.getBody() == "body text");
     };
 
-    "setUsername/getUsername round-trips"_test = [] {
+    "setUsername/getUsername round-trips"_test = []
+    {
         EmailInput input;
         input.setUsername("user");
         expect(input.getUsername() == "user");
     };
 
-    "setPassword/getPassword round-trips"_test = [] {
+    "setPassword/getPassword round-trips"_test = []
+    {
         EmailInput input;
         input.setPassword("pass");
         expect(input.getPassword() == "pass");
     };
 
-    "default-constructed fields are all empty"_test = [] {
+    "default-constructed fields are all empty"_test = []
+    {
         EmailInput input;
         expect(input.getSmtpUrl().empty());
         expect(input.getUsername().empty());
         expect(input.getPassword().empty());
     };
 
-    "from_value fails entirely when 'smtp_url' is omitted"_test = [] {
+    "from_value fails entirely when 'smtp_url' is omitted"_test = []
+    {
         auto value = make_value(
             R"({"from":"a@x.com","to":"b@x.com","subject":"s","body":"b",)"
             R"("username":"","password":""})"
@@ -334,17 +350,19 @@ suite<"EmailInput"> email_input_suite = [] {
     // BUG: pins the finding documented above EmailInput's m_username/m_password — omitting
     // either fails the whole decode despite the doc comment claiming they default to empty.
     "BUG: from_value fails entirely when 'username'/'password' are omitted, despite documented empty default"_test =
-        [] {
-            auto value = make_value(
-                R"({"smtp_url":"smtps://x","from":"a@x.com","to":"b@x.com","subject":"s","body":"b"})"
-            );
-            auto parsed = serde::Ser::from_value<EmailInput>(value);
-            expect(!parsed.has_value()) << fatal;
-            expect(parsed.error().contains("username") || parsed.error().contains("password"))
-                << parsed.error();
-        };
+        []
+    {
+        auto value = make_value(
+            R"({"smtp_url":"smtps://x","from":"a@x.com","to":"b@x.com","subject":"s","body":"b"})"
+        );
+        auto parsed = serde::Ser::from_value<EmailInput>(value);
+        expect(!parsed.has_value()) << fatal;
+        expect(parsed.error().contains("username") || parsed.error().contains("password"))
+            << parsed.error();
+    };
 
-    "from_value succeeds when every declared field is present"_test = [] {
+    "from_value succeeds when every declared field is present"_test = []
+    {
         auto value = make_value(
             R"({"smtp_url":"smtps://x","from":"a@x.com","to":"b@x.com","subject":"s","body":"b",)"
             R"("username":"u","password":"p"})"
@@ -359,40 +377,49 @@ suite<"EmailInput"> email_input_suite = [] {
     // SECURITY pin: no CRLF/header-injection stripping anywhere in the DTO — pins the finding
     // documented above the raw header-block construction in send_blocking().
     "SECURITY: 'to' carrying embedded CRLF header lines round-trips through the DTO untouched"_test =
-        [] {
-            EmailInput input;
-            input.setTo("victim@x.com\r\nBcc: attacker@evil.example");
-            expect(input.getTo() == "victim@x.com\r\nBcc: attacker@evil.example");
-        };
+        []
+    {
+        EmailInput input;
+        input.setTo("victim@x.com\r\nBcc: attacker@evil.example");
+        expect(input.getTo() == "victim@x.com\r\nBcc: attacker@evil.example");
+    };
 };
 
-suite<"EmailWorker"> email_worker_suite = [] {
-    "get_task_type reports 'email'"_test = [] {
+suite<"EmailWorker"> email_worker_suite = []
+{
+    "get_task_type reports 'email'"_test = []
+    {
         EmailWorker worker;
         expect(worker.get_task_type() == "email");
     };
 
     "run() fails with 'missing smtp_url' when 'smtp_url' is present but empty, never touches curl"_test =
-        [] {
-            EmailWorker worker;
-            auto value = make_value(
-                R"({"smtp_url":"","from":"a@x.com","to":"b@x.com","subject":"s","body":"b",)"
-                R"("username":"","password":""})"
-            );
-            interfaces::WorkerResult observed = interfaces::WorkerOutput{};
-            bool called = false;
+        []
+    {
+        EmailWorker worker;
+        auto value = make_value(
+            R"({"smtp_url":"","from":"a@x.com","to":"b@x.com","subject":"s","body":"b",)"
+            R"("username":"","password":""})"
+        );
+        interfaces::WorkerResult observed = interfaces::WorkerOutput{};
+        bool called = false;
 
-            worker.run(value, [&](interfaces::WorkerResult result) {
+        worker.run(
+            value,
+            [&](interfaces::WorkerResult result)
+            {
                 called = true;
                 observed = std::move(result);
-            });
+            }
+        );
 
-            expect(called) << fatal;
-            expect(!observed.has_value()) << fatal;
-            expect(observed.error().getMessage() == "missing 'smtp_url'");
-        };
+        expect(called) << fatal;
+        expect(!observed.has_value()) << fatal;
+        expect(observed.error().getMessage() == "missing 'smtp_url'");
+    };
 
-    "run() propagates the from_value parse error when 'smtp_url' key is entirely absent"_test = [] {
+    "run() propagates the from_value parse error when 'smtp_url' key is entirely absent"_test = []
+    {
         EmailWorker worker;
         auto value = make_value(
             R"({"from":"a@x.com","to":"b@x.com","subject":"s","body":"b",)"
@@ -400,9 +427,13 @@ suite<"EmailWorker"> email_worker_suite = [] {
         );
         interfaces::WorkerResult observed = interfaces::WorkerOutput{};
 
-        worker.run(value, [&](interfaces::WorkerResult result) {
-            observed = std::move(result);
-        });
+        worker.run(
+            value,
+            [&](interfaces::WorkerResult result)
+            {
+                observed = std::move(result);
+            }
+        );
 
         expect(!observed.has_value()) << fatal;
         expect(observed.error().getMessage().contains("smtp_url"));

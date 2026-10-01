@@ -54,7 +54,9 @@ export namespace core::otel {
  * @param attrs attributes (dimensions) this data point carries.
  */
 inline void counter_add(
-    std::string_view name, double value, std::span<const interfaces::Attribute> attrs = {}
+    std::string_view name,
+    double value,
+    std::span<const interfaces::Attribute> attrs = {}
 ) noexcept
 {
     try {
@@ -90,7 +92,9 @@ inline void counter_add(
  * @param attrs attributes (dimensions) this data point carries.
  */
 inline void histogram_record(
-    std::string_view name, double value, std::span<const interfaces::Attribute> attrs = {}
+    std::string_view name,
+    double value,
+    std::span<const interfaces::Attribute> attrs = {}
 ) noexcept
 {
     try {
@@ -177,19 +181,25 @@ public:
     std::shared_ptr<MetricsFakeHistogram> m_histogram;
 };
 
-suite<"otel::counter_add"> counter_add_suite = [] {
-    "no-op and doesn't throw when no registry is active"_test = [] {
+suite<"otel::counter_add"> counter_add_suite = []
+{
+    "no-op and doesn't throw when no registry is active"_test = []
+    {
         auto* previous = MeterRegistry::get_active();
         MeterRegistry::set_active(nullptr);
 
-        expect(nothrow([] {
-            counter_add("test.metrics.counter.noop", 1.0);
-        }));
+        expect(nothrow(
+            []
+            {
+                counter_add("test.metrics.counter.noop", 1.0);
+            }
+        ));
 
         MeterRegistry::set_active(previous);
     };
 
-    "creates the instrument once per provider and adds on every call"_test = [] {
+    "creates the instrument once per provider and adds on every call"_test = []
+    {
         auto* previous = MeterRegistry::get_active();
         MeterRegistry registry;
         auto provider = std::make_shared<MetricsFakeMeterProvider>();
@@ -207,19 +217,25 @@ suite<"otel::counter_add"> counter_add_suite = [] {
     };
 };
 
-suite<"otel::histogram_record"> histogram_record_suite = [] {
-    "no-op and doesn't throw when no registry is active"_test = [] {
+suite<"otel::histogram_record"> histogram_record_suite = []
+{
+    "no-op and doesn't throw when no registry is active"_test = []
+    {
         auto* previous = MeterRegistry::get_active();
         MeterRegistry::set_active(nullptr);
 
-        expect(nothrow([] {
-            histogram_record("test.metrics.histogram.noop", 1.0);
-        }));
+        expect(nothrow(
+            []
+            {
+                histogram_record("test.metrics.histogram.noop", 1.0);
+            }
+        ));
 
         MeterRegistry::set_active(previous);
     };
 
-    "creates the instrument once per provider and records on every call"_test = [] {
+    "creates the instrument once per provider and records on every call"_test = []
+    {
         auto* previous = MeterRegistry::get_active();
         MeterRegistry registry;
         auto provider = std::make_shared<MetricsFakeMeterProvider>();

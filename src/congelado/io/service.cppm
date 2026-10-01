@@ -84,7 +84,11 @@ public:
      * @param cb fires exactly once with bytes read (`>= 0`) or a negated error code (`< 0`).
      */
     auto read(
-        NativeHandle handle, void* buf, uint32_t nbytes, int64_t offset, Completion cb
+        NativeHandle handle,
+        void* buf,
+        uint32_t nbytes,
+        int64_t offset,
+        Completion cb
     ) noexcept -> void
     {
         derived().do_read(handle, buf, nbytes, offset, std::move(cb));
@@ -100,7 +104,11 @@ public:
      * (`< 0`).
      */
     auto readv(
-        NativeHandle handle, const IoVec* vecs, uint32_t count, int64_t offset, Completion cb
+        NativeHandle handle,
+        const IoVec* vecs,
+        uint32_t count,
+        int64_t offset,
+        Completion cb
     ) noexcept -> void
     {
         derived().do_readv(handle, vecs, count, offset, std::move(cb));
@@ -132,7 +140,11 @@ public:
      * @param cb fires exactly once with bytes written (`>= 0`) or a negated error code (`< 0`).
      */
     auto write(
-        NativeHandle handle, const void* buf, uint32_t nbytes, int64_t offset, Completion cb
+        NativeHandle handle,
+        const void* buf,
+        uint32_t nbytes,
+        int64_t offset,
+        Completion cb
     ) noexcept -> void
     {
         derived().do_write(handle, buf, nbytes, offset, std::move(cb));
@@ -148,7 +160,11 @@ public:
      * (`< 0`).
      */
     auto writev(
-        NativeHandle handle, const IoVec* vecs, uint32_t count, int64_t offset, Completion cb
+        NativeHandle handle,
+        const IoVec* vecs,
+        uint32_t count,
+        int64_t offset,
+        Completion cb
     ) noexcept -> void
     {
         derived().do_writev(handle, vecs, count, offset, std::move(cb));
@@ -163,7 +179,11 @@ public:
      * @param cb fires exactly once with bytes sent (`>= 0`) or a negated error code (`< 0`).
      */
     auto send(
-        NativeHandle sock, const void* buf, uint32_t nbytes, int flags, Completion cb
+        NativeHandle sock,
+        const void* buf,
+        uint32_t nbytes,
+        int flags,
+        Completion cb
     ) noexcept -> void
     {
         derived().do_send(sock, buf, nbytes, flags, std::move(cb));

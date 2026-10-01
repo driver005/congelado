@@ -11,8 +11,9 @@
 
 module;
 
-#include "include/c/extern/kernel/builder.h"
 #include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
+#include "include/c/extern/kernel/builder.h"
+
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_sycl.hpp>
 
@@ -48,8 +49,7 @@ public:
         auto* w_hh_handle = ctx.get_input(4, &status);
         auto* bias_handle = ctx.get_input(5, &status);
         if (input_handle == nullptr || h0_handle == nullptr || c0_handle == nullptr ||
-            w_ih_handle == nullptr || w_hh_handle == nullptr || bias_handle == nullptr)
-        {
+            w_ih_handle == nullptr || w_hh_handle == nullptr || bias_handle == nullptr) {
             ctx.fail(&status);
             return;
         }
@@ -227,7 +227,10 @@ private:
             dnnl::reorder{source, target}.execute(dnnl_stream, source, target);
             arguments.emplace(DNNL_ARG_WEIGHTS_LAYER, target);
         } else {
-            arguments.emplace(DNNL_ARG_WEIGHTS_LAYER, dnnl::memory{weights_layer_md, engine, w_ih_data});
+            arguments.emplace(
+                DNNL_ARG_WEIGHTS_LAYER,
+                dnnl::memory{weights_layer_md, engine, w_ih_data}
+            );
         }
 
         const dnnl::memory::desc expected_iter_md = primitive_desc.weights_iter_desc();
@@ -238,7 +241,10 @@ private:
             dnnl::reorder{source, target}.execute(dnnl_stream, source, target);
             arguments.emplace(DNNL_ARG_WEIGHTS_ITER, target);
         } else {
-            arguments.emplace(DNNL_ARG_WEIGHTS_ITER, dnnl::memory{weights_iter_md, engine, w_hh_data});
+            arguments.emplace(
+                DNNL_ARG_WEIGHTS_ITER,
+                dnnl::memory{weights_iter_md, engine, w_hh_data}
+            );
         }
 
         const std::size_t scratchpad_size = primitive_desc.scratchpad_desc().get_size();

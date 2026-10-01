@@ -1,7 +1,7 @@
 module;
 
 #ifdef _WIN32
-#    include <malloc.h>
+    #include <malloc.h>
 #endif
 
 export module helper;
@@ -44,7 +44,8 @@ struct AlignedManager
             ptr = _aligned_malloc(aligned_size, ALIGNMENT);
 #else
             ptr = std::aligned_alloc(
-                ALIGNMENT, aligned_size
+                ALIGNMENT,
+                aligned_size
             ); // NOLINT(cppcoreguidelines-owning-memory) — would need gsl::owner<> annotation; no
                // GSL dependency in this codebase
 #endif
@@ -119,19 +120,23 @@ struct alignas(64) OverAligned
     std::byte data[64];
 };
 
-suite<"AlignedManager"> aligned_manager_suite = [] {
-    "over-aligned type allocates memory aligned to its own requirement"_test = [] {
+suite<"AlignedManager"> aligned_manager_suite = []
+{
+    "over-aligned type allocates memory aligned to its own requirement"_test = []
+    {
         void* ptr = AlignedManager<OverAligned>::operator new(sizeof(OverAligned));
         expect(ptr != nullptr);
         expect((reinterpret_cast<std::uintptr_t>(ptr) % alignof(OverAligned)) == 0);
         AlignedManager<OverAligned>::operator delete(ptr);
     };
-    "default-aligned type still allocates usable memory"_test = [] {
+    "default-aligned type still allocates usable memory"_test = []
+    {
         void* ptr = AlignedManager<int>::operator new(sizeof(int));
         expect(ptr != nullptr);
         AlignedManager<int>::operator delete(ptr);
     };
-    "placement new is a passthrough, placement delete is a no-op"_test = [] {
+    "placement new is a passthrough, placement delete is a no-op"_test = []
+    {
         alignas(int) std::byte storage[sizeof(int)];
         void* ptr = AlignedManager<int>::operator new(sizeof(int), static_cast<void*>(storage));
         expect(ptr == static_cast<void*>(storage));

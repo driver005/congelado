@@ -6,8 +6,6 @@
 //      ATen/xpu/XPUContext.h
 //      with sycl/sycl.hpp and ice C-ABI headers.
 
-#include <sycl/sycl.hpp>
-
 #include "include/c/intern/datatype.h" // TFDataTypeEnum
 #include "include/c/intern/tensor.h"   // TF_Tensor
 
@@ -15,6 +13,7 @@
 #include <cstdint>
 #include <optional>
 #include <stdexcept>
+#include <sycl/sycl.hpp>
 
 // ---------------------------------------------------------------------------
 // SyclTensor — lightweight view of a device tensor passed across the ice ABI.
@@ -24,22 +23,29 @@
 //   'dtype' : element type (TFDataTypeEnum)
 //   'queue' : SYCL queue on which the memory is live
 // ---------------------------------------------------------------------------
-struct SyclTensor {
-    void*           data;
-    const int64_t*  dims;   // dims[0..ndim-1]
-    int             ndim;
-    TFDataTypeEnum  dtype;
-    sycl::queue*    queue;
+struct SyclTensor
+{
+    void* data;
+    const int64_t* dims; // dims[0..ndim-1]
+    int ndim;
+    TFDataTypeEnum dtype;
+    sycl::queue* queue;
 
     // Convenience: return size of dimension d (supports negative indexing).
-    [[nodiscard]] int64_t size(int d) const noexcept {
-        if (d < 0) d += ndim;
+    [[nodiscard]] int64_t size(int d) const noexcept
+    {
+        if (d < 0) {
+            d += ndim;
+        }
         assert(d >= 0 && d < ndim);
         return dims[d];
     }
 
     // Returns true when the struct has been populated (data != nullptr).
-    [[nodiscard]] bool defined() const noexcept { return data != nullptr; }
+    [[nodiscard]] bool defined() const noexcept
+    {
+        return data != nullptr;
+    }
 };
 
 // ---------------------------------------------------------------------------
@@ -49,12 +55,13 @@ struct SyclTensor {
 //      c10::SymInt → int64_t
 //      c10::optional<T> is replaced by std::optional<T> throughout callers.
 // ---------------------------------------------------------------------------
-struct sdp_params {
-    SyclTensor  query;
-    SyclTensor  key;
-    SyclTensor  value;
-    bool        is_causal{false};
-    double      dropout_p{0.0};
+struct sdp_params
+{
+    SyclTensor query;
+    SyclTensor key;
+    SyclTensor value;
+    bool is_causal{false};
+    double dropout_p{0.0};
     // ice: std::optional<at::Tensor> attn_mask → std::optional<SyclTensor>
     std::optional<SyclTensor> attn_mask;
 };
@@ -67,10 +74,8 @@ namespace sdp {
 
 [[nodiscard]] bool is_flash_attention_available();
 
-[[nodiscard]] bool can_use_flash_attention(sdp_params const& params, bool debug);
+[[nodiscard]] bool can_use_flash_attention(const sdp_params& params, bool debug);
 
-[[nodiscard]] bool check_flash_attention_hardware_support(
-    sdp_params const& params,
-    bool debug);
+[[nodiscard]] bool check_flash_attention_hardware_support(const sdp_params& params, bool debug);
 
 } // namespace sdp

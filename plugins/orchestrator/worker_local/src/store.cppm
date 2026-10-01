@@ -43,7 +43,8 @@ public:
         auto task_id = std::format("{}", instance.get_task_id());
         conn.insert<model::TaskInstance>(
             instance,
-            [task_id = std::move(task_id), callback = std::move(callback)](bool oke) mutable {
+            [task_id = std::move(task_id), callback = std::move(callback)](bool oke) mutable
+            {
                 callback(oke ? std::optional<std::string>{std::move(task_id)} : std::nullopt);
             }
         );
@@ -79,14 +80,16 @@ public:
                 .add_order_by("task_instances.seq");
         conn.find_first<model::TaskInstance>(
             std::move(options),
-            [&conn, worker_type, domain](const model::TaskInstance& instance) noexcept {
+            [&conn, worker_type, domain](const model::TaskInstance& instance) noexcept
+            {
                 if (instance.get_status() != model::TaskStatus::SCHEDULED) {
                     return false;
                 }
                 bool matches = false;
                 conn.find<model::TaskDef>(
                     instance.get_def_name(),
-                    [&worker_type, &domain, &matches](std::optional<model::TaskDef> def) noexcept {
+                    [&worker_type, &domain, &matches](std::optional<model::TaskDef> def) noexcept
+                    {
                         if (!def || def->get_worker_type() != worker_type) {
                             return;
                         }
@@ -95,11 +98,13 @@ public:
                 );
                 return matches;
             },
-            [](const model::TaskInstance& lhs, const model::TaskInstance& rhs) noexcept {
+            [](const model::TaskInstance& lhs, const model::TaskInstance& rhs) noexcept
+            {
                 return lhs.get_seq() < rhs.get_seq();
             },
             [&conn,
-             callback = std::move(callback)](std::optional<model::TaskInstance> found) mutable {
+             callback = std::move(callback)](std::optional<model::TaskInstance> found) mutable
+            {
                 if (!found) {
                     callback(std::nullopt);
                     return;
@@ -108,14 +113,18 @@ public:
                 auto claimed = std::move(*found);
                 conn.find<model::TaskDef>(
                     claimed.get_def_name(),
-                    [&conn, claimed,
-                     callback = std::move(callback)](std::optional<model::TaskDef> def) mutable {
+                    [&conn,
+                     claimed,
+                     callback = std::move(callback)](std::optional<model::TaskDef> def) mutable
+                    {
                         auto timeout_ms = def ? def->get_timeout().get_timeout_ms() : 30'000U;
                         claimed.set_deadline_at(
                             std::chrono::system_clock::now() + std::chrono::milliseconds{timeout_ms}
                         );
                         conn.update<model::TaskInstance>(
-                            claimed, [claimed, callback = std::move(callback)](bool oke) mutable {
+                            claimed,
+                            [claimed, callback = std::move(callback)](bool oke) mutable
+                            {
                                 if (!oke) {
                                     callback(std::nullopt);
                                     return;
@@ -146,8 +155,10 @@ public:
         auto& conn = *static_cast<connector::Connector*>(connector_ctx);
         conn.find<model::TaskInstance>(
             std::move(task_id),
-            [&conn, success, output = std::move(output),
-             callback = std::move(callback)](std::optional<model::TaskInstance> found) mutable {
+            [&conn, success, output = std::move(output), callback = std::move(callback)](
+                std::optional<model::TaskInstance> found
+            ) mutable
+            {
                 if (!found) {
                     callback(false);
                     return;
@@ -158,7 +169,9 @@ public:
                 found->set_output_data(std::move(output));
                 auto updated = std::move(*found);
                 conn.update<model::TaskInstance>(
-                    updated, [callback = std::move(callback)](bool oke) mutable {
+                    updated,
+                    [callback = std::move(callback)](bool oke) mutable
+                    {
                         callback(oke);
                     }
                 );
@@ -178,28 +191,34 @@ public:
             return;
         }
         auto& conn = *static_cast<connector::Connector*>(connector_ctx);
-        conn.find_all<model::TaskDef>([&conn, worker_type, callback = std::move(callback)](
-                                          std::vector<model::TaskDef> defs
-                                      ) mutable {
-            auto names = std::make_shared<std::unordered_set<std::string>>();
-            for (const auto& def: defs) {
-                if (def.get_worker_type() == worker_type) {
-                    names->insert(def.get_name());
-                }
-            }
-            conn.find_all<model::TaskInstance>([names, callback = std::move(callback)](
-                                                   std::vector<model::TaskInstance> instances
-                                               ) mutable {
-                std::size_t count = 0;
-                for (const auto& inst: instances) {
-                    if (inst.get_status() == model::TaskStatus::SCHEDULED &&
-                        names->contains(inst.get_def_name())) {
-                        ++count;
+        conn.find_all<model::TaskDef>(
+            [&conn,
+             worker_type,
+             callback = std::move(callback)](std::vector<model::TaskDef> defs) mutable
+            {
+                auto names = std::make_shared<std::unordered_set<std::string>>();
+                for (const auto& def: defs) {
+                    if (def.get_worker_type() == worker_type) {
+                        names->insert(def.get_name());
                     }
                 }
-                callback(count);
-            });
-        });
+                conn.find_all<model::TaskInstance>(
+                    [names,
+                     callback =
+                         std::move(callback)](std::vector<model::TaskInstance> instances) mutable
+                    {
+                        std::size_t count = 0;
+                        for (const auto& inst: instances) {
+                            if (inst.get_status() == model::TaskStatus::SCHEDULED &&
+                                names->contains(inst.get_def_name())) {
+                                ++count;
+                            }
+                        }
+                        callback(count);
+                    }
+                );
+            }
+        );
     }
 
     /// @brief Requeues IN_PROGRESS tasks for `worker_type` back to SCHEDULED.
@@ -214,30 +233,36 @@ public:
             return;
         }
         auto& conn = *static_cast<connector::Connector*>(connector_ctx);
-        conn.find_all<model::TaskDef>([&conn, worker_type, callback = std::move(callback)](
-                                          std::vector<model::TaskDef> defs
-                                      ) mutable {
-            auto names = std::make_shared<std::unordered_set<std::string>>();
-            for (const auto& def: defs) {
-                if (def.get_worker_type() == worker_type) {
-                    names->insert(def.get_name());
-                }
-            }
-            conn.find_all<model::TaskInstance>([&conn, names, callback = std::move(callback)](
-                                                   std::vector<model::TaskInstance> instances
-                                               ) mutable {
-                std::size_t count = 0;
-                for (auto& inst: instances) {
-                    if (inst.get_status() == model::TaskStatus::IN_PROGRESS &&
-                        names->contains(inst.get_def_name())) {
-                        inst.set_status(model::TaskStatus::SCHEDULED);
-                        conn.update<model::TaskInstance>(inst, [](bool) {});
-                        ++count;
+        conn.find_all<model::TaskDef>(
+            [&conn,
+             worker_type,
+             callback = std::move(callback)](std::vector<model::TaskDef> defs) mutable
+            {
+                auto names = std::make_shared<std::unordered_set<std::string>>();
+                for (const auto& def: defs) {
+                    if (def.get_worker_type() == worker_type) {
+                        names->insert(def.get_name());
                     }
                 }
-                callback(count);
-            });
-        });
+                conn.find_all<model::TaskInstance>(
+                    [&conn, names, callback = std::move(callback)](
+                        std::vector<model::TaskInstance> instances
+                    ) mutable
+                    {
+                        std::size_t count = 0;
+                        for (auto& inst: instances) {
+                            if (inst.get_status() == model::TaskStatus::IN_PROGRESS &&
+                                names->contains(inst.get_def_name())) {
+                                inst.set_status(model::TaskStatus::SCHEDULED);
+                                conn.update<model::TaskInstance>(inst, [](bool) {});
+                                ++count;
+                            }
+                        }
+                        callback(count);
+                    }
+                );
+            }
+        );
     }
 
     /// @brief Minimal workflow start — inserts a RUNNING WorkflowExecution for `def_name` and
@@ -258,8 +283,10 @@ public:
         auto& conn = *static_cast<connector::Connector*>(connector_ctx);
         conn.find<model::WorkflowDef>(
             def_name,
-            [&conn, variables = std::move(variables),
-             callback = std::move(callback)](std::optional<model::WorkflowDef> def) mutable {
+            [&conn,
+             variables = std::move(variables),
+             callback = std::move(callback)](std::optional<model::WorkflowDef> def) mutable
+            {
                 if (!def) {
                     callback(std::nullopt);
                     return;
@@ -272,8 +299,9 @@ public:
                 exec.set_variables(std::move(variables));
                 auto exec_id = std::format("{}", exec.get_exec_id());
                 conn.insert<model::WorkflowExecution>(
-                    std::move(exec), [exec_id = std::move(exec_id),
-                                      callback = std::move(callback)](bool oke) mutable {
+                    std::move(exec),
+                    [exec_id = std::move(exec_id), callback = std::move(callback)](bool oke) mutable
+                    {
                         callback(
                             oke ? std::optional<std::string>{std::move(exec_id)} : std::nullopt
                         );
@@ -307,7 +335,9 @@ public:
     }
 
     void set(
-        std::string_view key, std::string_view value, shared::QueryReadFn&& result
+        std::string_view key,
+        std::string_view value,
+        shared::QueryReadFn&& result
     ) noexcept override
     {
         m_store[std::string{key}] = std::string{value};
@@ -347,27 +377,36 @@ private:
     connector::Connector m_connector;
 };
 
-suite<"OrchestratorStore::enqueue"> store_enqueue_suite = [] {
-    "a nullptr connector_ctx reports std::nullopt"_test = [] {
+suite<"OrchestratorStore::enqueue"> store_enqueue_suite = []
+{
+    "a nullptr connector_ctx reports std::nullopt"_test = []
+    {
         std::optional<std::string> result{"unset"};
         OrchestratorStore::enqueue(
-            nullptr, "echo", serde::Value{serde::Value::Object{}},
-            [&result](std::optional<std::string> id) {
+            nullptr,
+            "echo",
+            serde::Value{serde::Value::Object{}},
+            [&result](std::optional<std::string> id)
+            {
                 result = id;
             }
         );
         expect(!result.has_value());
     };
 
-    "inserts a SCHEDULED TaskInstance and hands back its id"_test = [] {
+    "inserts a SCHEDULED TaskInstance and hands back its id"_test = []
+    {
         StoreFixture fixture;
         serde::Value::Object input;
         input["to"] = std::string{"a@example.com"};
 
         std::optional<std::string> result;
         OrchestratorStore::enqueue(
-            fixture.ctx(), "echo", serde::Value{std::move(input)},
-            [&result](std::optional<std::string> id) {
+            fixture.ctx(),
+            "echo",
+            serde::Value{std::move(input)},
+            [&result](std::optional<std::string> id)
+            {
                 result = id;
             }
         );
@@ -375,7 +414,9 @@ suite<"OrchestratorStore::enqueue"> store_enqueue_suite = [] {
         expect(result.has_value()) << fatal;
         std::optional<model::TaskInstance> found;
         fixture.get_connector().find<model::TaskInstance>(
-            *result, [&found](std::optional<model::TaskInstance> value) {
+            *result,
+            [&found](std::optional<model::TaskInstance> value)
+            {
                 found = std::move(value);
             }
         );
@@ -385,22 +426,33 @@ suite<"OrchestratorStore::enqueue"> store_enqueue_suite = [] {
     };
 };
 
-suite<"OrchestratorStore::claim"> store_claim_suite = [] {
-    "a nullptr connector_ctx reports std::nullopt"_test = [] {
+suite<"OrchestratorStore::claim"> store_claim_suite = []
+{
+    "a nullptr connector_ctx reports std::nullopt"_test = []
+    {
         std::optional<std::string> result{"unset"};
         OrchestratorStore::claim(
-            nullptr, "echo", std::nullopt, [&result](std::optional<std::string> value) {
+            nullptr,
+            "echo",
+            std::nullopt,
+            [&result](std::optional<std::string> value)
+            {
                 result = value;
             }
         );
         expect(!result.has_value());
     };
 
-    "an empty queue reports std::nullopt"_test = [] {
+    "an empty queue reports std::nullopt"_test = []
+    {
         StoreFixture fixture;
         std::optional<std::string> result{"unset"};
         OrchestratorStore::claim(
-            fixture.ctx(), "echo", std::nullopt, [&result](std::optional<std::string> value) {
+            fixture.ctx(),
+            "echo",
+            std::nullopt,
+            [&result](std::optional<std::string> value)
+            {
                 result = value;
             }
         );
@@ -408,7 +460,8 @@ suite<"OrchestratorStore::claim"> store_claim_suite = [] {
     };
 
     "claims the oldest SCHEDULED instance whose def's worker_type matches, flips it "
-    "IN_PROGRESS, returns it serialized"_test = [] {
+    "IN_PROGRESS, returns it serialized"_test = []
+    {
         StoreFixture fixture;
         model::TaskDef def;
         def.set_name("send_email");
@@ -424,7 +477,11 @@ suite<"OrchestratorStore::claim"> store_claim_suite = [] {
 
         std::optional<std::string> result;
         OrchestratorStore::claim(
-            fixture.ctx(), "echo", std::nullopt, [&result](std::optional<std::string> value) {
+            fixture.ctx(),
+            "echo",
+            std::nullopt,
+            [&result](std::optional<std::string> value)
+            {
                 result = value;
             }
         );
@@ -435,7 +492,8 @@ suite<"OrchestratorStore::claim"> store_claim_suite = [] {
         std::optional<model::TaskInstance> updated;
         fixture.get_connector().find<model::TaskInstance>(
             std::format("{}", instance.get_task_id()),
-            [&updated](std::optional<model::TaskInstance> value) {
+            [&updated](std::optional<model::TaskInstance> value)
+            {
                 updated = std::move(value);
             }
         );
@@ -444,7 +502,8 @@ suite<"OrchestratorStore::claim"> store_claim_suite = [] {
         expect(updated->get_deadline_at().has_value());
     };
 
-    "a worker_type that doesn't match any def's worker_type reports std::nullopt"_test = [] {
+    "a worker_type that doesn't match any def's worker_type reports std::nullopt"_test = []
+    {
         StoreFixture fixture;
         model::TaskDef def;
         def.set_name("send_email");
@@ -458,15 +517,19 @@ suite<"OrchestratorStore::claim"> store_claim_suite = [] {
 
         std::optional<std::string> result{"unset"};
         OrchestratorStore::claim(
-            fixture.ctx(), "other_worker_type", std::nullopt,
-            [&result](std::optional<std::string> value) {
+            fixture.ctx(),
+            "other_worker_type",
+            std::nullopt,
+            [&result](std::optional<std::string> value)
+            {
                 result = value;
             }
         );
         expect(!result.has_value());
     };
 
-    "a domain filter only matches instances whose def's domain agrees exactly"_test = [] {
+    "a domain filter only matches instances whose def's domain agrees exactly"_test = []
+    {
         StoreFixture fixture;
         model::TaskDef def;
         def.set_name("send_email");
@@ -481,8 +544,11 @@ suite<"OrchestratorStore::claim"> store_claim_suite = [] {
 
         std::optional<std::string> wrong_domain{"unset"};
         OrchestratorStore::claim(
-            fixture.ctx(), "echo", std::optional<std::string>{"tenant_b"},
-            [&wrong_domain](std::optional<std::string> value) {
+            fixture.ctx(),
+            "echo",
+            std::optional<std::string>{"tenant_b"},
+            [&wrong_domain](std::optional<std::string> value)
+            {
                 wrong_domain = value;
             }
         );
@@ -490,15 +556,19 @@ suite<"OrchestratorStore::claim"> store_claim_suite = [] {
 
         std::optional<std::string> right_domain;
         OrchestratorStore::claim(
-            fixture.ctx(), "echo", std::optional<std::string>{"tenant_a"},
-            [&right_domain](std::optional<std::string> value) {
+            fixture.ctx(),
+            "echo",
+            std::optional<std::string>{"tenant_a"},
+            [&right_domain](std::optional<std::string> value)
+            {
                 right_domain = value;
             }
         );
         expect(right_domain.has_value());
     };
 
-    "already-claimed (non-SCHEDULED) instances are never re-claimed"_test = [] {
+    "already-claimed (non-SCHEDULED) instances are never re-claimed"_test = []
+    {
         StoreFixture fixture;
         model::TaskDef def;
         def.set_name("send_email");
@@ -512,7 +582,11 @@ suite<"OrchestratorStore::claim"> store_claim_suite = [] {
 
         std::optional<std::string> first;
         OrchestratorStore::claim(
-            fixture.ctx(), "echo", std::nullopt, [&first](std::optional<std::string> value) {
+            fixture.ctx(),
+            "echo",
+            std::nullopt,
+            [&first](std::optional<std::string> value)
+            {
                 first = value;
             }
         );
@@ -520,7 +594,11 @@ suite<"OrchestratorStore::claim"> store_claim_suite = [] {
 
         std::optional<std::string> second{"unset"};
         OrchestratorStore::claim(
-            fixture.ctx(), "echo", std::nullopt, [&second](std::optional<std::string> value) {
+            fixture.ctx(),
+            "echo",
+            std::nullopt,
+            [&second](std::optional<std::string> value)
+            {
                 second = value;
             }
         );
@@ -528,27 +606,43 @@ suite<"OrchestratorStore::claim"> store_claim_suite = [] {
     };
 };
 
-suite<"OrchestratorStore::submit_result"> store_submit_result_suite = [] {
-    "a nullptr connector_ctx reports false"_test = [] {
-        bool result = true;
-        OrchestratorStore::submit_result(nullptr, "some-id", true, {}, [&result](bool ok) {
-            result = ok;
-        });
-        expect(!result);
-    };
-
-    "an unknown task id reports false"_test = [] {
-        StoreFixture fixture;
+suite<"OrchestratorStore::submit_result"> store_submit_result_suite = []
+{
+    "a nullptr connector_ctx reports false"_test = []
+    {
         bool result = true;
         OrchestratorStore::submit_result(
-            fixture.ctx(), std::format("{}", model::generate_id()), true, {}, [&result](bool ok) {
+            nullptr,
+            "some-id",
+            true,
+            {},
+            [&result](bool ok)
+            {
                 result = ok;
             }
         );
         expect(!result);
     };
 
-    "success=true records COMPLETED with the given output"_test = [] {
+    "an unknown task id reports false"_test = []
+    {
+        StoreFixture fixture;
+        bool result = true;
+        OrchestratorStore::submit_result(
+            fixture.ctx(),
+            std::format("{}", model::generate_id()),
+            true,
+            {},
+            [&result](bool ok)
+            {
+                result = ok;
+            }
+        );
+        expect(!result);
+    };
+
+    "success=true records COMPLETED with the given output"_test = []
+    {
         StoreFixture fixture;
         model::TaskInstance instance;
         instance.set_task_id(model::generate_id());
@@ -558,8 +652,12 @@ suite<"OrchestratorStore::submit_result"> store_submit_result_suite = [] {
 
         bool result = false;
         OrchestratorStore::submit_result(
-            fixture.ctx(), std::format("{}", instance.get_task_id()), true, {{"message_id", "abc"}},
-            [&result](bool ok) {
+            fixture.ctx(),
+            std::format("{}", instance.get_task_id()),
+            true,
+            {{"message_id", "abc"}},
+            [&result](bool ok)
+            {
                 result = ok;
             }
         );
@@ -568,7 +666,8 @@ suite<"OrchestratorStore::submit_result"> store_submit_result_suite = [] {
         std::optional<model::TaskInstance> updated;
         fixture.get_connector().find<model::TaskInstance>(
             std::format("{}", instance.get_task_id()),
-            [&updated](std::optional<model::TaskInstance> value) {
+            [&updated](std::optional<model::TaskInstance> value)
+            {
                 updated = std::move(value);
             }
         );
@@ -577,7 +676,8 @@ suite<"OrchestratorStore::submit_result"> store_submit_result_suite = [] {
         expect(updated->get_output_data().at("message_id") == "abc");
     };
 
-    "success=false records FAILED"_test = [] {
+    "success=false records FAILED"_test = []
+    {
         StoreFixture fixture;
         model::TaskInstance instance;
         instance.set_task_id(model::generate_id());
@@ -586,13 +686,18 @@ suite<"OrchestratorStore::submit_result"> store_submit_result_suite = [] {
         fixture.get_connector().insert<model::TaskInstance>(instance, [](bool) {});
 
         OrchestratorStore::submit_result(
-            fixture.ctx(), std::format("{}", instance.get_task_id()), false, {}, [](bool) {}
+            fixture.ctx(),
+            std::format("{}", instance.get_task_id()),
+            false,
+            {},
+            [](bool) {}
         );
 
         std::optional<model::TaskInstance> updated;
         fixture.get_connector().find<model::TaskInstance>(
             std::format("{}", instance.get_task_id()),
-            [&updated](std::optional<model::TaskInstance> value) {
+            [&updated](std::optional<model::TaskInstance> value)
+            {
                 updated = std::move(value);
             }
         );
@@ -601,16 +706,24 @@ suite<"OrchestratorStore::submit_result"> store_submit_result_suite = [] {
     };
 };
 
-suite<"OrchestratorStore::queue_size"> store_queue_size_suite = [] {
-    "a nullptr connector_ctx reports 0"_test = [] {
+suite<"OrchestratorStore::queue_size"> store_queue_size_suite = []
+{
+    "a nullptr connector_ctx reports 0"_test = []
+    {
         std::size_t result = 99;
-        OrchestratorStore::queue_size(nullptr, "echo", [&result](std::size_t count) {
-            result = count;
-        });
+        OrchestratorStore::queue_size(
+            nullptr,
+            "echo",
+            [&result](std::size_t count)
+            {
+                result = count;
+            }
+        );
         expect(result == std::size_t{0});
     };
 
-    "counts only SCHEDULED instances whose def's worker_type matches"_test = [] {
+    "counts only SCHEDULED instances whose def's worker_type matches"_test = []
+    {
         StoreFixture fixture;
         model::TaskDef echo_def;
         echo_def.set_name("echo_task");
@@ -640,23 +753,36 @@ suite<"OrchestratorStore::queue_size"> store_queue_size_suite = [] {
         fixture.get_connector().insert<model::TaskInstance>(scheduled_other, [](bool) {});
 
         std::size_t result = 0;
-        OrchestratorStore::queue_size(fixture.ctx(), "echo", [&result](std::size_t count) {
-            result = count;
-        });
+        OrchestratorStore::queue_size(
+            fixture.ctx(),
+            "echo",
+            [&result](std::size_t count)
+            {
+                result = count;
+            }
+        );
         expect(result == std::size_t{1});
     };
 };
 
-suite<"OrchestratorStore::requeue"> store_requeue_suite = [] {
-    "a nullptr connector_ctx reports 0"_test = [] {
+suite<"OrchestratorStore::requeue"> store_requeue_suite = []
+{
+    "a nullptr connector_ctx reports 0"_test = []
+    {
         std::size_t result = 99;
-        OrchestratorStore::requeue(nullptr, "echo", [&result](std::size_t count) {
-            result = count;
-        });
+        OrchestratorStore::requeue(
+            nullptr,
+            "echo",
+            [&result](std::size_t count)
+            {
+                result = count;
+            }
+        );
         expect(result == std::size_t{0});
     };
 
-    "flips IN_PROGRESS instances of the matching worker_type back to SCHEDULED"_test = [] {
+    "flips IN_PROGRESS instances of the matching worker_type back to SCHEDULED"_test = []
+    {
         StoreFixture fixture;
         model::TaskDef def;
         def.set_name("echo_task");
@@ -676,15 +802,21 @@ suite<"OrchestratorStore::requeue"> store_requeue_suite = [] {
         fixture.get_connector().insert<model::TaskInstance>(already_scheduled, [](bool) {});
 
         std::size_t result = 0;
-        OrchestratorStore::requeue(fixture.ctx(), "echo", [&result](std::size_t count) {
-            result = count;
-        });
+        OrchestratorStore::requeue(
+            fixture.ctx(),
+            "echo",
+            [&result](std::size_t count)
+            {
+                result = count;
+            }
+        );
         expect(result == std::size_t{1});
 
         std::optional<model::TaskInstance> updated;
         fixture.get_connector().find<model::TaskInstance>(
             std::format("{}", stuck.get_task_id()),
-            [&updated](std::optional<model::TaskInstance> value) {
+            [&updated](std::optional<model::TaskInstance> value)
+            {
                 updated = std::move(value);
             }
         );
@@ -693,22 +825,33 @@ suite<"OrchestratorStore::requeue"> store_requeue_suite = [] {
     };
 };
 
-suite<"OrchestratorStore::start_workflow"> store_start_workflow_suite = [] {
-    "a nullptr connector_ctx reports std::nullopt"_test = [] {
+suite<"OrchestratorStore::start_workflow"> store_start_workflow_suite = []
+{
+    "a nullptr connector_ctx reports std::nullopt"_test = []
+    {
         std::optional<std::string> result{"unset"};
         OrchestratorStore::start_workflow(
-            nullptr, "order_pipeline", {}, [&result](std::optional<std::string> id) {
+            nullptr,
+            "order_pipeline",
+            {},
+            [&result](std::optional<std::string> id)
+            {
                 result = id;
             }
         );
         expect(!result.has_value());
     };
 
-    "a nonexistent def name reports std::nullopt"_test = [] {
+    "a nonexistent def name reports std::nullopt"_test = []
+    {
         StoreFixture fixture;
         std::optional<std::string> result{"unset"};
         OrchestratorStore::start_workflow(
-            fixture.ctx(), "missing_def", {}, [&result](std::optional<std::string> id) {
+            fixture.ctx(),
+            "missing_def",
+            {},
+            [&result](std::optional<std::string> id)
+            {
                 result = id;
             }
         );
@@ -716,7 +859,8 @@ suite<"OrchestratorStore::start_workflow"> store_start_workflow_suite = [] {
     };
 
     "inserts a RUNNING WorkflowExecution with no task instances — DAG advancement stays "
-    "engine-side"_test = [] {
+    "engine-side"_test = []
+    {
         StoreFixture fixture;
         model::WorkflowDef def;
         def.set_name("order_pipeline");
@@ -724,8 +868,11 @@ suite<"OrchestratorStore::start_workflow"> store_start_workflow_suite = [] {
 
         std::optional<std::string> result;
         OrchestratorStore::start_workflow(
-            fixture.ctx(), "order_pipeline", {{"order_id", "42"}},
-            [&result](std::optional<std::string> id) {
+            fixture.ctx(),
+            "order_pipeline",
+            {{"order_id", "42"}},
+            [&result](std::optional<std::string> id)
+            {
                 result = id;
             }
         );
@@ -733,7 +880,9 @@ suite<"OrchestratorStore::start_workflow"> store_start_workflow_suite = [] {
         expect(result.has_value()) << fatal;
         std::optional<model::WorkflowExecution> exec;
         fixture.get_connector().find<model::WorkflowExecution>(
-            *result, [&exec](std::optional<model::WorkflowExecution> value) {
+            *result,
+            [&exec](std::optional<model::WorkflowExecution> value)
+            {
                 exec = std::move(value);
             }
         );

@@ -9,8 +9,9 @@
 
 module;
 
-#include "include/c/extern/kernel/builder.h"
 #include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
+#include "include/c/extern/kernel/builder.h"
+
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_sycl.hpp>
 
@@ -42,8 +43,7 @@ public:
         auto* scale_a_handle = ctx.get_input(2, &status);
         auto* scale_b_handle = ctx.get_input(3, &status);
         if (a_handle == nullptr || b_handle == nullptr || scale_a_handle == nullptr ||
-            scale_b_handle == nullptr)
-        {
+            scale_b_handle == nullptr) {
             ctx.fail(&status);
             return;
         }
@@ -139,20 +139,30 @@ private:
 
         dnnl::memory::desc a_md{{m, k}, dnnl::memory::data_type::s8, dnnl::memory::format_tag::ab};
         dnnl::memory::desc b_md{{k, n}, dnnl::memory::data_type::s8, dnnl::memory::format_tag::ab};
-        dnnl::memory::desc dst_md{{m, n}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::ab};
-        dnnl::memory::desc bias_md = bias_data != nullptr
-            ? dnnl::memory::desc{{n}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::x}
-            : dnnl::memory::desc{};
-        dnnl::memory::desc scalar_md{{1}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::x};
+        dnnl::memory::desc dst_md{
+            {m, n},
+            dnnl::memory::data_type::f32,
+            dnnl::memory::format_tag::ab
+        };
+        dnnl::memory::desc bias_md =
+            bias_data != nullptr
+                ? dnnl::memory::desc{{n}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::x}
+                : dnnl::memory::desc{};
+        dnnl::memory::desc scalar_md{
+            {1},
+            dnnl::memory::data_type::f32,
+            dnnl::memory::format_tag::x
+        };
 
         dnnl::primitive_attr attributes;
         attributes.set_scratchpad_mode(dnnl::scratchpad_mode::user);
         attributes.set_scales_mask(DNNL_ARG_SRC, 0);
         attributes.set_scales_mask(DNNL_ARG_WEIGHTS, 0);
 
-        dnnl::matmul::primitive_desc primitive_desc = bias_data != nullptr
-            ? dnnl::matmul::primitive_desc{engine, a_md, b_md, bias_md, dst_md, attributes}
-            : dnnl::matmul::primitive_desc{engine, a_md, b_md, dst_md, attributes};
+        dnnl::matmul::primitive_desc primitive_desc =
+            bias_data != nullptr
+                ? dnnl::matmul::primitive_desc{engine, a_md, b_md, bias_md, dst_md, attributes}
+                : dnnl::matmul::primitive_desc{engine, a_md, b_md, dst_md, attributes};
         dnnl::matmul matmul{primitive_desc};
 
         std::unordered_map<int, dnnl::memory> arguments;

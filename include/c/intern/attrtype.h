@@ -16,9 +16,9 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_ATTRTYPE_H_
 #define TENSORFLOW_C_TF_ATTRTYPE_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -54,7 +54,8 @@ extern "C"
 
         void (*get_name)(TF_AttrType* attrtype, TF_String* out_name);
 
-        // Return the human-readable name of the given attr type (e.g. "string" for TF_ATTR_STRING) into *out_type_name.
+        // Return the human-readable name of the given attr type (e.g. "string" for TF_ATTR_STRING)
+        // into *out_type_name.
         void (*attrtype_name)(TF_AttrType* attrtype, TFAttrTypeEnum type, TF_String* out_type_name);
 
     } TF_AttrTypeOps;

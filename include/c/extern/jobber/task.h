@@ -1,11 +1,11 @@
 #ifndef CONGELADO_C_EXTERN_JOB_TASK_H_
 #define CONGELADO_C_EXTERN_JOB_TASK_H_
 
-#include "include/c/macros.h"
+#include "include/c/extern/jobber/job.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 #include "include/c/intern/vector.h"
-#include "include/c/extern/jobber/job.h"
+#include "include/c/macros.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -24,9 +24,20 @@ extern "C"
         void (*destroy)(TF_Task* handle);
 
 
-        void (*complete)(TF_Task* task, const TF_String* node_ref, const TF_String* output, TF_Status* out_status);
+        void (*complete)(
+            TF_Task* task,
+            const TF_String* node_ref,
+            const TF_String* output,
+            TF_Status* out_status
+        );
 
-        void (*create_task)(TF_Task* task, const TF_String* node_ref, const TF_String* input, TF_Job* out_child, TF_Status* out_status);
+        void (*create_task)(
+            TF_Task* task,
+            const TF_String* node_ref,
+            const TF_String* input,
+            TF_Job* out_child,
+            TF_Status* out_status
+        );
         void (*get_task)(TF_Task* task, const TF_String* node_ref, TF_Job* out_child);
         void (*list_tasks)(TF_Task* task, TF_Vector* out_node_refs, TF_Status* out_status);
         void (*cancel_task)(TF_Task* task, const TF_String* node_ref, TF_Status* out_status);
@@ -35,11 +46,7 @@ extern "C"
 
 #define TF_TASK_STRUCT_SIZE TF_OFFSET_OF_END(TF_TaskOps, cancel_task)
 
-    TF_CAPI_EXPORT void create_task(
-        TF_TaskOps** ops,
-        void** plugin_context,
-        TF_Status* out_status
-    );
+    TF_CAPI_EXPORT void create_task(TF_TaskOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_task(void* plugin_context);
 
 #ifdef __cplusplus

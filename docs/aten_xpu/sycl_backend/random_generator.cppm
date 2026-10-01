@@ -87,18 +87,18 @@ public:
     graphsafe_set_state(ice::builder::RandomGenerator& other) noexcept
     {
         (void)other;
-        return std::unexpected{
-            ice::sonic::Status::from_message("SyclRandomGenerator: graph-safe state needs SyclTensor")
-        };
+        return std::unexpected{ice::sonic::Status::from_message(
+            "SyclRandomGenerator: graph-safe state needs SyclTensor"
+        )};
     }
 
     [[nodiscard]] std::expected<void, ice::sonic::Status>
     graphsafe_get_state(TF_RandomGenerator* out_other) noexcept
     {
         (void)out_other;
-        return std::unexpected{
-            ice::sonic::Status::from_message("SyclRandomGenerator: graph-safe state needs SyclTensor")
-        };
+        return std::unexpected{ice::sonic::Status::from_message(
+            "SyclRandomGenerator: graph-safe state needs SyclTensor"
+        )};
     }
 
     // Advances the offset by increment (rounded up to a Philox block) and reports the (seed,
@@ -108,9 +108,9 @@ public:
     philox_state(uint64_t increment, TF_PhiloxState* out_state) noexcept override
     {
         if (!m_registered_graphs.empty()) {
-            return std::unexpected{
-                ice::sonic::Status::from_message("SyclRandomGenerator: capturing generator needs graph-safe state, not implemented")
-            };
+            return std::unexpected{ice::sonic::Status::from_message(
+                "SyclRandomGenerator: capturing generator needs graph-safe state, not implemented"
+            )};
         }
 
         const uint64_t rounded = round_up_to_block(increment);
@@ -129,9 +129,11 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    philox_engine_inputs(uint64_t increment, uint64_t* out_seed, uint64_t* out_offset) noexcept
-        override
+    [[nodiscard]] std::expected<void, ice::sonic::Status> philox_engine_inputs(
+        uint64_t increment,
+        uint64_t* out_seed,
+        uint64_t* out_offset
+    ) noexcept override
     {
         *out_seed = m_seed;
         *out_offset = m_philox_offset;

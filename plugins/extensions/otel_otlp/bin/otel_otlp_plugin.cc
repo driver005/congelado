@@ -18,7 +18,7 @@
 // empty is safe here: this plugin compiles these types directly into its own single .so with no
 // need for a separate cross-DSO export/visibility attribute on them.
 #ifndef OPENTELEMETRY_PROTO_API
-#  define OPENTELEMETRY_PROTO_API
+    #define OPENTELEMETRY_PROTO_API
 #endif
 
 #include <opentelemetry/common/key_value_iterable_view.h>
@@ -95,51 +95,55 @@ namespace logs_sdk = opentelemetry::sdk::logs;
 namespace resource_sdk = opentelemetry::sdk::resource;
 namespace otel_internal_log = opentelemetry::sdk::common::internal_log;
 
-trace_api::SpanKind to_otel_kind(interfaces::SpanKind kind) noexcept {
+trace_api::SpanKind to_otel_kind(interfaces::SpanKind kind) noexcept
+{
     switch (kind) {
-    case interfaces::SpanKind::SERVER:
-        return trace_api::SpanKind::kServer;
-    case interfaces::SpanKind::CLIENT:
-        return trace_api::SpanKind::kClient;
-    case interfaces::SpanKind::PRODUCER:
-        return trace_api::SpanKind::kProducer;
-    case interfaces::SpanKind::CONSUMER:
-        return trace_api::SpanKind::kConsumer;
-    case interfaces::SpanKind::INTERNAL:
-        return trace_api::SpanKind::kInternal;
+        case interfaces::SpanKind::SERVER:
+            return trace_api::SpanKind::kServer;
+        case interfaces::SpanKind::CLIENT:
+            return trace_api::SpanKind::kClient;
+        case interfaces::SpanKind::PRODUCER:
+            return trace_api::SpanKind::kProducer;
+        case interfaces::SpanKind::CONSUMER:
+            return trace_api::SpanKind::kConsumer;
+        case interfaces::SpanKind::INTERNAL:
+            return trace_api::SpanKind::kInternal;
     }
     return trace_api::SpanKind::kInternal;
 }
 
-trace_api::StatusCode to_otel_status(interfaces::SpanStatus status) noexcept {
+trace_api::StatusCode to_otel_status(interfaces::SpanStatus status) noexcept
+{
     switch (status) {
-    case interfaces::SpanStatus::OK:
-        return trace_api::StatusCode::kOk;
-    case interfaces::SpanStatus::ERROR:
-        return trace_api::StatusCode::kError;
-    case interfaces::SpanStatus::UNSET:
-        return trace_api::StatusCode::kUnset;
+        case interfaces::SpanStatus::OK:
+            return trace_api::StatusCode::kOk;
+        case interfaces::SpanStatus::ERROR:
+            return trace_api::StatusCode::kError;
+        case interfaces::SpanStatus::UNSET:
+            return trace_api::StatusCode::kUnset;
     }
     return trace_api::StatusCode::kUnset;
 }
 
-logs_api::Severity to_otel_severity(interfaces::LogSeverity severity) noexcept {
+logs_api::Severity to_otel_severity(interfaces::LogSeverity severity) noexcept
+{
     switch (severity) {
-    case interfaces::LogSeverity::DEBUG:
-        return logs_api::Severity::kDebug;
-    case interfaces::LogSeverity::INFO:
-        return logs_api::Severity::kInfo;
-    case interfaces::LogSeverity::WARN:
-        return logs_api::Severity::kWarn;
-    case interfaces::LogSeverity::ERROR:
-        return logs_api::Severity::kError;
-    case interfaces::LogSeverity::FATAL:
-        return logs_api::Severity::kFatal;
+        case interfaces::LogSeverity::DEBUG:
+            return logs_api::Severity::kDebug;
+        case interfaces::LogSeverity::INFO:
+            return logs_api::Severity::kInfo;
+        case interfaces::LogSeverity::WARN:
+            return logs_api::Severity::kWarn;
+        case interfaces::LogSeverity::ERROR:
+            return logs_api::Severity::kError;
+        case interfaces::LogSeverity::FATAL:
+            return logs_api::Severity::kFatal;
     }
     return logs_api::Severity::kInfo;
 }
 
-std::array<std::uint8_t, 16> to_u8(const std::array<std::byte, 16> &bytes) noexcept {
+std::array<std::uint8_t, 16> to_u8(const std::array<std::byte, 16>& bytes) noexcept
+{
     std::array<std::uint8_t, 16> out{};
     for (std::size_t i = 0; i < 16; ++i) {
         out[i] = std::to_integer<std::uint8_t>(bytes[i]);
@@ -147,7 +151,8 @@ std::array<std::uint8_t, 16> to_u8(const std::array<std::byte, 16> &bytes) noexc
     return out;
 }
 
-std::array<std::uint8_t, 8> to_u8(const std::array<std::byte, 8> &bytes) noexcept {
+std::array<std::uint8_t, 8> to_u8(const std::array<std::byte, 8>& bytes) noexcept
+{
     std::array<std::uint8_t, 8> out{};
     for (std::size_t i = 0; i < 8; ++i) {
         out[i] = std::to_integer<std::uint8_t>(bytes[i]);
@@ -155,9 +160,11 @@ std::array<std::uint8_t, 8> to_u8(const std::array<std::byte, 8> &bytes) noexcep
     return out;
 }
 
-std::string attribute_to_string(const interfaces::AttributeValue &value) {
+std::string attribute_to_string(const interfaces::AttributeValue& value)
+{
     return std::visit(
-        [](const auto &held) -> std::string {
+        [](const auto& held) -> std::string
+        {
             using Held = std::decay_t<decltype(held)>;
             if constexpr (std::same_as<Held, std::string_view>) {
                 return std::string{held};
@@ -167,30 +174,43 @@ std::string attribute_to_string(const interfaces::AttributeValue &value) {
                 return std::format("{}", held);
             }
         },
-        value);
+        value
+    );
 }
 
-std::map<std::string, std::string> to_label_map(std::span<const interfaces::Attribute> attrs) {
+std::map<std::string, std::string> to_label_map(std::span<const interfaces::Attribute> attrs)
+{
     std::map<std::string, std::string> out;
-    for (const auto &attr : attrs) {
+    for (const auto& attr: attrs) {
         out[std::string{attr.key}] = attribute_to_string(attr.value);
     }
     return out;
 }
 
-class SpanWrapper final : public interfaces::ISpan {
-  public:
-    explicit SpanWrapper(opentelemetry::nostd::shared_ptr<trace_api::Span> span)
-        : m_span{std::move(span)} {}
+class SpanWrapper final : public interfaces::ISpan
+{
+public:
+    explicit SpanWrapper(opentelemetry::nostd::shared_ptr<trace_api::Span> span) :
+        m_span{std::move(span)}
+    {
+    }
 
-    void set_attribute(std::string_view key, const interfaces::AttributeValue &value) noexcept override {
+    void set_attribute(
+        std::string_view key,
+        const interfaces::AttributeValue& value
+    ) noexcept override
+    {
         try {
             m_span->SetAttribute(std::string{key}, attribute_to_string(value));
         } catch (...) {
         }
     }
 
-    void add_event(std::string_view name, std::span<const interfaces::Attribute> attrs) noexcept override {
+    void add_event(
+        std::string_view name,
+        std::span<const interfaces::Attribute> attrs
+    ) noexcept override
+    {
         try {
             auto labels = to_label_map(attrs);
             opentelemetry::common::KeyValueIterableView view{labels};
@@ -199,32 +219,41 @@ class SpanWrapper final : public interfaces::ISpan {
         }
     }
 
-    void set_status(interfaces::SpanStatus status, std::string_view description) noexcept override {
+    void set_status(interfaces::SpanStatus status, std::string_view description) noexcept override
+    {
         try {
             m_span->SetStatus(to_otel_status(status), std::string{description});
         } catch (...) {
         }
     }
 
-    void end() noexcept override {
+    void end() noexcept override
+    {
         try {
             m_span->End();
         } catch (...) {
         }
     }
 
-  private:
+private:
     opentelemetry::nostd::shared_ptr<trace_api::Span> m_span;
 };
 
-class TracerBackend final : public interfaces::ITracerProvider {
-  public:
-    explicit TracerBackend(opentelemetry::nostd::shared_ptr<trace_api::Tracer> tracer)
-        : m_tracer{std::move(tracer)} {}
+class TracerBackend final : public interfaces::ITracerProvider
+{
+public:
+    explicit TracerBackend(opentelemetry::nostd::shared_ptr<trace_api::Tracer> tracer) :
+        m_tracer{std::move(tracer)}
+    {
+    }
 
-    [[nodiscard]] std::shared_ptr<interfaces::ISpan>
-    start_span(std::string_view name, interfaces::SpanKind kind, const interfaces::SpanContext &ctx,
-              std::span<const interfaces::Attribute> attrs) override {
+    [[nodiscard]] std::shared_ptr<interfaces::ISpan> start_span(
+        std::string_view name,
+        interfaces::SpanKind kind,
+        const interfaces::SpanContext& ctx,
+        std::span<const interfaces::Attribute> attrs
+    ) override
+    {
         trace_api::StartSpanOptions options;
         options.kind = to_otel_kind(kind);
 
@@ -238,10 +267,16 @@ class TracerBackend final : public interfaces::ITracerProvider {
             auto span_id_bytes = to_u8(ctx.parent_span_id);
             trace_api::TraceId trace_id{
                 opentelemetry::nostd::span<const std::uint8_t, trace_api::TraceId::kSize>(
-                    trace_id_bytes.data(), trace_id_bytes.size())};
+                    trace_id_bytes.data(),
+                    trace_id_bytes.size()
+                )
+            };
             trace_api::SpanId parent_id{
                 opentelemetry::nostd::span<const std::uint8_t, trace_api::SpanId::kSize>(
-                    span_id_bytes.data(), span_id_bytes.size())};
+                    span_id_bytes.data(),
+                    span_id_bytes.size()
+                )
+            };
             trace_api::TraceFlags flags{static_cast<std::uint8_t>(ctx.sampled ? 1U : 0U)};
             // is_remote=true: the parent was propagated in from our own facade's ambient/wire
             // context, not started by this same Tracer instance.
@@ -254,16 +289,22 @@ class TracerBackend final : public interfaces::ITracerProvider {
         return std::make_shared<SpanWrapper>(std::move(span));
     }
 
-  private:
+private:
     opentelemetry::nostd::shared_ptr<trace_api::Tracer> m_tracer;
 };
 
-class CounterBackend final : public interfaces::ICounter {
-  public:
-    explicit CounterBackend(opentelemetry::nostd::unique_ptr<metrics_api::Counter<double>> counter)
-        : m_counter{std::move(counter)} {}
+class CounterBackend final : public interfaces::ICounter
+{
+public:
+    explicit CounterBackend(
+        opentelemetry::nostd::unique_ptr<metrics_api::Counter<double>> counter
+    ) :
+        m_counter{std::move(counter)}
+    {
+    }
 
-    void add(double value, std::span<const interfaces::Attribute> attrs) noexcept override {
+    void add(double value, std::span<const interfaces::Attribute> attrs) noexcept override
+    {
         try {
             auto labels = to_label_map(attrs);
             opentelemetry::common::KeyValueIterableView view{labels};
@@ -272,16 +313,22 @@ class CounterBackend final : public interfaces::ICounter {
         }
     }
 
-  private:
+private:
     opentelemetry::nostd::unique_ptr<metrics_api::Counter<double>> m_counter;
 };
 
-class HistogramBackend final : public interfaces::IHistogram {
-  public:
-    explicit HistogramBackend(opentelemetry::nostd::unique_ptr<metrics_api::Histogram<double>> histogram)
-        : m_histogram{std::move(histogram)} {}
+class HistogramBackend final : public interfaces::IHistogram
+{
+public:
+    explicit HistogramBackend(
+        opentelemetry::nostd::unique_ptr<metrics_api::Histogram<double>> histogram
+    ) :
+        m_histogram{std::move(histogram)}
+    {
+    }
 
-    void record(double value, std::span<const interfaces::Attribute> attrs) noexcept override {
+    void record(double value, std::span<const interfaces::Attribute> attrs) noexcept override
+    {
         try {
             auto labels = to_label_map(attrs);
             opentelemetry::common::KeyValueIterableView view{labels};
@@ -290,37 +337,58 @@ class HistogramBackend final : public interfaces::IHistogram {
         }
     }
 
-  private:
+private:
     opentelemetry::nostd::unique_ptr<metrics_api::Histogram<double>> m_histogram;
 };
 
-class MeterBackend final : public interfaces::IMeterProvider {
-  public:
-    explicit MeterBackend(opentelemetry::nostd::shared_ptr<metrics_api::Meter> meter)
-        : m_meter{std::move(meter)} {}
-
-    [[nodiscard]] std::shared_ptr<interfaces::ICounter>
-    create_counter(std::string_view name, std::string_view description, std::string_view unit) override {
-        return std::make_shared<CounterBackend>(
-            m_meter->CreateDoubleCounter(std::string{name}, std::string{description}, std::string{unit}));
+class MeterBackend final : public interfaces::IMeterProvider
+{
+public:
+    explicit MeterBackend(opentelemetry::nostd::shared_ptr<metrics_api::Meter> meter) :
+        m_meter{std::move(meter)}
+    {
     }
 
-    [[nodiscard]] std::shared_ptr<interfaces::IHistogram>
-    create_histogram(std::string_view name, std::string_view description, std::string_view unit) override {
-        return std::make_shared<HistogramBackend>(
-            m_meter->CreateDoubleHistogram(std::string{name}, std::string{description}, std::string{unit}));
+    [[nodiscard]] std::shared_ptr<interfaces::ICounter> create_counter(
+        std::string_view name,
+        std::string_view description,
+        std::string_view unit
+    ) override
+    {
+        return std::make_shared<CounterBackend>(m_meter->CreateDoubleCounter(
+            std::string{name},
+            std::string{description},
+            std::string{unit}
+        ));
     }
 
-  private:
+    [[nodiscard]] std::shared_ptr<interfaces::IHistogram> create_histogram(
+        std::string_view name,
+        std::string_view description,
+        std::string_view unit
+    ) override
+    {
+        return std::make_shared<HistogramBackend>(m_meter->CreateDoubleHistogram(
+            std::string{name},
+            std::string{description},
+            std::string{unit}
+        ));
+    }
+
+private:
     opentelemetry::nostd::shared_ptr<metrics_api::Meter> m_meter;
 };
 
-class LogBackend final : public interfaces::ILogRecordProvider {
-  public:
-    explicit LogBackend(opentelemetry::nostd::shared_ptr<logs_api::Logger> logger)
-        : m_logger{std::move(logger)} {}
+class LogBackend final : public interfaces::ILogRecordProvider
+{
+public:
+    explicit LogBackend(opentelemetry::nostd::shared_ptr<logs_api::Logger> logger) :
+        m_logger{std::move(logger)}
+    {
+    }
 
-    void emit(const interfaces::LogRecord &record) noexcept override {
+    void emit(const interfaces::LogRecord& record) noexcept override
+    {
         try {
             opentelemetry::nostd::string_view body{record.body.data(), record.body.size()};
             static constexpr std::array<std::byte, 16> ZERO_TRACE{};
@@ -339,41 +407,54 @@ class LogBackend final : public interfaces::ILogRecordProvider {
             auto span_id_bytes = to_u8(record.span_id);
             trace_api::TraceId trace_id{
                 opentelemetry::nostd::span<const std::uint8_t, trace_api::TraceId::kSize>(
-                    trace_id_bytes.data(), trace_id_bytes.size())};
+                    trace_id_bytes.data(),
+                    trace_id_bytes.size()
+                )
+            };
             trace_api::SpanId span_id{
                 opentelemetry::nostd::span<const std::uint8_t, trace_api::SpanId::kSize>(
-                    span_id_bytes.data(), span_id_bytes.size())};
+                    span_id_bytes.data(),
+                    span_id_bytes.size()
+                )
+            };
             trace_api::SpanContext span_context{trace_id, span_id, trace_api::TraceFlags{}, true};
             m_logger->EmitLogRecord(to_otel_severity(record.severity), span_context, body);
         } catch (...) {
         }
     }
 
-  private:
+private:
     opentelemetry::nostd::shared_ptr<logs_api::Logger> m_logger;
 };
 
-class OtelSdkLogHandler final : public otel_internal_log::LogHandler {
-  public:
+class OtelSdkLogHandler final : public otel_internal_log::LogHandler
+{
+public:
     // The SDK's own diagnostics (failed exports, connection refused, timeouts) otherwise vanish
     // silently — route them into this project's logger so they land next to every other log line.
-    void Handle(otel_internal_log::LogLevel level, const char *file, int line, const char *msg,
-               const opentelemetry::sdk::common::AttributeMap & /*attributes*/) noexcept override {
+    void Handle(
+        otel_internal_log::LogLevel level,
+        const char* file,
+        int line,
+        const char* msg,
+        const opentelemetry::sdk::common::AttributeMap& /*attributes*/
+    ) noexcept override
+    {
         switch (level) {
-        case otel_internal_log::LogLevel::Error:
-            core::logger::error("otel_sdk", "{}:{}: {}", file, line, msg);
-            break;
-        case otel_internal_log::LogLevel::Warning:
-            core::logger::warning("otel_sdk", "{}:{}: {}", file, line, msg);
-            break;
-        case otel_internal_log::LogLevel::Info:
-            core::logger::info("otel_sdk", "{}:{}: {}", file, line, msg);
-            break;
-        case otel_internal_log::LogLevel::Debug:
-            core::logger::debug("otel_sdk", "{}:{}: {}", file, line, msg);
-            break;
-        case otel_internal_log::LogLevel::None:
-            break;
+            case otel_internal_log::LogLevel::Error:
+                core::logger::error("otel_sdk", "{}:{}: {}", file, line, msg);
+                break;
+            case otel_internal_log::LogLevel::Warning:
+                core::logger::warning("otel_sdk", "{}:{}: {}", file, line, msg);
+                break;
+            case otel_internal_log::LogLevel::Info:
+                core::logger::info("otel_sdk", "{}:{}: {}", file, line, msg);
+                break;
+            case otel_internal_log::LogLevel::Debug:
+                core::logger::debug("otel_sdk", "{}:{}: {}", file, line, msg);
+                break;
+            case otel_internal_log::LogLevel::None:
+                break;
         }
     }
 };
@@ -382,107 +463,149 @@ class OtelSdkLogHandler final : public otel_internal_log::LogHandler {
 // project's own logger on every Export() call, so "are traces actually being sent" is visible
 // directly (at debug level) instead of having to infer it from OtelSdkLogHandler's output, which
 // only ever surfaces failures, not routine successful batches.
-class LoggingSpanExporter final : public trace_sdk::SpanExporter {
-  public:
-    explicit LoggingSpanExporter(std::unique_ptr<trace_sdk::SpanExporter> inner) noexcept
-        : m_inner{std::move(inner)} {}
+class LoggingSpanExporter final : public trace_sdk::SpanExporter
+{
+public:
+    explicit LoggingSpanExporter(std::unique_ptr<trace_sdk::SpanExporter> inner) noexcept :
+        m_inner{std::move(inner)}
+    {
+    }
 
-    [[nodiscard]] std::unique_ptr<trace_sdk::Recordable> MakeRecordable() noexcept override {
+    [[nodiscard]] std::unique_ptr<trace_sdk::Recordable> MakeRecordable() noexcept override
+    {
         return m_inner->MakeRecordable();
     }
 
-    [[nodiscard]] opentelemetry::sdk::common::ExportResult
-    Export(const opentelemetry::nostd::span<std::unique_ptr<trace_sdk::Recordable>> &spans) noexcept override {
+    [[nodiscard]] opentelemetry::sdk::common::ExportResult Export(
+        const opentelemetry::nostd::span<std::unique_ptr<trace_sdk::Recordable>>& spans
+    ) noexcept override
+    {
         core::logger::debug("otel_traces", "exporting {} span(s) to Tempo", spans.size());
         auto result = m_inner->Export(spans);
         if (result == opentelemetry::sdk::common::ExportResult::kSuccess) {
             core::logger::debug("otel_traces", "sent {} span(s) successfully", spans.size());
         } else {
-            core::logger::warning("otel_traces", "export failed for {} span(s), result={}", spans.size(),
-                                  static_cast<int>(result));
-            core::events::publish("otel_otlp.traces_export_failed",
-                                  {{"count", std::to_string(spans.size())},
-                                   {"result", std::to_string(static_cast<int>(result))}});
+            core::logger::warning(
+                "otel_traces",
+                "export failed for {} span(s), result={}",
+                spans.size(),
+                static_cast<int>(result)
+            );
+            core::events::publish(
+                "otel_otlp.traces_export_failed",
+                {{"count", std::to_string(spans.size())},
+                 {"result", std::to_string(static_cast<int>(result))}}
+            );
         }
         return result;
     }
 
-    bool ForceFlush(std::chrono::microseconds timeout =
-                         (std::chrono::microseconds::max)()) noexcept override {
+    bool ForceFlush(
+        std::chrono::microseconds timeout = (std::chrono::microseconds::max)()
+    ) noexcept override
+    {
         return m_inner->ForceFlush(timeout);
     }
 
-    bool
-    Shutdown(std::chrono::microseconds timeout = (std::chrono::microseconds::max)()) noexcept override {
+    bool Shutdown(
+        std::chrono::microseconds timeout = (std::chrono::microseconds::max)()
+    ) noexcept override
+    {
         return m_inner->Shutdown(timeout);
     }
 
-  private:
+private:
     std::unique_ptr<trace_sdk::SpanExporter> m_inner;
 };
 
 // Same idea as LoggingSpanExporter above, for the metrics pipeline — logs a debug line on every
 // Export() call (batch size + result) so "are metrics actually reaching Prometheus" is visible
 // without having to infer it from OtelSdkLogHandler's failure-only output.
-class LoggingMetricExporter final : public metrics_sdk::PushMetricExporter {
-  public:
+class LoggingMetricExporter final : public metrics_sdk::PushMetricExporter
+{
+public:
     explicit LoggingMetricExporter(std::unique_ptr<metrics_sdk::PushMetricExporter> inner) noexcept
-        : m_inner{std::move(inner)} {}
+        :
+        m_inner{std::move(inner)}
+    {
+    }
 
     [[nodiscard]] opentelemetry::sdk::common::ExportResult
-    Export(const metrics_sdk::ResourceMetrics &data) noexcept override {
+    Export(const metrics_sdk::ResourceMetrics& data) noexcept override
+    {
         std::size_t metric_count = 0;
-        for (const auto &scope_metrics : data.scope_metric_data_) {
+        for (const auto& scope_metrics: data.scope_metric_data_) {
             metric_count += scope_metrics.metric_data_.size();
         }
-        core::logger::debug("otel_metrics", "exporting {} metric(s) across {} scope(s) to Prometheus",
-                            metric_count, data.scope_metric_data_.size());
+        core::logger::debug(
+            "otel_metrics",
+            "exporting {} metric(s) across {} scope(s) to Prometheus",
+            metric_count,
+            data.scope_metric_data_.size()
+        );
         auto result = m_inner->Export(data);
         if (result == opentelemetry::sdk::common::ExportResult::kSuccess) {
             core::logger::debug("otel_metrics", "sent {} metric(s) successfully", metric_count);
         } else {
-            core::logger::warning("otel_metrics", "export failed for {} metric(s), result={}",
-                                  metric_count, static_cast<int>(result));
-            core::events::publish("otel_otlp.metrics_export_failed",
-                                  {{"count", std::to_string(metric_count)},
-                                   {"result", std::to_string(static_cast<int>(result))}});
+            core::logger::warning(
+                "otel_metrics",
+                "export failed for {} metric(s), result={}",
+                metric_count,
+                static_cast<int>(result)
+            );
+            core::events::publish(
+                "otel_otlp.metrics_export_failed",
+                {{"count", std::to_string(metric_count)},
+                 {"result", std::to_string(static_cast<int>(result))}}
+            );
         }
         return result;
     }
 
     [[nodiscard]] metrics_sdk::AggregationTemporality
-    GetAggregationTemporality(metrics_sdk::InstrumentType instrument_type) const noexcept override {
+    GetAggregationTemporality(metrics_sdk::InstrumentType instrument_type) const noexcept override
+    {
         return m_inner->GetAggregationTemporality(instrument_type);
     }
 
-    bool ForceFlush(std::chrono::microseconds timeout =
-                         (std::chrono::microseconds::max)()) noexcept override {
+    bool ForceFlush(
+        std::chrono::microseconds timeout = (std::chrono::microseconds::max)()
+    ) noexcept override
+    {
         return m_inner->ForceFlush(timeout);
     }
 
-    bool
-    Shutdown(std::chrono::microseconds timeout = (std::chrono::microseconds::max)()) noexcept override {
+    bool Shutdown(
+        std::chrono::microseconds timeout = (std::chrono::microseconds::max)()
+    ) noexcept override
+    {
         return m_inner->Shutdown(timeout);
     }
 
-  private:
+private:
     std::unique_ptr<metrics_sdk::PushMetricExporter> m_inner;
 };
 
 // Same idea as LoggingSpanExporter above, for the logs pipeline — logs a debug line on every
 // Export() call (batch size + result) so "are logs actually reaching Loki" is visible without
 // having to infer it from OtelSdkLogHandler's failure-only output.
-class LoggingLogRecordExporter final : public logs_sdk::LogRecordExporter {
-  public:
-    explicit LoggingLogRecordExporter(std::unique_ptr<logs_sdk::LogRecordExporter> inner) noexcept
-        : m_inner{std::move(inner)} {}
+class LoggingLogRecordExporter final : public logs_sdk::LogRecordExporter
+{
+public:
+    explicit LoggingLogRecordExporter(std::unique_ptr<logs_sdk::LogRecordExporter> inner) noexcept :
+        m_inner{std::move(inner)}
+    {
+    }
 
-    [[nodiscard]] std::unique_ptr<logs_sdk::Recordable> MakeRecordable() noexcept override {
+    [[nodiscard]] std::unique_ptr<logs_sdk::Recordable> MakeRecordable() noexcept override
+    {
         return m_inner->MakeRecordable();
     }
 
-    [[nodiscard]] opentelemetry::sdk::common::ExportResult
-    Export(const opentelemetry::nostd::span<std::unique_ptr<logs_sdk::Recordable>> &records) noexcept override {
+    [[nodiscard]] opentelemetry::sdk::common::ExportResult Export(
+        const opentelemetry::nostd::span<std::unique_ptr<logs_sdk::Recordable>>& records
+    ) noexcept override
+    {
         // The "otel_logs"-tagged line below (and LoggingSpanExporter's/LoggingMetricExporter's
         // own "otel_traces"/"otel_metrics" lines) never loop back here: OtelLogBridge::emit()
         // (sdk/heart/adapters.cppm) drops every "otel*"-tagged line before it ever reaches the
@@ -492,26 +615,36 @@ class LoggingLogRecordExporter final : public logs_sdk::LogRecordExporter {
         if (result == opentelemetry::sdk::common::ExportResult::kSuccess) {
             core::logger::debug("otel_logs", "sent {} log record(s) successfully", records.size());
         } else {
-            core::logger::warning("otel_logs", "export failed for {} log record(s), result={}",
-                                  records.size(), static_cast<int>(result));
-            core::events::publish("otel_otlp.logs_export_failed",
-                                  {{"count", std::to_string(records.size())},
-                                   {"result", std::to_string(static_cast<int>(result))}});
+            core::logger::warning(
+                "otel_logs",
+                "export failed for {} log record(s), result={}",
+                records.size(),
+                static_cast<int>(result)
+            );
+            core::events::publish(
+                "otel_otlp.logs_export_failed",
+                {{"count", std::to_string(records.size())},
+                 {"result", std::to_string(static_cast<int>(result))}}
+            );
         }
         return result;
     }
 
-    bool ForceFlush(std::chrono::microseconds timeout =
-                         (std::chrono::microseconds::max)()) noexcept override {
+    bool ForceFlush(
+        std::chrono::microseconds timeout = (std::chrono::microseconds::max)()
+    ) noexcept override
+    {
         return m_inner->ForceFlush(timeout);
     }
 
-    bool
-    Shutdown(std::chrono::microseconds timeout = (std::chrono::microseconds::max)()) noexcept override {
+    bool Shutdown(
+        std::chrono::microseconds timeout = (std::chrono::microseconds::max)()
+    ) noexcept override
+    {
         return m_inner->Shutdown(timeout);
     }
 
-  private:
+private:
     std::unique_ptr<logs_sdk::LogRecordExporter> m_inner;
 };
 
@@ -522,15 +655,17 @@ class LoggingLogRecordExporter final : public logs_sdk::LogRecordExporter {
 // read the status line. "Reachable" means we got an HTTP response that wasn't 404. Connection
 // refused, DNS miss, timeout, or a 404 all count as unreachable. https endpoints can't be
 // HTTP-probed here (no TLS), so a successful TCP connect is accepted for those.
-class EndpointProbe {
-  public:
+class EndpointProbe
+{
+public:
     /// @brief Checks whether an OTLP URL points at a live receiver (see class comment).
     /// @param url the OTLP endpoint URL (e.g. "http://loki:3100/otlp/v1/logs").
     /// @param timeout per-attempt deadline (connect and HTTP exchange each bounded by it).
     /// @return true if the endpoint answered HTTP with a non-404 status (or, for https, accepted a
     /// TCP connection); false on refused/DNS-miss/timeout/404.
-    [[nodiscard]] static bool reachable(const std::string &url,
-                                        std::chrono::milliseconds timeout) noexcept {
+    [[nodiscard]] static bool
+    reachable(const std::string& url, std::chrono::milliseconds timeout) noexcept
+    {
         auto parts = parse_url(url);
         if (parts.host.empty() || parts.port.empty()) {
             return false;
@@ -538,12 +673,12 @@ class EndpointProbe {
         addrinfo hints{};
         hints.ai_family = AF_UNSPEC;
         hints.ai_socktype = SOCK_STREAM;
-        addrinfo *result = nullptr;
+        addrinfo* result = nullptr;
         if (::getaddrinfo(parts.host.c_str(), parts.port.c_str(), &hints, &result) != 0) {
             return false;
         }
         bool ok = false;
-        for (addrinfo *addr = result; addr != nullptr && !ok; addr = addr->ai_next) {
+        for (addrinfo* addr = result; addr != nullptr && !ok; addr = addr->ai_next) {
             int socket_fd = ::socket(addr->ai_family, addr->ai_socktype, addr->ai_protocol);
             if (socket_fd < 0) {
                 continue;
@@ -559,9 +694,10 @@ class EndpointProbe {
         return ok;
     }
 
-  private:
-    class UrlParts {
-      public:
+private:
+    class UrlParts
+    {
+    public:
         std::string host;
         std::string port;
         std::string path;
@@ -570,7 +706,8 @@ class EndpointProbe {
 
     /// @brief Splits an OTLP URL into host, port and path. Port defaults from the scheme when the
     /// URL omits it; path defaults to "/".
-    static UrlParts parse_url(const std::string &url) {
+    static UrlParts parse_url(const std::string& url)
+    {
         UrlParts parts;
         std::string_view view{url};
         parts.is_https = view.starts_with("https://");
@@ -596,8 +733,9 @@ class EndpointProbe {
 
     /// @brief Non-blocking connect bounded by `timeout` via select() — a plain blocking connect
     /// could hang far longer than the caller's deadline on an unreachable host.
-    static bool connect_with_timeout(int socket_fd, addrinfo *addr,
-                                     std::chrono::milliseconds timeout) noexcept {
+    static bool
+    connect_with_timeout(int socket_fd, addrinfo* addr, std::chrono::milliseconds timeout) noexcept
+    {
         int flags = ::fcntl(socket_fd, F_GETFL, 0);
         ::fcntl(socket_fd, F_SETFL, flags | O_NONBLOCK);
         if (::connect(socket_fd, addr->ai_addr, addr->ai_addrlen) == 0) {
@@ -625,8 +763,9 @@ class EndpointProbe {
     /// @brief POSTs the OTLP path and returns true when the endpoint answers HTTP with any status
     /// other than 404. Send/recv are bounded by `timeout` via socket timeouts. A missing or
     /// unparseable response, or a 404, is treated as "not a working endpoint".
-    static bool http_ok(int socket_fd, const UrlParts &parts,
-                        std::chrono::milliseconds timeout) noexcept {
+    static bool
+    http_ok(int socket_fd, const UrlParts& parts, std::chrono::milliseconds timeout) noexcept
+    {
         // Back to blocking, with send/recv deadlines so a silent peer can't hang the probe.
         int flags = ::fcntl(socket_fd, F_GETFL, 0);
         ::fcntl(socket_fd, F_SETFL, flags & ~O_NONBLOCK);
@@ -634,10 +773,13 @@ class EndpointProbe {
         ::setsockopt(socket_fd, SOL_SOCKET, SO_SNDTIMEO, &deadline, sizeof(deadline));
         ::setsockopt(socket_fd, SOL_SOCKET, SO_RCVTIMEO, &deadline, sizeof(deadline));
 
-        auto request = std::format("POST {} HTTP/1.1\r\nHost: {}\r\nContent-Type: "
-                                   "application/x-protobuf\r\nContent-Length: 0\r\n"
-                                   "Connection: close\r\n\r\n",
-                                   parts.path, parts.host);
+        auto request = std::format(
+            "POST {} HTTP/1.1\r\nHost: {}\r\nContent-Type: "
+            "application/x-protobuf\r\nContent-Length: 0\r\n"
+            "Connection: close\r\n\r\n",
+            parts.path,
+            parts.host
+        );
         if (::send(socket_fd, request.data(), request.size(), MSG_NOSIGNAL) < 0) {
             return false;
         }
@@ -656,32 +798,57 @@ class EndpointProbe {
         return status != "404";
     }
 
-    static timeval to_timeval(std::chrono::milliseconds timeout) noexcept {
+    static timeval to_timeval(std::chrono::milliseconds timeout) noexcept
+    {
         timeval value{};
-        value.tv_sec = static_cast<time_t>(timeout.count() / 1000);
-        value.tv_usec = static_cast<suseconds_t>((timeout.count() % 1000) * 1000);
+        value.tv_sec = static_cast<time_t>(timeout.count() / 1'000);
+        value.tv_usec = static_cast<suseconds_t>((timeout.count() % 1'000) * 1'000);
         return value;
     }
 };
 
-class OtelOtlpPlugin final : public congelado::Plugin, public interfaces::IOtelProvider {
-  public:
-    [[nodiscard]] std::string_view get_name() const noexcept override { return "OtelOtlpPlugin"; }
-    [[nodiscard]] std::string_view get_version() const noexcept override { return "1.0.0"; }
-    [[nodiscard]] std::string_view get_unique_type() const noexcept override { return "otel"; }
-    [[nodiscard]] std::uint32_t capabilities() const noexcept override { return CONGELADO_CAP_OTEL; }
+class OtelOtlpPlugin final : public congelado::Plugin, public interfaces::IOtelProvider
+{
+public:
+    [[nodiscard]] std::string_view get_name() const noexcept override
+    {
+        return "OtelOtlpPlugin";
+    }
+
+    [[nodiscard]] std::string_view get_version() const noexcept override
+    {
+        return "1.0.0";
+    }
+
+    [[nodiscard]] std::string_view get_unique_type() const noexcept override
+    {
+        return "otel";
+    }
+
+    [[nodiscard]] std::uint32_t capabilities() const noexcept override
+    {
+        return CONGELADO_CAP_OTEL;
+    }
 
     /// @brief Bridges the `_cap_dispatch::has_otel_get`/`otel_get()` SFINAE convention — returns
     /// this instance as its own `IOtelProvider`.
-    void *otel_get() noexcept { return static_cast<interfaces::IOtelProvider *>(this); }
+    void* otel_get() noexcept
+    {
+        return static_cast<interfaces::IOtelProvider*>(this);
+    }
 
-    [[nodiscard]] interfaces::ITracerProvider *get_tracer_provider() noexcept override {
+    [[nodiscard]] interfaces::ITracerProvider* get_tracer_provider() noexcept override
+    {
         return m_tracer_backend.get();
     }
-    [[nodiscard]] interfaces::IMeterProvider *get_meter_provider() noexcept override {
+
+    [[nodiscard]] interfaces::IMeterProvider* get_meter_provider() noexcept override
+    {
         return m_meter_backend.get();
     }
-    [[nodiscard]] interfaces::ILogRecordProvider *get_log_provider() noexcept override {
+
+    [[nodiscard]] interfaces::ILogRecordProvider* get_log_provider() noexcept override
+    {
         return m_log_backend.get();
     }
 
@@ -703,12 +870,14 @@ class OtelOtlpPlugin final : public congelado::Plugin, public interfaces::IOtelP
      * worker.toml).
      * @param cfg this plugin's config view.
      */
-    void on_load(CongeladoHostCallbacks const & /*host*/, CongeladoConfigView const &cfg) override {
+    void on_load(const CongeladoHostCallbacks& /*host*/, const CongeladoConfigView& cfg) override
+    {
         // Must land before any Provider is constructed — GlobalLogHandler is a lazy singleton
         // that TracerProvider/MeterProvider/LoggerProvider's ctors touch first for their own
         // debug logging, so registering late would miss whatever they log on the way up.
         otel_internal_log::GlobalLogHandler::SetLogHandler(
-            opentelemetry::nostd::shared_ptr<otel_internal_log::LogHandler>(new OtelSdkLogHandler()));
+            opentelemetry::nostd::shared_ptr<otel_internal_log::LogHandler>(new OtelSdkLogHandler())
+        );
         otel_internal_log::GlobalLogHandler::SetLogLevel(otel_internal_log::LogLevel::Warning);
 
         std::string endpoint = "http://localhost:4318";
@@ -721,7 +890,8 @@ class OtelOtlpPlugin final : public congelado::Plugin, public interfaces::IOtelP
         }
         auto resource = resource_sdk::Resource::Create({{"service.name", service_name}});
 
-        auto signal_endpoint = [&](const char *config_key, const char *suffix) {
+        auto signal_endpoint = [&](const char* config_key, const char* suffix)
+        {
             std::string result = endpoint + suffix;
             if (auto val = congelado::config_get(cfg, config_key)) {
                 result = *val;
@@ -739,8 +909,9 @@ class OtelOtlpPlugin final : public congelado::Plugin, public interfaces::IOtelP
         // congelado_init (the CONGELADO_PLUGIN macro) as an init error the host treats as fatal,
         // same "don't run without it" contract postgres/redis/kafka/rabbitmq all have for their own
         // parent servers.
-        constexpr auto PROBE_TIMEOUT = std::chrono::milliseconds{2000};
-        auto require_signal = [&](const char *signal, const std::string &url) {
+        constexpr auto PROBE_TIMEOUT = std::chrono::milliseconds{2'000};
+        auto require_signal = [&](const char* signal, const std::string& url)
+        {
             if (EndpointProbe::reachable(url, PROBE_TIMEOUT)) {
                 return;
             }
@@ -762,8 +933,13 @@ class OtelOtlpPlugin final : public congelado::Plugin, public interfaces::IOtelP
         setup_logs(logs_endpoint, resource);
 
         core::logger::important(
-            "otel_otlp", "exporting via OTLP/HTTP — service={} traces={} metrics={} logs={}",
-            service_name, traces_endpoint, metrics_endpoint, logs_endpoint);
+            "otel_otlp",
+            "exporting via OTLP/HTTP — service={} traces={} metrics={} logs={}",
+            service_name,
+            traces_endpoint,
+            metrics_endpoint,
+            logs_endpoint
+        );
     }
 
     // Fires from SharedLibrary::close_all() on process shutdown — ForceFlush before Shutdown so
@@ -779,7 +955,8 @@ class OtelOtlpPlugin final : public congelado::Plugin, public interfaces::IOtelP
     // own explicit sequence intended. Resetting right after each Shutdown() closes that gap: one
     // signal fully flushes, shuts down, and destructs before the next one starts, full stop —
     // confirmed live as the fix for a segfault during close_all().
-    void on_unload() noexcept override {
+    void on_unload() noexcept override
+    {
         constexpr auto TIMEOUT = std::chrono::seconds(5);
         if (m_tracer_provider) {
             m_tracer_provider->ForceFlush(TIMEOUT);
@@ -801,40 +978,51 @@ class OtelOtlpPlugin final : public congelado::Plugin, public interfaces::IOtelP
         }
     }
 
-  private:
-    void setup_traces(const std::string &endpoint, const resource_sdk::Resource &resource) {
+private:
+    void setup_traces(const std::string& endpoint, const resource_sdk::Resource& resource)
+    {
         otlp::OtlpHttpExporterOptions options;
         options.url = endpoint;
         auto exporter = std::make_unique<otlp::OtlpHttpExporter>(options);
         auto logging_exporter = std::make_unique<LoggingSpanExporter>(std::move(exporter));
         auto processor = std::make_unique<trace_sdk::BatchSpanProcessor>(
-            std::move(logging_exporter), trace_sdk::BatchSpanProcessorOptions{});
+            std::move(logging_exporter),
+            trace_sdk::BatchSpanProcessorOptions{}
+        );
         m_tracer_provider =
             std::make_shared<trace_sdk::TracerProvider>(std::move(processor), resource);
-        m_tracer_backend = std::make_unique<TracerBackend>(m_tracer_provider->GetTracer("congelado"));
+        m_tracer_backend =
+            std::make_unique<TracerBackend>(m_tracer_provider->GetTracer("congelado"));
     }
 
-    void setup_metrics(const std::string &endpoint, const resource_sdk::Resource &resource) {
+    void setup_metrics(const std::string& endpoint, const resource_sdk::Resource& resource)
+    {
         otlp::OtlpHttpMetricExporterOptions options;
         options.url = endpoint;
         auto exporter = std::make_unique<otlp::OtlpHttpMetricExporter>(options);
         auto logging_exporter = std::make_unique<LoggingMetricExporter>(std::move(exporter));
         metrics_sdk::PeriodicExportingMetricReaderOptions reader_options;
         auto reader = std::make_unique<metrics_sdk::PeriodicExportingMetricReader>(
-            std::move(logging_exporter), reader_options);
+            std::move(logging_exporter),
+            reader_options
+        );
         auto provider = std::make_shared<metrics_sdk::MeterProvider>(
-            std::unique_ptr<metrics_sdk::ViewRegistry>(new metrics_sdk::ViewRegistry()), resource);
+            std::unique_ptr<metrics_sdk::ViewRegistry>(new metrics_sdk::ViewRegistry()),
+            resource
+        );
         provider->AddMetricReader(std::move(reader));
         m_meter_provider = provider;
         m_meter_backend = std::make_unique<MeterBackend>(m_meter_provider->GetMeter("congelado"));
     }
 
-    void setup_logs(const std::string &endpoint, const resource_sdk::Resource &resource) {
+    void setup_logs(const std::string& endpoint, const resource_sdk::Resource& resource)
+    {
         otlp::OtlpHttpLogRecordExporterOptions options;
         options.url = endpoint;
         auto exporter = std::make_unique<otlp::OtlpHttpLogRecordExporter>(options);
         auto logging_exporter = std::make_unique<LoggingLogRecordExporter>(std::move(exporter));
-        auto processor = std::make_unique<logs_sdk::BatchLogRecordProcessor>(std::move(logging_exporter));
+        auto processor =
+            std::make_unique<logs_sdk::BatchLogRecordProcessor>(std::move(logging_exporter));
         m_logger_provider =
             std::make_shared<logs_sdk::LoggerProvider>(std::move(processor), resource);
         m_log_backend =
@@ -857,8 +1045,10 @@ CONGELADO_PLUGIN(OtelOtlpPlugin)
 namespace otel_otlp_plugin_tests {
 using namespace boost::ut;
 
-suite<"otel_otlp::to_otel_kind"> to_otel_kind_suite = [] {
-    "maps every interfaces::SpanKind to its opentelemetry-cpp counterpart"_test = [] {
+suite<"otel_otlp::to_otel_kind"> to_otel_kind_suite = []
+{
+    "maps every interfaces::SpanKind to its opentelemetry-cpp counterpart"_test = []
+    {
         expect(to_otel_kind(interfaces::SpanKind::SERVER) == trace_api::SpanKind::kServer);
         expect(to_otel_kind(interfaces::SpanKind::CLIENT) == trace_api::SpanKind::kClient);
         expect(to_otel_kind(interfaces::SpanKind::PRODUCER) == trace_api::SpanKind::kProducer);
@@ -867,16 +1057,20 @@ suite<"otel_otlp::to_otel_kind"> to_otel_kind_suite = [] {
     };
 };
 
-suite<"otel_otlp::to_otel_status"> to_otel_status_suite = [] {
-    "maps every interfaces::SpanStatus to its opentelemetry-cpp counterpart"_test = [] {
+suite<"otel_otlp::to_otel_status"> to_otel_status_suite = []
+{
+    "maps every interfaces::SpanStatus to its opentelemetry-cpp counterpart"_test = []
+    {
         expect(to_otel_status(interfaces::SpanStatus::OK) == trace_api::StatusCode::kOk);
         expect(to_otel_status(interfaces::SpanStatus::ERROR) == trace_api::StatusCode::kError);
         expect(to_otel_status(interfaces::SpanStatus::UNSET) == trace_api::StatusCode::kUnset);
     };
 };
 
-suite<"otel_otlp::to_otel_severity"> to_otel_severity_suite = [] {
-    "maps every interfaces::LogSeverity to its opentelemetry-cpp counterpart"_test = [] {
+suite<"otel_otlp::to_otel_severity"> to_otel_severity_suite = []
+{
+    "maps every interfaces::LogSeverity to its opentelemetry-cpp counterpart"_test = []
+    {
         expect(to_otel_severity(interfaces::LogSeverity::DEBUG) == logs_api::Severity::kDebug);
         expect(to_otel_severity(interfaces::LogSeverity::INFO) == logs_api::Severity::kInfo);
         expect(to_otel_severity(interfaces::LogSeverity::WARN) == logs_api::Severity::kWarn);
@@ -885,9 +1079,11 @@ suite<"otel_otlp::to_otel_severity"> to_otel_severity_suite = [] {
     };
 };
 
-suite<"otel_otlp::to_u8"> to_u8_suite = [] {
+suite<"otel_otlp::to_u8"> to_u8_suite = []
+{
     "16-byte overload converts every std::byte to the matching std::uint8_t, order preserved"_test =
-        [] {
+        []
+    {
         std::array<std::byte, 16> bytes{};
         for (std::size_t i = 0; i < 16; ++i) {
             bytes[i] = static_cast<std::byte>(i * 2U);
@@ -899,7 +1095,8 @@ suite<"otel_otlp::to_u8"> to_u8_suite = [] {
     };
 
     "8-byte overload converts every std::byte to the matching std::uint8_t, order preserved"_test =
-        [] {
+        []
+    {
         std::array<std::byte, 8> bytes{};
         for (std::size_t i = 0; i < 8; ++i) {
             bytes[i] = static_cast<std::byte>(0xF0U + i);
@@ -910,34 +1107,48 @@ suite<"otel_otlp::to_u8"> to_u8_suite = [] {
         }
     };
 
-    "converts an all-zero span id/trace id to an all-zero uint8_t array"_test = [] {
+    "converts an all-zero span id/trace id to an all-zero uint8_t array"_test = []
+    {
         std::array<std::byte, 8> zero{};
         auto converted = to_u8(zero);
-        expect(std::ranges::all_of(converted, [](std::uint8_t b) { return b == 0; }));
+        expect(
+            std::ranges::all_of(
+                converted,
+                [](std::uint8_t b)
+                {
+                    return b == 0;
+                }
+            )
+        );
     };
 };
 
-suite<"otel_otlp::attribute_to_string"> attribute_to_string_suite = [] {
-    "string_view held value is returned as-is"_test = [] {
+suite<"otel_otlp::attribute_to_string"> attribute_to_string_suite = []
+{
+    "string_view held value is returned as-is"_test = []
+    {
         interfaces::AttributeValue value{std::string_view{"hello"}};
         expect(attribute_to_string(value) == "hello");
     };
 
-    "bool true/false render as the literal words 'true'/'false'"_test = [] {
+    "bool true/false render as the literal words 'true'/'false'"_test = []
+    {
         interfaces::AttributeValue true_value{true};
         interfaces::AttributeValue false_value{false};
         expect(attribute_to_string(true_value) == "true");
         expect(attribute_to_string(false_value) == "false");
     };
 
-    "int64_t renders via std::format, negative values included"_test = [] {
+    "int64_t renders via std::format, negative values included"_test = []
+    {
         interfaces::AttributeValue positive{std::int64_t{42}};
         interfaces::AttributeValue negative{std::int64_t{-7}};
         expect(attribute_to_string(positive) == "42");
         expect(attribute_to_string(negative) == "-7");
     };
 
-    "double renders via std::format"_test = [] {
+    "double renders via std::format"_test = []
+    {
         interfaces::AttributeValue value{3.5};
         expect(attribute_to_string(value) == "3.5");
     };
@@ -946,34 +1157,41 @@ suite<"otel_otlp::attribute_to_string"> attribute_to_string_suite = [] {
     // whatever downstream string context it lands in (log line, span attribute display) — this
     // function does no escaping at all, so this pins that garbage bytes pass straight through
     // unmodified rather than crashing attribute_to_string() itself.
-    "string_view attribute tolerates control-character- and injection-shaped content"_test = [] {
+    "string_view attribute tolerates control-character- and injection-shaped content"_test = []
+    {
         interfaces::AttributeValue value{std::string_view{"\n\r\t\x1b[31m'; DROP TABLE spans; --"}};
         expect(attribute_to_string(value) == "\n\r\t\x1b[31m'; DROP TABLE spans; --");
     };
 };
 
-suite<"otel_otlp::to_label_map"> to_label_map_suite = [] {
-    "builds one map entry per attribute, keyed by name"_test = [] {
+suite<"otel_otlp::to_label_map"> to_label_map_suite = []
+{
+    "builds one map entry per attribute, keyed by name"_test = []
+    {
         std::array<interfaces::Attribute, 2> attrs{
             interfaces::Attribute{.key = "http.method", .value = std::string_view{"GET"}},
-            interfaces::Attribute{.key = "http.status_code", .value = std::int64_t{200}}};
+            interfaces::Attribute{.key = "http.status_code", .value = std::int64_t{200}}
+        };
         auto labels = to_label_map(attrs);
         expect(labels.size() == 2_ul) << fatal;
         expect(labels.at("http.method") == "GET");
         expect(labels.at("http.status_code") == "200");
     };
 
-    "an empty attribute span produces an empty map"_test = [] {
+    "an empty attribute span produces an empty map"_test = []
+    {
         std::span<const interfaces::Attribute> empty;
         auto labels = to_label_map(empty);
         expect(labels.empty());
     };
 
     "a duplicate key keeps the last-seen value (std::map insertion semantics via operator[])"_test =
-        [] {
+        []
+    {
         std::array<interfaces::Attribute, 2> attrs{
             interfaces::Attribute{.key = "dup", .value = std::string_view{"first"}},
-            interfaces::Attribute{.key = "dup", .value = std::string_view{"second"}}};
+            interfaces::Attribute{.key = "dup", .value = std::string_view{"second"}}
+        };
         auto labels = to_label_map(attrs);
         expect(labels.size() == 1_ul) << fatal;
         expect(labels.at("dup") == "second");
@@ -986,18 +1204,22 @@ suite<"otel_otlp::to_label_map"> to_label_map_suite = [] {
 // which short-circuits reachable() before any socket ever opens. This is deterministic (no
 // dependency on whether some port happens to be listening) and entirely network-free.
 suite<"otel_otlp::EndpointProbe::reachable (network-free guard clause only)"> endpoint_probe_suite =
-    [] {
-    "an empty URL is reported unreachable without attempting a connection"_test = [] {
+    []
+{
+    "an empty URL is reported unreachable without attempting a connection"_test = []
+    {
         expect(!EndpointProbe::reachable("", std::chrono::milliseconds{50}));
     };
 
     "a bare 'http://' scheme with no host is reported unreachable without attempting a connection"_test =
-        [] {
+        []
+    {
         expect(!EndpointProbe::reachable("http://", std::chrono::milliseconds{50}));
     };
 
     "a bare 'https://' scheme with no host is reported unreachable without attempting a connection"_test =
-        [] {
+        []
+    {
         expect(!EndpointProbe::reachable("https://", std::chrono::milliseconds{50}));
     };
 };
@@ -1012,33 +1234,40 @@ suite<"otel_otlp::EndpointProbe::reachable (network-free guard clause only)"> en
 // CounterBackend/HistogramBackend/MeterBackend/LogBackend are all thin wrappers over real
 // opentelemetry-cpp SDK handles obtained only from a live TracerProvider/MeterProvider/
 // LoggerProvider — same reasoning, same gap.
-suite<"OtelOtlpPlugin"> otel_otlp_plugin_suite = [] {
-    "get_name reports 'OtelOtlpPlugin'"_test = [] {
+suite<"OtelOtlpPlugin"> otel_otlp_plugin_suite = []
+{
+    "get_name reports 'OtelOtlpPlugin'"_test = []
+    {
         OtelOtlpPlugin plugin;
         expect(plugin.get_name() == "OtelOtlpPlugin");
     };
 
-    "get_version reports '1.0.0'"_test = [] {
+    "get_version reports '1.0.0'"_test = []
+    {
         OtelOtlpPlugin plugin;
         expect(plugin.get_version() == "1.0.0");
     };
 
-    "get_unique_type reports 'otel'"_test = [] {
+    "get_unique_type reports 'otel'"_test = []
+    {
         OtelOtlpPlugin plugin;
         expect(plugin.get_unique_type() == "otel");
     };
 
-    "capabilities reports CONGELADO_CAP_OTEL"_test = [] {
+    "capabilities reports CONGELADO_CAP_OTEL"_test = []
+    {
         OtelOtlpPlugin plugin;
         expect(plugin.capabilities() == CONGELADO_CAP_OTEL);
     };
 
-    "otel_get returns this instance upcast to IOtelProvider*"_test = [] {
+    "otel_get returns this instance upcast to IOtelProvider*"_test = []
+    {
         OtelOtlpPlugin plugin;
-        expect(plugin.otel_get() == static_cast<interfaces::IOtelProvider *>(&plugin));
+        expect(plugin.otel_get() == static_cast<interfaces::IOtelProvider*>(&plugin));
     };
 
-    "every sub-provider accessor reports nullptr before on_load ever runs"_test = [] {
+    "every sub-provider accessor reports nullptr before on_load ever runs"_test = []
+    {
         OtelOtlpPlugin plugin;
         expect(plugin.get_tracer_provider() == nullptr);
         expect(plugin.get_meter_provider() == nullptr);
@@ -1050,17 +1279,18 @@ suite<"OtelOtlpPlugin"> otel_otlp_plugin_suite = [] {
     // require_signal("traces", ...) throws deterministically and network-free, on the very first
     // signal it probes.
     "on_load throws with a clear message when configured against an unreachable endpoint, with no real network call"_test =
-        [] {
+        []
+    {
         OtelOtlpPlugin plugin;
         CongeladoHostCallbacks host{};
-        const char *keys[] = {"endpoint"};   // NOLINT(cppcoreguidelines-avoid-c-arrays)
-        const char *values[] = {"http://"};  // NOLINT(cppcoreguidelines-avoid-c-arrays)
+        const char* keys[] = {"endpoint"};  // NOLINT(cppcoreguidelines-avoid-c-arrays)
+        const char* values[] = {"http://"}; // NOLINT(cppcoreguidelines-avoid-c-arrays)
         CongeladoConfigView cfg{.keys = keys, .values = values, .count = 1};
 
         bool threw = false;
         try {
             plugin.on_load(host, cfg);
-        } catch (const std::runtime_error &error) {
+        } catch (const std::runtime_error& error) {
             threw = true;
             std::string_view message{error.what()};
             expect(message.contains("otel_otlp"));
@@ -1076,23 +1306,35 @@ suite<"OtelOtlpPlugin"> otel_otlp_plugin_suite = [] {
         expect(plugin.get_log_provider() == nullptr);
     };
 
-    "on_unload before on_load (no providers ever built) is a safe no-op"_test = [] {
+    "on_unload before on_load (no providers ever built) is a safe no-op"_test = []
+    {
         OtelOtlpPlugin plugin;
-        expect(nothrow([&] { plugin.on_unload(); }));
+        expect(nothrow(
+            [&]
+            {
+                plugin.on_unload();
+            }
+        ));
     };
 
-    "on_unload after a failed on_load (no providers ever built) is still a safe no-op"_test = [] {
+    "on_unload after a failed on_load (no providers ever built) is still a safe no-op"_test = []
+    {
         OtelOtlpPlugin plugin;
         CongeladoHostCallbacks host{};
-        const char *keys[] = {"endpoint"};   // NOLINT(cppcoreguidelines-avoid-c-arrays)
-        const char *values[] = {"http://"};  // NOLINT(cppcoreguidelines-avoid-c-arrays)
+        const char* keys[] = {"endpoint"};  // NOLINT(cppcoreguidelines-avoid-c-arrays)
+        const char* values[] = {"http://"}; // NOLINT(cppcoreguidelines-avoid-c-arrays)
         CongeladoConfigView cfg{.keys = keys, .values = values, .count = 1};
         try {
             plugin.on_load(host, cfg);
-        } catch (const std::runtime_error &) {
+        } catch (const std::runtime_error&) {
         }
 
-        expect(nothrow([&] { plugin.on_unload(); }));
+        expect(nothrow(
+            [&]
+            {
+                plugin.on_unload();
+            }
+        ));
     };
 };
 

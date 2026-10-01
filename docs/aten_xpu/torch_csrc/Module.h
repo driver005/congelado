@@ -14,12 +14,12 @@
 
 #pragma once
 
-#include <sycl/sycl.hpp>
-
-#include "include/c/macros.h"
-#include "include/c/intern/status.h"
 #include "include/c/extern/plugin/registration.h"
 #include "include/c/extern/stream_executor/stream_executor.h"
+#include "include/c/intern/status.h"
+#include "include/c/macros.h"
+
+#include <sycl/sycl.hpp>
 
 // ---------------------------------------------------------------------------
 // Plugin entry point (mandatory C-ABI symbol; host dlsym's "create_plugin")

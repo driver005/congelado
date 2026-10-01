@@ -99,20 +99,26 @@ template<std::ranges::input_range Range>
 namespace utils::encode::tests {
 using namespace boost::ut;
 
-suite<"url_encode"> url_encode_suite = [] {
-    "unreserved characters pass through untouched"_test = [] {
+suite<"url_encode"> url_encode_suite = []
+{
+    "unreserved characters pass through untouched"_test = []
+    {
         expect(url_encode(std::string_view{"abcXYZ019-._~"}) == "abcXYZ019-._~");
     };
-    "reserved characters get percent-escaped uppercase hex"_test = [] {
+    "reserved characters get percent-escaped uppercase hex"_test = []
+    {
         expect(url_encode(std::string_view{"a b/c"}) == "a%20b%2Fc");
     };
-    "empty range yields empty string"_test = [] {
+    "empty range yields empty string"_test = []
+    {
         expect(url_encode(std::string_view{""}).empty());
     };
 };
 
-suite<"base64_encode"> base64_encode_suite = [] {
-    "matches RFC 4648 test vectors"_test = [] {
+suite<"base64_encode"> base64_encode_suite = []
+{
+    "matches RFC 4648 test vectors"_test = []
+    {
         expect(base64_encode(std::string_view{""}).empty());
         expect(base64_encode(std::string_view{"f"}) == "Zg==");
         expect(base64_encode(std::string_view{"fo"}) == "Zm8=");
@@ -121,7 +127,8 @@ suite<"base64_encode"> base64_encode_suite = [] {
         expect(base64_encode(std::string_view{"fooba"}) == "Zm9vYmE=");
         expect(base64_encode(std::string_view{"foobar"}) == "Zm9vYmFy");
     };
-    "output length is always a multiple of 4"_test = [] {
+    "output length is always a multiple of 4"_test = []
+    {
         expect(base64_encode(std::string_view{"x"}).size() % 4 == 0);
         expect(base64_encode(std::string_view{"xy"}).size() % 4 == 0);
         expect(base64_encode(std::string_view{"xyz"}).size() % 4 == 0);

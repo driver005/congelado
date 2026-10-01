@@ -1,20 +1,28 @@
 #ifndef CONGELADO_C_EXTERN_JOB_OBSERVE_H_
 #define CONGELADO_C_EXTERN_JOB_OBSERVE_H_
 
-#include "include/c/macros.h"
+#include "include/c/extern/jobber/job.h"
 #include "include/c/intern/map.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 #include "include/c/intern/vector.h"
-#include "include/c/extern/jobber/job.h"
+#include "include/c/macros.h"
 
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 
-    typedef void (*TFObserveStatusFn)(void* user_data, TFJobStatus job_status, TF_Status* out_status);
-    typedef void (*TFObserveResultFn)(void* user_data, const TF_String* output, TF_Status* out_status);
+    typedef void (*TFObserveStatusFn)(
+        void* user_data,
+        TFJobStatus job_status,
+        TF_Status* out_status
+    );
+    typedef void (*TFObserveResultFn)(
+        void* user_data,
+        const TF_String* output,
+        TF_Status* out_status
+    );
 
     typedef struct TF_Observe
     {
@@ -28,22 +36,46 @@ extern "C"
         void (*destroy)(TF_Observe* handle);
 
 
-        void (*get_status)(TF_Observe* observe, TF_Job* job, TFObserveStatusFn completion, void* user_data, TF_Status* out_status);
-        void (*get_result)(TF_Observe* observe, TF_Job* job, TFObserveResultFn completion, void* user_data, TF_Status* out_status);
+        void (*get_status)(
+            TF_Observe* observe,
+            TF_Job* job,
+            TFObserveStatusFn completion,
+            void* user_data,
+            TF_Status* out_status
+        );
+        void (*get_result)(
+            TF_Observe* observe,
+            TF_Job* job,
+            TFObserveResultFn completion,
+            void* user_data,
+            TF_Status* out_status
+        );
 
-        void (*get_history)(TF_Observe* observe, TF_Job* job, TF_Vector* out_transitions, TF_Status* out_status);
-        void (*get_metrics)(TF_Observe* observe, TF_Job* job, TF_Map* out_metrics, TF_Status* out_status);
-        void (*get_logs)(TF_Observe* observe, TF_Job* job, TF_Vector* out_lines, TF_Status* out_status);
+        void (*get_history)(
+            TF_Observe* observe,
+            TF_Job* job,
+            TF_Vector* out_transitions,
+            TF_Status* out_status
+        );
+        void (*get_metrics)(
+            TF_Observe* observe,
+            TF_Job* job,
+            TF_Map* out_metrics,
+            TF_Status* out_status
+        );
+        void (*get_logs)(
+            TF_Observe* observe,
+            TF_Job* job,
+            TF_Vector* out_lines,
+            TF_Status* out_status
+        );
 
     } TF_ObserveOps;
 
 #define TF_OBSERVE_STRUCT_SIZE TF_OFFSET_OF_END(TF_ObserveOps, get_logs)
 
-    TF_CAPI_EXPORT void create_observe(
-        TF_ObserveOps** ops,
-        void** plugin_context,
-        TF_Status* out_status
-    );
+    TF_CAPI_EXPORT void
+    create_observe(TF_ObserveOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_observe(void* plugin_context);
 
 #ifdef __cplusplus

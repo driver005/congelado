@@ -10,41 +10,55 @@ import interfaces;
 import congelado_plugin;
 import congelado_worker;
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[])
+{
     congelado::FfiRuntime rt;
     congelado::GenerationConfig cfg;
 
-    // Bridges are dlopen'd plugins now (plugins/bridge/python_bridge, plugins/bridge/lua_bridge, or any other
-    // user-added one), not linkable classes — scan/open/build the plugins directory and feed
-    // whatever bridges turn up straight into rt (the one FfiRuntime this binary uses for every
+    // Bridges are dlopen'd plugins now (plugins/bridge/python_bridge, plugins/bridge/lua_bridge, or
+    // any other user-added one), not linkable classes — scan/open/build the plugins directory and
+    // feed whatever bridges turn up straight into rt (the one FfiRuntime this binary uses for every
     // register_class<T>() call below), same resolve_bridge() the engine host uses. Which
     // runtimes cfg wants is derived from whatever actually loaded, not a hardcoded pair — this
     // binary never names "python"/"lua" anywhere; a bridge is identified purely by its own
     // runtime_name()/script_extension(). Same relative-to-binary path derivation
     // src/worker_main.cc uses, since this binary also lands under build/<plat>/<arch>/<mode>/
     // while the shared plugins directory lives at build/plugins.
-    auto plugin_base = argc > 0 ? std::filesystem::path(argv[0]).parent_path() : std::filesystem::path{};
-    auto plugins_dir = std::filesystem::path{std::format("{}/../../../plugins", plugin_base.string())};
+    auto plugin_base =
+        argc > 0 ? std::filesystem::path(argv[0]).parent_path() : std::filesystem::path{};
+    auto plugins_dir =
+        std::filesystem::path{std::format("{}/../../../plugins", plugin_base.string())};
     core::plugin::SharedLibrary bridge_store{"plugin"};
     bridge_store.scan(plugins_dir);
     if (auto open_res = bridge_store.open_all(); open_res) {
         CongeladoHostCallbacks empty_host_cb{};
         if (auto build_res = bridge_store.build(empty_host_cb, {}); build_res) {
-            bridge_store.for_each([&rt, &cfg](const std::shared_ptr<core::plugin::FfiRuntime> &bridge_runtime) {
-                auto plugin = bridge_runtime->get_plugin();
-                if (!plugin) {
-                    return;
+            bridge_store.for_each(
+                [&rt, &cfg](const std::shared_ptr<core::plugin::FfiRuntime>& bridge_runtime)
+                {
+                    auto plugin = bridge_runtime->get_plugin();
+                    if (!plugin) {
+                        return;
+                    }
+                    if (auto bridge = congelado::heart::resolve_bridge(*plugin)) {
+                        cfg.add_runtime(std::string{bridge->runtime_name()});
+                        rt.add_bridge(std::move(bridge));
+                    }
                 }
-                if (auto bridge = congelado::heart::resolve_bridge(*plugin)) {
-                    cfg.add_runtime(std::string{bridge->runtime_name()});
-                    rt.add_bridge(std::move(bridge));
-                }
-            });
+            );
         } else {
-            std::println(stderr, "[sdk_ffi] bridge plugin build failed: {}", build_res.error().get_message());
+            std::println(
+                stderr,
+                "[sdk_ffi] bridge plugin build failed: {}",
+                build_res.error().get_message()
+            );
         }
     } else {
-        std::println(stderr, "[sdk_ffi] bridge plugin load failed: {}", open_res.error().get_message());
+        std::println(
+            stderr,
+            "[sdk_ffi] bridge plugin load failed: {}",
+            open_res.error().get_message()
+        );
     }
 
     rt.register_class<congelado::worker::TaskRunner>(cfg, "TaskRunner");
@@ -60,7 +74,7 @@ int main(int argc, char *argv[]) {
     // extension (self-reported via script_extension()), then hand the whole run off to it.
     std::string_view script_path = argv[1];
     auto extension = std::filesystem::path(script_path).extension().string();
-    auto *bridge = rt.find_bridge_for_extension(extension);
+    auto* bridge = rt.find_bridge_for_extension(extension);
     if (bridge == nullptr) {
         std::println(stderr, "no bridge loaded for extension '{}'", extension);
         return 1;

@@ -1,7 +1,7 @@
 module;
 #ifdef CONGELADO_TEST
-#    include <rfl/Generic.hpp>
-#    include <rfl/json.hpp>
+    #include <rfl/Generic.hpp>
+    #include <rfl/json.hpp>
 #endif
 
 export module engine:metadata;
@@ -52,7 +52,9 @@ public:
      * @param res the response this writes the serialized task-definition list into.
      */
     void list_task_definitions(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     ) noexcept
     {
         // grab the Accept header up front so we know which format to serialize into
@@ -63,7 +65,8 @@ public:
         // Connector::find_all()'s callback parameter (std::move_only_function<void(...)>)
         // doesn't require a noexcept target.
         m_ctx.get().get_connector().find_all<model::TaskDef>(
-            [&res, accept, send = std::move(send)](const std::vector<model::TaskDef>& tasks) {
+            [&res, accept, send = std::move(send)](const std::vector<model::TaskDef>& tasks)
+            {
                 reply(res, serde::Ser::serialize(accept, tasks));
                 send();
             }
@@ -77,7 +80,9 @@ public:
      * @param res the response this writes the serialized workflow-definition list into.
      */
     void list_workflow_definitions(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     ) noexcept
     {
         // same deal as list_task_definitions — just the Accept header, nothing else needed
@@ -86,7 +91,8 @@ public:
         // no filtering, dump every stored WorkflowDef. Not noexcept — same reasoning as
         // list_task_definitions() above.
         m_ctx.get().get_connector().find_all<model::WorkflowDef>(
-            [&res, accept, send = std::move(send)](const std::vector<model::WorkflowDef>& defs) {
+            [&res, accept, send = std::move(send)](const std::vector<model::WorkflowDef>& defs)
+            {
                 reply(res, serde::Ser::serialize(accept, defs));
                 send();
             }
@@ -108,7 +114,9 @@ public:
      * @param res the response this writes the health payload into.
      */
     void health_check(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     ) noexcept
     {
         static constexpr std::string_view CACHE_KEY = "engine:health";
@@ -121,13 +129,17 @@ public:
         // entirely
         if (m_ctx.get().get_cache() != nullptr) {
             bool done = false;
-            m_ctx.get().get_cache()->get(CACHE_KEY, [&](std::string_view cached) noexcept {
-                if (!cached.empty()) {
-                    reply(res, serde::Ser::serialize_raw(accept, cached));
-                    send();
-                    done = true;
+            m_ctx.get().get_cache()->get(
+                CACHE_KEY,
+                [&](std::string_view cached) noexcept
+                {
+                    if (!cached.empty()) {
+                        reply(res, serde::Ser::serialize_raw(accept, cached));
+                        send();
+                        done = true;
+                    }
                 }
-            });
+            );
             if (done) {
                 return;
             }
@@ -137,10 +149,14 @@ public:
         // the way out
         if (m_ctx.get().get_db() != nullptr) {
             m_ctx.get().get_db()->query(
-                R"({"op":"ping"})", [&](std::string_view /*result*/) noexcept {
+                R"({"op":"ping"})",
+                [&](std::string_view /*result*/) noexcept
+                {
                     if (m_ctx.get().get_cache()) {
                         m_ctx.get().get_cache()->set(
-                            CACHE_KEY, OK_PAYLOAD, [](std::string_view) noexcept {}
+                            CACHE_KEY,
+                            OK_PAYLOAD,
+                            [](std::string_view) noexcept {}
                         );
                     }
                     reply(res, serde::Ser::serialize_raw(accept, OK_PAYLOAD));
@@ -202,7 +218,9 @@ public:
     }
 
     void set(
-        std::string_view key, std::string_view value, shared::QueryReadFn&& result
+        std::string_view key,
+        std::string_view value,
+        shared::QueryReadFn&& result
     ) noexcept override
     {
         m_store[std::string{key}] = std::string{value};
@@ -384,101 +402,140 @@ private:
     return out;
 }
 
-suite<"MetadataHandler"> metadata_handler_suite = [] {
+suite<"MetadataHandler"> metadata_handler_suite = []
+{
     "list_task_definitions replies 200 with an empty list on a freshly-constructed context"_test =
-        [] {
-            engine::EngineContext ctx;
-            engine::MetadataHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            bool sent = false;
-
-            handler.list_task_definitions(req, res, [&sent] {
-                sent = true;
-            });
-
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::OK);
-        };
-
-    "list_task_definitions replies 200 after a definition was upserted directly through the connector"_test =
-        [] {
-            engine::EngineContext ctx;
-            FakeCache cache;
-            ctx.set_cache(&cache);
-            model::TaskDef seeded;
-            seeded.set_name("echo");
-            bool upserted = false;
-            ctx.get_connector().upsert<model::TaskDef>(seeded, [&upserted](bool oke) {
-                upserted = oke;
-            });
-            expect(upserted) << fatal;
-
-            engine::MetadataHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            bool sent = false;
-
-            handler.list_task_definitions(req, res, [&sent] {
-                sent = true;
-            });
-
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::OK);
-        };
-
-    "list_workflow_definitions replies 200 with an empty list on a freshly-constructed context"_test =
-        [] {
-            engine::EngineContext ctx;
-            engine::MetadataHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            bool sent = false;
-
-            handler.list_workflow_definitions(req, res, [&sent] {
-                sent = true;
-            });
-
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::OK);
-        };
-
-    "list_workflow_definitions replies 200 after a definition was upserted directly through the connector"_test =
-        [] {
-            engine::EngineContext ctx;
-            FakeCache cache;
-            ctx.set_cache(&cache);
-            model::WorkflowDef seeded;
-            seeded.set_name("order_flow");
-            bool upserted = false;
-            ctx.get_connector().upsert<model::WorkflowDef>(seeded, [&upserted](bool oke) {
-                upserted = oke;
-            });
-            expect(upserted) << fatal;
-
-            engine::MetadataHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            bool sent = false;
-
-            handler.list_workflow_definitions(req, res, [&sent] {
-                sent = true;
-            });
-
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::OK);
-        };
-
-    "health_check reports the bare status when neither db nor cache is configured"_test = [] {
+        []
+    {
         engine::EngineContext ctx;
         engine::MetadataHandler handler{ctx};
         io::layer::http2::HttpRequest req{1};
         io::layer::http2::HttpResponse res{1};
         bool sent = false;
 
-        handler.health_check(req, res, [&sent] {
-            sent = true;
-        });
+        handler.list_task_definitions(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
+
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::OK);
+    };
+
+    "list_task_definitions replies 200 after a definition was upserted directly through the connector"_test =
+        []
+    {
+        engine::EngineContext ctx;
+        FakeCache cache;
+        ctx.set_cache(&cache);
+        model::TaskDef seeded;
+        seeded.set_name("echo");
+        bool upserted = false;
+        ctx.get_connector().upsert<model::TaskDef>(
+            seeded,
+            [&upserted](bool oke)
+            {
+                upserted = oke;
+            }
+        );
+        expect(upserted) << fatal;
+
+        engine::MetadataHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        bool sent = false;
+
+        handler.list_task_definitions(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
+
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::OK);
+    };
+
+    "list_workflow_definitions replies 200 with an empty list on a freshly-constructed context"_test =
+        []
+    {
+        engine::EngineContext ctx;
+        engine::MetadataHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        bool sent = false;
+
+        handler.list_workflow_definitions(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
+
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::OK);
+    };
+
+    "list_workflow_definitions replies 200 after a definition was upserted directly through the connector"_test =
+        []
+    {
+        engine::EngineContext ctx;
+        FakeCache cache;
+        ctx.set_cache(&cache);
+        model::WorkflowDef seeded;
+        seeded.set_name("order_flow");
+        bool upserted = false;
+        ctx.get_connector().upsert<model::WorkflowDef>(
+            seeded,
+            [&upserted](bool oke)
+            {
+                upserted = oke;
+            }
+        );
+        expect(upserted) << fatal;
+
+        engine::MetadataHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        bool sent = false;
+
+        handler.list_workflow_definitions(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
+
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::OK);
+    };
+
+    "health_check reports the bare status when neither db nor cache is configured"_test = []
+    {
+        engine::EngineContext ctx;
+        engine::MetadataHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        bool sent = false;
+
+        handler.health_check(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::OK);
@@ -486,28 +543,35 @@ suite<"MetadataHandler"> metadata_handler_suite = [] {
     };
 
     "health_check serves the cached payload straight away, without ever touching the database"_test =
-        [] {
-            engine::EngineContext ctx;
-            CachedValueCache cache{R"({"status":"ok","cached":true})"};
-            RecordingDatabase db;
-            ctx.set_cache(&cache);
-            ctx.set_db(&db);
-            engine::MetadataHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            bool sent = false;
+        []
+    {
+        engine::EngineContext ctx;
+        CachedValueCache cache{R"({"status":"ok","cached":true})"};
+        RecordingDatabase db;
+        ctx.set_cache(&cache);
+        ctx.set_db(&db);
+        engine::MetadataHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        bool sent = false;
 
-            handler.health_check(req, res, [&sent] {
+        handler.health_check(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::OK);
-            expect(body_to_string(res) == R"({"status":"ok","cached":true})");
-            expect(!db.was_queried());
-        };
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::OK);
+        expect(body_to_string(res) == R"({"status":"ok","cached":true})");
+        expect(!db.was_queried());
+    };
 
-    "health_check pings the database and reports ok when no cache is configured"_test = [] {
+    "health_check pings the database and reports ok when no cache is configured"_test = []
+    {
         engine::EngineContext ctx;
         RecordingDatabase db;
         ctx.set_db(&db);
@@ -516,9 +580,14 @@ suite<"MetadataHandler"> metadata_handler_suite = [] {
         io::layer::http2::HttpResponse res{1};
         bool sent = false;
 
-        handler.health_check(req, res, [&sent] {
-            sent = true;
-        });
+        handler.health_check(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::OK);
@@ -527,30 +596,37 @@ suite<"MetadataHandler"> metadata_handler_suite = [] {
     };
 
     "health_check reports healthy even when the database ping itself errors out, because the ping result is discarded"_test =
-        [] {
-            engine::EngineContext ctx;
-            FailingDatabase db;
-            ctx.set_db(&db);
-            engine::MetadataHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            bool sent = false;
+        []
+    {
+        engine::EngineContext ctx;
+        FailingDatabase db;
+        ctx.set_db(&db);
+        engine::MetadataHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        bool sent = false;
 
-            handler.health_check(req, res, [&sent] {
+        handler.health_check(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(db.was_queried());
-            // The db answered its ping with an error body — health_check() still reports the
-            // same "ok" it would for a genuinely healthy db, because query()'s callback
-            // parameter is unnamed/ignored. This pins the monitoring-bypass gap: nothing about
-            // this response distinguishes a healthy db from one actively erroring.
-            expect(res.get_status() == interfaces::io::types::Status::OK);
-            expect(body_to_string(res) == R"({"status":"ok"})");
-        };
+        expect(sent);
+        expect(db.was_queried());
+        // The db answered its ping with an error body — health_check() still reports the
+        // same "ok" it would for a genuinely healthy db, because query()'s callback
+        // parameter is unnamed/ignored. This pins the monitoring-bypass gap: nothing about
+        // this response distinguishes a healthy db from one actively erroring.
+        expect(res.get_status() == interfaces::io::types::Status::OK);
+        expect(body_to_string(res) == R"({"status":"ok"})");
+    };
 
-    "list_task_definitions returns every seeded record with no pagination limit applied"_test = [] {
+    "list_task_definitions returns every seeded record with no pagination limit applied"_test = []
+    {
         engine::EngineContext ctx;
         FakeCache cache;
         ctx.set_cache(&cache);
@@ -563,9 +639,13 @@ suite<"MetadataHandler"> metadata_handler_suite = [] {
             model::TaskDef seeded;
             seeded.set_name(std::format("task_{}", i));
             bool upserted = false;
-            ctx.get_connector().upsert<model::TaskDef>(seeded, [&upserted](bool oke) {
-                upserted = oke;
-            });
+            ctx.get_connector().upsert<model::TaskDef>(
+                seeded,
+                [&upserted](bool oke)
+                {
+                    upserted = oke;
+                }
+            );
             expect(upserted) << fatal;
         }
 
@@ -577,14 +657,20 @@ suite<"MetadataHandler"> metadata_handler_suite = [] {
         // IRequest parsed query strings, which it doesn't anywhere in this codebase. Set
         // anyway to document that intent explicitly.
         req.set_header(
-            interfaces::io::types::Token::PATH, "/api/v1/metadata/tasks?page=1&limit=10"
+            interfaces::io::types::Token::PATH,
+            "/api/v1/metadata/tasks?page=1&limit=10"
         );
         req.set_header("accept", "application/json");
         bool sent = false;
 
-        handler.list_task_definitions(req, res, [&sent] {
-            sent = true;
-        });
+        handler.list_task_definitions(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::OK);
@@ -600,50 +686,61 @@ suite<"MetadataHandler"> metadata_handler_suite = [] {
     };
 
     "list_workflow_definitions returns every seeded record with no pagination limit applied"_test =
-        [] {
-            engine::EngineContext ctx;
-            FakeCache cache;
-            ctx.set_cache(&cache);
-            serde::SerdeFormatRegistry registry;
-            registry.add_format(std::make_shared<MockJsonFormat>());
-            serde::SerdeFormatRegistry::set_active(&registry);
+        []
+    {
+        engine::EngineContext ctx;
+        FakeCache cache;
+        ctx.set_cache(&cache);
+        serde::SerdeFormatRegistry registry;
+        registry.add_format(std::make_shared<MockJsonFormat>());
+        serde::SerdeFormatRegistry::set_active(&registry);
 
-            constexpr int seeded_count = 50;
-            for (int i = 0; i < seeded_count; ++i) {
-                model::WorkflowDef seeded;
-                seeded.set_name(std::format("workflow_{}", i));
-                bool upserted = false;
-                ctx.get_connector().upsert<model::WorkflowDef>(seeded, [&upserted](bool oke) {
+        constexpr int seeded_count = 50;
+        for (int i = 0; i < seeded_count; ++i) {
+            model::WorkflowDef seeded;
+            seeded.set_name(std::format("workflow_{}", i));
+            bool upserted = false;
+            ctx.get_connector().upsert<model::WorkflowDef>(
+                seeded,
+                [&upserted](bool oke)
+                {
                     upserted = oke;
-                });
-                expect(upserted) << fatal;
-            }
-
-            engine::MetadataHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            req.set_header(
-                interfaces::io::types::Token::PATH, "/api/v1/metadata/workflows?page=1&limit=10"
+                }
             );
-            req.set_header("accept", "application/json");
-            bool sent = false;
+            expect(upserted) << fatal;
+        }
 
-            handler.list_workflow_definitions(req, res, [&sent] {
+        engine::MetadataHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        req.set_header(
+            interfaces::io::types::Token::PATH,
+            "/api/v1/metadata/workflows?page=1&limit=10"
+        );
+        req.set_header("accept", "application/json");
+        bool sent = false;
+
+        handler.list_workflow_definitions(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::OK);
-            auto parsed = rfl::json::read<rfl::Generic>(body_to_string(res));
-            expect(parsed.has_value()) << fatal;
-            auto array = parsed->to_array();
-            expect(array.has_value()) << fatal;
-            // Every one of the 50 seeded rows comes back, unbounded — pins the "no
-            // pagination/limit exists" gap for GET /api/v1/metadata/workflows.
-            expect(array->size() == seeded_count);
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::OK);
+        auto parsed = rfl::json::read<rfl::Generic>(body_to_string(res));
+        expect(parsed.has_value()) << fatal;
+        auto array = parsed->to_array();
+        expect(array.has_value()) << fatal;
+        // Every one of the 50 seeded rows comes back, unbounded — pins the "no
+        // pagination/limit exists" gap for GET /api/v1/metadata/workflows.
+        expect(array->size() == seeded_count);
 
-            serde::SerdeFormatRegistry::set_active(nullptr);
-        };
+        serde::SerdeFormatRegistry::set_active(nullptr);
+    };
 };
 
 } // namespace engine::metadata_handler_tests

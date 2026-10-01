@@ -14,8 +14,9 @@ import boost.ut;
 
 export namespace core::router {
 
-class RouterNode {
-  public:
+class RouterNode
+{
+public:
     /// @brief Default-constructs a zeroed-out node — no path, no offsets, `EdgeKind::PATH`.
     RouterNode() = default;
 
@@ -30,13 +31,26 @@ class RouterNode {
      * @param handler_offset offset into the handler pool for this node's handlers.
      * @param handler_mask the packed method-to-slot mask for this node's handlers.
      */
-    RouterNode(EdgeKind kind, std::string_view path, std::uint16_t children_offset,
-               std::uint8_t children_length, std::uint16_t middleware_offset,
-               std::uint8_t middleware_size, std::uint16_t handler_offset, std::size_t handler_mask)
-        : m_kind{kind}, m_path{path}, m_children_offset{children_offset},
-          m_children_length{children_length}, m_middleware_offset{middleware_offset},
-          m_middleware_length{middleware_size}, m_handler_offset{handler_offset},
-          m_handler_mask{handler_mask} {}
+    RouterNode(
+        EdgeKind kind,
+        std::string_view path,
+        std::uint16_t children_offset,
+        std::uint8_t children_length,
+        std::uint16_t middleware_offset,
+        std::uint8_t middleware_size,
+        std::uint16_t handler_offset,
+        std::size_t handler_mask
+    ) :
+        m_kind{kind},
+        m_path{path},
+        m_children_offset{children_offset},
+        m_children_length{children_length},
+        m_middleware_offset{middleware_offset},
+        m_middleware_length{middleware_size},
+        m_handler_offset{handler_offset},
+        m_handler_mask{handler_mask}
+    {
+    }
 
     /**
      * @brief Finds the child of this node matching path segment `seg`, hash-probing among
@@ -59,9 +73,9 @@ class RouterNode {
     // Not noexcept: the body calls std::println (formatting/IO may throw). Its sole caller,
     // RouteHandler::match() below, isn't noexcept either (it already throws std::runtime_error
     // on a routing miss), so dropping noexcept here doesn't tighten any contract.
-    constexpr std::optional<RouterNode> find_child(std::string_view seg,
-                                                   std::span<RouterNode> table,
-                                                   std::uint8_t &current_index) const {
+    constexpr std::optional<RouterNode>
+    find_child(std::string_view seg, std::span<RouterNode> table, std::uint8_t& current_index) const
+    {
         // no children at all — nothing to probe, bail immediately
         if (m_children_length == 0) {
             return std::nullopt;
@@ -81,45 +95,51 @@ class RouterNode {
             for (std::uint32_t i = 0; i < m_children_length; ++i) {
                 std::uint8_t idx = current_index + ((HASH + i) % m_children_length);
 
-                auto &node = table[idx]; // FIXME(clang-tidy): unchecked operator[], consider .at()
-                std::println("Checking node at index {}: kind={}, literal={}", idx,
-                             std::to_underlying(node.get_kind()), node.get_literal());
-                std::println("wild_index: {}",
-                             wild_index.has_value() ? std::to_string(*wild_index) : "nullopt");
+                auto& node = table[idx]; // FIXME(clang-tidy): unchecked operator[], consider .at()
+                std::println(
+                    "Checking node at index {}: kind={}, literal={}",
+                    idx,
+                    std::to_underlying(node.get_kind()),
+                    node.get_literal()
+                );
+                std::println(
+                    "wild_index: {}",
+                    wild_index.has_value() ? std::to_string(*wild_index) : "nullopt"
+                );
 
                 // precedence: exact literal match wins on the spot, no cap; a param child also
                 // matches immediately (first one found, no backtracking); a wildcard is only
                 // remembered as a fallback in case nothing better turns up in the probe
                 switch (node.get_kind()) {
-                case EdgeKind::PATH:
-                    if (node.get_literal() == seg) {
+                    case EdgeKind::PATH:
+                        if (node.get_literal() == seg) {
+                            current_index = idx;
+                            return std::make_optional(node);
+                        }
+                        break;
+                    case EdgeKind::PARAM:
                         current_index = idx;
                         return std::make_optional(node);
-                    }
-                    break;
-                case EdgeKind::PARAM:
-                    current_index = idx;
-                    return std::make_optional(node);
-                case EdgeKind::WILD:
-                    wild_index = std::make_optional(idx);
-                    continue;
+                    case EdgeKind::WILD:
+                        wild_index = std::make_optional(idx);
+                        continue;
                 }
             }
         } else {
             // single child — no hashing needed, just check the one node directly
-            auto &node =
+            auto& node =
                 table[current_index]; // FIXME(clang-tidy): unchecked operator[], consider .at()
 
             switch (node.get_kind()) {
-            case EdgeKind::PATH:
-                if (node.get_literal() == seg) {
+                case EdgeKind::PATH:
+                    if (node.get_literal() == seg) {
+                        return std::make_optional(node);
+                    }
+                    break;
+                case EdgeKind::PARAM:
                     return std::make_optional(node);
-                }
-                break;
-            case EdgeKind::PARAM:
-                return std::make_optional(node);
-            case EdgeKind::WILD:
-                wild_index = std::make_optional(current_index);
+                case EdgeKind::WILD:
+                    wild_index = std::make_optional(current_index);
             }
         }
 
@@ -128,7 +148,8 @@ class RouterNode {
             std::println("Returning wildcard node at index {}", *wild_index);
             current_index = *wild_index;
             return std::make_optional(
-                table[*wild_index]); // FIXME(clang-tidy): unchecked operator[], consider .at()
+                table[*wild_index]
+            ); // FIXME(clang-tidy): unchecked operator[], consider .at()
         }
 
         // truly nothing matched, not even a wildcard
@@ -139,46 +160,77 @@ class RouterNode {
      * @brief Gets this node's children-offset field.
      * @return mutable reference to the children offset.
      */
-    constexpr std::uint16_t &get_data_offset() noexcept { return m_children_offset; }
+    constexpr std::uint16_t& get_data_offset() noexcept
+    {
+        return m_children_offset;
+    }
+
     /**
      * @brief Gets this node's child count.
      * @return mutable reference to the children length.
      */
-    constexpr std::uint8_t &get_children_length() noexcept { return m_children_length; }
+    constexpr std::uint8_t& get_children_length() noexcept
+    {
+        return m_children_length;
+    }
+
     /**
      * @brief Gets this node's middleware-pool offset.
      * @return mutable reference to the middleware offset.
      */
-    constexpr std::uint16_t &get_middleware_offset() noexcept { return m_middleware_offset; }
+    constexpr std::uint16_t& get_middleware_offset() noexcept
+    {
+        return m_middleware_offset;
+    }
+
     /**
      * @brief Gets this node's middleware count.
      * @return mutable reference to the middleware length.
      */
-    constexpr std::uint8_t &get_middleware_length() noexcept { return m_middleware_length; }
+    constexpr std::uint8_t& get_middleware_length() noexcept
+    {
+        return m_middleware_length;
+    }
+
     /**
      * @brief Gets this node's handler-pool offset.
      * @return mutable reference to the handler offset.
      */
-    constexpr std::uint16_t &get_handler_offset() noexcept { return m_handler_offset; }
+    constexpr std::uint16_t& get_handler_offset() noexcept
+    {
+        return m_handler_offset;
+    }
+
     /**
      * @brief Gets this node's packed handler mask.
      * @warning Returns a mutable reference despite the "get_" name — bet you could mutate route
      * dispatch state through what looks like a read-only accessor. Handle with care.
      * @return mutable reference to the handler mask.
      */
-    constexpr std::size_t &get_handler_mask() noexcept { return m_handler_mask; }
+    constexpr std::size_t& get_handler_mask() noexcept
+    {
+        return m_handler_mask;
+    }
+
     /**
      * @brief Gets this node's edge kind (`Path`, `Param`, or `Wild`).
      * @return mutable reference to the edge kind.
      */
-    constexpr EdgeKind &get_kind() noexcept { return m_kind; }
+    constexpr EdgeKind& get_kind() noexcept
+    {
+        return m_kind;
+    }
+
     /**
      * @brief Gets this node's literal path segment.
      * @return the literal path view (empty for `Param`/`Wild` nodes).
      */
-    constexpr std::string_view get_literal() noexcept { return m_path; }
+    constexpr std::string_view get_literal() noexcept
+    {
+        return m_path;
+    }
 
-  private:
+private:
     EdgeKind m_kind{};
     std::string m_path;
     std::uint16_t m_children_offset{};
@@ -189,24 +241,27 @@ class RouterNode {
     std::size_t m_handler_mask{};
 };
 
-template <std::size_t RouterSize = 256, std::size_t HandlerSize = 64,
-          std::size_t MiddlewareSize = 10>
-class RouteHandler {
-  public:
+template<
+    std::size_t RouterSize = 256,
+    std::size_t HandlerSize = 64,
+    std::size_t MiddlewareSize = 10>
+class RouteHandler
+{
+public:
     /**
      * @brief Sets up an empty, ready-to-populate route table.
      */
     constexpr explicit RouteHandler() = default;
 
     /// @brief Defaulted move constructor — steals the table/pool state, no copies.
-    constexpr RouteHandler(RouteHandler &&) noexcept = default;
+    constexpr RouteHandler(RouteHandler&&) noexcept = default;
     /// @brief Defaulted move assignment — steals the table/pool state, no copies.
-    constexpr RouteHandler &operator=(RouteHandler &&) noexcept = default;
+    constexpr RouteHandler& operator=(RouteHandler&&) noexcept = default;
 
     /// @brief Deleted — route tables are built once and moved out, not duplicated.
-    RouteHandler(const RouteHandler &) = delete;
+    RouteHandler(const RouteHandler&) = delete;
     /// @brief Deleted — route tables are built once and moved out, not duplicated.
-    RouteHandler &operator=(const RouteHandler &) = delete;
+    RouteHandler& operator=(const RouteHandler&) = delete;
 
     /// @brief Defaulted destructor.
     ~RouteHandler() = default;
@@ -231,21 +286,34 @@ class RouteHandler {
      * @throws std::runtime_error with "Route not found" if the path doesn't fully resolve to a
      * node (segments run out early, or a segment has no matching child).
      */
-    constexpr void match(interfaces::io::types::Method method, std::string_view path,
-                         interfaces::io::IRequest &req, interfaces::io::IResponse &res,
-                         const std::function<void()> &send) {
+    constexpr void match(
+        interfaces::io::types::Method method,
+        std::string_view path,
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        const std::function<void()>& send
+    )
+    {
         // Global middleware runs first, on every request, before the trie is even walked. Each
         // gets a `next` that just flags "keep going"; a middleware continues by calling it and a
         // rejecting one short-circuits by replying + `send` and NOT calling it. If any one
         // doesn't continue, the whole trie walk + handler below is skipped and the response it
         // already sent stands.
-        for (const auto &global_middleware : m_global_middleware) {
+        for (const auto& global_middleware: m_global_middleware) {
             bool proceed = false;
             global_middleware(
-                req, res,
-                [&proceed](interfaces::io::IRequest &, interfaces::io::IResponse &,
-                           std::function<void()>) noexcept { proceed = true; },
-                send);
+                req,
+                res,
+                [&proceed](
+                    interfaces::io::IRequest&,
+                    interfaces::io::IResponse&,
+                    std::function<void()>
+                ) noexcept
+                {
+                    proceed = true;
+                },
+                send
+            );
             if (!proceed) {
                 return;
             }
@@ -273,8 +341,13 @@ class RouteHandler {
                 // know whether the full path resolves or whether the final method has a
                 // handler — that's intentional per the node's own contract, not a bug fix here
                 if (node->get_middleware_length() > 0) {
-                    m_middleware.execute(req, res, send, node->get_middleware_offset(),
-                                         node->get_middleware_length());
+                    m_middleware.execute(
+                        req,
+                        res,
+                        send,
+                        node->get_middleware_offset(),
+                        node->get_middleware_length()
+                    );
                 }
                 current = *node;
             }
@@ -284,8 +357,11 @@ class RouteHandler {
             if (it == end) {
                 // HANDLER_MASK unchanged means no handlers were ever registered on this node
                 if (current.get_handler_mask() != HANDLER_MASK) {
-                    const auto HANDLER_FN = m_handler.find(current.get_handler_offset(),
-                                                           current.get_handler_mask(), method);
+                    const auto HANDLER_FN = m_handler.find(
+                        current.get_handler_offset(),
+                        current.get_handler_mask(),
+                        method
+                    );
                     // W — got a handler for this method, run it and we're done. Every dispatch
                     // through here automatically runs inside a SERVER span — same "just works,
                     // no per-route boilerplate" deal as OpenAPI metadata capture (ApiRoute/
@@ -293,18 +369,21 @@ class RouteHandler {
                     // an inbound `traceparent` header as the parent if present.
                     if (HANDLER_FN) {
                         auto method_str = interfaces::io::types::method_str(method);
-                        // Own the path before running the handler — `path` is a string_view into the
-                        // request, and a handler that calls send() can close the http2 stream and
-                        // destroy the request synchronously (in-memory connector path), leaving the
-                        // post-handler telemetry below reading freed memory.
+                        // Own the path before running the handler — `path` is a string_view into
+                        // the request, and a handler that calls send() can close the http2 stream
+                        // and destroy the request synchronously (in-memory connector path), leaving
+                        // the post-handler telemetry below reading freed memory.
                         const std::string path_owned{path};
                         auto span_name = std::format("{} {}", method_str, path_owned);
                         auto incoming =
                             core::otel::parse_traceparent(req.find_header("traceparent"));
                         auto span =
                             incoming.has_value()
-                                ? core::otel::start_span(span_name, interfaces::SpanKind::SERVER,
-                                                         *incoming)
+                                ? core::otel::start_span(
+                                      span_name,
+                                      interfaces::SpanKind::SERVER,
+                                      *incoming
+                                  )
                                 : core::otel::start_span(span_name, interfaces::SpanKind::SERVER);
                         // Same choke point as the span above — one change here covers every
                         // dispatched request, mirroring src/worker_main.cc's poll_cycle metrics
@@ -322,8 +401,9 @@ class RouteHandler {
                             core::events::publish(
                                 "router.request.completed",
                                 {{"method", std::string{method_str}},
-                                 {"path", std::string{path_owned}}});
-                        } catch (const std::exception &e) {
+                                 {"path", std::string{path_owned}}}
+                            );
+                        } catch (const std::exception& e) {
                             span.set_status(interfaces::SpanStatus::ERROR, e.what());
                             const std::array<interfaces::Attribute, 3> error_attrs{
                                 interfaces::Attribute{"method", method_str},
@@ -333,30 +413,42 @@ class RouteHandler {
                             core::otel::counter_add("http.server.requests", 1.0, error_attrs);
                             const auto elapsed_ms =
                                 std::chrono::duration<double, std::milli>(
-                                    std::chrono::steady_clock::now() - start_time)
+                                    std::chrono::steady_clock::now() - start_time
+                                )
                                     .count();
-                            core::otel::histogram_record("http.server.request.duration_ms",
-                                                         elapsed_ms, metric_attrs);
-                            core::events::publish("router.request.failed",
-                                                  {{"method", std::string{method_str}},
-                                                   {"path", std::string{path_owned}},
-                                                   {"error", e.what()}});
+                            core::otel::histogram_record(
+                                "http.server.request.duration_ms",
+                                elapsed_ms,
+                                metric_attrs
+                            );
+                            core::events::publish(
+                                "router.request.failed",
+                                {{"method", std::string{method_str}},
+                                 {"path", std::string{path_owned}},
+                                 {"error", e.what()}}
+                            );
                             throw;
                         }
                         const auto elapsed_ms = std::chrono::duration<double, std::milli>(
-                                                    std::chrono::steady_clock::now() - start_time)
+                                                    std::chrono::steady_clock::now() - start_time
+                        )
                                                     .count();
-                        core::otel::histogram_record("http.server.request.duration_ms", elapsed_ms,
-                                                     metric_attrs);
+                        core::otel::histogram_record(
+                            "http.server.request.duration_ms",
+                            elapsed_ms,
+                            metric_attrs
+                        );
                         return;
                     }
                     // node exists but nothing registered for this method — 405-style L
                     core::events::publish(
                         "router.request.method_not_allowed",
                         {{"path", std::string{path}},
-                         {"method", std::string{interfaces::io::types::method_str(method)}}});
+                         {"method", std::string{interfaces::io::types::method_str(method)}}}
+                    );
                     throw std::runtime_error(
-                        std::format("Wrong method for route: {}", std::to_underlying(method)));
+                        std::format("Wrong method for route: {}", std::to_underlying(method))
+                    );
                 }
             }
         }
@@ -382,10 +474,15 @@ class RouteHandler {
     // Not noexcept: the body calls std::println (formatting/IO may throw). Its only caller,
     // RouteBuilder::build() in builder.cppm, isn't noexcept either (and itself calls
     // std::println too), so dropping noexcept here doesn't tighten any contract.
-    constexpr void add_route(EdgeKind kind, std::string_view path, std::size_t children_offset,
-                             const Handler<8> &handler,
-                             const Middleware<MiddlewareSize> &middleware,
-                             std::uint8_t children_size) {
+    constexpr void add_route(
+        EdgeKind kind,
+        std::string_view path,
+        std::size_t children_offset,
+        const Handler<8>& handler,
+        const Middleware<MiddlewareSize>& middleware,
+        std::uint8_t children_size
+    )
+    {
         // stamp out the node up front — offsets into the shared pools are wherever the pools'
         // current size already sits, since we're about to append right after this
         RouterNode node{
@@ -399,26 +496,34 @@ class RouteHandler {
             handler.get_mask(),
         };
 
-        std::println("Adding route: {}, kind: {}, children offset: {}, children size: {}, "
-                     "middleware offset: {}, "
-                     "middleware size: {}, handler offset: {}, handler mask: {:016X}",
-                     path, std::to_underlying(kind), node.get_data_offset(),
-                     node.get_children_length(), node.get_middleware_offset(),
-                     node.get_middleware_length(), node.get_handler_offset(),
-                     node.get_handler_mask());
+        std::println(
+            "Adding route: {}, kind: {}, children offset: {}, children size: {}, "
+            "middleware offset: {}, "
+            "middleware size: {}, handler offset: {}, handler mask: {:016X}",
+            path,
+            std::to_underlying(kind),
+            node.get_data_offset(),
+            node.get_children_length(),
+            node.get_middleware_offset(),
+            node.get_middleware_length(),
+            node.get_handler_offset(),
+            node.get_handler_mask()
+        );
 
         // copy this node's middleware entries into the shared pool, in order
         for (std::uint8_t i = 0; i < middleware.get_size(); ++i) {
             m_middleware.add_middleware(
-                middleware.get_middlewares()[i]); // FIXME(clang-tidy): unchecked operator[],
-                                                  // consider .at(); non-constant array index
+                middleware.get_middlewares()[i]
+            ); // FIXME(clang-tidy): unchecked operator[],
+               // consider .at(); non-constant array index
         }
 
         // same deal for handlers — copy into the shared handler pool
         for (std::uint8_t i = 0; i < handler.get_size(); ++i) {
             m_handler.add_handler(
-                handler.get_handler()[i]); // FIXME(clang-tidy): unchecked operator[], consider
-                                           // .at(); non-constant array index
+                handler.get_handler()[i]
+            ); // FIXME(clang-tidy): unchecked operator[], consider
+               // .at(); non-constant array index
         }
 
         // finally, drop the node itself into the flat table
@@ -432,11 +537,12 @@ class RouteHandler {
      * Carried over from the builder's own global list by RouterContext::build().
      * @param middleware the global middleware to append.
      */
-    constexpr void add_global_middleware(interfaces::MiddlewareFn middleware) {
+    constexpr void add_global_middleware(interfaces::MiddlewareFn middleware)
+    {
         m_global_middleware.add_middleware(middleware);
     }
 
-  private:
+private:
     std::array<RouterNode, RouterSize> m_table{};
     HandlerPool<HandlerSize> m_handler{};
     Middleware<MiddlewareSize> m_middleware{};
@@ -457,19 +563,25 @@ using namespace boost::ut;
 
 // static: internal linkage so this doesn't collide with the same-named test helper other
 // core_router partition files (handler.cppm, builder.cppm) define in this same tests namespace.
-static interfaces::MiddlewareFn noop_middleware() {
-    return [](interfaces::io::IRequest &, interfaces::io::IResponse &, interfaces::NextFn &&,
+static interfaces::MiddlewareFn noop_middleware()
+{
+    return [](interfaces::io::IRequest&,
+              interfaces::io::IResponse&,
+              interfaces::NextFn&&,
               std::function<void()>) noexcept {};
 }
 
-suite<"RouterNode"> router_node_suite = [] {
-    "default-constructed node has no children and Path kind"_test = [] {
+suite<"RouterNode"> router_node_suite = []
+{
+    "default-constructed node has no children and Path kind"_test = []
+    {
         RouterNode node;
         expect(node.get_kind() == EdgeKind::PATH);
         expect(node.get_children_length() == 0);
     };
 
-    "populated constructor stores every field"_test = [] {
+    "populated constructor stores every field"_test = []
+    {
         RouterNode node{EdgeKind::PARAM, "id", 3, 2, 1, 4, 5, 0xFF};
         expect(node.get_kind() == EdgeKind::PARAM);
         expect(node.get_literal() == "id");
@@ -481,16 +593,19 @@ suite<"RouterNode"> router_node_suite = [] {
         expect(node.get_handler_mask() == 0xFF);
     };
 
-    "find_child returns nullopt when the node has no children"_test = [] {
+    "find_child returns nullopt when the node has no children"_test = []
+    {
         RouterNode node{EdgeKind::PATH, "root", 0, 0, 0, 0, 0, HANDLER_MASK};
         std::array<RouterNode, 1> table{};
         std::uint8_t index = 0;
         expect(node.find_child("anything", table, index) == std::nullopt);
     };
 
-    "find_child (single child): exact literal match succeeds, mismatch fails"_test = [] {
+    "find_child (single child): exact literal match succeeds, mismatch fails"_test = []
+    {
         std::array<RouterNode, 1> table{
-            RouterNode{EdgeKind::PATH, "users", 0, 0, 0, 0, 0, HANDLER_MASK}};
+            RouterNode{EdgeKind::PATH, "users", 0, 0, 0, 0, 0, HANDLER_MASK}
+        };
         RouterNode parent{EdgeKind::PATH, "root", 0, 1, 0, 0, 0, HANDLER_MASK};
 
         std::uint8_t index = 0;
@@ -502,8 +617,11 @@ suite<"RouterNode"> router_node_suite = [] {
         expect(parent.find_child("other", table, index) == std::nullopt);
     };
 
-    "find_child (single child): a param child matches any segment"_test = [] {
-        std::array<RouterNode, 1> table{RouterNode{EdgeKind::PARAM, "", 0, 0, 0, 0, 0, HANDLER_MASK}};
+    "find_child (single child): a param child matches any segment"_test = []
+    {
+        std::array<RouterNode, 1> table{
+            RouterNode{EdgeKind::PARAM, "", 0, 0, 0, 0, 0, HANDLER_MASK}
+        };
         RouterNode parent{EdgeKind::PATH, "root", 0, 1, 0, 0, 0, HANDLER_MASK};
 
         std::uint8_t index = 0;
@@ -512,8 +630,11 @@ suite<"RouterNode"> router_node_suite = [] {
         expect(matched->get_kind() == EdgeKind::PARAM);
     };
 
-    "find_child (single child): a wildcard child matches as a fallback"_test = [] {
-        std::array<RouterNode, 1> table{RouterNode{EdgeKind::WILD, "", 0, 0, 0, 0, 0, HANDLER_MASK}};
+    "find_child (single child): a wildcard child matches as a fallback"_test = []
+    {
+        std::array<RouterNode, 1> table{
+            RouterNode{EdgeKind::WILD, "", 0, 0, 0, 0, 0, HANDLER_MASK}
+        };
         RouterNode parent{EdgeKind::PATH, "root", 0, 1, 0, 0, 0, HANDLER_MASK};
 
         std::uint8_t index = 0;
@@ -522,7 +643,8 @@ suite<"RouterNode"> router_node_suite = [] {
         expect(matched->get_kind() == EdgeKind::WILD);
     };
 
-    "find_child (multiple children): exact literal wins over a sibling wildcard"_test = [] {
+    "find_child (multiple children): exact literal wins over a sibling wildcard"_test = []
+    {
         std::array<RouterNode, 2> table{
             RouterNode{EdgeKind::PATH, "users", 0, 0, 0, 0, 0, HANDLER_MASK},
             RouterNode{EdgeKind::WILD, "", 0, 0, 0, 0, 0, HANDLER_MASK},
@@ -536,7 +658,8 @@ suite<"RouterNode"> router_node_suite = [] {
         expect(matched->get_literal() == "users");
     };
 
-    "find_child (multiple children): no literal match falls back to the wildcard sibling"_test = [] {
+    "find_child (multiple children): no literal match falls back to the wildcard sibling"_test = []
+    {
         std::array<RouterNode, 2> table{
             RouterNode{EdgeKind::PATH, "users", 0, 0, 0, 0, 0, HANDLER_MASK},
             RouterNode{EdgeKind::WILD, "", 0, 0, 0, 0, 0, HANDLER_MASK},
@@ -550,18 +673,28 @@ suite<"RouterNode"> router_node_suite = [] {
     };
 };
 
-suite<"RouteHandler"> route_handler_suite = [] {
-    "add_route stores a node without throwing, for an empty handler/middleware set"_test = [] {
-        RouteHandler<> handler{};
-        expect(not throws<std::runtime_error>([&] {
-            handler.add_route(EdgeKind::PATH, "foo", 0, Handler<8>{}, Middleware<10>{}, 0);
-        }));
-    };
-
-    "add_global_middleware doesn't throw"_test = [] {
+suite<"RouteHandler"> route_handler_suite = []
+{
+    "add_route stores a node without throwing, for an empty handler/middleware set"_test = []
+    {
         RouteHandler<> handler{};
         expect(not throws<std::runtime_error>(
-            [&] { handler.add_global_middleware(noop_middleware()); }));
+            [&]
+            {
+                handler.add_route(EdgeKind::PATH, "foo", 0, Handler<8>{}, Middleware<10>{}, 0);
+            }
+        ));
+    };
+
+    "add_global_middleware doesn't throw"_test = []
+    {
+        RouteHandler<> handler{};
+        expect(not throws<std::runtime_error>(
+            [&]
+            {
+                handler.add_global_middleware(noop_middleware());
+            }
+        ));
     };
 };
 

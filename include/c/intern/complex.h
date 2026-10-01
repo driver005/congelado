@@ -1,8 +1,8 @@
 #ifndef TENSORFLOW_C_TF_COMPLEX_H_
 #define TENSORFLOW_C_TF_COMPLEX_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -31,7 +31,8 @@ extern "C"
 
 #define TF_COMPLEX_STRUCT_SIZE TF_OFFSET_OF_END(TF_ComplexOps, set_imag)
 
-    TF_CAPI_EXPORT void create_complex(TF_ComplexOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void
+    create_complex(TF_ComplexOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_complex(void* plugin_context);
 
 #ifdef __cplusplus

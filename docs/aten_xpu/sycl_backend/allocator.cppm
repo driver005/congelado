@@ -122,8 +122,7 @@ public:
     }
 
     [[nodiscard]] std::expected<void, ice::sonic::Status>
-    record_stream(const TF_DeviceMemoryBase* memory, ice::builder::Stream& stream) noexcept
-        override
+    record_stream(const TF_DeviceMemoryBase* memory, ice::builder::Stream& stream) noexcept override
     {
         if (memory == nullptr || memory->payload == 0) {
             return {};
@@ -144,9 +143,9 @@ public:
     {
         auto* block = find_block_containing(pointer);
         if (block == nullptr) {
-            return std::unexpected{
-                ice::sonic::Status::from_message("SyclAllocator: pointer not owned by this allocator")
-            };
+            return std::unexpected{ice::sonic::Status::from_message(
+                "SyclAllocator: pointer not owned by this allocator"
+            )};
         }
 
         *out_base = block->ptr;
@@ -160,7 +159,10 @@ public:
         {
             return std::ranges::all_of(
                 segment.blocks,
-                [](const std::unique_ptr<Block>& block) { return !block->allocated; }
+                [](const std::unique_ptr<Block>& block)
+                {
+                    return !block->allocated;
+                }
             );
         };
 
@@ -220,9 +222,9 @@ public:
                 m_garbage_collection_threshold = value;
                 return {};
             case TF_ALLOCATOR_OPTION_EXPANDABLE_SEGMENTS:
-                return std::unexpected{
-                    ice::sonic::Status::from_message("SyclAllocator: expandable segments not implemented")
-                };
+                return std::unexpected{ice::sonic::Status::from_message(
+                    "SyclAllocator: expandable segments not implemented"
+                )};
         }
 
         return std::unexpected{ice::sonic::Status::from_message("SyclAllocator: unknown option")};
@@ -280,7 +282,8 @@ public:
         (void)pool_filter;
 
         std::string report;
-        report += std::format("segments={} blocks_free={}\n", m_segments.size(), m_free_blocks.size());
+        report +=
+            std::format("segments={} blocks_free={}\n", m_segments.size(), m_free_blocks.size());
         for (const Segment& segment: m_segments) {
             report += std::format(
                 "segment base={} size={} blocks={}\n",
@@ -323,7 +326,9 @@ public:
         std::erase_if(
             m_pools,
             [&pool](const std::unique_ptr<SyclMemPool>& candidate)
-            { return candidate.get() == &pool; }
+            {
+                return candidate.get() == &pool;
+            }
         );
     }
 
@@ -337,13 +342,16 @@ public:
         return {};
     }
 
-    [[nodiscard]] std::expected<void, ice::sonic::Status>
-    export_memory(const TF_DeviceMemoryBase* memory, TF_IpcMemoryHandle* out_handle) noexcept
-        override
+    [[nodiscard]] std::expected<void, ice::sonic::Status> export_memory(
+        const TF_DeviceMemoryBase* memory,
+        TF_IpcMemoryHandle* out_handle
+    ) noexcept override
     {
         (void)memory;
         (void)out_handle;
-        return std::unexpected{ice::sonic::Status::from_message("SyclAllocator: IPC export not implemented")};
+        return std::unexpected{
+            ice::sonic::Status::from_message("SyclAllocator: IPC export not implemented")
+        };
     }
 
     [[nodiscard]] std::expected<void, ice::sonic::Status>
@@ -351,7 +359,9 @@ public:
     {
         (void)handle;
         (void)out_memory;
-        return std::unexpected{ice::sonic::Status::from_message("SyclAllocator: IPC import not implemented")};
+        return std::unexpected{
+            ice::sonic::Status::from_message("SyclAllocator: IPC import not implemented")
+        };
     }
 
     [[nodiscard]] std::expected<void, ice::sonic::Status>
@@ -447,8 +457,7 @@ private:
         m_segments.push_back(std::move(segment));
 
         m_stats.bytes_reserved += static_cast<int64_t>(segment_size);
-        m_stats.peak_bytes_reserved =
-            std::max(m_stats.peak_bytes_reserved, m_stats.bytes_reserved);
+        m_stats.peak_bytes_reserved = std::max(m_stats.peak_bytes_reserved, m_stats.bytes_reserved);
 
         return {};
     }
@@ -517,7 +526,9 @@ private:
             std::erase_if(
                 owning_segment->blocks,
                 [next](const std::unique_ptr<Block>& candidate)
-                { return candidate.get() == next; }
+                {
+                    return candidate.get() == next;
+                }
             );
         }
     }
@@ -549,9 +560,11 @@ private:
         return nullptr;
     }
 
-    std::expected<void, ice::sonic::Status>
-    allocate_unpooled(uint64_t size, TF_MemorySpace memory_space, TF_DeviceMemoryBase* out_memory)
-        noexcept
+    std::expected<void, ice::sonic::Status> allocate_unpooled(
+        uint64_t size,
+        TF_MemorySpace memory_space,
+        TF_DeviceMemoryBase* out_memory
+    ) noexcept
     {
         void* pointer = memory_space == TF_MEMORY_SPACE_HOST_PINNED
                             ? sycl::aligned_alloc_host(DEVICE_ALIGNMENT, size, m_context)

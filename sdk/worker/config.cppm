@@ -401,8 +401,8 @@ struct serde::Serializable<congelado::worker::TaskConfig>
         using congelado::worker::TaskConfig;
         return std::tuple{
             serde::FieldDesc<"name", &TaskConfig::getName, &TaskConfig::setName>{},
-            serde::FieldDesc<
-                "worker_type", &TaskConfig::getWorkerType, &TaskConfig::setWorkerType>{},
+            serde::
+                FieldDesc<"worker_type", &TaskConfig::getWorkerType, &TaskConfig::setWorkerType>{},
         };
     }
 };
@@ -414,36 +414,52 @@ struct serde::Serializable<congelado::worker::WorkerConfig>
     {
         using congelado::worker::WorkerConfig;
         return std::tuple{
-            serde::FieldDesc<
-                "engine_url", &WorkerConfig::getEngineUrl, &WorkerConfig::setEngineUrl>{},
+            serde::
+                FieldDesc<"engine_url", &WorkerConfig::getEngineUrl, &WorkerConfig::setEngineUrl>{},
             serde::FieldDesc<"worker_id", &WorkerConfig::getWorkerId, &WorkerConfig::setWorkerId>{},
             serde::FieldDesc<
-                "concurrency", &WorkerConfig::getConcurrency, &WorkerConfig::setConcurrency>{},
+                "concurrency",
+                &WorkerConfig::getConcurrency,
+                &WorkerConfig::setConcurrency>{},
             serde::FieldDesc<"threads", &WorkerConfig::getThreads, &WorkerConfig::setThreads>{},
             serde::FieldDesc<
-                "connect_retry_delay_ms", &WorkerConfig::getConnectRetryDelayMs,
+                "connect_retry_delay_ms",
+                &WorkerConfig::getConnectRetryDelayMs,
                 &WorkerConfig::setConnectRetryDelayMs>{},
             serde::FieldDesc<
-                "connect_timeout_ms", &WorkerConfig::getConnectTimeoutMs,
+                "connect_timeout_ms",
+                &WorkerConfig::getConnectTimeoutMs,
                 &WorkerConfig::setConnectTimeoutMs>{},
             serde::FieldDesc<
-                "engine_host", &WorkerConfig::getEngineHost, &WorkerConfig::setEngineHost>{},
+                "engine_host",
+                &WorkerConfig::getEngineHost,
+                &WorkerConfig::setEngineHost>{},
             serde::FieldDesc<
-                "engine_port", &WorkerConfig::getEnginePort, &WorkerConfig::setEnginePort>{},
+                "engine_port",
+                &WorkerConfig::getEnginePort,
+                &WorkerConfig::setEnginePort>{},
             serde::FieldDesc<"bind_host", &WorkerConfig::getBindHost, &WorkerConfig::setBindHost>{},
             serde::FieldDesc<"bind_port", &WorkerConfig::getBindPort, &WorkerConfig::setBindPort>{},
             serde::FieldDesc<
-                "engine_cert", &WorkerConfig::getEngineCert, &WorkerConfig::setEngineCert>{},
+                "engine_cert",
+                &WorkerConfig::getEngineCert,
+                &WorkerConfig::setEngineCert>{},
+            serde::
+                FieldDesc<"engine_key", &WorkerConfig::getEngineKey, &WorkerConfig::setEngineKey>{},
             serde::FieldDesc<
-                "engine_key", &WorkerConfig::getEngineKey, &WorkerConfig::setEngineKey>{},
+                "client_host",
+                &WorkerConfig::getClientHost,
+                &WorkerConfig::setClientHost>{},
             serde::FieldDesc<
-                "client_host", &WorkerConfig::getClientHost, &WorkerConfig::setClientHost>{},
+                "client_port",
+                &WorkerConfig::getClientPort,
+                &WorkerConfig::setClientPort>{},
             serde::FieldDesc<
-                "client_port", &WorkerConfig::getClientPort, &WorkerConfig::setClientPort>{},
-            serde::FieldDesc<
-                "client_cert", &WorkerConfig::getClientCert, &WorkerConfig::setClientCert>{},
-            serde::FieldDesc<
-                "client_key", &WorkerConfig::getClientKey, &WorkerConfig::setClientKey>{},
+                "client_cert",
+                &WorkerConfig::getClientCert,
+                &WorkerConfig::setClientCert>{},
+            serde::
+                FieldDesc<"client_key", &WorkerConfig::getClientKey, &WorkerConfig::setClientKey>{},
             serde::FieldDesc<"tasks", &WorkerConfig::getTasks, &WorkerConfig::setTasks>{},
         };
     }
@@ -471,8 +487,10 @@ congelado::worker::WorkerConfig::from_file(const std::filesystem::path& path)
 namespace congelado::worker::tests {
 using namespace boost::ut;
 
-suite<"TaskConfig"> task_config_suite = [] {
-    "name and worker_type round-trip"_test = [] {
+suite<"TaskConfig"> task_config_suite = []
+{
+    "name and worker_type round-trip"_test = []
+    {
         TaskConfig task;
         task.setName("nightly-sync");
         task.setWorkerType("sync");
@@ -481,7 +499,8 @@ suite<"TaskConfig"> task_config_suite = [] {
         expect(task.getWorkerType() == "sync");
     };
 
-    "starts empty"_test = [] {
+    "starts empty"_test = []
+    {
         TaskConfig task;
 
         expect(task.getName().empty());
@@ -489,8 +508,10 @@ suite<"TaskConfig"> task_config_suite = [] {
     };
 };
 
-suite<"WorkerConfig"> worker_config_suite = [] {
-    "starts with documented defaults"_test = [] {
+suite<"WorkerConfig"> worker_config_suite = []
+{
+    "starts with documented defaults"_test = []
+    {
         WorkerConfig cfg;
 
         expect(not cfg.getEngineUrl().has_value());
@@ -510,7 +531,8 @@ suite<"WorkerConfig"> worker_config_suite = [] {
         expect(cfg.getTasks().empty());
     };
 
-    "required-field setters round-trip"_test = [] {
+    "required-field setters round-trip"_test = []
+    {
         WorkerConfig cfg;
         cfg.setWorkerId("worker-1");
         cfg.setConcurrency(8);
@@ -531,7 +553,8 @@ suite<"WorkerConfig"> worker_config_suite = [] {
         expect(cfg.getEngineKey() == "key-contents");
     };
 
-    "optional-field setters round-trip through std::optional"_test = [] {
+    "optional-field setters round-trip through std::optional"_test = []
+    {
         WorkerConfig cfg;
         cfg.setEngineUrl(std::optional<std::string>{"https://engine.example"});
         cfg.setThreads(std::optional<std::uint32_t>{4});
@@ -552,7 +575,8 @@ suite<"WorkerConfig"> worker_config_suite = [] {
         expect(cfg.getClientKey().value() == "client-key");
     };
 
-    "addTask appends, setTasks replaces the whole list"_test = [] {
+    "addTask appends, setTasks replaces the whole list"_test = []
+    {
         WorkerConfig cfg;
         TaskConfig first;
         first.setName("first");
@@ -573,7 +597,8 @@ suite<"WorkerConfig"> worker_config_suite = [] {
         expect(cfg.getTasks()[0].getName() == "only");
     };
 
-    "from_file reports a readable error for a missing file"_test = [] {
+    "from_file reports a readable error for a missing file"_test = []
+    {
         auto result = WorkerConfig::from_file("/nonexistent/path/does-not-exist.toml");
 
         expect(not result.has_value());

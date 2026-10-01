@@ -1,17 +1,17 @@
 module;
 
 #ifdef _WIN32
-#    ifndef WIN32_LEAN_AND_MEAN
-#        define WIN32_LEAN_AND_MEAN
-#    endif
-#    include <winsock2.h>
+    #ifndef WIN32_LEAN_AND_MEAN
+        #define WIN32_LEAN_AND_MEAN
+    #endif
+    #include <winsock2.h>
 #else
-#    include <linux/time_types.h>
+    #include <linux/time_types.h>
 #endif
 
 #ifdef CONGELADO_TEST
-#    include <rfl/Generic.hpp>
-#    include <rfl/json.hpp>
+    #include <rfl/Generic.hpp>
+    #include <rfl/json.hpp>
 #endif
 
 export module client_pool_worker;
@@ -122,12 +122,16 @@ struct serde::Serializable<worker_client_pool::ClientPoolInput>
             serde::FieldDesc<"path", &ClientPoolInput::getPath, &ClientPoolInput::setPath>{},
             serde::FieldDesc<"method", &ClientPoolInput::getMethod, &ClientPoolInput::setMethod>{},
             serde::FieldDesc<
-                "expected_status", &ClientPoolInput::getExpectedStatus,
+                "expected_status",
+                &ClientPoolInput::getExpectedStatus,
                 &ClientPoolInput::setExpectedStatus>{},
             serde::FieldDesc<
-                "interval_ms", &ClientPoolInput::getIntervalMs, &ClientPoolInput::setIntervalMs>{},
+                "interval_ms",
+                &ClientPoolInput::getIntervalMs,
+                &ClientPoolInput::setIntervalMs>{},
             serde::FieldDesc<
-                "max_attempts", &ClientPoolInput::getMaxAttempts,
+                "max_attempts",
+                &ClientPoolInput::getMaxAttempts,
                 &ClientPoolInput::setMaxAttempts>{},
         };
     }
@@ -190,13 +194,20 @@ public:
             return;
         }
         auto connect_result = http2_client->connect(
-            std::move(endpoint), *m_leverager, *m_group, verify_peer, [this, http2_client] {
+            std::move(endpoint),
+            *m_leverager,
+            *m_group,
+            verify_peer,
+            [this, http2_client]
+            {
                 m_register.set_runtime(*http2_client);
             }
         );
         if (!connect_result) {
             core::logger::error(
-                "client_pool_worker", "downstream connect failed: {}", connect_result.error()
+                "client_pool_worker",
+                "downstream connect failed: {}",
+                connect_result.error()
             );
         }
     }
@@ -374,15 +385,20 @@ private:
             builder.add_header(key, value);
         }
         auto request = builder.build(m_register.runtime());
-        m_register.send(std::move(request), [this, state](interfaces::io::IResponse& response) {
-            handle_response(state, response);
-        });
+        m_register.send(
+            std::move(request),
+            [this, state](interfaces::io::IResponse& response)
+            {
+                handle_response(state, response);
+            }
+        );
     }
 
     /// @brief Decides whether `state` is done (matched or out of attempts) or needs another
     /// attempt after `interval_ms`, driven by the leverager timer — never blocks a thread.
     void handle_response(
-        const std::shared_ptr<RetryState>& state, interfaces::io::IResponse& response
+        const std::shared_ptr<RetryState>& state,
+        interfaces::io::IResponse& response
     )
     {
         auto& view = response.get_body();
@@ -419,9 +435,13 @@ private:
         auto& timeout_spec = state->get_timeout_spec();
         timeout_spec.tv_sec = state->get_interval_ms() / 1'000;
         timeout_spec.tv_nsec = (state->get_interval_ms() % 1'000) * 1'000'000;
-        m_leverager->timeout(&timeout_spec, [this, state](int /*result*/) {
-            issue_attempt(state);
-        });
+        m_leverager->timeout(
+            &timeout_spec,
+            [this, state](int /*result*/)
+            {
+                issue_attempt(state);
+            }
+        );
     }
 
     interfaces::IProtocol<io::layer::http2::Server>* m_protocol{nullptr};
@@ -449,38 +469,45 @@ using namespace boost::ut;
     return rfl::json::read<rfl::Generic>(std::string{json}).value();
 }
 
-suite<"ClientPoolInput"> client_pool_input_suite = [] {
-    "setPath/getPath round-trips"_test = [] {
+suite<"ClientPoolInput"> client_pool_input_suite = []
+{
+    "setPath/getPath round-trips"_test = []
+    {
         ClientPoolInput input;
         input.setPath("/health");
         expect(input.getPath() == "/health");
     };
 
-    "setMethod/getMethod round-trips"_test = [] {
+    "setMethod/getMethod round-trips"_test = []
+    {
         ClientPoolInput input;
         input.setMethod("HEAD");
         expect(input.getMethod() == "HEAD");
     };
 
-    "setExpectedStatus/getExpectedStatus round-trips"_test = [] {
+    "setExpectedStatus/getExpectedStatus round-trips"_test = []
+    {
         ClientPoolInput input;
         input.setExpectedStatus(204);
         expect(input.getExpectedStatus() == 204);
     };
 
-    "setIntervalMs/getIntervalMs round-trips"_test = [] {
+    "setIntervalMs/getIntervalMs round-trips"_test = []
+    {
         ClientPoolInput input;
         input.setIntervalMs(2'500L);
         expect(input.getIntervalMs() == 2'500L);
     };
 
-    "setMaxAttempts/getMaxAttempts round-trips"_test = [] {
+    "setMaxAttempts/getMaxAttempts round-trips"_test = []
+    {
         ClientPoolInput input;
         input.setMaxAttempts(10);
         expect(input.getMaxAttempts() == 10);
     };
 
-    "default-constructed fields match the documented defaults"_test = [] {
+    "default-constructed fields match the documented defaults"_test = []
+    {
         ClientPoolInput input;
         expect(input.getMethod() == "GET");
         expect(input.getExpectedStatus() == 200);
@@ -491,17 +518,19 @@ suite<"ClientPoolInput"> client_pool_input_suite = [] {
     // SECURITY pin: no clamping anywhere on these setters — negative/huge values pass straight
     // through, matching the SECURITY note on ClientPoolInput::m_max_attempts above.
     "setMaxAttempts/setIntervalMs accept negative and absurdly large values with no clamping"_test =
-        [] {
-            ClientPoolInput input;
-            input.setMaxAttempts(-1);
-            expect(input.getMaxAttempts() == -1);
-            input.setMaxAttempts(2'000'000'000);
-            expect(input.getMaxAttempts() == 2'000'000'000);
-            input.setIntervalMs(-500L);
-            expect(input.getIntervalMs() == -500L);
-        };
+        []
+    {
+        ClientPoolInput input;
+        input.setMaxAttempts(-1);
+        expect(input.getMaxAttempts() == -1);
+        input.setMaxAttempts(2'000'000'000);
+        expect(input.getMaxAttempts() == 2'000'000'000);
+        input.setIntervalMs(-500L);
+        expect(input.getIntervalMs() == -500L);
+    };
 
-    "from_value fails entirely when 'path' is omitted"_test = [] {
+    "from_value fails entirely when 'path' is omitted"_test = []
+    {
         auto value = make_value(R"({"method":"GET"})");
         auto parsed = serde::Ser::from_value<ClientPoolInput>(value);
         expect(!parsed.has_value()) << fatal;
@@ -509,26 +538,28 @@ suite<"ClientPoolInput"> client_pool_input_suite = [] {
     };
 
     "BUG: from_value fails entirely when 'method' is omitted, despite its documented default"_test =
-        [] {
-            auto value = make_value(
-                R"({"path":"/x","expected_status":200,"interval_ms":1000,"max_attempts":5})"
-            );
-            auto parsed = serde::Ser::from_value<ClientPoolInput>(value);
-            expect(!parsed.has_value()) << fatal;
-            expect(parsed.error().contains("method")) << parsed.error();
-        };
+        []
+    {
+        auto value = make_value(
+            R"({"path":"/x","expected_status":200,"interval_ms":1000,"max_attempts":5})"
+        );
+        auto parsed = serde::Ser::from_value<ClientPoolInput>(value);
+        expect(!parsed.has_value()) << fatal;
+        expect(parsed.error().contains("method")) << parsed.error();
+    };
 
     "BUG: from_value fails entirely when 'max_attempts' is omitted, despite its documented default"_test =
-        [] {
-            auto value = make_value(
-                R"({"path":"/x","method":"GET","expected_status":200,"interval_ms":1000})"
-            );
-            auto parsed = serde::Ser::from_value<ClientPoolInput>(value);
-            expect(!parsed.has_value()) << fatal;
-            expect(parsed.error().contains("max_attempts")) << parsed.error();
-        };
+        []
+    {
+        auto value =
+            make_value(R"({"path":"/x","method":"GET","expected_status":200,"interval_ms":1000})");
+        auto parsed = serde::Ser::from_value<ClientPoolInput>(value);
+        expect(!parsed.has_value()) << fatal;
+        expect(parsed.error().contains("max_attempts")) << parsed.error();
+    };
 
-    "from_value succeeds when every declared field is present"_test = [] {
+    "from_value succeeds when every declared field is present"_test = []
+    {
         auto value = make_value(
             R"({"path":"/x","method":"GET","expected_status":204,"interval_ms":250,"max_attempts":3})"
         );
@@ -541,67 +572,93 @@ suite<"ClientPoolInput"> client_pool_input_suite = [] {
     };
 };
 
-suite<"ClientPoolWorker"> client_pool_worker_suite = [] {
-    "get_task_type reports 'client_pool'"_test = [] {
+suite<"ClientPoolWorker"> client_pool_worker_suite = []
+{
+    "get_task_type reports 'client_pool'"_test = []
+    {
         ClientPoolWorker worker;
         expect(worker.get_task_type() == "client_pool");
     };
 
-    "run() with no downstream configured fails without touching input parsing"_test = [] {
+    "run() with no downstream configured fails without touching input parsing"_test = []
+    {
         ClientPoolWorker worker;
         auto value = make_value(R"({})");
         interfaces::WorkerResult observed = interfaces::WorkerOutput{};
         bool called = false;
 
-        worker.run(value, [&](interfaces::WorkerResult result) {
-            called = true;
-            observed = std::move(result);
-        });
+        worker.run(
+            value,
+            [&](interfaces::WorkerResult result)
+            {
+                called = true;
+                observed = std::move(result);
+            }
+        );
 
         expect(called) << fatal;
         expect(!observed.has_value()) << fatal;
         expect(observed.error().getMessage() == "no downstream client configured");
     };
 
-    "set_protocol(nullptr)/set_leverager(nullptr)/set_group(nullptr) are all safe no-ops"_test =
-        [] {
-            ClientPoolWorker worker;
-            expect(nothrow([&] {
+    "set_protocol(nullptr)/set_leverager(nullptr)/set_group(nullptr) are all safe no-ops"_test = []
+    {
+        ClientPoolWorker worker;
+        expect(nothrow(
+            [&]
+            {
                 worker.set_protocol(nullptr);
                 worker.set_leverager(nullptr);
                 worker.set_group(nullptr);
-            }));
-        };
-
-    "set_group with a real ContractGroup binds the worker's TaskQueue without crashing"_test = [] {
-        ClientPoolWorker worker;
-        core::contract::ContractGroup<> group;
-        expect(nothrow([&] {
-            worker.set_group(&group);
-        }));
+            }
+        ));
     };
 
-    "connect_downstream is a no-op when no dependency was ever injected"_test = [] {
+    "set_group with a real ContractGroup binds the worker's TaskQueue without crashing"_test = []
+    {
         ClientPoolWorker worker;
-        expect(nothrow([&] {
-            worker.connect_downstream(io::base::socket::Endpoint{"127.0.0.1", 443}, false);
-        }));
+        core::contract::ContractGroup<> group;
+        expect(nothrow(
+            [&]
+            {
+                worker.set_group(&group);
+            }
+        ));
+    };
+
+    "connect_downstream is a no-op when no dependency was ever injected"_test = []
+    {
+        ClientPoolWorker worker;
+        expect(nothrow(
+            [&]
+            {
+                worker.connect_downstream(io::base::socket::Endpoint{"127.0.0.1", 443}, false);
+            }
+        ));
         auto value = make_value(R"({})");
         interfaces::WorkerResult observed = interfaces::WorkerOutput{};
-        worker.run(value, [&](interfaces::WorkerResult result) {
-            observed = std::move(result);
-        });
+        worker.run(
+            value,
+            [&](interfaces::WorkerResult result)
+            {
+                observed = std::move(result);
+            }
+        );
         expect(!observed.has_value()) << fatal;
         expect(observed.error().getMessage() == "no downstream client configured");
     };
 
-    "connect_downstream is a no-op when only the contract group was injected"_test = [] {
+    "connect_downstream is a no-op when only the contract group was injected"_test = []
+    {
         ClientPoolWorker worker;
         core::contract::ContractGroup<> group;
         worker.set_group(&group);
-        expect(nothrow([&] {
-            worker.connect_downstream(io::base::socket::Endpoint{"127.0.0.1", 443}, true);
-        }));
+        expect(nothrow(
+            [&]
+            {
+                worker.connect_downstream(io::base::socket::Endpoint{"127.0.0.1", 443}, true);
+            }
+        ));
     };
 };
 

@@ -1,14 +1,14 @@
 #ifndef CONGELADO_C_GENERATOR_FUNCTION_H_
 #define CONGELADO_C_GENERATOR_FUNCTION_H_
 
-#include "include/c/macros.h"
+#include "include/c/extern/generator/attribute.h"
+#include "include/c/extern/generator/block.h"
+#include "include/c/extern/generator/definition.h"
+#include "include/c/extern/generator/parameter.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tensor.h"
 #include "include/c/intern/tstring.h"
-#include "include/c/extern/generator/definition.h"
-#include "include/c/extern/generator/parameter.h"
-#include "include/c/extern/generator/attribute.h"
-#include "include/c/extern/generator/block.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -62,13 +62,39 @@ extern "C"
             TFGeneratorAttribute* out_attribute,
             TF_Status* out_status
         );
-        void (*get_definition)(TFGeneratorFunction* function, const TF_String* name, TFGeneratorDefinition* out_definition, TF_Status* out_status);
-        void (*get_block)(TFGeneratorFunction* function, const TF_String* name, TFGeneratorBlock* out_block, TF_Status* out_status);
+        void (*get_definition)(
+            TFGeneratorFunction* function,
+            const TF_String* name,
+            TFGeneratorDefinition* out_definition,
+            TF_Status* out_status
+        );
+        void (*get_block)(
+            TFGeneratorFunction* function,
+            const TF_String* name,
+            TFGeneratorBlock* out_block,
+            TF_Status* out_status
+        );
 
-        void (*list_parameters)(TFGeneratorFunction* function, TF_Tensor** out_parameters, TF_Status* out_status);
-        void (*list_attributes)(TFGeneratorFunction* function, TF_Tensor** out_attributes, TF_Status* out_status);
-        void (*list_definitions)(TFGeneratorFunction* function, TF_Tensor** out_definitions, TF_Status* out_status);
-        void (*list_blocks)(TFGeneratorFunction* function, TF_Tensor** out_blocks, TF_Status* out_status);
+        void (*list_parameters)(
+            TFGeneratorFunction* function,
+            TF_Tensor** out_parameters,
+            TF_Status* out_status
+        );
+        void (*list_attributes)(
+            TFGeneratorFunction* function,
+            TF_Tensor** out_attributes,
+            TF_Status* out_status
+        );
+        void (*list_definitions)(
+            TFGeneratorFunction* function,
+            TF_Tensor** out_definitions,
+            TF_Status* out_status
+        );
+        void (*list_blocks)(
+            TFGeneratorFunction* function,
+            TF_Tensor** out_blocks,
+            TF_Status* out_status
+        );
 
         void (*finish)(
             TFGeneratorFunction* function,
@@ -79,8 +105,11 @@ extern "C"
 
 #define TF_GENERATOR_FUNCTION_STRUCT_SIZE TF_OFFSET_OF_END(TFGeneratorFunctionOps, finish)
 
-    TF_CAPI_EXPORT void
-    create_generator_function(TFGeneratorFunctionOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void create_generator_function(
+        TFGeneratorFunctionOps** ops,
+        void** plugin_context,
+        TF_Status* out_status
+    );
     TF_CAPI_EXPORT void destroy_generator_function(void* plugin_context);
 
 #ifdef __cplusplus

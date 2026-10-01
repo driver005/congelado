@@ -492,13 +492,17 @@ struct serde::Serializable<model::DynamicTaskSpec>
     {
         return std::tuple{
             serde::FieldDesc<
-                "task_ref", &model::DynamicTaskSpec::get_task_ref,
+                "task_ref",
+                &model::DynamicTaskSpec::get_task_ref,
                 &model::DynamicTaskSpec::set_task_ref>{},
             serde::FieldDesc<
-                "task_def_name", &model::DynamicTaskSpec::get_task_def_name,
+                "task_def_name",
+                &model::DynamicTaskSpec::get_task_def_name,
                 &model::DynamicTaskSpec::set_task_def_name>{},
             serde::FieldDesc<
-                "input", &model::DynamicTaskSpec::get_input, &model::DynamicTaskSpec::set_input>{},
+                "input",
+                &model::DynamicTaskSpec::get_input,
+                &model::DynamicTaskSpec::set_input>{},
         };
     }
 };
@@ -515,9 +519,13 @@ struct serde::Serializable<model::InputMapping>
     {
         return std::tuple{
             serde::FieldDesc<
-                "source", &model::InputMapping::get_source, &model::InputMapping::set_source>{},
+                "source",
+                &model::InputMapping::get_source,
+                &model::InputMapping::set_source>{},
             serde::FieldDesc<
-                "target", &model::InputMapping::get_target, &model::InputMapping::set_target>{},
+                "target",
+                &model::InputMapping::get_target,
+                &model::InputMapping::set_target>{},
         };
     }
 };
@@ -534,9 +542,13 @@ struct serde::Serializable<model::OutputMapping>
     {
         return std::tuple{
             serde::FieldDesc<
-                "source", &model::OutputMapping::get_source, &model::OutputMapping::set_source>{},
+                "source",
+                &model::OutputMapping::get_source,
+                &model::OutputMapping::set_source>{},
             serde::FieldDesc<
-                "target", &model::OutputMapping::get_target, &model::OutputMapping::set_target>{},
+                "target",
+                &model::OutputMapping::get_target,
+                &model::OutputMapping::set_target>{},
         };
     }
 };
@@ -555,9 +567,13 @@ struct serde::Serializable<model::TaskEdge>
             serde::FieldDesc<"from", &model::TaskEdge::get_from, &model::TaskEdge::set_from>{},
             serde::FieldDesc<"to", &model::TaskEdge::get_to, &model::TaskEdge::set_to>{},
             serde::FieldDesc<
-                "condition", &model::TaskEdge::get_condition, &model::TaskEdge::set_condition>{},
+                "condition",
+                &model::TaskEdge::get_condition,
+                &model::TaskEdge::set_condition>{},
             serde::FieldDesc<
-                "mappings", &model::TaskEdge::get_mappings, &model::TaskEdge::set_mappings>{},
+                "mappings",
+                &model::TaskEdge::get_mappings,
+                &model::TaskEdge::set_mappings>{},
         };
     }
 };
@@ -574,22 +590,33 @@ struct serde::Serializable<model::TaskNode>
     {
         return std::tuple{
             serde::FieldDesc<
-                "task_def_name", &model::TaskNode::get_def_name,
+                "task_def_name",
+                &model::TaskNode::get_def_name,
                 &model::TaskNode::set_task_def_name>{},
             serde::FieldDesc<
-                "ref_name", &model::TaskNode::get_ref_name, &model::TaskNode::set_ref_name>{},
+                "ref_name",
+                &model::TaskNode::get_ref_name,
+                &model::TaskNode::set_ref_name>{},
             serde::FieldDesc<"edges", &model::TaskNode::get_edges, &model::TaskNode::set_edges>{},
             serde::FieldDesc<
-                "join_on", &model::TaskNode::get_join_on, &model::TaskNode::set_join_on>{},
+                "join_on",
+                &model::TaskNode::get_join_on,
+                &model::TaskNode::set_join_on>{},
             serde::FieldDesc<
-                "join_type", &model::TaskNode::get_join_type, &model::TaskNode::set_join_type>{},
+                "join_type",
+                &model::TaskNode::get_join_type,
+                &model::TaskNode::set_join_type>{},
             serde::FieldDesc<
-                "loop_body", &model::TaskNode::get_loop_body, &model::TaskNode::set_loop_body>{},
+                "loop_body",
+                &model::TaskNode::get_loop_body,
+                &model::TaskNode::set_loop_body>{},
             serde::FieldDesc<
-                "loop_condition", &model::TaskNode::get_loop_condition,
+                "loop_condition",
+                &model::TaskNode::get_loop_condition,
                 &model::TaskNode::set_loop_condition>{},
             serde::FieldDesc<
-                "dynamic_tasks_input_key", &model::TaskNode::get_dynamic_tasks_input_key,
+                "dynamic_tasks_input_key",
+                &model::TaskNode::get_dynamic_tasks_input_key,
                 &model::TaskNode::set_dynamic_tasks_input_key>{},
         };
     }
@@ -599,40 +626,49 @@ struct serde::Serializable<model::TaskNode>
 namespace model::tests {
 using namespace boost::ut;
 
-suite<"InputMapping"> input_mapping_suite = [] {
-    "two-arg ctor sets source/target"_test = [] {
+suite<"InputMapping"> input_mapping_suite = []
+{
+    "two-arg ctor sets source/target"_test = []
+    {
         InputMapping mapping{"$.order.id", "order_id"};
 
         expect(mapping.get_source() == "$.order.id");
         expect(mapping.get_target() == "order_id");
         expect(bool(mapping.validate()));
     };
-    "default ctor leaves both empty and fails validation"_test = [] {
+    "default ctor leaves both empty and fails validation"_test = []
+    {
         InputMapping mapping;
         expect(not mapping.validate().has_value());
     };
-    "an empty target still fails validation"_test = [] {
+    "an empty target still fails validation"_test = []
+    {
         InputMapping mapping{"$.order.id", ""};
         expect(not mapping.validate().has_value());
     };
 };
 
-suite<"OutputMapping"> output_mapping_suite = [] {
-    "two-arg ctor sets source/target"_test = [] {
+suite<"OutputMapping"> output_mapping_suite = []
+{
+    "two-arg ctor sets source/target"_test = []
+    {
         OutputMapping mapping{"$.result", "output_value"};
 
         expect(mapping.get_source() == "$.result");
         expect(mapping.get_target() == "output_value");
         expect(bool(mapping.validate()));
     };
-    "default ctor leaves both empty and fails validation"_test = [] {
+    "default ctor leaves both empty and fails validation"_test = []
+    {
         OutputMapping mapping;
         expect(not mapping.validate().has_value());
     };
 };
 
-suite<"TaskEdge"> task_edge_suite = [] {
-    "requires both from and to"_test = [] {
+suite<"TaskEdge"> task_edge_suite = []
+{
+    "requires both from and to"_test = []
+    {
         TaskEdge edge;
         expect(not edge.validate().has_value());
 
@@ -642,7 +678,8 @@ suite<"TaskEdge"> task_edge_suite = [] {
         edge.set_to("charge_payment");
         expect(bool(edge.validate()));
     };
-    "add_mapping accumulates and propagates a nested validation failure"_test = [] {
+    "add_mapping accumulates and propagates a nested validation failure"_test = []
+    {
         TaskEdge edge;
         edge.set_from("validate_order");
         edge.set_to("charge_payment");
@@ -656,8 +693,10 @@ suite<"TaskEdge"> task_edge_suite = [] {
     };
 };
 
-suite<"TaskNode"> task_node_suite = [] {
-    "requires both def_name and ref_name"_test = [] {
+suite<"TaskNode"> task_node_suite = []
+{
+    "requires both def_name and ref_name"_test = []
+    {
         TaskNode node;
         expect(not node.validate().has_value());
 
@@ -667,7 +706,8 @@ suite<"TaskNode"> task_node_suite = [] {
         node.set_ref_name("validate_order_1");
         expect(bool(node.validate()));
     };
-    "add_edge accumulates and propagates a nested validation failure"_test = [] {
+    "add_edge accumulates and propagates a nested validation failure"_test = []
+    {
         TaskNode node;
         node.set_task_def_name("validate_order");
         node.set_ref_name("validate_order_1");
@@ -683,14 +723,17 @@ suite<"TaskNode"> task_node_suite = [] {
         expect(node.get_edges().size() == 2);
         expect(not node.validate().has_value());
     };
-    "join_type defaults to ALL"_test = [] {
+    "join_type defaults to ALL"_test = []
+    {
         TaskNode node;
         expect(node.get_join_type() == JoinType::ALL);
     };
 };
 
-suite<"DynamicTaskSpec"> dynamic_task_spec_suite = [] {
-    "setters round-trip through their getters"_test = [] {
+suite<"DynamicTaskSpec"> dynamic_task_spec_suite = []
+{
+    "setters round-trip through their getters"_test = []
+    {
         DynamicTaskSpec spec;
         spec.set_task_ref("branch_1");
         spec.set_task_def_name("send_email");

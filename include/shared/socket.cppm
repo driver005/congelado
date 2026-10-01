@@ -128,12 +128,15 @@ public:
 
 using namespace boost::ut;
 
-suite<"AsyncSocket concept"> async_socket_concept_suite = [] {
-    "a type implementing every required member satisfies AsyncSocket"_test = [] {
+suite<"AsyncSocket concept"> async_socket_concept_suite = []
+{
+    "a type implementing every required member satisfies AsyncSocket"_test = []
+    {
         expect(AsyncSocket<FullMockEngine>);
     };
 
-    "a type missing the I/O members does not satisfy AsyncSocket"_test = [] {
+    "a type missing the I/O members does not satisfy AsyncSocket"_test = []
+    {
         expect(!AsyncSocket<PartialMockEngine>);
     };
 };

@@ -211,7 +211,8 @@ public:
 
         // Check if there might be elements available using the optimistic formula
         if (circular_less_than<std::size_t>(
-                m_reader_optimistic.load(std::memory_order_relaxed) - overcommit, tail
+                m_reader_optimistic.load(std::memory_order_relaxed) - overcommit,
+                tail
             )) {
             // Acquire fence to synchronize with potential overcommit updates
             std::atomic_thread_fence(std::memory_order_acquire);

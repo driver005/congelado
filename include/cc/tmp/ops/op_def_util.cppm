@@ -43,12 +43,11 @@ import std;
 import cc_abi;
 
 export {
-
     // TODO(josh11b): Probably not needed for OpKernel authors, so doesn't
     // need to be as publicly accessible as other files in framework/.
 
 #ifndef TENSORFLOW_CORE_FRAMEWORK_OP_DEF_UTIL_H_
-#    define TENSORFLOW_CORE_FRAMEWORK_OP_DEF_UTIL_H_
+    #define TENSORFLOW_CORE_FRAMEWORK_OP_DEF_UTIL_H_
 
     namespace tensorflow {
 
@@ -89,7 +88,9 @@ export {
         // has a different default value in new_op.  In general it is not safe
         // to change the default for an attr that has been added to an op.
         absl::Status OpDefAddedDefaultsUnchanged(
-            const OpDef& old_op, const OpDef& penultimate_op, const OpDef& new_op
+            const OpDef& old_op,
+            const OpDef& penultimate_op,
+            const OpDef& new_op
         );
 
         // Returns an error if the default value for any attr is removed or modified
@@ -162,8 +163,12 @@ export {
                 }
                 return absl::InvalidArgumentError(
                     absl::StrCat(
-                        "Value for attr '", attr.name(), "' of ", DataTypeString(dt),
-                        " is not in the list of allowed values: ", allowed_str
+                        "Value for attr '",
+                        attr.name(),
+                        "' of ",
+                        DataTypeString(dt),
+                        " is not in the list of allowed values: ",
+                        allowed_str
                     )
                 );
             }
@@ -185,8 +190,12 @@ export {
                 }
                 return absl::InvalidArgumentError(
                     absl::StrCat(
-                        "Value for attr '", attr.name(), "' of \"", str,
-                        "\" is not in the list of allowed values: ", allowed_str
+                        "Value for attr '",
+                        attr.name(),
+                        "' of \"",
+                        str,
+                        "\" is not in the list of allowed values: ",
+                        allowed_str
                     )
                 );
             }
@@ -198,7 +207,10 @@ export {
         {
             // Is it a valid value?
             TF_RETURN_WITH_CONTEXT_IF_ERROR(
-                AttrValueHasType(attr_value, attr.type()), " for attr '", attr.name(), "'"
+                AttrValueHasType(attr_value, attr.type()),
+                " for attr '",
+                attr.name(),
+                "'"
             );
 
             // Does the value satisfy the minimum constraint in the AttrDef?
@@ -207,8 +219,12 @@ export {
                     if (attr_value.i() < attr.minimum()) {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                "Value for attr '", attr.name(), "' of ", attr_value.i(),
-                                " must be at least minimum ", attr.minimum()
+                                "Value for attr '",
+                                attr.name(),
+                                "' of ",
+                                attr_value.i(),
+                                " must be at least minimum ",
+                                attr.minimum()
                             )
                         );
                     }
@@ -234,8 +250,12 @@ export {
                     if (length < attr.minimum()) {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                "Length for attr '", attr.name(), "' of ", length,
-                                " must be at least minimum ", attr.minimum()
+                                "Length for attr '",
+                                attr.name(),
+                                "' of ",
+                                length,
+                                " must be at least minimum ",
+                                attr.minimum()
                             )
                         );
                     }
@@ -259,7 +279,8 @@ export {
                 } else {
                     return absl::UnimplementedError(
                         absl::StrCat(
-                            "Support for allowed_values not implemented for type ", attr.type()
+                            "Support for allowed_values not implemented for type ",
+                            attr.type()
                         )
                     );
                 }
@@ -311,7 +332,9 @@ export {
     do {                                                                                           \
         if (!(EXPR)) {                                                                             \
             return errors::InvalidArgument(                                                        \
-                __VA_ARGS__, "; in OpDef: ", op_def.ShortDebugString()                             \
+                __VA_ARGS__,                                                                       \
+                "; in OpDef: ",                                                                    \
+                op_def.ShortDebugString()                                                          \
             );                                                                                     \
         }                                                                                          \
     } while (false)
@@ -332,24 +355,40 @@ export {
                 const OpDef::AttrDef* attr = FindAttr(arg.number_attr(), op_def);
                 VALIDATE(attr != nullptr, "No attr with name '", arg.number_attr(), "'", suffix);
                 VALIDATE(
-                    attr->type() == "int", "Attr '", attr->name(), "' used as length", suffix,
-                    " has type ", attr->type(), " != int"
+                    attr->type() == "int",
+                    "Attr '",
+                    attr->name(),
+                    "' used as length",
+                    suffix,
+                    " has type ",
+                    attr->type(),
+                    " != int"
                 );
                 VALIDATE(
-                    attr->has_minimum(), "Attr '", attr->name(), "' used as length", suffix,
+                    attr->has_minimum(),
+                    "Attr '",
+                    attr->name(),
+                    "' used as length",
+                    suffix,
                     " must have minimum"
                 );
                 VALIDATE(
-                    attr->minimum() >= 0, "Attr '", attr->name(), "' used as length", suffix,
+                    attr->minimum() >= 0,
+                    "Attr '",
+                    attr->name(),
+                    "' used as length",
+                    suffix,
                     " must have minimum >= 0"
                 );
                 VALIDATE(
-                    arg.type_list_attr().empty(), "Can't have both number_attr and type_list_attr",
+                    arg.type_list_attr().empty(),
+                    "Can't have both number_attr and type_list_attr",
                     suffix
                 );
                 VALIDATE(
                     (arg.type() != DT_INVALID ? 1 : 0) + (!arg.type_attr().empty() ? 1 : 0) == 1,
-                    "Exactly one of type, type_attr must be set", suffix
+                    "Exactly one of type, type_attr must be set",
+                    suffix
                 );
             } else {
                 const int num_type_fields = (arg.type() != DT_INVALID ? 1 : 0) +
@@ -357,7 +396,8 @@ export {
                                             (!arg.type_list_attr().empty() ? 1 : 0);
                 VALIDATE(
                     num_type_fields == 1,
-                    "Exactly one of type, type_attr, type_list_attr must be set", suffix
+                    "Exactly one of type, type_attr, type_list_attr must be set",
+                    suffix
                 );
             }
 
@@ -365,22 +405,37 @@ export {
                 const OpDef::AttrDef* attr = FindAttr(arg.type_attr(), op_def);
                 VALIDATE(attr != nullptr, "No attr with name '", arg.type_attr(), "'", suffix);
                 VALIDATE(
-                    attr->type() == "type", "Attr '", attr->name(), "' used as type_attr", suffix,
-                    " has type ", attr->type(), " != type"
+                    attr->type() == "type",
+                    "Attr '",
+                    attr->name(),
+                    "' used as type_attr",
+                    suffix,
+                    " has type ",
+                    attr->type(),
+                    " != type"
                 );
             } else if (!arg.type_list_attr().empty()) {
                 const OpDef::AttrDef* attr = FindAttr(arg.type_list_attr(), op_def);
                 VALIDATE(attr != nullptr, "No attr with name '", arg.type_list_attr(), "'", suffix);
                 VALIDATE(
-                    attr->type() == "list(type)", "Attr '", attr->name(),
-                    "' used as type_list_attr", suffix, " has type ", attr->type(), " != list(type)"
+                    attr->type() == "list(type)",
+                    "Attr '",
+                    attr->name(),
+                    "' used as type_list_attr",
+                    suffix,
+                    " has type ",
+                    attr->type(),
+                    " != list(type)"
                 );
             } else {
                 // All argument types should be non-reference types at this point.
                 // ArgDef.is_ref is set to true for reference arguments.
                 VALIDATE(
-                    !IsRefType(arg.type()), "Illegal use of ref type '", DataTypeString(arg.type()),
-                    "'. Use 'Ref(type)' instead", suffix
+                    !IsRefType(arg.type()),
+                    "Illegal use of ref type '",
+                    DataTypeString(arg.type()),
+                    "'. Use 'Ref(type)' instead",
+                    suffix
                 );
             }
 
@@ -415,7 +470,9 @@ export {
         {
             if (!absl::StartsWith(op_def.name(), "_")) {
                 VALIDATE(
-                    IsValidOpName(op_def.name()), "Invalid name: ", op_def.name(),
+                    IsValidOpName(op_def.name()),
+                    "Invalid name: ",
+                    op_def.name(),
                     " (Did you use CamelCase?)"
                 );
             }
@@ -426,7 +483,9 @@ export {
                 VALIDATE(names.emplace(attr.name()).second, "Duplicate name: ", attr.name());
                 DataType dt;
                 VALIDATE(
-                    !DataTypeFromString(attr.name(), &dt), "Attr can't have name ", attr.name(),
+                    !DataTypeFromString(attr.name(), &dt),
+                    "Attr can't have name ",
+                    attr.name(),
                     " that matches a data type"
                 );
 
@@ -444,32 +503,48 @@ export {
                 VALIDATE(found, "Unrecognized type '", type, "' in attr '", attr.name(), "'");
                 if (is_list) {
                     VALIDATE(
-                        absl::ConsumePrefix(&type, ")"), "'list(' is missing ')' in attr ",
-                        attr.name(), "'s type ", attr.type()
+                        absl::ConsumePrefix(&type, ")"),
+                        "'list(' is missing ')' in attr ",
+                        attr.name(),
+                        "'s type ",
+                        attr.type()
                     );
                 }
                 VALIDATE(
-                    type.empty(), "Extra '", type, "' at the end of attr ", attr.name(), "'s type ",
+                    type.empty(),
+                    "Extra '",
+                    type,
+                    "' at the end of attr ",
+                    attr.name(),
+                    "'s type ",
                     attr.type()
                 );
 
                 // Validate minimum
                 if (attr.has_minimum()) {
                     VALIDATE(
-                        attr.type() == "int" || is_list, "Attr '", attr.name(),
-                        "' has minimum for unsupported type ", attr.type()
+                        attr.type() == "int" || is_list,
+                        "Attr '",
+                        attr.name(),
+                        "' has minimum for unsupported type ",
+                        attr.type()
                     );
                     if (is_list) {
                         VALIDATE(
-                            attr.minimum() >= 0, "Attr '", attr.name(),
+                            attr.minimum() >= 0,
+                            "Attr '",
+                            attr.name(),
                             "' with list type must have a non-negative minimum, not ",
                             attr.minimum()
                         );
                     }
                 } else {
                     VALIDATE(
-                        attr.minimum() == 0, "Attr '", attr.name(),
-                        "' with has_minimum = false but minimum ", attr.minimum(),
+                        attr.minimum() == 0,
+                        "Attr '",
+                        attr.name(),
+                        "' with has_minimum = false but minimum ",
+                        attr.minimum(),
                         " not equal to default of 0"
                     );
                 }
@@ -479,8 +554,12 @@ export {
                     const std::string list_type =
                         is_list ? attr.type() : absl::StrCat("list(", attr.type(), ")");
                     TF_RETURN_WITH_CONTEXT_IF_ERROR(
-                        AttrValueHasType(attr.allowed_values(), list_type), " for attr '",
-                        attr.name(), "' in Op '", op_def.name(), "'"
+                        AttrValueHasType(attr.allowed_values(), list_type),
+                        " for attr '",
+                        attr.name(),
+                        "' in Op '",
+                        op_def.name(),
+                        "'"
                     );
                 }
 
@@ -488,7 +567,9 @@ export {
                 // so we can use ValidateAttrValue()).
                 if (attr.has_default_value()) {
                     TF_RETURN_WITH_CONTEXT_IF_ERROR(
-                        ValidateAttrValue(attr.default_value(), attr), " in Op '", op_def.name(),
+                        ValidateAttrValue(attr.default_value(), attr),
+                        " in Op '",
+                        op_def.name(),
                         "'"
                     );
                 }
@@ -514,9 +595,15 @@ export {
                 if (graph_def_version >= dep.version()) {
                     return absl::UnimplementedError(
                         absl::StrCat(
-                            "Op ", op_def.name(), " is not available in GraphDef version ",
-                            graph_def_version, ". It has been removed in version ", dep.version(),
-                            ". ", dep.explanation(), "."
+                            "Op ",
+                            op_def.name(),
+                            " is not available in GraphDef version ",
+                            graph_def_version,
+                            ". It has been removed in version ",
+                            dep.version(),
+                            ". ",
+                            dep.explanation(),
+                            "."
                         )
                     );
                 } else {
@@ -572,14 +659,19 @@ export {
         {
             std::string ret = absl::StrCat("Op<name=", op_def.name());
             absl::StrAppend(
-                &ret, "; signature=", SummarizeArgs(op_def.input_arg()), " -> ",
+                &ret,
+                "; signature=",
+                SummarizeArgs(op_def.input_arg()),
+                " -> ",
                 SummarizeArgs(op_def.output_arg())
             );
             for (int i = 0; i < op_def.attr_size(); ++i) {
                 absl::StrAppend(&ret, "; attr=", op_def.attr(i).name(), ":", op_def.attr(i).type());
                 if (op_def.attr(i).has_default_value()) {
                     absl::StrAppend(
-                        &ret, ",default=", SummarizeAttrValue(op_def.attr(i).default_value())
+                        &ret,
+                        ",default=",
+                        SummarizeAttrValue(op_def.attr(i).default_value())
                     );
                 }
                 if (op_def.attr(i).has_minimum()) {
@@ -587,7 +679,9 @@ export {
                 }
                 if (op_def.attr(i).has_allowed_values()) {
                     absl::StrAppend(
-                        &ret, ",allowed=", SummarizeAttrValue(op_def.attr(i).allowed_values())
+                        &ret,
+                        ",allowed=",
+                        SummarizeAttrValue(op_def.attr(i).allowed_values())
                     );
                 }
             }
@@ -650,7 +744,8 @@ export {
                     return true;
                 }
                 if (!IsSubsetOf(
-                        old_attr.allowed_values().list().s(), new_attr.allowed_values().list().s()
+                        old_attr.allowed_values().list().s(),
+                        new_attr.allowed_values().list().s()
                     )) {
                     return true;
                 }
@@ -768,7 +863,8 @@ export {
                                 AddComma(&s, &add_comma);
                                 AddName(&s, names, arg);
                                 absl::StrAppend(
-                                    &s, DataTypeString(static_cast<DataType>(type_list.Get(i)))
+                                    &s,
+                                    DataTypeString(static_cast<DataType>(type_list.Get(i)))
                                 );
                                 ref->push_back(arg.is_ref());
                             }
@@ -808,7 +904,8 @@ export {
                                 const OpDef::AttrDef* new_attr =
                                     gtl::FindPtrOrNull(new_attrs, arg.type_attr());
                                 absl::StrAppend(
-                                    &type, DataTypeString(new_attr->default_value().type())
+                                    &type,
+                                    DataTypeString(new_attr->default_value().type())
                                 );
                             }
                         }
@@ -832,8 +929,12 @@ export {
 #define VALIDATE(CONDITION, ...)                                                                   \
     if (!(CONDITION)) {                                                                            \
         return errors::InvalidArgument(                                                            \
-            "Incompatible Op change: ", __VA_ARGS__, "; old: ", SummarizeOpDef(old_op),            \
-            "; new: ", SummarizeOpDef(new_op)                                                      \
+            "Incompatible Op change: ",                                                            \
+            __VA_ARGS__,                                                                           \
+            "; old: ",                                                                             \
+            SummarizeOpDef(old_op),                                                                \
+            "; new: ",                                                                             \
+            SummarizeOpDef(new_op)                                                                 \
         );                                                                                         \
     }
 
@@ -846,38 +947,67 @@ export {
                 const OpDef::AttrDef* new_attr = gtl::FindPtrOrNull(new_attrs, old_attr.name());
                 VALIDATE(new_attr != nullptr, "Attr '", old_attr.name(), "' removed");
                 VALIDATE(
-                    old_attr.type() == new_attr->type(), "Attr '", old_attr.name(),
-                    "' changed type '", old_attr.type(), "' -> '", new_attr->type(), "'"
+                    old_attr.type() == new_attr->type(),
+                    "Attr '",
+                    old_attr.name(),
+                    "' changed type '",
+                    old_attr.type(),
+                    "' -> '",
+                    new_attr->type(),
+                    "'"
                 );
                 VALIDATE(
-                    !MoreRestrictive(old_attr, *new_attr), "Attr '", old_attr.name(),
-                    "' has a stricter set of allowed values; from ", AllowedStr(old_attr), " to ",
+                    !MoreRestrictive(old_attr, *new_attr),
+                    "Attr '",
+                    old_attr.name(),
+                    "' has a stricter set of allowed values; from ",
+                    AllowedStr(old_attr),
+                    " to ",
                     AllowedStr(*new_attr)
                 );
                 VALIDATE(
-                    !HigherMinimum(old_attr, *new_attr), "Attr '", old_attr.name(),
-                    "' has a higher minimum; from ", MinStr(old_attr), " to ", MinStr(*new_attr)
+                    !HigherMinimum(old_attr, *new_attr),
+                    "Attr '",
+                    old_attr.name(),
+                    "' has a higher minimum; from ",
+                    MinStr(old_attr),
+                    " to ",
+                    MinStr(*new_attr)
                 );
             }
 
             for (const auto& new_attr: new_op.attr()) {
                 const OpDef::AttrDef* old_attr = gtl::FindPtrOrNull(old_attrs, new_attr.name());
                 VALIDATE(
-                    old_attr != nullptr || new_attr.has_default_value(), "Attr '", new_attr.name(),
+                    old_attr != nullptr || new_attr.has_default_value(),
+                    "Attr '",
+                    new_attr.name(),
                     "' added without default"
                 );
             }
 
             std::vector<bool> old_in_ref, new_in_ref, old_out_ref, new_out_ref;
             const std::string old_in_sig = ComputeArgSignature(
-                old_op.input_arg(), old_attrs, new_attrs, &old_in_ref, false /* names */
+                old_op.input_arg(),
+                old_attrs,
+                new_attrs,
+                &old_in_ref,
+                false /* names */
             );
             const std::string new_in_sig = ComputeArgSignature(
-                new_op.input_arg(), old_attrs, new_attrs, &new_in_ref, false /* names */
+                new_op.input_arg(),
+                old_attrs,
+                new_attrs,
+                &new_in_ref,
+                false /* names */
             );
             VALIDATE(
-                old_in_sig == new_in_sig, "Input signature mismatch '", old_in_sig, "' vs. '",
-                new_in_sig, "'"
+                old_in_sig == new_in_sig,
+                "Input signature mismatch '",
+                old_in_sig,
+                "' vs. '",
+                new_in_sig,
+                "'"
             );
             VALIDATE(
                 old_in_ref.size() == new_in_ref.size(), // Should not happen
@@ -886,19 +1016,34 @@ export {
             for (int i = 0, end = old_in_ref.size(); i < end; ++i) {
                 // Allowed to remove "ref" from an input (or leave it unchanged).
                 VALIDATE(
-                    old_in_ref[i] || !new_in_ref[i], "Input ", i, " changed from non-ref to ref"
+                    old_in_ref[i] || !new_in_ref[i],
+                    "Input ",
+                    i,
+                    " changed from non-ref to ref"
                 );
             }
 
             const std::string old_out_sig = ComputeArgSignature(
-                old_op.output_arg(), old_attrs, new_attrs, &old_out_ref, true /* names */
+                old_op.output_arg(),
+                old_attrs,
+                new_attrs,
+                &old_out_ref,
+                true /* names */
             );
             const std::string new_out_sig = ComputeArgSignature(
-                new_op.output_arg(), old_attrs, new_attrs, &new_out_ref, true /* names */
+                new_op.output_arg(),
+                old_attrs,
+                new_attrs,
+                &new_out_ref,
+                true /* names */
             );
             VALIDATE(
-                old_out_sig == new_out_sig, "Output signature mismatch '", old_out_sig, "' vs. '",
-                new_out_sig, "'"
+                old_out_sig == new_out_sig,
+                "Output signature mismatch '",
+                old_out_sig,
+                "' vs. '",
+                new_out_sig,
+                "'"
             );
             VALIDATE(
                 old_out_ref.size() == new_out_ref.size(), // Should not happen
@@ -907,7 +1052,10 @@ export {
             for (int i = 0, end = old_out_ref.size(); i < end; ++i) {
                 // Allowed to add "ref" to an output (or leave it unchanged).
                 VALIDATE(
-                    !old_out_ref[i] || new_out_ref[i], "Output ", i, " changed from ref to non-ref"
+                    !old_out_ref[i] || new_out_ref[i],
+                    "Output ",
+                    i,
+                    " changed from ref to non-ref"
                 );
             }
 
@@ -915,7 +1063,9 @@ export {
         }
 
         absl::Status OpDefAddedDefaultsUnchanged(
-            const OpDef& old_op, const OpDef& penultimate_op, const OpDef& new_op
+            const OpDef& old_op,
+            const OpDef& penultimate_op,
+            const OpDef& new_op
         )
         {
             AttrMap new_attrs, old_attrs;
@@ -935,29 +1085,37 @@ export {
                 if (new_attr == nullptr) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Missing attr '", penultimate_attr.name(),
-                            "' in op: ", SummarizeOpDef(new_op)
+                            "Missing attr '",
+                            penultimate_attr.name(),
+                            "' in op: ",
+                            SummarizeOpDef(new_op)
                         )
                     );
                 }
                 if (!penultimate_attr.has_default_value() || !new_attr->has_default_value()) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Missing default for attr '", penultimate_attr.name(),
-                            "' in op: ", SummarizeOpDef(new_op)
+                            "Missing default for attr '",
+                            penultimate_attr.name(),
+                            "' in op: ",
+                            SummarizeOpDef(new_op)
                         )
                     );
                 }
 
                 // Actually test that the attr's default value hasn't changed.
                 if (!AreAttrValuesEqual(
-                        penultimate_attr.default_value(), new_attr->default_value()
+                        penultimate_attr.default_value(),
+                        new_attr->default_value()
                     )) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Can't change default value for attr '", penultimate_attr.name(),
-                            "' from ", SummarizeAttrValue(penultimate_attr.default_value()),
-                            " in op: ", SummarizeOpDef(new_op)
+                            "Can't change default value for attr '",
+                            penultimate_attr.name(),
+                            "' from ",
+                            SummarizeAttrValue(penultimate_attr.default_value()),
+                            " in op: ",
+                            SummarizeOpDef(new_op)
                         )
                     );
                 }
@@ -983,8 +1141,13 @@ export {
                 if (old_attr.has_default_value() && !new_attr->has_default_value()) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Attr '", old_attr.name(), "' has removed it's default; ", "from ",
-                            DefaultAttrStr(old_attr), " to ", DefaultAttrStr(*new_attr)
+                            "Attr '",
+                            old_attr.name(),
+                            "' has removed it's default; ",
+                            "from ",
+                            DefaultAttrStr(old_attr),
+                            " to ",
+                            DefaultAttrStr(*new_attr)
                         )
                     );
                 }
@@ -992,8 +1155,13 @@ export {
                     !AreAttrValuesEqual(old_attr.default_value(), new_attr->default_value())) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Attr '", old_attr.name(), "' has changed it's default value; ",
-                            "from ", DefaultAttrStr(old_attr), " to ", DefaultAttrStr(*new_attr)
+                            "Attr '",
+                            old_attr.name(),
+                            "' has changed it's default value; ",
+                            "from ",
+                            DefaultAttrStr(old_attr),
+                            " to ",
+                            DefaultAttrStr(*new_attr)
                         )
                     );
                 }
@@ -1117,8 +1285,10 @@ export {
                 a_sorted.push_back(&def);
             }
             std::sort(
-                a_sorted.begin(), a_sorted.end(),
-                [](const OpDef::AttrDef* lhs, const OpDef::AttrDef* rhs) {
+                a_sorted.begin(),
+                a_sorted.end(),
+                [](const OpDef::AttrDef* lhs, const OpDef::AttrDef* rhs)
+                {
                     return lhs->name() < rhs->name();
                 }
             );
@@ -1141,11 +1311,13 @@ export {
 
             // `control_output` order doesn't matter.
             std::vector<absl::string_view> control_output1(
-                o1.control_output().begin(), o1.control_output().end()
+                o1.control_output().begin(),
+                o1.control_output().end()
             );
             std::sort(control_output1.begin(), control_output1.end());
             std::vector<absl::string_view> control_output2(
-                o2.control_output().begin(), o2.control_output().end()
+                o2.control_output().begin(),
+                o2.control_output().end()
             );
             std::sort(control_output2.begin(), control_output2.end());
             if (control_output1 != control_output2) {
@@ -1175,7 +1347,10 @@ export {
                 control_output.push_back(co.c_str());
             }
             std::sort(
-                control_output.begin(), control_output.end(), [](const char* lhs, const char* rhs) {
+                control_output.begin(),
+                control_output.end(),
+                [](const char* lhs, const char* rhs)
+                {
                     return std::strcmp(lhs, rhs) < 0;
                 }
             );

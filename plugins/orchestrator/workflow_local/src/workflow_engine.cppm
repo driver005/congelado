@@ -23,8 +23,10 @@ import boost.ut;
 namespace engine::workflow_engine_barrel_tests {
 using namespace boost::ut;
 
-suite<"workflow_engine barrel re-exports"> workflow_engine_barrel_suite = [] {
-    "every partition's public type is reachable through the aggregate module import"_test = [] {
+suite<"workflow_engine barrel re-exports"> workflow_engine_barrel_suite = []
+{
+    "every partition's public type is reachable through the aggregate module import"_test = []
+    {
         WorkflowContext ctx;
         connector::Connector local_connector;
         ctx.set_connector(&local_connector);
@@ -42,9 +44,12 @@ suite<"workflow_engine barrel re-exports"> workflow_engine_barrel_suite = [] {
         SummaryProjector projector{ctx};
         model::TaskInstance instance;
         instance.set_task_id(model::generate_id());
-        expect(nothrow([&] {
-            projector.project_task(instance);
-        }));
+        expect(nothrow(
+            [&]
+            {
+                projector.project_task(instance);
+            }
+        ));
 
         Orchestrator orchestrator{ctx};
         expect(orchestrator.get_name() == "engine.sweep");

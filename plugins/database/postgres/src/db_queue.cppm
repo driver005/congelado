@@ -37,9 +37,12 @@ bool register_connector_contract(
     auto* shared_connector = static_cast<connector::Connector*>(connector_ctx);
     auto db_contract =
         shared_connector->create(*contract_group, core::contract::ContractState::IDLE);
-    shared_connector->set_wake([c = db_contract]() mutable {
-        c.schedule();
-    });
+    shared_connector->set_wake(
+        [c = db_contract]() mutable
+        {
+            c.schedule();
+        }
+    );
     contract_registry->add(std::move(db_contract));
     return true;
 }
@@ -50,14 +53,17 @@ bool register_connector_contract(
 namespace postgres_db_queue_tests {
 using namespace boost::ut;
 
-suite<"postgres::register_connector_contract"> register_connector_contract_suite = [] {
-    "all null returns false"_test = [] {
+suite<"postgres::register_connector_contract"> register_connector_contract_suite = []
+{
+    "all null returns false"_test = []
+    {
         auto result = postgres::register_connector_contract(nullptr, nullptr, nullptr);
 
         expect(!result);
     };
 
-    "null connector_ctx returns false and registers nothing"_test = [] {
+    "null connector_ctx returns false and registers nothing"_test = []
+    {
         core::contract::ContractGroup<> group;
         core::contract::ContractRegistry registry;
 
@@ -67,7 +73,8 @@ suite<"postgres::register_connector_contract"> register_connector_contract_suite
         expect(registry.empty());
     };
 
-    "null contract_group returns false and registers nothing"_test = [] {
+    "null contract_group returns false and registers nothing"_test = []
+    {
         connector::Connector shared_connector;
         core::contract::ContractRegistry registry;
 
@@ -77,7 +84,8 @@ suite<"postgres::register_connector_contract"> register_connector_contract_suite
         expect(registry.empty());
     };
 
-    "null contract_registry returns false and registers nothing"_test = [] {
+    "null contract_registry returns false and registers nothing"_test = []
+    {
         connector::Connector shared_connector;
         core::contract::ContractGroup<> group;
 
@@ -88,7 +96,8 @@ suite<"postgres::register_connector_contract"> register_connector_contract_suite
         // group/connector at all, which the "all valid" case below confirms happens on success.
     };
 
-    "all valid pointers registers the contract and returns true"_test = [] {
+    "all valid pointers registers the contract and returns true"_test = []
+    {
         connector::Connector shared_connector;
         core::contract::ContractGroup<> group;
         core::contract::ContractRegistry registry;

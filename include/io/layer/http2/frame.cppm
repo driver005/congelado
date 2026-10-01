@@ -16,14 +16,20 @@ import :consts;
 
 export namespace io::layer::http2 {
 
-template <shared_layer::FrameRole Role>
-class FrameHeader {
-  public:
+template<shared_layer::FrameRole Role>
+class FrameHeader
+{
+public:
     /**
      * @brief Default ctor — everything zeroed, type defaults to DATA. Not a valid header on its
      * own, just a starting point for the builder-style `add_*` chain.
      */
-    FrameHeader() : m_length{0}, m_type{shared_layer::FrameType::DATA}, m_flags{0}, m_stream_id{0} {
+    FrameHeader() :
+        m_length{0},
+        m_type{shared_layer::FrameType::DATA},
+        m_flags{0},
+        m_stream_id{0}
+    {
     }
 
     /**
@@ -34,9 +40,17 @@ class FrameHeader {
      * @param stream_id the stream id — gets run through set_stream_id() so the reserved top bit
      * is masked off no matter what garbage bit you pass in here.
      */
-    FrameHeader(std::uint32_t length, shared_layer::FrameType type, std::uint8_t flags,
-                std::uint32_t stream_id)
-        : m_length{length}, m_type{type}, m_flags{flags}, m_stream_id{0} {
+    FrameHeader(
+        std::uint32_t length,
+        shared_layer::FrameType type,
+        std::uint8_t flags,
+        std::uint32_t stream_id
+    ) :
+        m_length{length},
+        m_type{type},
+        m_flags{flags},
+        m_stream_id{0}
+    {
         set_stream_id(stream_id);
     }
 
@@ -45,7 +59,8 @@ class FrameHeader {
      * @param len the length to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    FrameHeader &&add_length(std::uint32_t len) && noexcept {
+    FrameHeader&& add_length(std::uint32_t len) && noexcept
+    {
         core::logger::debug("FrameHeader", "len={}", len);
 
         m_length = len;
@@ -57,7 +72,8 @@ class FrameHeader {
      * @param type the type to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    FrameHeader &&add_type(shared_layer::FrameType type) && noexcept {
+    FrameHeader&& add_type(shared_layer::FrameType type) && noexcept
+    {
         core::logger::debug("FrameHeader", "type={}", type);
 
         m_type = type;
@@ -69,7 +85,8 @@ class FrameHeader {
      * @param flags the flags to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    FrameHeader &&add_flags(std::uint8_t flags) && noexcept {
+    FrameHeader&& add_flags(std::uint8_t flags) && noexcept
+    {
         core::logger::debug("FrameHeader", "flags={}", flags);
 
         m_flags = flags;
@@ -81,13 +98,13 @@ class FrameHeader {
      * @param stream_id the stream id to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    FrameHeader &&add_stream_id(std::uint32_t stream_id) && noexcept {
+    FrameHeader&& add_stream_id(std::uint32_t stream_id) && noexcept
+    {
         core::logger::debug("FrameHeader", "stream_id={}", stream_id);
 
         set_stream_id(stream_id);
         return std::move(*this);
     }
-
 
     /**
      * @brief Dispatches to the right per-type `validate_*()` based on `m_type`, plus one
@@ -106,7 +123,8 @@ class FrameHeader {
      * @throws error::http::ConnectionError if a SENDER PUSH_PROMISE has an odd stream id, or if
      * the dispatched-to validator throws (see each `validate_*()` for its specific rules).
      */
-    void validate() const {
+    void validate() const
+    {
         core::logger::debug("FrameBuilder", "validate type={} stream={}", m_type, m_stream_id);
 
         // Cross-cutting check that lives outside the per-type switch below — server push over
@@ -116,45 +134,46 @@ class FrameHeader {
                 if (m_type == shared_layer::FrameType::PUSH_PROMISE) {
                     throw error::http::ConnectionError(
                         error::http::Http2ErrorCode::INTERNAL_ERROR,
-                        "Server-initiated PUSH_PROMISE must use even stream ID");
+                        "Server-initiated PUSH_PROMISE must use even stream ID"
+                    );
                 }
             }
         }
 
         // Fan out to the type-specific validator, bet — everything else is a no-op default.
         switch (m_type) {
-        case shared_layer::FrameType::DATA:
-            validate_data();
-            break;
-        case shared_layer::FrameType::HEADERS:
-            validate_headers();
-            break;
-        case shared_layer::FrameType::PRIORITY:
-            validate_priority();
-            break;
-        case shared_layer::FrameType::RST_STREAM:
-            validate_rst_stream();
-            break;
-        case shared_layer::FrameType::SETTINGS:
-            validate_settings();
-            break;
-        case shared_layer::FrameType::PUSH_PROMISE:
-            validate_push_promise();
-            break;
-        case shared_layer::FrameType::PING:
-            validate_ping();
-            break;
-        case shared_layer::FrameType::GOAWAY:
-            validate_goaway();
-            break;
-        case shared_layer::FrameType::WINDOW_UPDATE:
-            validate_window_update();
-            break;
-        case shared_layer::FrameType::CONTINUATION:
-            validate_continuation();
-            break;
-        default:
-            break;
+            case shared_layer::FrameType::DATA:
+                validate_data();
+                break;
+            case shared_layer::FrameType::HEADERS:
+                validate_headers();
+                break;
+            case shared_layer::FrameType::PRIORITY:
+                validate_priority();
+                break;
+            case shared_layer::FrameType::RST_STREAM:
+                validate_rst_stream();
+                break;
+            case shared_layer::FrameType::SETTINGS:
+                validate_settings();
+                break;
+            case shared_layer::FrameType::PUSH_PROMISE:
+                validate_push_promise();
+                break;
+            case shared_layer::FrameType::PING:
+                validate_ping();
+                break;
+            case shared_layer::FrameType::GOAWAY:
+                validate_goaway();
+                break;
+            case shared_layer::FrameType::WINDOW_UPDATE:
+                validate_window_update();
+                break;
+            case shared_layer::FrameType::CONTINUATION:
+                validate_continuation();
+                break;
+            default:
+                break;
         }
     }
 
@@ -164,13 +183,19 @@ class FrameHeader {
      * @param actual_size the number of payload bytes actually present.
      * @throws error::http::ConnectionError if `actual_size` doesn't equal `m_length`.
      */
-    void validate_payload_size(std::size_t actual_size) const {
+    void validate_payload_size(std::size_t actual_size) const
+    {
         if (actual_size != m_length) {
             throw error::http::ConnectionError(
                 error::http::Http2ErrorCode::INTERNAL_ERROR,
-                std::format("Payload size mismatch for frame type {}: expected {}, got {}",
-                            std::to_underlying(m_type), m_length, actual_size),
-                get_stream_id());
+                std::format(
+                    "Payload size mismatch for frame type {}: expected {}, got {}",
+                    std::to_underlying(m_type),
+                    m_length,
+                    actual_size
+                ),
+                get_stream_id()
+            );
         }
     }
 
@@ -180,10 +205,14 @@ class FrameHeader {
      * @param actual_size the declared pad length pulled off the wire.
      * @throws error::http::ConnectionError if `actual_size` is not strictly less than `m_length`.
      */
-    void validate_padding(std::uint32_t actual_size) const {
+    void validate_padding(std::uint32_t actual_size) const
+    {
         if (actual_size >= m_length) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "Padding exceeds frame ", get_stream_id());
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "Padding exceeds frame ",
+                get_stream_id()
+            );
         }
     }
 
@@ -191,14 +220,17 @@ class FrameHeader {
      * @brief Checks the END_STREAM flag bit.
      * @return true if END_STREAM is set on this frame.
      */
-    [[nodiscard]] bool is_end_stream() const noexcept {
+    [[nodiscard]] bool is_end_stream() const noexcept
+    {
         return (m_flags & shared_layer::Flags::END_STREAM) != 0;
     }
+
     /**
      * @brief Checks the PADDED flag bit.
      * @return true if PADDED is set on this frame.
      */
-    [[nodiscard]] bool is_padded() const noexcept {
+    [[nodiscard]] bool is_padded() const noexcept
+    {
         return (m_flags & shared_layer::Flags::PADDED) != 0;
     }
 
@@ -207,59 +239,97 @@ class FrameHeader {
      * frame type or payload length at all.
      * @return `HEADER_SIZE` (9).
      */
-    [[nodiscard]] constexpr std::size_t get_header_length() const noexcept { return HEADER_SIZE; }
+    [[nodiscard]] constexpr std::size_t get_header_length() const noexcept
+    {
+        return HEADER_SIZE;
+    }
+
     /**
      * @brief Full on-wire size of this frame — the fixed 9-byte header plus however much payload
      * it declares. Combines `get_header_length()` and `get_length()`.
      * @return `get_header_length() + get_length()`.
      */
-    [[nodiscard]] std::size_t get_size() const noexcept { return get_header_length() + m_length; }
+    [[nodiscard]] std::size_t get_size() const noexcept
+    {
+        return get_header_length() + m_length;
+    }
+
     /**
      * @brief Grabs the declared payload length.
      * @return the payload length in bytes.
      */
-    [[nodiscard]] const std::uint32_t &get_length() const noexcept { return m_length; }
+    [[nodiscard]] const std::uint32_t& get_length() const noexcept
+    {
+        return m_length;
+    }
+
     /**
      * @brief Grabs the frame type.
      * @return the frame type.
      */
-    [[nodiscard]] const shared_layer::FrameType &get_type() const noexcept { return m_type; }
+    [[nodiscard]] const shared_layer::FrameType& get_type() const noexcept
+    {
+        return m_type;
+    }
+
     /**
      * @brief Grabs the raw flags byte.
      * @return the flags byte.
      */
-    [[nodiscard]] const std::uint8_t &get_flags() const noexcept { return m_flags; }
+    [[nodiscard]] const std::uint8_t& get_flags() const noexcept
+    {
+        return m_flags;
+    }
+
     /**
      * @brief Grabs the stream id.
      * @return the stream id, already masked to 31 bits.
      */
-    [[nodiscard]] const std::uint32_t &get_stream_id() const noexcept { return m_stream_id; }
+    [[nodiscard]] const std::uint32_t& get_stream_id() const noexcept
+    {
+        return m_stream_id;
+    }
 
     /**
      * @brief Sets the payload length directly on the member, no validation run here — that's
      * validate()'s job, not this.
      * @param len the length to store.
      */
-    void set_length(std::uint32_t len) noexcept { m_length = len; }
+    void set_length(std::uint32_t len) noexcept
+    {
+        m_length = len;
+    }
+
     /**
      * @brief Sets the frame type directly on the member.
      * @param type the type to store.
      */
-    void set_type(shared_layer::FrameType type) noexcept { m_type = type; }
+    void set_type(shared_layer::FrameType type) noexcept
+    {
+        m_type = type;
+    }
+
     /**
      * @brief Sets the raw flags byte directly on the member.
      * @param flags the flags to store.
      */
-    void set_flags(std::uint8_t flags) noexcept { m_flags = flags; }
+    void set_flags(std::uint8_t flags) noexcept
+    {
+        m_flags = flags;
+    }
+
     /**
      * @brief Sets the stream id, masking off the reserved high bit (RFC 9113 §4.1 — that bit
      * must be ignored on receipt and MUST NOT be set on send). Whatever you pass in, only the
      * low 31 bits survive.
      * @param new_id the raw stream id to store, high bit gets clipped regardless of value.
      */
-    void set_stream_id(std::uint32_t new_id) noexcept { m_stream_id = new_id & 0x7FFFFFFF; }
+    void set_stream_id(std::uint32_t new_id) noexcept
+    {
+        m_stream_id = new_id & 0x7F'FF'FF'FF;
+    }
 
-  private:
+private:
     /**
      * @brief Enforces DATA frame rules: never on stream 0, flags limited to
      * END_STREAM|PADDED, and if PADDED is set there's gotta be at least 1 byte of payload
@@ -267,23 +337,32 @@ class FrameHeader {
      * @throws error::http::ConnectionError if stream id is 0 or unexpected flag bits are set.
      * @throws error::http::ConnectionError if PADDED is set but `m_length` is too short.
      */
-    void validate_data() const {
+    void validate_data() const
+    {
         // DATA always belongs to a real stream, never the connection-level stream 0.
         if (m_stream_id == 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "DATA on stream 0");
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "DATA on stream 0"
+            );
         }
         // Only END_STREAM/PADDED are legal bits for this frame type.
         if ((m_flags & ~(shared_layer::Flags::END_STREAM | shared_layer::Flags::PADDED)) != 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "Invalid flags for DATA", m_stream_id);
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "Invalid flags for DATA",
+                m_stream_id
+            );
         }
 
         // PADDED needs room for at least the pad-length prefix octet itself.
         if ((m_flags & shared_layer::Flags::PADDED) != 0) {
             if (m_length < 1) {
-                throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
-                                                   "DATA too short for padding", m_stream_id);
+                throw error::http::ConnectionError(
+                    error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
+                    "DATA too short for padding",
+                    m_stream_id
+                );
             }
         }
     }
@@ -300,18 +379,24 @@ class FrameHeader {
      * @throws error::http::ConnectionError if stream id is 0, unexpected flags are set, or
      * `m_length` is below the computed minimum for the flags present.
      */
-    void validate_headers() const {
+    void validate_headers() const
+    {
         // HEADERS always belongs to a real stream, never stream 0.
         if (m_stream_id == 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "HEADERS on stream 0");
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "HEADERS on stream 0"
+            );
         }
 
         // Only these four bits are legal for HEADERS.
         if ((m_flags & ~(shared_layer::Flags::END_STREAM | shared_layer::Flags::END_HEADERS |
                          shared_layer::Flags::PADDED | shared_layer::Flags::PRIORITY)) != 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "Invalid flags for HEADERS", m_stream_id);
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "Invalid flags for HEADERS",
+                m_stream_id
+            );
         }
 
         // Minimum length scales with which optional fields are actually present.
@@ -324,15 +409,21 @@ class FrameHeader {
         }
 
         if (m_length < min_len) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
-                                               "HEADERS length too short", m_stream_id);
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
+                "HEADERS length too short",
+                m_stream_id
+            );
         }
 
         // Same padding-room check DATA does — needs at least the pad-length prefix octet.
         if ((m_flags & shared_layer::Flags::PADDED) != 0) {
             if (m_length < 1) {
-                throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
-                                                   "DATA too short for padding", m_stream_id);
+                throw error::http::ConnectionError(
+                    error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
+                    "DATA too short for padding",
+                    m_stream_id
+                );
             }
         }
     }
@@ -348,19 +439,28 @@ class FrameHeader {
      * @throws error::http::ConnectionError if stream id is 0, flags are nonzero, or length
      * isn't exactly 5.
      */
-    void validate_priority() const {
+    void validate_priority() const
+    {
         // Stream id, flags, and length all get their own dedicated check — no shortcuts here.
         if (m_stream_id == 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "PRIORITY on stream 0");
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "PRIORITY on stream 0"
+            );
         }
         if (m_flags != 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "PRIORITY flags must be 0", m_stream_id);
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "PRIORITY flags must be 0",
+                m_stream_id
+            );
         }
         if (m_length != 5) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
-                                               "PRIORITY length must be 5", m_stream_id);
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
+                "PRIORITY length must be 5",
+                m_stream_id
+            );
         }
     }
 
@@ -370,19 +470,28 @@ class FrameHeader {
      * @throws error::http::ConnectionError if stream id is 0, flags are nonzero, or length
      * isn't exactly 4.
      */
-    void validate_rst_stream() const {
+    void validate_rst_stream() const
+    {
         // Same three-check shape as PRIORITY — stream, flags, length.
         if (m_stream_id == 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "RST_STREAM on stream 0");
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "RST_STREAM on stream 0"
+            );
         }
         if (m_flags != 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "RST_STREAM flags must be 0", m_stream_id);
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "RST_STREAM flags must be 0",
+                m_stream_id
+            );
         }
         if (m_length != 4) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
-                                               "RST_STREAM length must be 4", m_stream_id);
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
+                "RST_STREAM length must be 4",
+                m_stream_id
+            );
         }
     }
 
@@ -394,28 +503,37 @@ class FrameHeader {
      * @throws error::http::ConnectionError if not on stream 0, an invalid flag bit is set, an
      * ACK carries payload, or a non-ACK length isn't a multiple of 6.
      */
-    void validate_settings() const {
+    void validate_settings() const
+    {
         // SETTINGS is always connection-level, never tied to a specific stream.
         if (m_stream_id != 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "SETTINGS not on stream 0");
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "SETTINGS not on stream 0"
+            );
         }
         // Only ACK is a legal flag here.
         if ((m_flags & ~shared_layer::Flags::ACK) != 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "Invalid flags for SETTINGS");
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "Invalid flags for SETTINGS"
+            );
         }
 
         // ACK carries no payload at all; a real settings frame must be a whole number of
         // 6-byte (id + value) pairs.
         if ((m_flags & shared_layer::Flags::ACK) != 0) {
             if (m_length != 0) {
-                throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
-                                                   "SETTINGS ACK with payload");
+                throw error::http::ConnectionError(
+                    error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
+                    "SETTINGS ACK with payload"
+                );
             }
         } else if (m_length % 6 != 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
-                                               "SETTINGS size mismatch");
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
+                "SETTINGS size mismatch"
+            );
         }
     }
 
@@ -428,21 +546,29 @@ class FrameHeader {
      * @throws error::http::ConnectionError if `Role` is SENDER and stream id is 0 or unexpected
      * flags are set.
      */
-    void validate_push_promise() const {
+    void validate_push_promise() const
+    {
         if constexpr (Role == shared_layer::FrameRole::RECEIVER) {
             // A receiver (server) MUST treat receipt of PUSH_PROMISE as a connection error
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "PUSH_PROMISE received by server");
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "PUSH_PROMISE received by server"
+            );
         } else {
             // Sender validation for server PUSH_PROMISE
             if (m_stream_id == 0) {
-                throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                                   "PUSH_PROMISE on stream 0");
+                throw error::http::ConnectionError(
+                    error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                    "PUSH_PROMISE on stream 0"
+                );
             }
             if ((m_flags & ~(shared_layer::Flags::END_HEADERS | shared_layer::Flags::PADDED)) !=
                 0) {
-                throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                                   "Invalid flags for PUSH_PROMISE", m_stream_id);
+                throw error::http::ConnectionError(
+                    error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                    "Invalid flags for PUSH_PROMISE",
+                    m_stream_id
+                );
             }
         }
     }
@@ -453,21 +579,28 @@ class FrameHeader {
      * @throws error::http::ConnectionError if not on stream 0, an invalid flag bit is set, or
      * length isn't exactly 8.
      */
-    void validate_ping() const {
+    void validate_ping() const
+    {
         // Connection-level frame, no stream id.
         if (m_stream_id != 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "PING not on stream 0");
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "PING not on stream 0"
+            );
         }
         // Only ACK is legal, same rule as SETTINGS.
         if ((m_flags & ~shared_layer::Flags::ACK) != 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "Invalid flags for PING");
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "Invalid flags for PING"
+            );
         }
         // Fixed 8-byte opaque payload, no exceptions either direction.
         if (m_length != 8) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
-                                               "PING length must be 8");
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
+                "PING length must be 8"
+            );
         }
     }
 
@@ -478,20 +611,27 @@ class FrameHeader {
      * @throws error::http::ConnectionError if not on stream 0, flags are nonzero, or length is
      * under 8.
      */
-    void validate_goaway() const {
+    void validate_goaway() const
+    {
         // Connection-level, no stream id.
         if (m_stream_id != 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "GOAWAY not on stream 0");
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "GOAWAY not on stream 0"
+            );
         }
         if (m_flags != 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "GOAWAY flags must be 0");
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "GOAWAY flags must be 0"
+            );
         }
         // At least 8 bytes (last-stream-id + error code); optional debug data can push it higher.
         if (m_length < 8) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
-                                               "GOAWAY length < 8");
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
+                "GOAWAY length < 8"
+            );
         }
     }
 
@@ -505,20 +645,27 @@ class FrameHeader {
      * misread it as "abort everything from stream 0 onward."
      * @throws error::http::ConnectionError if flags are nonzero or length isn't exactly 4.
      */
-    void validate_window_update() const {
+    void validate_window_update() const
+    {
         // No stream-id-zero rejection here — WINDOW_UPDATE is legal at both connection and
         // stream level, so only flags/length get validated.
         if (m_flags != 0) {
             // Stream 0 has no "offending stream" to name, so fall back to the max possible id
             // instead of 0 — keeps downstream GOAWAY handling from misreading it.
             auto stream_id = m_stream_id == 0 ? MAX_CONNECTED_STREAMS : m_stream_id;
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "WINDOW_UPDATE flags must be 0", stream_id);
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "WINDOW_UPDATE flags must be 0",
+                stream_id
+            );
         }
         if (m_length != 4) {
             auto stream_id = m_stream_id == 0 ? MAX_CONNECTED_STREAMS : m_stream_id;
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
-                                               "WINDOW_UPDATE length != 4", stream_id);
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
+                "WINDOW_UPDATE length != 4",
+                stream_id
+            );
         }
     }
 
@@ -528,17 +675,23 @@ class FrameHeader {
      * frame that started the block.
      * @throws error::http::ConnectionError if stream id is 0 or unexpected flags are set.
      */
-    void validate_continuation() const {
+    void validate_continuation() const
+    {
         // Always belongs to the stream whose HEADERS block it's continuing.
         if (m_stream_id == 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "CONTINUATION on stream 0");
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "CONTINUATION on stream 0"
+            );
         }
         // Only END_HEADERS applies here — END_STREAM/PADDED/PRIORITY belong to the HEADERS
         // frame that started the block, not its continuations.
         if ((m_flags & ~shared_layer::Flags::END_HEADERS) != 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "Invalid flags for CONTINUATION", m_stream_id);
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "Invalid flags for CONTINUATION",
+                m_stream_id
+            );
         }
     }
 
@@ -548,16 +701,19 @@ class FrameHeader {
     std::uint32_t m_stream_id;
 };
 
-class ReadFrameHeaderAdaptor : public std::ranges::range_adaptor_closure<ReadFrameHeaderAdaptor> {
-  public:
+class ReadFrameHeaderAdaptor : public std::ranges::range_adaptor_closure<ReadFrameHeaderAdaptor>
+{
+public:
     /**
      * @brief Range adaptor closure ctor — just stashes the locally-configured max frame size so
      * operator() can reject oversized incoming frames against it.
      * @param max_frame_size the local SETTINGS_MAX_FRAME_SIZE, incoming frame length gets
      * checked against this.
      */
-    explicit constexpr ReadFrameHeaderAdaptor(std::uint32_t max_frame_size)
-        : m_max_frame_size{max_frame_size} {}
+    explicit constexpr ReadFrameHeaderAdaptor(std::uint32_t max_frame_size) :
+        m_max_frame_size{max_frame_size}
+    {
+    }
 
     /**
      * @brief Parses the fixed 9-byte HTTP/2 frame header (length, type, flags, stream id) off
@@ -571,14 +727,17 @@ class ReadFrameHeaderAdaptor : public std::ranges::range_adaptor_closure<ReadFra
      * @throws error::http::ConnectionError if `data` is shorter than `HEADER_SIZE`, or if the
      * declared length exceeds `m_max_frame_size`.
      */
-    template <std::ranges::viewable_range R>
-    FrameHeader<shared_layer::FrameRole::RECEIVER> operator()(R &&data) const {
+    template<std::ranges::viewable_range R>
+    FrameHeader<shared_layer::FrameRole::RECEIVER> operator()(R&& data) const
+    {
         auto range = std::forward<R>(data);
 
         // Guard — need the full 9 fixed bytes before there's anything to parse at all.
         if (std::ranges::size(range) < HEADER_SIZE) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
-                                               "Incomplete frame header");
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
+                "Incomplete frame header"
+            );
         }
 
         // First 3 bytes are the payload length.
@@ -591,34 +750,45 @@ class ReadFrameHeaderAdaptor : public std::ranges::range_adaptor_closure<ReadFra
             {
                 std::string hex;
                 std::size_t n = 0;
-                for (auto b : range | std::views::take(16)) {
-                    hex += std::format("{:02x} ", static_cast<unsigned>(std::to_integer<std::uint8_t>(b)));
+                for (auto b: range | std::views::take(16)) {
+                    hex += std::format(
+                        "{:02x} ",
+                        static_cast<unsigned>(std::to_integer<std::uint8_t>(b))
+                    );
                     ++n;
                 }
-                core::logger::warning("WIREDUMP", "read-throw len={} max={} bytes[{}]: {}", len,
-                                      m_max_frame_size, n, hex);
+                core::logger::warning(
+                    "WIREDUMP",
+                    "read-throw len={} max={} bytes[{}]: {}",
+                    len,
+                    m_max_frame_size,
+                    n,
+                    hex
+                );
             }
             throw error::http::ConnectionError(
                 error::http::Http2ErrorCode::FRAME_SIZE_ERROR,
-                "FrameBuilder length exceeds SETTINGS_MAX_FRAME_SIZE");
+                "FrameBuilder length exceeds SETTINGS_MAX_FRAME_SIZE"
+            );
         }
 
         // Byte 3 is the type, byte 4 is the flags — straightforward single-byte reads.
         auto type = static_cast<shared_layer::FrameType>(
             range | std::views::drop(3) | std::views::take(1) |
-            utils::codec::ReadBigEndianAdaptor<std::uint8_t>{});
+            utils::codec::ReadBigEndianAdaptor<std::uint8_t>{}
+        );
 
         auto flags = range | std::views::drop(4) | std::views::take(1) |
                      utils::codec::ReadBigEndianAdaptor<std::uint8_t>{};
 
         // Last 4 bytes are the stream id — mask off the reserved high bit same as everywhere else.
-        std::uint32_t id = 0x7FFF'FFFFU & (range | std::views::drop(5) | std::views::take(4) |
-                                           utils::codec::ReadBigEndianAdaptor<std::uint32_t>{});
+        std::uint32_t id = 0x7F'FF'FF'FFU & (range | std::views::drop(5) | std::views::take(4) |
+                                             utils::codec::ReadBigEndianAdaptor<std::uint32_t>{});
 
         return {len, type, flags, id};
     }
 
-  private:
+private:
     std::uint32_t m_max_frame_size;
 };
 
@@ -643,9 +813,10 @@ class ReadFrameHeaderAdaptor : public std::ranges::range_adaptor_closure<ReadFra
 // };
 
 
-class FrameHeaderClosureAdaptor
-    : public std::ranges::range_adaptor_closure<FrameHeaderClosureAdaptor> {
-  public:
+class FrameHeaderClosureAdaptor :
+    public std::ranges::range_adaptor_closure<FrameHeaderClosureAdaptor>
+{
+public:
     /**
      * @brief Range adaptor closure ctor — stashes the four header fields to write, masking the
      * stream id up front, lowkey saving operator() from redoing it later.
@@ -654,11 +825,18 @@ class FrameHeaderClosureAdaptor
      * @param flags the flags byte to encode.
      * @param stream_id the stream id to encode, masked to 31 bits right here in the ctor.
      */
-    explicit constexpr FrameHeaderClosureAdaptor(std::uint32_t length, shared_layer::FrameType type,
-                                                 std::uint8_t flags,
-                                                 std::uint32_t stream_id) noexcept
-        : m_length{length}, m_type{type}, m_flags{flags},
-          m_clean_stream_id{stream_id & 0x7FFFFFFF} {}
+    explicit constexpr FrameHeaderClosureAdaptor(
+        std::uint32_t length,
+        shared_layer::FrameType type,
+        std::uint8_t flags,
+        std::uint32_t stream_id
+    ) noexcept :
+        m_length{length},
+        m_type{type},
+        m_flags{flags},
+        m_clean_stream_id{stream_id & 0x7F'FF'FF'FF}
+    {
+    }
 
     /**
      * @brief Writes the 9-byte HTTP/2 frame header onto the end of `range`, big-endian, per RFC
@@ -667,8 +845,9 @@ class FrameHeaderClosureAdaptor
      * @param range the range to append the encoded header onto.
      * @return the range with the 9 header bytes appended.
      */
-    template <std::ranges::viewable_range R>
-    [[nodiscard]] constexpr auto operator()(R &&range) const {
+    template<std::ranges::viewable_range R>
+    [[nodiscard]] constexpr auto operator()(R&& range) const
+    {
         return std::forward<R>(range) |
                (utils::codec::WriteBigEndianAdaptor<std::uint32_t>{m_length} |
                 std::views::drop(1)) |
@@ -677,16 +856,16 @@ class FrameHeaderClosureAdaptor
                utils::codec::WriteBigEndianAdaptor<std::uint32_t>{m_clean_stream_id};
     }
 
-  private:
+private:
     std::uint32_t m_length;
     shared_layer::FrameType m_type;
     std::uint8_t m_flags;
     std::uint32_t m_clean_stream_id;
 };
 
-class WriteFrameClosureAdapter
-    : public std::ranges::range_adaptor_closure<WriteFrameClosureAdapter> {
-  public:
+class WriteFrameClosureAdapter : public std::ranges::range_adaptor_closure<WriteFrameClosureAdapter>
+{
+public:
     /**
      * @brief Range adaptor closure ctor — stashes everything needed to chunk a payload into
      * max-frame-size slices and prepend a header onto each one.
@@ -701,13 +880,22 @@ class WriteFrameClosureAdapter
      * @param no_data when true and `type` is HEADERS, also sets END_STREAM on the last HEADERS/
      * CONTINUATION chunk — for header-only responses/requests with no body at all.
      */
-    explicit constexpr WriteFrameClosureAdapter(std::uint32_t stream_id,
-                                                shared_layer::FrameType type, std::uint8_t flags,
-                                                std::size_t max_frame_size,
-                                                bool end_stream_after_data = false,
-                                                bool no_data = false)
-        : m_stream_id{stream_id}, m_type{type}, m_flags{flags}, m_max_frame_size{max_frame_size},
-          m_end_stream_after_data{end_stream_after_data}, m_no_data{no_data} {}
+    explicit constexpr WriteFrameClosureAdapter(
+        std::uint32_t stream_id,
+        shared_layer::FrameType type,
+        std::uint8_t flags,
+        std::size_t max_frame_size,
+        bool end_stream_after_data = false,
+        bool no_data = false
+    ) :
+        m_stream_id{stream_id},
+        m_type{type},
+        m_flags{flags},
+        m_max_frame_size{max_frame_size},
+        m_end_stream_after_data{end_stream_after_data},
+        m_no_data{no_data}
+    {
+    }
 
     /**
      * @brief Chunks `range` into `m_max_frame_size`-sized slices and writes a framed HTTP/2
@@ -723,8 +911,9 @@ class WriteFrameClosureAdapter
      * @return a lazily-joined view of every emitted frame's bytes (headers + chunk payload,
      * back to back).
      */
-    template <std::ranges::viewable_range R>
-    auto operator()(R &&range) const {
+    template<std::ranges::viewable_range R>
+    auto operator()(R&& range) const
+    {
         auto data = std::views::all(std::forward<R>(range));
 
         // Figure out how many max_frame_size-sized slices this payload splits into.
@@ -738,53 +927,65 @@ class WriteFrameClosureAdapter
 
         // Lazily slice the payload into `total_chunks` windows of `slice_size` bytes each.
         auto chunked = std::views::iota(0UZ, TOTAL_CHUNKS) |
-                       std::views::transform([data, SLICE_SIZE](std::size_t chunk_idx) {
-                           return data | std::views::drop(chunk_idx * SLICE_SIZE) |
-                                  std::views::take(SLICE_SIZE);
-                       });
+                       std::views::transform(
+                           [data, SLICE_SIZE](std::size_t chunk_idx)
+                           {
+                               return data | std::views::drop(chunk_idx * SLICE_SIZE) |
+                                      std::views::take(SLICE_SIZE);
+                           }
+                       );
 
         // Unified pipeline
         return chunked | std::views::enumerate |
-               std::views::transform([self = *this, TOTAL_CHUNKS](auto &&entry) {
-                   auto [idx, chunk] = entry;
-                   const auto CHUNK_IDX = static_cast<std::size_t>(idx);
+               std::views::transform(
+                   [self = *this, TOTAL_CHUNKS](auto&& entry)
+                   {
+                       auto [idx, chunk] = entry;
+                       const auto CHUNK_IDX = static_cast<std::size_t>(idx);
 
-                   auto type = self.m_type;
-                   std::uint8_t flags = self.m_flags;
+                       auto type = self.m_type;
+                       std::uint8_t flags = self.m_flags;
 
-                   const bool IS_LAST = (CHUNK_IDX == TOTAL_CHUNKS - 1);
+                       const bool IS_LAST = (CHUNK_IDX == TOTAL_CHUNKS - 1);
 
-                   // HEADERS chunks past the first flip to CONTINUATION; only the last chunk of
-                   // either gets END_HEADERS (and END_STREAM too if there's no body coming).
-                   if (type == shared_layer::FrameType::HEADERS) {
-                       if (IS_LAST) {
-                           flags |= shared_layer::Flags::END_HEADERS;
-                           if (self.m_no_data) {
-                               flags |= shared_layer::Flags::END_STREAM;
+                       // HEADERS chunks past the first flip to CONTINUATION; only the last chunk of
+                       // either gets END_HEADERS (and END_STREAM too if there's no body coming).
+                       if (type == shared_layer::FrameType::HEADERS) {
+                           if (IS_LAST) {
+                               flags |= shared_layer::Flags::END_HEADERS;
+                               if (self.m_no_data) {
+                                   flags |= shared_layer::Flags::END_STREAM;
+                               }
                            }
+                           if (CHUNK_IDX != 0) {
+                               type = shared_layer::FrameType::CONTINUATION;
+                           }
+                       } else if (
+                           type == shared_layer::FrameType::DATA && IS_LAST &&
+                           !self.m_end_stream_after_data
+                       ) {
+                           // Last DATA chunk closes the stream, unless a separate empty DATA frame
+                           // is going to carry END_STREAM instead.
+                           flags |= shared_layer::Flags::END_STREAM;
                        }
-                       if (CHUNK_IDX != 0) {
-                           type = shared_layer::FrameType::CONTINUATION;
-                       }
-                   } else if (type == shared_layer::FrameType::DATA && IS_LAST &&
-                              !self.m_end_stream_after_data) {
-                       // Last DATA chunk closes the stream, unless a separate empty DATA frame
-                       // is going to carry END_STREAM instead.
-                       flags |= shared_layer::Flags::END_STREAM;
-                   }
 
-                   // Prepend the header for this chunk, then the chunk's own bytes.
-                   return std::views::concat(
-                       std::views::empty<std::byte> |
-                           FrameHeaderClosureAdaptor{
-                               static_cast<std::uint32_t>(std::ranges::distance(chunk)), type,
-                               flags, self.m_stream_id},
-                       chunk);
-               }) |
+                       // Prepend the header for this chunk, then the chunk's own bytes.
+                       return std::views::concat(
+                           std::views::empty<std::byte> |
+                               FrameHeaderClosureAdaptor{
+                                   static_cast<std::uint32_t>(std::ranges::distance(chunk)),
+                                   type,
+                                   flags,
+                                   self.m_stream_id
+                               },
+                           chunk
+                       );
+                   }
+               ) |
                std::views::join;
     }
 
-  private:
+private:
     std::uint32_t m_stream_id;
     shared_layer::FrameType m_type;
     std::uint8_t m_flags;
@@ -793,7 +994,8 @@ class WriteFrameClosureAdapter
     bool m_no_data;
 };
 
-struct ReadWindowIncrementAdaptor : std::ranges::range_adaptor_closure<ReadWindowIncrementAdaptor> {
+struct ReadWindowIncrementAdaptor : std::ranges::range_adaptor_closure<ReadWindowIncrementAdaptor>
+{
     /**
      * @brief Reads the 4-byte big-endian increment off a WINDOW_UPDATE payload, masking off
      * the reserved high bit same as stream ids get (RFC 9113 §6.9 — that bit's reserved, MUST
@@ -805,27 +1007,31 @@ struct ReadWindowIncrementAdaptor : std::ranges::range_adaptor_closure<ReadWindo
      * is explicitly illegal per spec, would mean "don't actually update the window" which
      * makes no sense for this frame type.
      */
-    template <std::ranges::viewable_range R>
-    std::uint32_t operator()(R &&range) const {
+    template<std::ranges::viewable_range R>
+    std::uint32_t operator()(R&& range) const
+    {
         // Decode the 4-byte increment, masking off the reserved high bit same as stream ids.
         std::uint32_t inc =
             (std::forward<R>(range) | std::views::take(4) | utils::codec::ReadBigEndianAdaptor{}) &
-            0x7FFFFFFF;
+            0x7F'FF'FF'FF;
 
         // A zero increment is explicitly illegal per spec — "don't actually update the window"
         // makes no sense for this frame type.
         if (inc == 0) {
-            throw error::http::ConnectionError(error::http::Http2ErrorCode::PROTOCOL_ERROR,
-                                               "WINDOW_UPDATE increment must be non-zero");
+            throw error::http::ConnectionError(
+                error::http::Http2ErrorCode::PROTOCOL_ERROR,
+                "WINDOW_UPDATE increment must be non-zero"
+            );
         }
 
         return inc;
     }
 };
 
-template <shared_layer::FrameRole Role>
-class FrameBuilder {
-  public:
+template<shared_layer::FrameRole Role>
+class FrameBuilder
+{
+public:
     /**
      * @brief Default ctor — type defaults to DATA, everything else zeroed. Not a real frame yet,
      * lowkey just the builder's starting state.
@@ -837,7 +1043,8 @@ class FrameBuilder {
      * @param type the type to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    FrameBuilder &&add_type(shared_layer::FrameType type) && noexcept {
+    FrameBuilder&& add_type(shared_layer::FrameType type) && noexcept
+    {
         core::logger::debug("FrameBuilder", "type={}", type);
 
         m_type = type;
@@ -849,7 +1056,8 @@ class FrameBuilder {
      * @param flags the flags to set.
      * @return `*this`, moved, so the chain keeps going.
      */
-    FrameBuilder &&add_flags(std::uint8_t flags) && noexcept {
+    FrameBuilder&& add_flags(std::uint8_t flags) && noexcept
+    {
         core::logger::debug("FrameBuilder", "flags={}", flags);
 
         m_flags = flags;
@@ -861,10 +1069,11 @@ class FrameBuilder {
      * @param stream_id the stream id to set, high bit gets clipped regardless of value.
      * @return `*this`, moved, so the chain keeps going.
      */
-    FrameBuilder &&add_stream_id(std::uint32_t stream_id) && noexcept {
+    FrameBuilder&& add_stream_id(std::uint32_t stream_id) && noexcept
+    {
         core::logger::debug("FrameBuilder", "stream_id={}", stream_id);
 
-        m_stream_id = stream_id & 0x7FFFFFFF;
+        m_stream_id = stream_id & 0x7F'FF'FF'FF;
         return std::move(*this);
     }
 
@@ -875,12 +1084,13 @@ class FrameBuilder {
      * @param payload the bytes to append.
      * @return `*this`, moved, so the chain keeps going.
      */
-    template <std::ranges::forward_range R>
+    template<std::ranges::forward_range R>
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
     // FIXME(clang-tidy): bugprone-exception-escape — append_range may throw (bad_alloc) inside a
     // noexcept function; leaving noexcept as-is since removing it would change this builder's
     // exception-safety contract without a confirmed-safe rework.
-    FrameBuilder &&add_payload(R &&payload) && noexcept {
+    FrameBuilder&& add_payload(R&& payload) && noexcept
+    {
         m_payload.append_range(std::forward<R>(payload));
         core::logger::debug("FrameBuilder", "payload size={}", m_payload.size());
         return std::move(*this);
@@ -891,7 +1101,8 @@ class FrameBuilder {
      * finished builder.
      * @return `*this`, moved out to the caller as the finished builder.
      */
-    FrameBuilder &&build() && {
+    FrameBuilder&& build() &&
+    {
         core::logger::debug("FrameBuilder", "build");
         return std::move(*this);
     }
@@ -902,9 +1113,10 @@ class FrameBuilder {
      * @tparam R a forward range whose value type is `std::byte`.
      * @param payload the bytes to append.
      */
-    template <std::ranges::forward_range R>
+    template<std::ranges::forward_range R>
         requires std::same_as<std::ranges::range_value_t<R>, std::byte>
-    void expand_payload(R &&payload) noexcept {
+    void expand_payload(R&& payload) noexcept
+    {
         m_payload.append_range(std::forward<R>(payload));
         core::logger::debug("FrameBuilder", "payload total={}", m_payload.size());
     }
@@ -914,44 +1126,66 @@ class FrameBuilder {
      * math, bet.
      * @return `HEADER_SIZE` (9) plus the current payload size.
      */
-    [[nodiscard]] std::size_t get_size() const noexcept { return HEADER_SIZE + m_payload.size(); }
+    [[nodiscard]] std::size_t get_size() const noexcept
+    {
+        return HEADER_SIZE + m_payload.size();
+    }
+
     /**
      * @brief Grabs a read-only view over the accumulated payload bytes.
      * @return the payload bytes.
      */
-    [[nodiscard]] std::span<const std::byte> get_payload() const noexcept { return m_payload; }
+    [[nodiscard]] std::span<const std::byte> get_payload() const noexcept
+    {
+        return m_payload;
+    }
+
     /**
      * @brief Grabs the payload length.
      * @return the current payload size in bytes.
      */
-    [[nodiscard]] std::size_t get_length() const noexcept { return m_payload.size(); }
+    [[nodiscard]] std::size_t get_length() const noexcept
+    {
+        return m_payload.size();
+    }
+
     /**
      * @brief Grabs the frame type.
      * @return the frame type.
      */
-    [[nodiscard]] shared_layer::FrameType get_type() const noexcept { return m_type; }
+    [[nodiscard]] shared_layer::FrameType get_type() const noexcept
+    {
+        return m_type;
+    }
+
     /**
      * @brief Grabs the raw flags byte.
      * @return the flags byte.
      */
-    [[nodiscard]] std::uint8_t get_flags() const noexcept { return m_flags; }
+    [[nodiscard]] std::uint8_t get_flags() const noexcept
+    {
+        return m_flags;
+    }
+
     /**
      * @brief Grabs the stream id.
      * @return the stream id, already masked to 31 bits.
      */
-    [[nodiscard]] std::uint32_t get_stream_id() const noexcept { return m_stream_id; }
+    [[nodiscard]] std::uint32_t get_stream_id() const noexcept
+    {
+        return m_stream_id;
+    }
 
-  private:
+private:
     shared_layer::FrameType m_type{shared_layer::FrameType::DATA};
     std::uint8_t m_flags{0};
     std::uint32_t m_stream_id{0};
     std::vector<std::byte> m_payload;
 };
 
-
-class WriteFrameBuilderAdaptor
-    : public std::ranges::range_adaptor_closure<WriteFrameBuilderAdaptor> {
-  public:
+class WriteFrameBuilderAdaptor : public std::ranges::range_adaptor_closure<WriteFrameBuilderAdaptor>
+{
+public:
     /**
      * @brief Range adaptor closure ctor — takes ownership of a completed `FrameBuilder` and
      * the chunking config needed to frame it.
@@ -960,12 +1194,18 @@ class WriteFrameBuilderAdaptor
      * @param end_stream_after_data forwarded straight through to `WriteFrameClosureAdapter`.
      * @param no_data forwarded straight through to `WriteFrameClosureAdapter`.
      */
-    explicit constexpr WriteFrameBuilderAdaptor(FrameBuilder<shared_layer::FrameRole::SENDER> frame,
-                                                std::size_t max_frame_size,
-                                                bool end_stream_after_data = false,
-                                                bool no_data = false)
-        : m_frame{std::move(frame)}, m_max_frame_size{max_frame_size},
-          m_end_stream_after_data{end_stream_after_data}, m_no_data{no_data} {}
+    explicit constexpr WriteFrameBuilderAdaptor(
+        FrameBuilder<shared_layer::FrameRole::SENDER> frame,
+        std::size_t max_frame_size,
+        bool end_stream_after_data = false,
+        bool no_data = false
+    ) :
+        m_frame{std::move(frame)},
+        m_max_frame_size{max_frame_size},
+        m_end_stream_after_data{end_stream_after_data},
+        m_no_data{no_data}
+    {
+    }
 
     /**
      * @brief Concats `range` with the fully-framed bytes of `m_frame`'s payload (chunked and
@@ -974,14 +1214,20 @@ class WriteFrameBuilderAdaptor
      * @param range the range to append the encoded frame onto.
      * @return `range` followed by the encoded frame bytes, lazily joined.
      */
-    template <std::ranges::viewable_range R>
-    auto operator()(R &&range) const {
+    template<std::ranges::viewable_range R>
+    auto operator()(R&& range) const
+    {
         return std::views::concat(
             std::forward<R>(range),
-            m_frame.get_payload() |
-                WriteFrameClosureAdapter{m_frame.get_stream_id(), m_frame.get_type(),
-                                         m_frame.get_flags(), m_max_frame_size,
-                                         m_end_stream_after_data, m_no_data});
+            m_frame.get_payload() | WriteFrameClosureAdapter{
+                                        m_frame.get_stream_id(),
+                                        m_frame.get_type(),
+                                        m_frame.get_flags(),
+                                        m_max_frame_size,
+                                        m_end_stream_after_data,
+                                        m_no_data
+                                    }
+        );
     }
 
     /**
@@ -989,9 +1235,12 @@ class WriteFrameBuilderAdaptor
      * Handy motion for kicking off a frame write when there's nothing to prepend it onto yet.
      * @return the encoded frame bytes, standalone.
      */
-    auto operator()() const { return (*this)(std::views::empty<std::byte>); }
+    auto operator()() const
+    {
+        return (*this)(std::views::empty<std::byte>);
+    }
 
-  private:
+private:
     FrameBuilder<shared_layer::FrameRole::SENDER> m_frame;
     std::size_t m_max_frame_size;
     bool m_end_stream_after_data;

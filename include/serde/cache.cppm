@@ -58,9 +58,11 @@ public:
         // Fold over every reflected field — whichever one's flagged primary_key wins, lowkey a
         // linear scan wearing a fold-expression trenchcoat.
         std::apply(
-            [&](auto... fields) {
+            [&](auto... fields)
+            {
                 (
-                    [&](auto field) {
+                    [&](auto field)
+                    {
                         if constexpr (decltype(field)::options.m_db.m_primary_key) {
                             result = field_value_to_string((value.*decltype(field)::getter)());
                         }
@@ -117,24 +119,29 @@ public:
 namespace serde::tests {
 using namespace boost::ut;
 
-suite<"Cache"> cache_suite = [] {
-    "pk_string extracts the stringified primary-key field"_test = [] {
+suite<"Cache"> cache_suite = []
+{
+    "pk_string extracts the stringified primary-key field"_test = []
+    {
         CoreTestRecord record;
         record.set_id("abc123");
         expect(Cache::pk_string(record) == "abc123");
     };
 
-    "cache_key(instance) joins table_name and pk_string with a colon"_test = [] {
+    "cache_key(instance) joins table_name and pk_string with a colon"_test = []
+    {
         CoreTestRecord record;
         record.set_id("abc123");
         expect(Cache::cache_key(record) == "core_test_records:abc123");
     };
 
-    "cache_key(pk_value) joins table_name and the raw pk with a colon"_test = [] {
+    "cache_key(pk_value) joins table_name and the raw pk with a colon"_test = []
+    {
         expect(Cache::cache_key<CoreTestRecord>("xyz789") == "core_test_records:xyz789");
     };
 
-    "cache_value JSON-encodes the instance"_test = [] {
+    "cache_value JSON-encodes the instance"_test = []
+    {
         CoreTestRecord record;
         record.set_id("abc123");
         const std::string JSON = Cache::cache_value(record);

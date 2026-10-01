@@ -342,7 +342,8 @@ TransTable<W> build_table()
     int q_head = 0;
     int q_tail = 0;
 
-    auto alloc_row = [&](int node) -> int {
+    auto alloc_row = [&](int node) -> int
+    {
         const int ROW = static_cast<int>(table.m_row_count++);
         node_to_row[node] = ROW; // FIXME(clang-tidy): unchecked operator[], consider .at();
                                  // non-constant array index
@@ -393,7 +394,8 @@ TransTable<W> build_table()
             const std::size_t SLOT = (static_cast<std::size_t>(ROW) * CHUNKS) + chunk;
             if (invalid) {
                 table.m_entries[SLOT] = {
-                    0xFF'FFU, 0xFF'FFU
+                    0xFF'FFU,
+                    0xFF'FFU
                 }; // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant
                    // array index
             } else {
@@ -406,7 +408,8 @@ TransTable<W> build_table()
                 const std::uint16_t SYM16 =
                     (emitted_sym == SYM_NONE) ? 0xFF'FEU : static_cast<std::uint16_t>(emitted_sym);
                 table.m_entries[SLOT] = {
-                    static_cast<std::uint16_t>(node_to_row[cur]), SYM16
+                    static_cast<std::uint16_t>(node_to_row[cur]),
+                    SYM16
                 }; // FIXME(clang-tidy): unchecked operator[], consider .at(); non-constant
                    // array index
             }
@@ -858,8 +861,10 @@ struct Huffman
 namespace io::shared_codec::huffman::tests {
 using namespace boost::ut;
 
-suite<"Huffman encode/decode"> huffman_round_trip_suite = [] {
-    "round-trips an empty string"_test = [] {
+suite<"Huffman encode/decode"> huffman_round_trip_suite = []
+{
+    "round-trips an empty string"_test = []
+    {
         std::string original;
         std::vector<std::byte> byte_view;
 
@@ -876,7 +881,8 @@ suite<"Huffman encode/decode"> huffman_round_trip_suite = [] {
         expect(decoded == original);
     };
 
-    "round-trips a short ASCII string"_test = [] {
+    "round-trips a short ASCII string"_test = []
+    {
         std::string original = "hello world";
         std::vector<std::byte> byte_view;
         for (char character: original) {
@@ -895,7 +901,8 @@ suite<"Huffman encode/decode"> huffman_round_trip_suite = [] {
         expect(decoded == original);
     };
 
-    "matches the RFC 7541 C.4.1 known encoding for \"www.example.com\""_test = [] {
+    "matches the RFC 7541 C.4.1 known encoding for \"www.example.com\""_test = []
+    {
         std::string original = "www.example.com";
         std::vector<std::byte> byte_view;
         for (char character: original) {
@@ -907,27 +914,42 @@ suite<"Huffman encode/decode"> huffman_round_trip_suite = [] {
             encoded.push_back(value);
         }
 
-        std::vector<std::byte> expected{std::byte{0xF1}, std::byte{0xE3}, std::byte{0xC2},
-                                        std::byte{0xE5}, std::byte{0xF2}, std::byte{0x3A},
-                                        std::byte{0x6B}, std::byte{0xA0}, std::byte{0xAB},
-                                        std::byte{0x90}, std::byte{0xF4}, std::byte{0xFF}};
+        std::vector<std::byte> expected{
+            std::byte{0xF1},
+            std::byte{0xE3},
+            std::byte{0xC2},
+            std::byte{0xE5},
+            std::byte{0xF2},
+            std::byte{0x3A},
+            std::byte{0x6B},
+            std::byte{0xA0},
+            std::byte{0xAB},
+            std::byte{0x90},
+            std::byte{0xF4},
+            std::byte{0xFF}
+        };
         // Plain `==` on two std::vector<std::byte> forces boost::ut's failure-diagnostic
         // printer to instantiate operator<<(ostream&, std::byte), which doesn't exist —
         // wrapping in std::ranges::equal() keeps the comparison a plain bool instead.
         expect(std::ranges::equal(encoded, expected));
     };
 
-    "decoding an all-ones stream throws HuffmanDecodeError"_test = [] {
-        std::vector<std::byte> garbage{
-            std::byte{0xFF}, std::byte{0xFF}, std::byte{0xFF}, std::byte{0xFF}
-        };
+    "decoding an all-ones stream throws HuffmanDecodeError"_test = []
+    {
+        std::vector<std::byte>
+            garbage{std::byte{0xFF}, std::byte{0xFF}, std::byte{0xFF}, std::byte{0xFF}};
 
-        expect(throws<error::http::HuffmanDecodeError>([&] {
-            std::string decoded;
-            for (char character: garbage | Huffman<4>::decode()) {
-                decoded += character;
-            }
-        }));
+        expect(
+            throws<error::http::HuffmanDecodeError>(
+                [&]
+                {
+                    std::string decoded;
+                    for (char character: garbage | Huffman<4>::decode()) {
+                        decoded += character;
+                    }
+                }
+            )
+        );
     };
 };
 

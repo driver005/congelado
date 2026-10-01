@@ -13,8 +13,9 @@ import :request;
 
 export namespace io::layer::http2 {
 
-class ServerFlow {
-  public:
+class ServerFlow
+{
+public:
     /**
      * @brief Wires up a fresh server-side flow — spins up the `Session` and hands the
      * `Handshake` a submitter callback that routes straight back into `m_session.send_node()`.
@@ -26,18 +27,27 @@ class ServerFlow {
      * reference rather than something `Session` resolves ambiently.
      * @param dispatch request/response dispatch hook, forwarded into the `Session`.
      */
-    ServerFlow(::shared::SendCallback send, ::shared::CloseCallback close,
-              HttpExtensionRegistry &extension_registry,
-              interfaces::io::ReceiveDispatchFn dispatch = {})
-        : m_session{std::move(send), std::move(close), extension_registry, std::move(dispatch)},
-          m_handshake{m_session.get_local_settings(), [this](utils::buffering::BufferNode &&node) {
-                          m_session.send_node(std::move(node));
-                      }} {}
+    ServerFlow(
+        ::shared::SendCallback send,
+        ::shared::CloseCallback close,
+        HttpExtensionRegistry& extension_registry,
+        interfaces::io::ReceiveDispatchFn dispatch = {}
+    ) :
+        m_session{std::move(send), std::move(close), extension_registry, std::move(dispatch)},
+        m_handshake{
+            m_session.get_local_settings(),
+            [this](utils::buffering::BufferNode&& node)
+            {
+                m_session.send_node(std::move(node));
+            }
+        }
+    {
+    }
 
-    ServerFlow(const ServerFlow &) = delete;
-    ServerFlow &operator=(const ServerFlow &) = delete;
-    ServerFlow(ServerFlow &&) = delete;
-    ServerFlow &operator=(ServerFlow &&) = delete;
+    ServerFlow(const ServerFlow&) = delete;
+    ServerFlow& operator=(const ServerFlow&) = delete;
+    ServerFlow(ServerFlow&&) = delete;
+    ServerFlow& operator=(ServerFlow&&) = delete;
 
     /**
      * @brief Tears this connection's session down — sends GOAWAY and invokes the close callback
@@ -45,7 +55,8 @@ class ServerFlow {
      * socket).
      * @param code the GOAWAY error code to report to the peer; defaults to a clean shutdown.
      */
-    void close(error::http::Http2ErrorCode code = error::http::Http2ErrorCode::NO_ERROR_CODE) {
+    void close(error::http::Http2ErrorCode code = error::http::Http2ErrorCode::NO_ERROR_CODE)
+    {
         if (m_closed) {
             return;
         }
@@ -64,8 +75,10 @@ class ServerFlow {
      * logging, that's expected steady-state not an error.
      * @return the read callback, bound to `this`, ready to hand off to the transport.
      */
-    ::shared::ReadCallback on_read() {
-        return [this](utils::buffering::BufferReader &view) {
+    ::shared::ReadCallback on_read()
+    {
+        return [this](utils::buffering::BufferReader& view)
+        {
             core::logger::debug("http2/server/flow", "rx {} bytes", view.size());
 
             // Preface handshake hasn't wrapped up yet — feed these bytes into it instead of
@@ -103,17 +116,21 @@ class ServerFlow {
      * @brief Checks whether this connection has nothing left to send and no active streams.
      * @return true if the connection is finished and can be closed.
      */
-    [[nodiscard]] bool is_idle() noexcept { return m_session.is_idle(); }
+    [[nodiscard]] bool is_idle() noexcept
+    {
+        return m_session.is_idle();
+    }
 
-  private:
+private:
     Session m_session;
     Handshake<true> m_handshake;
     bool m_handshake_completed{false};
     bool m_closed{false};
 };
 
-class ClientFlow {
-  public:
+class ClientFlow
+{
+public:
     using OnConnectCallback = std::function<::shared::ReadCallback()>;
 
     /**
@@ -126,18 +143,27 @@ class ClientFlow {
      * into the `Session` ctor.
      * @param dispatch request/response dispatch hook, forwarded into the `Session`.
      */
-    ClientFlow(::shared::SendCallback on_send, ::shared::CloseCallback close,
-              HttpExtensionRegistry &extension_registry,
-              interfaces::io::ReceiveDispatchFn dispatch = {})
-        : m_session{std::move(on_send), std::move(close), extension_registry, std::move(dispatch)},
-          m_handshake{m_session.get_local_settings(), [this](utils::buffering::BufferNode &&node) {
-                          m_session.send_node(std::move(node));
-                      }} {}
+    ClientFlow(
+        ::shared::SendCallback on_send,
+        ::shared::CloseCallback close,
+        HttpExtensionRegistry& extension_registry,
+        interfaces::io::ReceiveDispatchFn dispatch = {}
+    ) :
+        m_session{std::move(on_send), std::move(close), extension_registry, std::move(dispatch)},
+        m_handshake{
+            m_session.get_local_settings(),
+            [this](utils::buffering::BufferNode&& node)
+            {
+                m_session.send_node(std::move(node));
+            }
+        }
+    {
+    }
 
-    ClientFlow(const ClientFlow &) = delete;
-    ClientFlow &operator=(const ClientFlow &) = delete;
-    ClientFlow(ClientFlow &&) = delete;
-    ClientFlow &operator=(ClientFlow &&) = delete;
+    ClientFlow(const ClientFlow&) = delete;
+    ClientFlow& operator=(const ClientFlow&) = delete;
+    ClientFlow(ClientFlow&&) = delete;
+    ClientFlow& operator=(ClientFlow&&) = delete;
 
     /**
      * @brief Builds the on-connect callback — fires the client handshake (unconditionally, no
@@ -148,8 +174,10 @@ class ClientFlow {
      * @return a callback that, once invoked, runs the handshake and hands back the steady-state
      * read callback.
      */
-    OnConnectCallback on_connect() {
-        return [this]() {
+    OnConnectCallback on_connect()
+    {
+        return [this]()
+        {
             core::logger::debug("http2/client/flow", "handshake");
 
             // Client sends the preface, no waiting on the peer to confirm — synchronous and done.
@@ -158,7 +186,8 @@ class ClientFlow {
             core::logger::debug("http2/client/flow", "handshake ok");
 
             // Steady-state read callback for everything that comes back after the handshake.
-            return [this](utils::buffering::BufferReader &view) {
+            return [this](utils::buffering::BufferReader& view)
+            {
                 core::logger::debug("http2/client/flow", "rx {} bytes", view.size());
                 if (!view.empty()) {
                     core::logger::debug("http2/client/flow", "dispatch to session");
@@ -175,7 +204,8 @@ class ClientFlow {
      * @param request the request to send. Session tags it with a fresh client stream id.
      * @return the stream id the session assigned — the response-correlation key.
      */
-    std::uint32_t sender(HttpRequest &request) {
+    std::uint32_t sender(HttpRequest& request)
+    {
         m_session.send(request);
         return request.get_stream_id();
     }
@@ -184,9 +214,12 @@ class ClientFlow {
      * @brief Whether this connection has nothing left to send and no active streams.
      * @return true if the session is idle.
      */
-    [[nodiscard]] bool is_idle() noexcept { return m_session.is_idle(); }
+    [[nodiscard]] bool is_idle() noexcept
+    {
+        return m_session.is_idle();
+    }
 
-  private:
+private:
     Session m_session;
     Handshake<false> m_handshake;
 };

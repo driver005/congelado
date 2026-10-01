@@ -40,7 +40,9 @@ private:
         // Pop the top error off OpenSSL's queue and render it into a fixed buffer.
         char buf[256];
         ERR_error_string_n(
-            ERR_get_error(), buf, sizeof(buf)
+            ERR_get_error(),
+            buf,
+            sizeof(buf)
         );          // FIXME(clang-tidy): array-to-pointer decay
         return buf; // FIXME(clang-tidy): array-to-pointer decay
     }
@@ -52,8 +54,10 @@ export void random_bytes(std::span<std::byte> out)
     // straight throw instead of handing back weak/partial randomness.
     // std::byte and unsigned char are both 1-byte character types; casting through void* is
     // well-defined (C++ [expr.static.cast]/13) and avoids reinterpret_cast at the call site.
-    if (RAND_bytes(static_cast<unsigned char*>(static_cast<void*>(out.data())),
-                   static_cast<int>(out.size())) != 1) {
+    if (RAND_bytes(
+            static_cast<unsigned char*>(static_cast<void*>(out.data())),
+            static_cast<int>(out.size())
+        ) != 1) {
         throw CryptoError("RAND_bytes");
     }
 }
@@ -65,9 +69,7 @@ ConnectionId generate_cid()
     // Stamp the length up front, then fill the CID's own storage with fresh random bytes.
     ConnectionId cid;
     cid.len = static_cast<std::uint8_t>(Len);
-    random_bytes(
-        std::as_writable_bytes(std::span{cid.data, Len})
-    );
+    random_bytes(std::as_writable_bytes(std::span{cid.data, Len}));
     return cid;
 }
 
@@ -78,9 +80,7 @@ export ConnectionId generate_cid(std::size_t len)
     // at compile time here.
     ConnectionId cid;
     cid.len = static_cast<std::uint8_t>(len);
-    random_bytes(
-        std::as_writable_bytes(std::span{cid.data, len})
-    );
+    random_bytes(std::as_writable_bytes(std::span{cid.data, len}));
     return cid;
 }
 
@@ -95,8 +95,10 @@ export ConnectionId generate_cid(std::size_t len)
 namespace quic::crypto::tests {
 using namespace boost::ut;
 
-suite<"random_bytes"> random_bytes_suite = [] {
-    "fills the whole buffer and differs between calls"_test = [] {
+suite<"random_bytes"> random_bytes_suite = []
+{
+    "fills the whole buffer and differs between calls"_test = []
+    {
         std::array<std::byte, 16> first{};
         std::array<std::byte, 16> second{};
         random_bytes(first);
@@ -106,16 +108,20 @@ suite<"random_bytes"> random_bytes_suite = [] {
     };
 };
 
-suite<"generate_cid"> generate_cid_suite = [] {
-    "template overload produces the requested length"_test = [] {
+suite<"generate_cid"> generate_cid_suite = []
+{
+    "template overload produces the requested length"_test = []
+    {
         auto cid = generate_cid<12>();
         expect(cid.len == 12);
     };
-    "runtime-length overload produces the requested length"_test = [] {
+    "runtime-length overload produces the requested length"_test = []
+    {
         auto cid = generate_cid(6);
         expect(cid.len == 6);
     };
-    "two generated CIDs differ"_test = [] {
+    "two generated CIDs differ"_test = []
+    {
         auto first = generate_cid<CID_DEFAULT_LEN>();
         auto second = generate_cid<CID_DEFAULT_LEN>();
         expect(not(first == second));

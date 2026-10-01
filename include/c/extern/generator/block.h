@@ -1,12 +1,12 @@
 #ifndef CONGELADO_C_GENERATOR_BLOCK_H_
 #define CONGELADO_C_GENERATOR_BLOCK_H_
 
-#include "include/c/macros.h"
+#include "include/c/extern/generator/definition.h"
+#include "include/c/extern/generator/node.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tensor.h"
 #include "include/c/intern/tstring.h"
-#include "include/c/extern/generator/definition.h"
-#include "include/c/extern/generator/node.h"
+#include "include/c/macros.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -32,7 +32,12 @@ extern "C"
             TF_Status* out_status
         );
 
-        void (*get_node)(TFGeneratorBlock* block, int index, TFGeneratorNode* out_node, TF_Status* out_status);
+        void (*get_node)(
+            TFGeneratorBlock* block,
+            int index,
+            TFGeneratorNode* out_node,
+            TF_Status* out_status
+        );
 
         void (*list_nodes)(TFGeneratorBlock* block, TF_Tensor** out_nodes, TF_Status* out_status);
 

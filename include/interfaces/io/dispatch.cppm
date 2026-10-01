@@ -195,9 +195,9 @@ private:
         if constexpr (std::is_void_v<Result>) {
             // Legacy void handler — synchronous by definition, always ready().
             return Erased{
-                [target = Target{std::forward<Fn>(fn)}](
-                    IRequest& req, IResponse& res
-                ) mutable -> DispatchResult {
+                [target = Target{std::forward<Fn>(fn)}](IRequest& req, IResponse& res) mutable
+                    -> DispatchResult
+                {
                     target(req, res);
                     return DispatchResult::ready();
                 }
@@ -208,9 +208,9 @@ private:
                 "a handler must return void or interfaces::io::DispatchResult"
             );
             return Erased{
-                [target = Target{std::forward<Fn>(fn)}](
-                    IRequest& req, IResponse& res
-                ) mutable -> DispatchResult {
+                [target = Target{std::forward<Fn>(fn)}](IRequest& req, IResponse& res) mutable
+                    -> DispatchResult
+                {
                     return target(req, res);
                 }
             };
@@ -226,8 +226,10 @@ private:
 namespace interfaces::io::tests {
 using namespace boost::ut;
 
-suite<"DispatchResult"> dispatch_result_suite = [] {
-    "default-constructed and ready() are both immediately ready"_test = [] {
+suite<"DispatchResult"> dispatch_result_suite = []
+{
+    "default-constructed and ready() are both immediately ready"_test = []
+    {
         DispatchResult default_result;
         auto ready_result = DispatchResult::ready();
 
@@ -235,38 +237,49 @@ suite<"DispatchResult"> dispatch_result_suite = [] {
         expect(ready_result.is_ready());
     };
 
-    "pending() is not ready until subscribed"_test = [] {
+    "pending() is not ready until subscribed"_test = []
+    {
         auto result = DispatchResult::pending([](ResponseCompleter) {});
 
         expect(not result.is_ready());
     };
 
-    "subscribe() on a pending result invokes on_ready synchronously with the completer"_test = [] {
+    "subscribe() on a pending result invokes on_ready synchronously with the completer"_test = []
+    {
         bool on_ready_called = false;
-        auto result = DispatchResult::pending([&on_ready_called](ResponseCompleter completer) {
-            on_ready_called = true;
-            expect(static_cast<bool>(completer));
-        });
+        auto result = DispatchResult::pending(
+            [&on_ready_called](ResponseCompleter completer)
+            {
+                on_ready_called = true;
+                expect(static_cast<bool>(completer));
+            }
+        );
 
         std::move(result).subscribe([](ResponseWriter) {});
 
         expect(on_ready_called);
     };
 
-    "subscribe() on an already-ready result is a no-op"_test = [] {
+    "subscribe() on an already-ready result is a no-op"_test = []
+    {
         bool completer_called = false;
         auto result = DispatchResult::ready();
 
-        std::move(result).subscribe([&completer_called](ResponseWriter) {
-            completer_called = true;
-        });
+        std::move(result).subscribe(
+            [&completer_called](ResponseWriter)
+            {
+                completer_called = true;
+            }
+        );
 
         expect(not completer_called);
     };
 };
 
-suite<"DispatchFunction"> dispatch_function_suite = [] {
-    "default-constructed and nullptr-constructed are both empty"_test = [] {
+suite<"DispatchFunction"> dispatch_function_suite = []
+{
+    "default-constructed and nullptr-constructed are both empty"_test = []
+    {
         DispatchFunction default_fn;
         DispatchFunction null_fn{nullptr};
 
@@ -274,11 +287,13 @@ suite<"DispatchFunction"> dispatch_function_suite = [] {
         expect(not static_cast<bool>(null_fn));
     };
 
-    "wrapping a void handler always reports ready()"_test = [] {
+    "wrapping a void handler always reports ready()"_test = []
+    {
         bool called = false;
-        DispatchFunction dispatch{[&called](IRequest&, IResponse&) {
-            called = true;
-        }};
+        DispatchFunction dispatch{[&called](IRequest&, IResponse&)
+                                  {
+                                      called = true;
+                                  }};
         IRequest req;
         IResponse res;
 
@@ -289,10 +304,12 @@ suite<"DispatchFunction"> dispatch_function_suite = [] {
         expect(result.is_ready());
     };
 
-    "wrapping a DispatchResult-returning handler passes the result through"_test = [] {
-        DispatchFunction dispatch{[](IRequest&, IResponse&) {
-            return DispatchResult::pending([](ResponseCompleter) {});
-        }};
+    "wrapping a DispatchResult-returning handler passes the result through"_test = []
+    {
+        DispatchFunction dispatch{[](IRequest&, IResponse&)
+                                  {
+                                      return DispatchResult::pending([](ResponseCompleter) {});
+                                  }};
         IRequest req;
         IResponse res;
 

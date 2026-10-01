@@ -160,7 +160,8 @@ public:
         client.addField("core::client::Register", "m_register");
 
         auto& set_runtime_fn = client.addMethod(
-            "void", "setRuntime"
+            "void",
+            "setRuntime"
         ); // NOLINT(readability-identifier-naming) — matches this project's get/set/add
            // accessor naming convention (camelCase after prefix), not a real naming defect —
            // the shared clang-tidy config has no accessor exception
@@ -232,7 +233,9 @@ private:
         }
 
         std::string function_name = std::format(
-            "{}_{}", groupName, resolve_function_name(operation.get_method(), literal_tail)
+            "{}_{}",
+            groupName,
+            resolve_function_name(operation.get_method(), literal_tail)
         );
         std::string response_type = operation.get_response()
                                         ? resolve_type(*operation.get_response(), dtoModuleName)
@@ -251,7 +254,8 @@ private:
             fn.add_param(
                 core::generator::Param{
                     std::format(
-                        "const {} &", resolve_type(*operation.get_request_body(), dtoModuleName)
+                        "const {} &",
+                        resolve_type(*operation.get_request_body(), dtoModuleName)
                     ),
                     "body"
                 }
@@ -295,7 +299,8 @@ private:
                 std::format(
                     "    auto request = core::client::Client::custom(\"{}\", "
                     "{}).build(m_register.runtime());\n",
-                    to_uppercase(operation.get_method()), path_expr
+                    to_uppercase(operation.get_method()),
+                    path_expr
                 )
             )
         );
@@ -416,7 +421,8 @@ private:
         while (start < path.size()) {
             auto slash = path.find('/', start);
             auto part = path.substr(
-                start, slash == std::string_view::npos ? std::string_view::npos : slash - start
+                start,
+                slash == std::string_view::npos ? std::string_view::npos : slash - start
             );
             if (!part.empty()) {
                 segments.emplace_back(part);
@@ -487,9 +493,14 @@ private:
     [[nodiscard]] static std::string to_uppercase(std::string_view value)
     {
         std::string result{value};
-        std::ranges::transform(result, result.begin(), [](unsigned char character) {
-            return static_cast<char>(std::toupper(character));
-        });
+        std::ranges::transform(
+            result,
+            result.begin(),
+            [](unsigned char character)
+            {
+                return static_cast<char>(std::toupper(character));
+            }
+        );
         return result;
     }
 
@@ -593,8 +604,10 @@ using congelado::client::SchemaType;
     return schema;
 }
 
-suite<"OperationInfo"> operation_info_suite = [] {
-    "default state has empty path/method and no body/response"_test = [] {
+suite<"OperationInfo"> operation_info_suite = []
+{
+    "default state has empty path/method and no body/response"_test = []
+    {
         OperationInfo op;
 
         expect(op.get_path().empty());
@@ -603,21 +616,24 @@ suite<"OperationInfo"> operation_info_suite = [] {
         expect(not op.get_response().has_value());
     };
 
-    "set_path/get_path round-trip"_test = [] {
+    "set_path/get_path round-trip"_test = []
+    {
         OperationInfo op;
         op.set_path("/api/v1/tasks/{id}");
 
         expect(op.get_path() == "/api/v1/tasks/{id}");
     };
 
-    "set_method/get_method round-trip"_test = [] {
+    "set_method/get_method round-trip"_test = []
+    {
         OperationInfo op;
         op.set_method("post");
 
         expect(op.get_method() == "post");
     };
 
-    "set_request_body/get_request_body round-trip"_test = [] {
+    "set_request_body/get_request_body round-trip"_test = []
+    {
         OperationInfo op;
         op.set_request_body(make_ref("TaskCreate"));
 
@@ -626,7 +642,8 @@ suite<"OperationInfo"> operation_info_suite = [] {
         expect(op.get_request_body()->get_ref() == "TaskCreate");
     };
 
-    "set_response/get_response round-trip"_test = [] {
+    "set_response/get_response round-trip"_test = []
+    {
         OperationInfo op;
         op.set_response(make_primitive(SchemaKind::INTEGER));
 
@@ -635,51 +652,54 @@ suite<"OperationInfo"> operation_info_suite = [] {
     };
 };
 
-suite<"RouteWriter"> route_writer_suite = [] {
-    "write: a single no-param GET operation renders full request wiring, no response type"_test =
-        [] {
-            std::vector<OperationInfo> ops{make_operation("get", "/api/v1/tasks")};
+suite<"RouteWriter"> route_writer_suite = []
+{
+    "write: a single no-param GET operation renders full request wiring, no response type"_test = []
+    {
+        std::vector<OperationInfo> ops{make_operation("get", "/api/v1/tasks")};
 
-            auto result = RouteWriter::write(ops, "routes_mod", "dto_mod", "client");
+        auto result = RouteWriter::write(ops, "routes_mod", "dto_mod", "client");
 
-            expect(result.has_value()) << fatal;
-            expect(result->contains("export namespace client {"));
-            expect(result->contains("class Client {"));
-            expect(result->contains("core::client::Register m_register;"));
-            expect(result->contains(
-                "void tasks_get(std::function<void()> onResponse, "
-                "std::function<void(std::string)> "
-                "onError = [](std::string) {})"
-            ));
-            expect(result->contains(
-                "core::client::Client::custom(\"GET\", "
-                "\"/api/v1/tasks\").build(m_register.runtime())"
-            ));
-            expect(result->contains("m_register.send(std::move(request), "));
-            expect(not result->contains("with_content_type"));
-        };
+        expect(result.has_value()) << fatal;
+        expect(result->contains("export namespace client {"));
+        expect(result->contains("class Client {"));
+        expect(result->contains("core::client::Register m_register;"));
+        expect(result->contains(
+            "void tasks_get(std::function<void()> onResponse, "
+            "std::function<void(std::string)> "
+            "onError = [](std::string) {})"
+        ));
+        expect(result->contains(
+            "core::client::Client::custom(\"GET\", "
+            "\"/api/v1/tasks\").build(m_register.runtime())"
+        ));
+        expect(result->contains("m_register.send(std::move(request), "));
+        expect(not result->contains("with_content_type"));
+    };
 
     "write: a path param plus trailing literal segment builds a std::string_view param and a "
     "std::format path expression, method name joins group + method + tail with underscores"_test =
-        [] {
-            std::vector<OperationInfo> ops{
-                make_operation("get", "/api/v1/tasks"),
-                make_operation("post", "/api/v1/tasks/{id}/enqueue")
-            };
-
-            auto result = RouteWriter::write(ops, "routes_mod", "dto_mod", "client");
-
-            expect(result.has_value()) << fatal;
-            expect(result->contains(
-                "void tasks_post_enqueue(std::string_view id, std::function<void()> "
-                "onResponse, "
-                "std::function<void(std::string)> onError = [](std::string) {})"
-            ));
-            expect(result->contains("std::format(\"/api/v1/tasks/{}/enqueue\", id)"));
-            expect(result->contains("core::client::Client::custom(\"POST\", "));
+        []
+    {
+        std::vector<OperationInfo> ops{
+            make_operation("get", "/api/v1/tasks"),
+            make_operation("post", "/api/v1/tasks/{id}/enqueue")
         };
 
-    "write: a multi-segment literal tail joins every part into the method name"_test = [] {
+        auto result = RouteWriter::write(ops, "routes_mod", "dto_mod", "client");
+
+        expect(result.has_value()) << fatal;
+        expect(result->contains(
+            "void tasks_post_enqueue(std::string_view id, std::function<void()> "
+            "onResponse, "
+            "std::function<void(std::string)> onError = [](std::string) {})"
+        ));
+        expect(result->contains("std::format(\"/api/v1/tasks/{}/enqueue\", id)"));
+        expect(result->contains("core::client::Client::custom(\"POST\", "));
+    };
+
+    "write: a multi-segment literal tail joins every part into the method name"_test = []
+    {
         std::vector<OperationInfo> ops{
             make_operation("get", "/api/v1/tasks"),
             make_operation("get", "/api/v1/tasks/{id}/comments/all")
@@ -691,46 +711,48 @@ suite<"RouteWriter"> route_writer_suite = [] {
         expect(result->contains("void tasks_get_comments_all(std::string_view id, "));
     };
 
-    "write: a request body emits a body param, content-type wiring, and a serialize call"_test =
-        [] {
-            OperationInfo op = make_operation("post", "/api/v1/tasks");
-            op.set_request_body(make_ref("TaskCreate"));
-            std::vector<OperationInfo> ops{op};
+    "write: a request body emits a body param, content-type wiring, and a serialize call"_test = []
+    {
+        OperationInfo op = make_operation("post", "/api/v1/tasks");
+        op.set_request_body(make_ref("TaskCreate"));
+        std::vector<OperationInfo> ops{op};
 
-            auto result = RouteWriter::write(ops, "routes_mod", "dto_mod", "client");
+        auto result = RouteWriter::write(ops, "routes_mod", "dto_mod", "client");
 
-            expect(result.has_value()) << fatal;
-            expect(result->contains(
-                "void tasks_post(const dto_mod::TaskCreate &body, std::function<void()> "
-                "onResponse, "
-                "std::function<void(std::string)> onError = [](std::string) {})"
-            ));
-            expect(result->contains(".with_content_type(\"application/json\");"));
-            expect(result->contains(
-                "request->set_body(serde::Ser::serialize(\"application/json\", body));"
-            ));
-        };
+        expect(result.has_value()) << fatal;
+        expect(result->contains(
+            "void tasks_post(const dto_mod::TaskCreate &body, std::function<void()> "
+            "onResponse, "
+            "std::function<void(std::string)> onError = [](std::string) {})"
+        ));
+        expect(result->contains(".with_content_type(\"application/json\");"));
+        expect(result->contains(
+            "request->set_body(serde::Ser::serialize(\"application/json\", body));"
+        ));
+    };
 
     "write: a $ref response is qualified with the dto module and decoded via deserialize<T>"_test =
-        [] {
-            OperationInfo op = make_operation("get", "/api/v1/tasks/{id}");
-            op.set_response(make_ref("TaskDef"));
-            std::vector<OperationInfo> ops{make_operation("get", "/api/v1/tasks"), op};
+        []
+    {
+        OperationInfo op = make_operation("get", "/api/v1/tasks/{id}");
+        op.set_response(make_ref("TaskDef"));
+        std::vector<OperationInfo> ops{make_operation("get", "/api/v1/tasks"), op};
 
-            auto result = RouteWriter::write(ops, "routes_mod", "dto_mod", "client");
+        auto result = RouteWriter::write(ops, "routes_mod", "dto_mod", "client");
 
-            expect(result.has_value()) << fatal;
-            expect(result->contains(
-                "void tasks_get(std::string_view id, std::function<void(dto_mod::TaskDef)> "
-                "onResponse, "
-                "std::function<void(std::string)> onError = [](std::string) {})"
-            ));
-            expect(result->contains(
-                "serde::Ser::deserialize<dto_mod::TaskDef>(response.get_content_type(), body);"
-            ));
-        };
+        expect(result.has_value()) << fatal;
+        expect(result->contains(
+            "void tasks_get(std::string_view id, std::function<void(dto_mod::TaskDef)> "
+            "onResponse, "
+            "std::function<void(std::string)> onError = [](std::string) {})"
+        ));
+        expect(result->contains(
+            "serde::Ser::deserialize<dto_mod::TaskDef>(response.get_content_type(), body);"
+        ));
+    };
 
-    "write: an array-of-$ref response resolves to std::vector<dto_mod::T>"_test = [] {
+    "write: an array-of-$ref response resolves to std::vector<dto_mod::T>"_test = []
+    {
         OperationInfo op = make_operation("get", "/api/v1/tasks");
         op.set_response(make_array(make_ref("TaskDef")));
         std::vector<OperationInfo> ops{op};
@@ -742,7 +764,8 @@ suite<"RouteWriter"> route_writer_suite = [] {
         expect(result->contains("serde::Ser::deserialize<std::vector<dto_mod::TaskDef>>("));
     };
 
-    "write: a nullable response wraps the resolved type in std::optional"_test = [] {
+    "write: a nullable response wraps the resolved type in std::optional"_test = []
+    {
         OperationInfo op = make_operation("get", "/api/v1/tasks/{id}");
         SchemaType nullable_ref;
         nullable_ref.set_kind(SchemaKind::REF);
@@ -758,59 +781,76 @@ suite<"RouteWriter"> route_writer_suite = [] {
     };
 
     "write: Integer/Number/Boolean/Object responses resolve like DtoWriter's own type mapping"_test =
-        [] {
-            OperationInfo int_op = make_operation("get", "/count");
-            int_op.set_response(make_primitive(SchemaKind::INTEGER));
-            auto int_result = RouteWriter::write(
-                std::vector<OperationInfo>{int_op}, "routes_mod", "dto_mod", "client"
-            );
-            expect(int_result.has_value()) << fatal;
-            expect(int_result->contains("serde::Ser::deserialize<std::int64_t>("));
+        []
+    {
+        OperationInfo int_op = make_operation("get", "/count");
+        int_op.set_response(make_primitive(SchemaKind::INTEGER));
+        auto int_result = RouteWriter::write(
+            std::vector<OperationInfo>{int_op},
+            "routes_mod",
+            "dto_mod",
+            "client"
+        );
+        expect(int_result.has_value()) << fatal;
+        expect(int_result->contains("serde::Ser::deserialize<std::int64_t>("));
 
-            OperationInfo num_op = make_operation("get", "/ratio");
-            num_op.set_response(make_primitive(SchemaKind::NUMBER));
-            auto num_result = RouteWriter::write(
-                std::vector<OperationInfo>{num_op}, "routes_mod", "dto_mod", "client"
-            );
-            expect(num_result.has_value()) << fatal;
-            expect(num_result->contains("serde::Ser::deserialize<double>("));
+        OperationInfo num_op = make_operation("get", "/ratio");
+        num_op.set_response(make_primitive(SchemaKind::NUMBER));
+        auto num_result = RouteWriter::write(
+            std::vector<OperationInfo>{num_op},
+            "routes_mod",
+            "dto_mod",
+            "client"
+        );
+        expect(num_result.has_value()) << fatal;
+        expect(num_result->contains("serde::Ser::deserialize<double>("));
 
-            OperationInfo bool_op = make_operation("get", "/active");
-            bool_op.set_response(make_primitive(SchemaKind::BOOLEAN));
-            auto bool_result = RouteWriter::write(
-                std::vector<OperationInfo>{bool_op}, "routes_mod", "dto_mod", "client"
-            );
-            expect(bool_result.has_value()) << fatal;
-            expect(bool_result->contains("serde::Ser::deserialize<bool>("));
+        OperationInfo bool_op = make_operation("get", "/active");
+        bool_op.set_response(make_primitive(SchemaKind::BOOLEAN));
+        auto bool_result = RouteWriter::write(
+            std::vector<OperationInfo>{bool_op},
+            "routes_mod",
+            "dto_mod",
+            "client"
+        );
+        expect(bool_result.has_value()) << fatal;
+        expect(bool_result->contains("serde::Ser::deserialize<bool>("));
 
-            OperationInfo object_op = make_operation("get", "/blob");
-            object_op.set_response(make_primitive(SchemaKind::OBJECT));
-            auto object_result = RouteWriter::write(
-                std::vector<OperationInfo>{object_op}, "routes_mod", "dto_mod", "client"
-            );
-            expect(object_result.has_value()) << fatal;
-            expect(object_result->contains("serde::Ser::deserialize<std::string>("));
-        };
+        OperationInfo object_op = make_operation("get", "/blob");
+        object_op.set_response(make_primitive(SchemaKind::OBJECT));
+        auto object_result = RouteWriter::write(
+            std::vector<OperationInfo>{object_op},
+            "routes_mod",
+            "dto_mod",
+            "client"
+        );
+        expect(object_result.has_value()) << fatal;
+        expect(object_result->contains("serde::Ser::deserialize<std::string>("));
+    };
 
     "write: groups sort alphabetically by method-name prefix, independent of insertion order"_test =
-        [] {
-            std::vector<OperationInfo> ops{
-                make_operation("get", "/api/v1/users"), make_operation("get", "/api/v1/tasks")
-            };
-
-            auto result = RouteWriter::write(ops, "routes_mod", "dto_mod", "client");
-
-            expect(result.has_value()) << fatal;
-            auto tasks_pos = result->find("tasks_get(");
-            auto users_pos = result->find("users_get(");
-            expect(tasks_pos != std::string::npos) << fatal;
-            expect(users_pos != std::string::npos) << fatal;
-            expect(tasks_pos < users_pos);
+        []
+    {
+        std::vector<OperationInfo> ops{
+            make_operation("get", "/api/v1/users"),
+            make_operation("get", "/api/v1/tasks")
         };
 
-    "write: a method colliding with a C++ keyword gets a trailing underscore"_test = [] {
+        auto result = RouteWriter::write(ops, "routes_mod", "dto_mod", "client");
+
+        expect(result.has_value()) << fatal;
+        auto tasks_pos = result->find("tasks_get(");
+        auto users_pos = result->find("users_get(");
+        expect(tasks_pos != std::string::npos) << fatal;
+        expect(users_pos != std::string::npos) << fatal;
+        expect(tasks_pos < users_pos);
+    };
+
+    "write: a method colliding with a C++ keyword gets a trailing underscore"_test = []
+    {
         std::vector<OperationInfo> ops{
-            make_operation("get", "/api/v1/tasks"), make_operation("delete", "/api/v1/tasks/{id}")
+            make_operation("get", "/api/v1/tasks"),
+            make_operation("delete", "/api/v1/tasks/{id}")
         };
 
         auto result = RouteWriter::write(ops, "routes_mod", "dto_mod", "client");
@@ -824,17 +864,19 @@ suite<"RouteWriter"> route_writer_suite = [] {
     };
 
     "write: errors when a path has no segment beyond the shared prefix (e.g. a bare root path)"_test =
-        [] {
-            std::vector<OperationInfo> ops{make_operation("get", "/")};
+        []
+    {
+        std::vector<OperationInfo> ops{make_operation("get", "/")};
 
-            auto result = RouteWriter::write(ops, "routes_mod", "dto_mod", "client");
+        auto result = RouteWriter::write(ops, "routes_mod", "dto_mod", "client");
 
-            expect(not result.has_value()) << fatal;
-            expect(result.error() == "path '/' has no segment beyond the shared prefix");
-        };
+        expect(not result.has_value()) << fatal;
+        expect(result.error() == "path '/' has no segment beyond the shared prefix");
+    };
 
     "write: leading, trailing, and doubled slashes are skipped when segmenting a path, but the "
-    "original path string is still what gets emitted as the literal"_test = [] {
+    "original path string is still what gets emitted as the literal"_test = []
+    {
         std::vector<OperationInfo> ops{make_operation("get", "/api/v1//tasks/")};
 
         auto result = RouteWriter::write(ops, "routes_mod", "dto_mod", "client");
@@ -856,9 +898,11 @@ suite<"RouteWriter"> route_writer_suite = [] {
     // (compounded by the fact the id is silently dropped, not just misnamed). Not fixed
     // here -- just documenting the as-written behavior this pass must not change.
     "write: a path param immediately after the shared prefix becomes the (invalid) method-name "
-    "prefix and is silently dropped as a parameter -- looks like a bug, not fixed here"_test = [] {
+    "prefix and is silently dropped as a parameter -- looks like a bug, not fixed here"_test = []
+    {
         std::vector<OperationInfo> ops{
-            make_operation("get", "/a/{id}/b"), make_operation("post", "/a/{id}/c")
+            make_operation("get", "/a/{id}/b"),
+            make_operation("post", "/a/{id}/c")
         };
 
         auto result = RouteWriter::write(ops, "routes_mod", "dto_mod", "client");
@@ -870,7 +914,8 @@ suite<"RouteWriter"> route_writer_suite = [] {
     };
 
     "write: an empty operations list still renders a valid module with just the empty Client "
-    "shell (setRuntime/dispatch, no route methods)"_test = [] {
+    "shell (setRuntime/dispatch, no route methods)"_test = []
+    {
         std::vector<OperationInfo> ops;
 
         auto result = RouteWriter::write(ops, "routes_mod", "dto_mod", "client");

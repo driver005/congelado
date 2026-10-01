@@ -1,7 +1,7 @@
 module;
 #include <lua.hpp>
 #ifdef CONGELADO_TEST
-#    include "core/manager/abi.h"
+    #include "core/manager/abi.h"
 #endif
 
 export module workflow_engine:expr;
@@ -105,7 +105,9 @@ private:
         }
         if (m_bridge == nullptr) {
             core::logger::warning(
-                "engine", "lua_eval: no lua bridge resolved, expr '{}' skipped", expr
+                "engine",
+                "lua_eval: no lua bridge resolved, expr '{}' skipped",
+                expr
             );
             core::events::publish("engine.lua_eval.no_bridge", {{"expr", std::string{expr}}});
             return nullptr;
@@ -139,7 +141,10 @@ private:
         auto script = std::format("return ({})", expr);
         if (luaL_loadstring(state, script.c_str()) != 0) {
             core::logger::warning(
-                "engine", "lua_eval: parse error in '{}': {}", expr, lua_tostring(state, -1)
+                "engine",
+                "lua_eval: parse error in '{}': {}",
+                expr,
+                lua_tostring(state, -1)
             );
             core::events::publish(
                 "engine.lua_eval.parse_error",
@@ -150,7 +155,10 @@ private:
         }
         if (lua_pcall(state, 0, 1, 0) != 0) {
             core::logger::warning(
-                "engine", "lua_eval: runtime error in '{}': {}", expr, lua_tostring(state, -1)
+                "engine",
+                "lua_eval: runtime error in '{}': {}",
+                expr,
+                lua_tostring(state, -1)
             );
             core::events::publish(
                 "engine.lua_eval.runtime_error",
@@ -227,7 +235,8 @@ public:
     }
 
     void install_method(
-        std::unique_ptr<FnContext> /*ctx*/, const std::string& /*lang_name*/
+        std::unique_ptr<FnContext> /*ctx*/,
+        const std::string& /*lang_name*/
     ) override
     {
     }
@@ -272,7 +281,8 @@ public:
     }
 
     void install_method(
-        std::unique_ptr<FnContext> /*ctx*/, const std::string& /*lang_name*/
+        std::unique_ptr<FnContext> /*ctx*/,
+        const std::string& /*lang_name*/
     ) override
     {
     }
@@ -293,65 +303,95 @@ public:
     }
 };
 
-suite<"LuaEval fail-closed paths"> lua_eval_failclosed_suite = [] {
-    "eval_condition returns false when no bridge was resolved (nullptr)"_test = [] {
+suite<"LuaEval fail-closed paths"> lua_eval_failclosed_suite = []
+{
+    "eval_condition returns false when no bridge was resolved (nullptr)"_test = []
+    {
         LuaEval eval{nullptr};
         expect(!eval.eval_condition("1 == 1", serde::Value{serde::Value::Object{}}));
     };
 
-    "eval_value returns nullopt when no bridge was resolved (nullptr)"_test = [] {
+    "eval_value returns nullopt when no bridge was resolved (nullptr)"_test = []
+    {
         LuaEval eval{nullptr};
         expect(!eval.eval_value("1 + 1", serde::Value{serde::Value::Object{}}).has_value());
     };
 
-    "eval_condition returns false when the bridge has no native handle"_test = [] {
+    "eval_condition returns false when the bridge has no native handle"_test = []
+    {
         MockNoHandleBridge bridge;
         LuaEval eval{&bridge};
         expect(!eval.eval_condition("1 == 1", serde::Value{serde::Value::Object{}}));
     };
 
-    "eval_condition returns false on an empty expression"_test = [] {
-        std::shared_ptr<lua_State> state{luaL_newstate(), [](lua_State* raw) {
-                                             lua_close(raw);
-                                         }};
+    "eval_condition returns false on an empty expression"_test = []
+    {
+        std::shared_ptr<lua_State> state{
+            luaL_newstate(),
+            [](lua_State* raw)
+            {
+                lua_close(raw);
+            }
+        };
         MockLuaBridge bridge{state.get()};
         LuaEval eval{&bridge};
         expect(!eval.eval_condition("", serde::Value{serde::Value::Object{}}));
     };
 
-    "eval_condition returns false on a parse error, without crashing"_test = [] {
-        std::shared_ptr<lua_State> state{luaL_newstate(), [](lua_State* raw) {
-                                             lua_close(raw);
-                                         }};
+    "eval_condition returns false on a parse error, without crashing"_test = []
+    {
+        std::shared_ptr<lua_State> state{
+            luaL_newstate(),
+            [](lua_State* raw)
+            {
+                lua_close(raw);
+            }
+        };
         MockLuaBridge bridge{state.get()};
         LuaEval eval{&bridge};
         expect(!eval.eval_condition("this is not lua (((", serde::Value{serde::Value::Object{}}));
     };
 
-    "eval_condition returns false on a runtime error, without crashing"_test = [] {
-        std::shared_ptr<lua_State> state{luaL_newstate(), [](lua_State* raw) {
-                                             lua_close(raw);
-                                         }};
+    "eval_condition returns false on a runtime error, without crashing"_test = []
+    {
+        std::shared_ptr<lua_State> state{
+            luaL_newstate(),
+            [](lua_State* raw)
+            {
+                lua_close(raw);
+            }
+        };
         MockLuaBridge bridge{state.get()};
         LuaEval eval{&bridge};
         expect(!eval.eval_condition("nil + 1", serde::Value{serde::Value::Object{}}));
     };
 
-    "eval_value returns nullopt when the expression evaluates to nil"_test = [] {
-        std::shared_ptr<lua_State> state{luaL_newstate(), [](lua_State* raw) {
-                                             lua_close(raw);
-                                         }};
+    "eval_value returns nullopt when the expression evaluates to nil"_test = []
+    {
+        std::shared_ptr<lua_State> state{
+            luaL_newstate(),
+            [](lua_State* raw)
+            {
+                lua_close(raw);
+            }
+        };
         MockLuaBridge bridge{state.get()};
         LuaEval eval{&bridge};
         expect(!eval.eval_value("nil", serde::Value{serde::Value::Object{}}).has_value());
     };
 };
 
-suite<"LuaEval binds bindings as Lua globals"> lua_eval_bindings_suite = [] {
-    "eval_condition exposes an object binding entry as a readable Lua global"_test = [] {
-        std::shared_ptr<lua_State> state{luaL_newstate(), [](lua_State* raw) {
-                                             lua_close(raw);
-                                         }};
+suite<"LuaEval binds bindings as Lua globals"> lua_eval_bindings_suite = []
+{
+    "eval_condition exposes an object binding entry as a readable Lua global"_test = []
+    {
+        std::shared_ptr<lua_State> state{
+            luaL_newstate(),
+            [](lua_State* raw)
+            {
+                lua_close(raw);
+            }
+        };
         MockLuaBridge bridge{state.get()};
         LuaEval eval{&bridge};
 
@@ -361,10 +401,15 @@ suite<"LuaEval binds bindings as Lua globals"> lua_eval_bindings_suite = [] {
         expect(result);
     };
 
-    "eval_value stringifies an arithmetic expression over a bound global"_test = [] {
-        std::shared_ptr<lua_State> state{luaL_newstate(), [](lua_State* raw) {
-                                             lua_close(raw);
-                                         }};
+    "eval_value stringifies an arithmetic expression over a bound global"_test = []
+    {
+        std::shared_ptr<lua_State> state{
+            luaL_newstate(),
+            [](lua_State* raw)
+            {
+                lua_close(raw);
+            }
+        };
         MockLuaBridge bridge{state.get()};
         LuaEval eval{&bridge};
 
@@ -389,34 +434,43 @@ suite<"LuaEval binds bindings as Lua globals"> lua_eval_bindings_suite = [] {
 /// exactly the "unauthenticated OS command execution" reachability the SECURITY comment above
 /// load_and_run() describes (this test just proves the *mechanism*, without ever touching a
 /// real destructive call like os.execute/io.open).
-suite<"LuaEval::eval_condition is unsandboxed (finding #4)"> lua_eval_unsandboxed_suite = [] {
+suite<"LuaEval::eval_condition is unsandboxed (finding #4)"> lua_eval_unsandboxed_suite = []
+{
     "an injected C function's side-effect global mutation survives full expression evaluation, unrestricted by any sandbox"_test =
-        [] {
-            std::shared_ptr<lua_State> state{luaL_newstate(), [](lua_State* raw) {
-                                                 lua_close(raw);
-                                             }};
-            // Deliberately bare: no luaL_openlibs() call, so os/io/every stdlib table stays
-            // unreachable — the ONLY callable in this interpreter is the one function below.
-            lua_pushcfunction(state.get(), [](lua_State* inner) -> int {
+        []
+    {
+        std::shared_ptr<lua_State> state{
+            luaL_newstate(),
+            [](lua_State* raw)
+            {
+                lua_close(raw);
+            }
+        };
+        // Deliberately bare: no luaL_openlibs() call, so os/io/every stdlib table stays
+        // unreachable — the ONLY callable in this interpreter is the one function below.
+        lua_pushcfunction(
+            state.get(),
+            [](lua_State* inner) -> int
+            {
                 lua_pushboolean(inner, 1);
                 lua_setglobal(inner, "side_effect_flag");
                 lua_pushboolean(inner, 1);
                 return 1;
-            });
-            lua_setglobal(state.get(), "mark");
+            }
+        );
+        lua_setglobal(state.get(), "mark");
 
-            MockLuaBridge bridge{state.get()};
-            LuaEval eval{&bridge};
+        MockLuaBridge bridge{state.get()};
+        LuaEval eval{&bridge};
 
-            bool result = eval.eval_condition(
-                "mark() and (2 + 2 == 4)", serde::Value{serde::Value::Object{}}
-            );
-            expect(result);
+        bool result =
+            eval.eval_condition("mark() and (2 + 2 == 4)", serde::Value{serde::Value::Object{}});
+        expect(result);
 
-            lua_getglobal(state.get(), "side_effect_flag");
-            expect(lua_toboolean(state.get(), -1) != 0);
-            lua_pop(state.get(), 1);
-        };
+        lua_getglobal(state.get(), "side_effect_flag");
+        expect(lua_toboolean(state.get(), -1) != 0);
+        lua_pop(state.get(), 1);
+    };
 };
 
 } // namespace engine::lua_eval_tests

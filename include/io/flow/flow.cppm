@@ -51,12 +51,15 @@ public:
     {
         // Stash a lazy recipe — nothing gets built yet, just captures what's needed to build
         // `T` once the leverager/controller are actually available.
-        auto recipe = [=](auto& lev, auto& ctrl) {
+        auto recipe = [=](auto& lev, auto& ctrl)
+        {
             return T{shared, lev, ctrl, args...};
         };
         // Hand back a new Flow whose recipe tuple grows by one — the old *this stays untouched.
         return Flow<Controller, Ts..., decltype(recipe)>{
-            m_leverager, m_controller, std::tuple_cat(m_recipes, std::make_tuple(recipe))
+            m_leverager,
+            m_controller,
+            std::tuple_cat(m_recipes, std::make_tuple(recipe))
         };
     }
 
@@ -71,7 +74,8 @@ public:
     auto build()
     {
         return std::apply(
-            [&](auto&... recipes) {
+            [&](auto&... recipes)
+            {
                 return std::make_tuple(recipes(m_leverager, m_controller)...);
             },
             m_recipes
@@ -142,7 +146,9 @@ class MockFlowComponent
 {
 public:
     MockFlowComponent(
-        shared::ReadCallback&&, leverage::Leverager<leverage::Context>&, MockFlowController
+        shared::ReadCallback&&,
+        leverage::Leverager<leverage::Context>&,
+        MockFlowController
     )
     {
     }
@@ -158,7 +164,9 @@ class NotAFlowComponent
 {
 public:
     NotAFlowComponent(
-        shared::ReadCallback&&, leverage::Leverager<leverage::Context>&, MockFlowController
+        shared::ReadCallback&&,
+        leverage::Leverager<leverage::Context>&,
+        MockFlowController
     )
     {
     }
@@ -166,22 +174,27 @@ public:
 
 using namespace boost::ut;
 
-suite<"Flow concept gating"> flow_concepts_suite = [] {
-    "MockFlowController satisfies shared::HandlerController"_test = [] {
+suite<"Flow concept gating"> flow_concepts_suite = []
+{
+    "MockFlowController satisfies shared::HandlerController"_test = []
+    {
         expect(shared::HandlerController<MockFlowController>);
     };
 
-    "MockFlowComponent satisfies the exact shared::FlowBase shape Flow::add<T>() requires"_test =
-        [] {
-            expect((
-                shared::FlowBase<
-                    MockFlowComponent, MockFlowController, leverage::Leverager<leverage::Context>>
-            ));
-        };
+    "MockFlowComponent satisfies the exact shared::FlowBase shape Flow::add<T>() requires"_test = []
+    {
+        expect((shared::FlowBase<
+                MockFlowComponent,
+                MockFlowController,
+                leverage::Leverager<leverage::Context>>));
+    };
 
-    "a component missing on_send() does not satisfy that FlowBase shape"_test = [] {
+    "a component missing on_send() does not satisfy that FlowBase shape"_test = []
+    {
         expect(!(shared::FlowBase<
-                 NotAFlowComponent, MockFlowController, leverage::Leverager<leverage::Context>>));
+                 NotAFlowComponent,
+                 MockFlowController,
+                 leverage::Leverager<leverage::Context>>));
     };
 };
 

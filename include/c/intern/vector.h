@@ -1,8 +1,8 @@
 #ifndef TENSORFLOW_C_TF_VECTOR_H_
 #define TENSORFLOW_C_TF_VECTOR_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -11,7 +11,8 @@ extern "C"
 {
 #endif
 
-    // TF_Vector — plugin vtable for a type-erased growable, contiguous collection (std::vector<T> equivalent), fixed to element_size bytes per element at creation.
+    // TF_Vector — plugin vtable for a type-erased growable, contiguous collection (std::vector<T>
+    // equivalent), fixed to element_size bytes per element at creation.
 
     typedef struct TF_Vector
     {
@@ -31,15 +32,15 @@ extern "C"
         void (*push_back)(TF_Vector* vector, const void* value);
 
         // Non-owning pointer to the element at index; NULL if out of range.
-        void (*get)(const TF_Vector* vector, size_t index, const void** out_value, TF_Status* out_status);
-
-        // Copy one element_size-byte element from value over the element at index.
-        void (*set)(
-            TF_Vector* vector,
+        void (*get)(
+            const TF_Vector* vector,
             size_t index,
-            const void* value,
+            const void** out_value,
             TF_Status* out_status
         );
+
+        // Copy one element_size-byte element from value over the element at index.
+        void (*set)(TF_Vector* vector, size_t index, const void* value, TF_Status* out_status);
 
         // Current element count.
         void (*size)(const TF_Vector* vector, size_t* out_size);
@@ -58,7 +59,8 @@ extern "C"
 
 #define TF_VECTOR_STRUCT_SIZE TF_OFFSET_OF_END(TF_VectorOps, data)
 
-    TF_CAPI_EXPORT void create_vector(TF_VectorOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void
+    create_vector(TF_VectorOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_vector(void* plugin_context);
 
     // Real implementation, not declared-only — calls create_vector

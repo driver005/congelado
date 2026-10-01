@@ -22,18 +22,20 @@ import boost.ut;
 namespace worker::worker_runtime_module_tests {
 using namespace boost::ut;
 
-suite<"worker_runtime module export surface"> worker_runtime_export_suite = [] {
+suite<"worker_runtime module export surface"> worker_runtime_export_suite = []
+{
     "WorkerContext, StatusHandler, and register_routes are all reachable through a bare `import worker_runtime;`"_test =
-        [] {
-            WorkerContext ctx;
-            ctx.set_worker_id("worker-1");
-            StatusHandler::bind(ctx);
+        []
+    {
+        WorkerContext ctx;
+        ctx.set_worker_id("worker-1");
+        StatusHandler::bind(ctx);
 
-            core::router::RouterContext<> router;
-            auto routes_before = utils::openapi::Registry::get_routes().size();
-            register_routes(router);
-            expect(utils::openapi::Registry::get_routes().size() > routes_before);
-        };
+        core::router::RouterContext<> router;
+        auto routes_before = utils::openapi::Registry::get_routes().size();
+        register_routes(router);
+        expect(utils::openapi::Registry::get_routes().size() > routes_before);
+    };
 };
 
 } // namespace worker::worker_runtime_module_tests

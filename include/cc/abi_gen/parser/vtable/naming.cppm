@@ -29,10 +29,11 @@ public:
     // "TF_Cache" -> "Cache"; "TF_CacheOps" -> "Cache"
     std::string class_name(const std::string& domain)
     {
-        static constexpr std::array<std::pair<std::string_view, std::string_view>, 2> k_intern_names{{
-            {"TF_StringOps", "String"},
-            {"TF_StatusOps", "Status"},
-        }};
+        static constexpr std::array<std::pair<std::string_view, std::string_view>, 2>
+            k_intern_names{{
+                {"TF_StringOps", "String"},
+                {"TF_StatusOps", "Status"},
+            }};
         for (const auto& [struct_name, intern_name]: k_intern_names) {
             if (domain == struct_name) {
                 return std::string{intern_name};
@@ -49,7 +50,9 @@ public:
     }
 
 private:
-    // Ops-vtable structs are tagged "TF_XOps" (their handle owns the bare "TF_X" name instead, since C++ auto-injects a completed struct's tag as an ordinary type name — the vtable and its handle can't both be spelled "TF_X"). Domain/macro derivation still wants bare "TF_X".
+    // Ops-vtable structs are tagged "TF_XOps" (their handle owns the bare "TF_X" name instead,
+    // since C++ auto-injects a completed struct's tag as an ordinary type name — the vtable and its
+    // handle can't both be spelled "TF_X"). Domain/macro derivation still wants bare "TF_X".
     static std::string strip_ops_suffix(const std::string& struct_name)
     {
         static constexpr std::string_view suffix = "Ops";

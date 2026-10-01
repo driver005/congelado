@@ -12,101 +12,118 @@
 
 namespace at::xpu::detail {
 
-void XPUHooks::init() const {
-  C10_LOG_API_USAGE_ONCE("aten.init.xpu");
-  const auto device_count = c10::xpu::device_count_ensure_non_zero();
-  c10::xpu::XPUCachingAllocator::init(device_count);
-  at::xpu::detail::init_p2p_access_cache(device_count);
+void XPUHooks::init() const
+{
+    C10_LOG_API_USAGE_ONCE("aten.init.xpu");
+    const auto device_count = c10::xpu::device_count_ensure_non_zero();
+    c10::xpu::XPUCachingAllocator::init(device_count);
+    at::xpu::detail::init_p2p_access_cache(device_count);
 }
 
-bool XPUHooks::hasXPU() const {
-  return true;
+bool XPUHooks::hasXPU() const
+{
+    return true;
 }
 
-std::string XPUHooks::showConfig() const {
-  return "XPU backend";
+std::string XPUHooks::showConfig() const
+{
+    return "XPU backend";
 }
 
-int32_t XPUHooks::getGlobalIdxFromDevice(const at::Device& device) const {
-  TORCH_CHECK(device.is_xpu(), "Only the XPU device type is expected.");
-  return at::xpu::getGlobalIdxFromDevice(device.index());
+int32_t XPUHooks::getGlobalIdxFromDevice(const at::Device& device) const
+{
+    TORCH_CHECK(device.is_xpu(), "Only the XPU device type is expected.");
+    return at::xpu::getGlobalIdxFromDevice(device.index());
 }
 
-const Generator& XPUHooks::getDefaultGenerator(DeviceIndex device_index) const {
-  return at::xpu::detail::getDefaultXPUGenerator(device_index);
+const Generator& XPUHooks::getDefaultGenerator(DeviceIndex device_index) const
+{
+    return at::xpu::detail::getDefaultXPUGenerator(device_index);
 }
 
-Generator XPUHooks::getNewGenerator(DeviceIndex device_index) const {
-  return make_generator<at::XPUGeneratorImpl>(device_index);
+Generator XPUHooks::getNewGenerator(DeviceIndex device_index) const
+{
+    return make_generator<at::XPUGeneratorImpl>(device_index);
 }
 
-Device XPUHooks::getDeviceFromPtr(void* data) const {
-  return at::xpu::getDeviceFromPtr(data);
+Device XPUHooks::getDeviceFromPtr(void* data) const
+{
+    return at::xpu::getDeviceFromPtr(data);
 }
 
 /**
  * DEPRECATED: use deviceCount() instead
  */
-c10::DeviceIndex XPUHooks::getNumGPUs() const {
-  return at::xpu::device_count();
+c10::DeviceIndex XPUHooks::getNumGPUs() const
+{
+    return at::xpu::device_count();
 }
 
 /**
  * DEPRECATED: use getCurrentDevice() instead
  */
-DeviceIndex XPUHooks::current_device() const {
-  return c10::xpu::current_device();
+DeviceIndex XPUHooks::current_device() const
+{
+    return c10::xpu::current_device();
 }
 
-void XPUHooks::deviceSynchronize(DeviceIndex device_index) const {
-  // Only the SYCL queues we have reserved will be synchronized, see Note
-  // [Synchronize Streams on Device].
-  c10::xpu::syncStreamsOnDevice(device_index);
+void XPUHooks::deviceSynchronize(DeviceIndex device_index) const
+{
+    // Only the SYCL queues we have reserved will be synchronized, see Note
+    // [Synchronize Streams on Device].
+    c10::xpu::syncStreamsOnDevice(device_index);
 }
 
-Allocator* XPUHooks::getPinnedMemoryAllocator() const {
-  return at::xpu::getPinnedMemoryAllocator();
+Allocator* XPUHooks::getPinnedMemoryAllocator() const
+{
+    return at::xpu::getPinnedMemoryAllocator();
 }
 
-bool XPUHooks::isPinnedPtr(const void* data) const {
-  if (!at::xpu::is_available()) {
-    return false;
-  }
+bool XPUHooks::isPinnedPtr(const void* data) const
+{
+    if (!at::xpu::is_available()) {
+        return false;
+    }
 
-  return sycl::usm::alloc::host ==
-      sycl::get_pointer_type(data, c10::xpu::get_device_context());
+    return sycl::usm::alloc::host == sycl::get_pointer_type(data, c10::xpu::get_device_context());
 }
 
-bool XPUHooks::isAvailable() const {
-  return at::xpu::is_available();
+bool XPUHooks::isAvailable() const
+{
+    return at::xpu::is_available();
 }
 
-bool XPUHooks::hasPrimaryContext(DeviceIndex device_index) const {
-  // The default context is utilized for each device.
-  // So it always returns true if a device is available.
-  return isAvailable();
+bool XPUHooks::hasPrimaryContext(DeviceIndex device_index) const
+{
+    // The default context is utilized for each device.
+    // So it always returns true if a device is available.
+    return isAvailable();
 }
 
-DeviceIndex XPUHooks::deviceCount() const {
-  return at::xpu::device_count();
+DeviceIndex XPUHooks::deviceCount() const
+{
+    return at::xpu::device_count();
 }
 
-DeviceIndex XPUHooks::getCurrentDevice() const {
-  return at::xpu::current_device();
+DeviceIndex XPUHooks::getCurrentDevice() const
+{
+    return at::xpu::current_device();
 }
 
-static std::pair<std::unique_ptr<at::DynamicLibrary>, at::xpu::LevelZero*>
-load_level_zero() {
-  return std::make_pair(nullptr, &at::xpu::detail::lazyLevelZero);
+static std::pair<std::unique_ptr<at::DynamicLibrary>, at::xpu::LevelZero*> load_level_zero()
+{
+    return std::make_pair(nullptr, &at::xpu::detail::lazyLevelZero);
 }
 
-const at::xpu::LevelZero& level_zero() {
-  static auto handle = load_level_zero();
-  return *handle.second;
+const at::xpu::LevelZero& level_zero()
+{
+    static auto handle = load_level_zero();
+    return *handle.second;
 }
 
-const at::xpu::LevelZero& XPUHooks::level_zero() const {
-  return at::xpu::detail::level_zero();
+const at::xpu::LevelZero& XPUHooks::level_zero() const
+{
+    return at::xpu::detail::level_zero();
 }
 
 REGISTER_XPU_HOOKS(XPUHooks);

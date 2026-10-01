@@ -68,7 +68,9 @@ public:
      * @param callback gets `"ok"` on success, `""` on failure.
      */
     virtual void remove(
-        std::string_view collection, std::string_view id, shared::QueryReadFn&& callback
+        std::string_view collection,
+        std::string_view id,
+        shared::QueryReadFn&& callback
     ) noexcept = 0;
     /**
      * @brief Searches documents within one collection.
@@ -78,7 +80,9 @@ public:
      * failure.
      */
     virtual void search(
-        std::string_view collection, const SearchQuery& query, shared::QueryReadFn&& callback
+        std::string_view collection,
+        const SearchQuery& query,
+        shared::QueryReadFn&& callback
     ) noexcept = 0;
 };
 

@@ -33,7 +33,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // ResourceOpKernel<T> is a virtual base class for resource op implementing
@@ -60,7 +59,8 @@ export {
                     // this allocation is always on the host. Fortunately we don't need it in
                     // the resource case.
                     OP_REQUIRES_OK(
-                        context, context->allocate_temp(DT_STRING, TensorShape({2}), &tensor_)
+                        context,
+                        context->allocate_temp(DT_STRING, TensorShape({2}), &tensor_)
                     );
                 }
             }
@@ -89,16 +89,20 @@ export {
 
                     T* resource;
                     OP_REQUIRES_OK(
-                        context, mgr->LookupOrCreate<T>(
-                                     cinfo_.container(), cinfo_.name(), &resource,
-                                     [this](T** ret) TF_EXCLUSIVE_LOCKS_REQUIRED(mu_) {
-                                         absl::Status s = CreateResource(ret);
-                                         if (!s.ok() && *ret != nullptr) {
-                                             CHECK((*ret)->Unref());
-                                         }
-                                         return s;
-                                     }
-                                 )
+                        context,
+                        mgr->LookupOrCreate<T>(
+                            cinfo_.container(),
+                            cinfo_.name(),
+                            &resource,
+                            [this](T** ret) TF_EXCLUSIVE_LOCKS_REQUIRED(mu_)
+                            {
+                                absl::Status s = CreateResource(ret);
+                                if (!s.ok() && *ret != nullptr) {
+                                    CHECK((*ret)->Unref());
+                                }
+                                return s;
+                            }
+                        )
                     );
                     // Here the code releases the reference to the resource created by this op
                     // and only holds a WeakPtr to the resource. This way the lifetime of the
@@ -122,7 +126,11 @@ export {
                     OP_REQUIRES_OK(
                         context,
                         MakeResourceHandleToOutput(
-                            context, 0, cinfo_.container(), cinfo_.name(), TypeIndex::Make<T>()
+                            context,
+                            0,
+                            cinfo_.container(),
+                            cinfo_.name(),
+                            TypeIndex::Make<T>()
                         )
                     );
                 } else {

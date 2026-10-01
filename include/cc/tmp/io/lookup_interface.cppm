@@ -27,7 +27,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         class OpKernelContext;
@@ -186,8 +185,10 @@ export {
             {
                 if (!TensorShapeUtils::EndsWith(shape, key_shape())) {
                     return errors::InvalidArgument(
-                        "Input key shape ", shape.DebugString(),
-                        " must end with the table's key shape ", key_shape().DebugString()
+                        "Input key shape ",
+                        shape.DebugString(),
+                        " must end with the table's key shape ",
+                        key_shape().DebugString()
                     );
                 }
                 return OkStatus();
@@ -197,12 +198,18 @@ export {
             {
                 if (keys.dtype() != key_dtype()) {
                     return errors::InvalidArgument(
-                        "Key must be type ", key_dtype(), " but got ", keys.dtype()
+                        "Key must be type ",
+                        key_dtype(),
+                        " but got ",
+                        keys.dtype()
                     );
                 }
                 if (values.dtype() != value_dtype()) {
                     return errors::InvalidArgument(
-                        "Value must be type ", value_dtype(), " but got ", values.dtype()
+                        "Value must be type ",
+                        value_dtype(),
+                        " but got ",
+                        values.dtype()
                     );
                 }
                 return OkStatus();
@@ -221,7 +228,9 @@ export {
                 expected_value_shape.AppendShape(value_shape());
                 if (values.shape() != expected_value_shape) {
                     return errors::InvalidArgument(
-                        "Expected shape ", expected_value_shape.DebugString(), " for value, got ",
+                        "Expected shape ",
+                        expected_value_shape.DebugString(),
+                        " for value, got ",
                         values.shape().DebugString()
                     );
                 }
@@ -229,14 +238,16 @@ export {
             }
 
             Status LookupInterface::CheckKeyAndValueTensorsForInsert(
-                const Tensor& keys, const Tensor& values
+                const Tensor& keys,
+                const Tensor& values
             )
             {
                 return CheckKeyAndValueTensorsHelper(keys, values);
             }
 
             Status LookupInterface::CheckKeyAndValueTensorsForImport(
-                const Tensor& keys, const Tensor& values
+                const Tensor& keys,
+                const Tensor& values
             )
             {
                 return CheckKeyAndValueTensorsHelper(keys, values);
@@ -246,7 +257,10 @@ export {
             {
                 if (keys.dtype() != key_dtype()) {
                     return errors::InvalidArgument(
-                        "Key must be type ", key_dtype(), " but got ", keys.dtype()
+                        "Key must be type ",
+                        key_dtype(),
+                        " but got ",
+                        keys.dtype()
                     );
                 }
                 return CheckKeyShape(keys.shape());
@@ -265,8 +279,11 @@ export {
                 if (default_value.shape() != value_shape() &&
                     default_value.shape() != fullsize_value_shape) {
                     return errors::InvalidArgument(
-                        "Expected shape ", value_shape().DebugString(), " or ",
-                        fullsize_value_shape.DebugString(), " for default value, got ",
+                        "Expected shape ",
+                        value_shape().DebugString(),
+                        " or ",
+                        fullsize_value_shape.DebugString(),
+                        " for default value, got ",
                         default_value.shape().DebugString()
                     );
                 }

@@ -28,7 +28,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // Thread-safe data structure for caching function instantiations.

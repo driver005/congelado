@@ -15,10 +15,10 @@ limitations under the License.
 #ifndef CONGELADO_C_PROFILER_CONTROLLER_H_
 #define CONGELADO_C_PROFILER_CONTROLLER_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tensor.h"
 #include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -42,12 +42,17 @@ extern "C"
         void (*get_device_type)(TF_Profiler* profiler, TF_String* out_device_type);
         void (*start)(TF_Profiler* profiler, TF_Status* out_status);
         void (*stop)(TF_Profiler* profiler, TF_Status* out_status);
-        void (*collect_data_xspace)(TF_Profiler* profiler, TF_Tensor** out_data, TF_Status* out_status);
+        void (*collect_data_xspace)(
+            TF_Profiler* profiler,
+            TF_Tensor** out_data,
+            TF_Status* out_status
+        );
     } TF_ProfilerOps;
 
 #define TF_PROFILER_STRUCT_SIZE TF_OFFSET_OF_END(TF_ProfilerOps, collect_data_xspace)
 
-    TF_CAPI_EXPORT void create_profiler(TF_ProfilerOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void
+    create_profiler(TF_ProfilerOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_profiler(void* plugin_context);
 
 #ifdef __cplusplus

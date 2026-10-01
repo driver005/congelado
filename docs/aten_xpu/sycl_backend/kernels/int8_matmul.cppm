@@ -7,8 +7,9 @@
 
 module;
 
-#include "include/c/extern/kernel/builder.h"
 #include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
+#include "include/c/extern/kernel/builder.h"
+
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_sycl.hpp>
 
@@ -46,8 +47,7 @@ public:
         if (activation_handle == nullptr || weight_handle == nullptr ||
             activation_scale_handle == nullptr || activation_zp_handle == nullptr ||
             weight_scale_handle == nullptr || output_scale_handle == nullptr ||
-            output_zp_handle == nullptr)
-        {
+            output_zp_handle == nullptr) {
             ctx.fail(&status);
             return;
         }
@@ -138,10 +138,26 @@ private:
             EngineCache::instance().get_engine(queue.get_device(), queue.get_context());
         dnnl::stream& dnnl_stream = EngineCache::instance().get_stream(engine, queue);
 
-        dnnl::memory::desc activation_md{{m, k}, dnnl::memory::data_type::s8, dnnl::memory::format_tag::ab};
-        dnnl::memory::desc weight_md{{k, n}, dnnl::memory::data_type::s8, dnnl::memory::format_tag::ab};
-        dnnl::memory::desc dst_md{{m, n}, dnnl::memory::data_type::s8, dnnl::memory::format_tag::ab};
-        dnnl::memory::desc scalar_md{{1}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::x};
+        dnnl::memory::desc activation_md{
+            {m, k},
+            dnnl::memory::data_type::s8,
+            dnnl::memory::format_tag::ab
+        };
+        dnnl::memory::desc weight_md{
+            {k, n},
+            dnnl::memory::data_type::s8,
+            dnnl::memory::format_tag::ab
+        };
+        dnnl::memory::desc dst_md{
+            {m, n},
+            dnnl::memory::data_type::s8,
+            dnnl::memory::format_tag::ab
+        };
+        dnnl::memory::desc scalar_md{
+            {1},
+            dnnl::memory::data_type::f32,
+            dnnl::memory::format_tag::x
+        };
         dnnl::memory::desc zp_md{{1}, dnnl::memory::data_type::s32, dnnl::memory::format_tag::x};
 
         dnnl::primitive_attr attributes;
@@ -153,7 +169,8 @@ private:
         attributes.set_scales_mask(DNNL_ARG_DST, 0);
         attributes.set_zero_points_mask(DNNL_ARG_DST, 0);
 
-        dnnl::matmul::primitive_desc primitive_desc{engine, activation_md, weight_md, dst_md, attributes};
+        dnnl::matmul::primitive_desc
+            primitive_desc{engine, activation_md, weight_md, dst_md, attributes};
         dnnl::matmul matmul{primitive_desc};
 
         std::unordered_map<int, dnnl::memory> arguments;

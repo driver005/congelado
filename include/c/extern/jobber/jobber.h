@@ -1,17 +1,17 @@
 #ifndef CONGELADO_C_EXTERN_JOBBER_H_
 #define CONGELADO_C_EXTERN_JOBBER_H_
 
-#include "include/c/macros.h"
+#include "include/c/extern/jobber/durable.h"
+#include "include/c/extern/jobber/job.h"
+#include "include/c/extern/jobber/observe.h"
+#include "include/c/extern/jobber/options.h"
+#include "include/c/extern/jobber/schedule.h"
+#include "include/c/extern/jobber/task.h"
 #include "include/c/intern/map.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 #include "include/c/intern/vector.h"
-#include "include/c/extern/jobber/job.h"
-#include "include/c/extern/jobber/task.h"
-#include "include/c/extern/jobber/schedule.h"
-#include "include/c/extern/jobber/observe.h"
-#include "include/c/extern/jobber/options.h"
-#include "include/c/extern/jobber/durable.h"
+#include "include/c/macros.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -38,7 +38,8 @@ extern "C"
 
 #define TF_JOBBER_STRUCT_SIZE TF_OFFSET_OF_END(TF_JobberOps, get_name)
 
-    TF_CAPI_EXPORT void create_jobber(TF_JobberOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void
+    create_jobber(TF_JobberOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_jobber(void* plugin_context);
 
     static inline void init_jobber(TF_JobberOps** ops, TF_Jobber* jobber, TF_Status* out_status)

@@ -1,12 +1,11 @@
 #ifndef CONGELADO_C_STORE_TRANSACTION_H_
 #define CONGELADO_C_STORE_TRANSACTION_H_
 
-#include "include/c/macros.h"
+#include "include/c/extern/store/collection.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tensor.h"
 #include "include/c/intern/tstring.h"
-
-#include "include/c/extern/store/collection.h"
+#include "include/c/macros.h"
 
 #ifdef __cplusplus
 extern "C"
@@ -24,10 +23,27 @@ extern "C"
         void (*create)(TFStoreTransaction* out_handle);
         void (*destroy)(TFStoreTransaction* handle);
         void (*begin)(TFStoreTransaction* transaction, TF_Status* out_status);
-        void (*add_collection)(TFStoreTransaction* transaction, TFStoreCollection* collection, TF_Status* out_status);
-        void (*get_collection)(TFStoreTransaction* transaction, const TF_String* name, TFStoreCollection* out_collection);
-        void (*list_collections)(TFStoreTransaction* transaction, TF_Tensor** out_collections, TF_Status* out_status);
-        void (*commit)(TFStoreTransaction* transaction, TFStoreAckFn completion, void* user_data, TF_Status* out_status);
+        void (*add_collection)(
+            TFStoreTransaction* transaction,
+            TFStoreCollection* collection,
+            TF_Status* out_status
+        );
+        void (*get_collection)(
+            TFStoreTransaction* transaction,
+            const TF_String* name,
+            TFStoreCollection* out_collection
+        );
+        void (*list_collections)(
+            TFStoreTransaction* transaction,
+            TF_Tensor** out_collections,
+            TF_Status* out_status
+        );
+        void (*commit)(
+            TFStoreTransaction* transaction,
+            TFStoreAckFn completion,
+            void* user_data,
+            TF_Status* out_status
+        );
         void (*rollback)(TFStoreTransaction* transaction);
     } TFStoreTransactionOps;
 

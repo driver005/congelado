@@ -16,9 +16,9 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_SHAPE_H_
 #define TENSORFLOW_C_TF_SHAPE_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -96,7 +96,8 @@ extern "C"
 
 #define TF_SHAPE_STRUCT_SIZE TF_OFFSET_OF_END(TF_ShapeOps, shape_dim)
 
-    TF_CAPI_EXPORT void create_shape(TF_ShapeOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void
+    create_shape(TF_ShapeOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_shape(void* plugin_context);
 
     // Real implementation, not declared-only — calls create_shape

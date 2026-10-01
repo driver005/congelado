@@ -1,7 +1,7 @@
 module;
 #include <memory>
 #ifdef CONGELADO_TEST
-#    include "core/manager/abi.h"
+    #include "core/manager/abi.h"
 #endif
 
 export module engine:context;
@@ -251,28 +251,32 @@ public:
     }
 
     void query(
-        std::string_view, std::move_only_function<void(std::string_view)>&& result
+        std::string_view,
+        std::move_only_function<void(std::string_view)>&& result
     ) noexcept override
     {
         result("");
     }
 
     void insert(
-        std::string_view, std::move_only_function<void(std::string_view)>&& result
+        std::string_view,
+        std::move_only_function<void(std::string_view)>&& result
     ) noexcept override
     {
         result("");
     }
 
     void update(
-        std::string_view, std::move_only_function<void(std::string_view)>&& result
+        std::string_view,
+        std::move_only_function<void(std::string_view)>&& result
     ) noexcept override
     {
         result("");
     }
 
     void remove(
-        std::string_view, std::move_only_function<void(std::string_view)>&& result
+        std::string_view,
+        std::move_only_function<void(std::string_view)>&& result
     ) noexcept override
     {
         result("");
@@ -288,21 +292,25 @@ public:
     }
 
     void get(
-        std::string_view, std::move_only_function<void(std::string_view)>&& result
+        std::string_view,
+        std::move_only_function<void(std::string_view)>&& result
     ) noexcept override
     {
         result("");
     }
 
     void set(
-        std::string_view, std::string_view, std::move_only_function<void(std::string_view)>&& result
+        std::string_view,
+        std::string_view,
+        std::move_only_function<void(std::string_view)>&& result
     ) noexcept override
     {
         result("");
     }
 
     void remove(
-        std::string_view, std::move_only_function<void(std::string_view)>&& result
+        std::string_view,
+        std::move_only_function<void(std::string_view)>&& result
     ) noexcept override
     {
         result("");
@@ -323,7 +331,8 @@ public:
     }
 
     void install_method(
-        std::unique_ptr<FnContext> /*ctx*/, const std::string& /*lang_name*/
+        std::unique_ptr<FnContext> /*ctx*/,
+        const std::string& /*lang_name*/
     ) override
     {
     }
@@ -496,7 +505,8 @@ public:
     }
 
     void on_execution_terminal(
-        std::string_view, std::move_only_function<void(bool)> callback
+        std::string_view,
+        std::move_only_function<void(bool)> callback
     ) override
     {
         callback(true);
@@ -581,28 +591,33 @@ public:
     }
 
     void read(
-        std::string_view, std::move_only_function<void(std::string_view)>&& callback
+        std::string_view,
+        std::move_only_function<void(std::string_view)>&& callback
     ) noexcept override
     {
         callback("");
     }
 };
 
-suite<"EngineContext"> engine_context_suite = [] {
-    "default-constructs local-only, with db and cache unwired"_test = [] {
+suite<"EngineContext"> engine_context_suite = []
+{
+    "default-constructs local-only, with db and cache unwired"_test = []
+    {
         engine::EngineContext ctx;
         expect(ctx.get_db() == nullptr);
         expect(ctx.get_cache() == nullptr);
     };
 
-    "set_connector replaces the owned fallback, get_connector reflects it"_test = [] {
+    "set_connector replaces the owned fallback, get_connector reflects it"_test = []
+    {
         engine::EngineContext ctx;
         connector::Connector external;
         ctx.set_connector(&external);
         expect(&ctx.get_connector() == &external);
     };
 
-    "set_db/get_db round-trip, including dropping back to nullptr"_test = [] {
+    "set_db/get_db round-trip, including dropping back to nullptr"_test = []
+    {
         engine::EngineContext ctx;
         FakeDatabase db;
         ctx.set_db(&db);
@@ -611,7 +626,8 @@ suite<"EngineContext"> engine_context_suite = [] {
         expect(ctx.get_db() == nullptr);
     };
 
-    "set_cache/get_cache round-trip, including dropping back to nullptr"_test = [] {
+    "set_cache/get_cache round-trip, including dropping back to nullptr"_test = []
+    {
         engine::EngineContext ctx;
         FakeCache cache;
         ctx.set_cache(&cache);
@@ -620,7 +636,8 @@ suite<"EngineContext"> engine_context_suite = [] {
         expect(ctx.get_cache() == nullptr);
     };
 
-    "set_lua_bridge/get_lua_bridge round-trip"_test = [] {
+    "set_lua_bridge/get_lua_bridge round-trip"_test = []
+    {
         engine::EngineContext ctx;
         expect(ctx.get_lua_bridge() == nullptr);
         FakeBridge bridge;
@@ -628,7 +645,8 @@ suite<"EngineContext"> engine_context_suite = [] {
         expect(ctx.get_lua_bridge() == &bridge);
     };
 
-    "set_search/get_search round-trip"_test = [] {
+    "set_search/get_search round-trip"_test = []
+    {
         engine::EngineContext ctx;
         expect(ctx.get_search() == nullptr);
         FakeSearchProvider search;
@@ -636,7 +654,8 @@ suite<"EngineContext"> engine_context_suite = [] {
         expect(ctx.get_search() == &search);
     };
 
-    "set_cron/get_cron round-trip"_test = [] {
+    "set_cron/get_cron round-trip"_test = []
+    {
         engine::EngineContext ctx;
         expect(ctx.get_cron() == nullptr);
         FakeCron cron;
@@ -644,7 +663,8 @@ suite<"EngineContext"> engine_context_suite = [] {
         expect(ctx.get_cron() == &cron);
     };
 
-    "set_orchestrator/get_orchestrator round-trip"_test = [] {
+    "set_orchestrator/get_orchestrator round-trip"_test = []
+    {
         engine::EngineContext ctx;
         expect(ctx.get_orchestrator() == nullptr);
         FakeWorkerOrchestrator orchestrator;
@@ -652,7 +672,8 @@ suite<"EngineContext"> engine_context_suite = [] {
         expect(ctx.get_orchestrator() == &orchestrator);
     };
 
-    "set_workflow_orchestrator/get_workflow_orchestrator round-trip"_test = [] {
+    "set_workflow_orchestrator/get_workflow_orchestrator round-trip"_test = []
+    {
         engine::EngineContext ctx;
         expect(ctx.get_workflow_orchestrator() == nullptr);
         FakeWorkflowOrchestrator workflow;
@@ -660,7 +681,8 @@ suite<"EngineContext"> engine_context_suite = [] {
         expect(ctx.get_workflow_orchestrator() == &workflow);
     };
 
-    "set_payload_storage/get_payload_storage round-trip"_test = [] {
+    "set_payload_storage/get_payload_storage round-trip"_test = []
+    {
         engine::EngineContext ctx;
         expect(ctx.get_payload_storage() == nullptr);
         FakePayloadStorage storage;

@@ -233,9 +233,14 @@ public:
 
             // TODO: implement Huffman by passing a ref via props which acts as flag isntead of
             // using use_huffman
-            for (std::byte value: str | std::views::transform([](char character) {
-                                      return static_cast<std::byte>(character);
-                                  }) | huffman::Huffman<Width>::encode()) {
+            for (std::byte value: str |
+                                      std::views::transform(
+                                          [](char character)
+                                          {
+                                              return static_cast<std::byte>(character);
+                                          }
+                                      ) |
+                                      huffman::Huffman<Width>::encode()) {
                 encoded.push_back(static_cast<std::uint8_t>(value));
             }
 
@@ -305,16 +310,22 @@ public:
         if (HUFFMAN_FLAG) {
             static_cast<void>(huffman_coder); // instance not needed — decode() is static, see below
             std::string decoded;
-            for (char character: body | std::views::transform([](std::uint8_t byte_value) {
-                                     return static_cast<std::byte>(byte_value);
-                                 }) | huffman::Huffman<Width>::decode()) {
+            for (char character: body |
+                                     std::views::transform(
+                                         [](std::uint8_t byte_value)
+                                         {
+                                             return static_cast<std::byte>(byte_value);
+                                         }
+                                     ) |
+                                     huffman::Huffman<Width>::decode()) {
                 decoded += character;
             }
             return decoded;
         }
 
         return {
-            reinterpret_cast<const char*>(body.data()), body.size()
+            reinterpret_cast<const char*>(body.data()),
+            body.size()
         }; // FIXME(clang-tidy): reinterpret_cast usage
     };
 };
@@ -325,8 +336,10 @@ public:
 namespace io::shared_codec::raw::tests {
 using namespace boost::ut;
 
-suite<"Atom::encode_int/decode_int"> atom_int_suite = [] {
-    "single-octet value round-trips"_test = [] {
+suite<"Atom::encode_int/decode_int"> atom_int_suite = []
+{
+    "single-octet value round-trips"_test = []
+    {
         std::vector<std::uint8_t> bytes;
         Atom<>::encode_int(10U, 5U, std::uint8_t{0}, std::back_inserter(bytes));
 
@@ -338,7 +351,8 @@ suite<"Atom::encode_int/decode_int"> atom_int_suite = [] {
         expect(pos == 1U);
     };
 
-    "multi-octet value round-trips (RFC 7541 C.1.2 vector)"_test = [] {
+    "multi-octet value round-trips (RFC 7541 C.1.2 vector)"_test = []
+    {
         std::vector<std::uint8_t> bytes;
         Atom<>::encode_int(1'337U, 5U, std::uint8_t{0}, std::back_inserter(bytes));
 
@@ -353,7 +367,8 @@ suite<"Atom::encode_int/decode_int"> atom_int_suite = [] {
         expect(pos == 3U);
     };
 
-    "decode_int captures prefix metadata bits when PrefixOffset > 0"_test = [] {
+    "decode_int captures prefix metadata bits when PrefixOffset > 0"_test = []
+    {
         // prefix_size=5, metadata bits = 0b011, value = 10 (< 2^5-1, single octet).
         std::vector<std::uint8_t> bytes{static_cast<std::uint8_t>((0x03U << 5) | 10U)};
 
@@ -364,48 +379,78 @@ suite<"Atom::encode_int/decode_int"> atom_int_suite = [] {
         expect(result.is_never_indexed());
     };
 
-    "encode_int rejects an out-of-range prefix size"_test = [] {
+    "encode_int rejects an out-of-range prefix size"_test = []
+    {
         std::vector<std::uint8_t> bytes;
-        expect(throws<std::invalid_argument>([&] {
-            Atom<>::encode_int(1U, 0U, std::uint8_t{0}, std::back_inserter(bytes));
-        }));
-        expect(throws<std::invalid_argument>([&] {
-            Atom<>::encode_int(1U, 9U, std::uint8_t{0}, std::back_inserter(bytes));
-        }));
+        expect(
+            throws<std::invalid_argument>(
+                [&]
+                {
+                    Atom<>::encode_int(1U, 0U, std::uint8_t{0}, std::back_inserter(bytes));
+                }
+            )
+        );
+        expect(
+            throws<std::invalid_argument>(
+                [&]
+                {
+                    Atom<>::encode_int(1U, 9U, std::uint8_t{0}, std::back_inserter(bytes));
+                }
+            )
+        );
     };
 
-    "decode_int rejects an out-of-range prefix size"_test = [] {
+    "decode_int rejects an out-of-range prefix size"_test = []
+    {
         std::vector<std::uint8_t> bytes{0x00};
         std::size_t pos = 0;
-        expect(throws<std::invalid_argument>([&] {
-            Atom<>::decode_int(bytes, pos, 0U);
-        }));
+        expect(
+            throws<std::invalid_argument>(
+                [&]
+                {
+                    Atom<>::decode_int(bytes, pos, 0U);
+                }
+            )
+        );
     };
 
-    "decode_int on an empty buffer throws TruncatedDataError"_test = [] {
+    "decode_int on an empty buffer throws TruncatedDataError"_test = []
+    {
         std::vector<std::uint8_t> bytes;
         std::size_t pos = 0;
-        expect(throws<error::http::TruncatedDataError>([&] {
-            Atom<>::decode_int(bytes, pos, 5U);
-        }));
+        expect(
+            throws<error::http::TruncatedDataError>(
+                [&]
+                {
+                    Atom<>::decode_int(bytes, pos, 5U);
+                }
+            )
+        );
     };
 
-    "decode_int on a stream with no terminal continuation byte throws IntegerDecodeError"_test =
-        [] {
-            // prefix_size=3 (MASK=7): first octet maxes the prefix, then five continuation
-            // bytes all keep the high bit set, so the value never terminates and either
-            // overflows UInt's bit width or runs off the end of the buffer — both raise
-            // IntegerDecodeError.
-            std::vector<std::uint8_t> bytes{0x07, 0x80, 0x80, 0x80, 0x80, 0x80};
-            std::size_t pos = 0;
-            expect(throws<error::http::IntegerDecodeError>([&] {
-                Atom<>::decode_int(bytes, pos, 3U);
-            }));
-        };
+    "decode_int on a stream with no terminal continuation byte throws IntegerDecodeError"_test = []
+    {
+        // prefix_size=3 (MASK=7): first octet maxes the prefix, then five continuation
+        // bytes all keep the high bit set, so the value never terminates and either
+        // overflows UInt's bit width or runs off the end of the buffer — both raise
+        // IntegerDecodeError.
+        std::vector<std::uint8_t> bytes{0x07, 0x80, 0x80, 0x80, 0x80, 0x80};
+        std::size_t pos = 0;
+        expect(
+            throws<error::http::IntegerDecodeError>(
+                [&]
+                {
+                    Atom<>::decode_int(bytes, pos, 3U);
+                }
+            )
+        );
+    };
 };
 
-suite<"Atom::encode_string/decode_string"> atom_string_suite = [] {
-    "raw string round-trips without a Huffman coder"_test = [] {
+suite<"Atom::encode_string/decode_string"> atom_string_suite = []
+{
+    "raw string round-trips without a Huffman coder"_test = []
+    {
         huffman::Huffman<4> coder;
         std::string original = "hello";
 
@@ -419,7 +464,8 @@ suite<"Atom::encode_string/decode_string"> atom_string_suite = [] {
         expect(pos == bytes.size());
     };
 
-    "Huffman-encoded string round-trips"_test = [] {
+    "Huffman-encoded string round-trips"_test = []
+    {
         huffman::Huffman<4> coder;
         std::string original = "www.example.com";
 
@@ -433,24 +479,36 @@ suite<"Atom::encode_string/decode_string"> atom_string_suite = [] {
         expect(pos == bytes.size());
     };
 
-    "decode_string on an empty buffer throws TruncatedDataError"_test = [] {
+    "decode_string on an empty buffer throws TruncatedDataError"_test = []
+    {
         huffman::Huffman<4> coder;
         std::vector<std::uint8_t> bytes;
         std::size_t pos = 0;
-        expect(throws<error::http::TruncatedDataError>([&] {
-            Atom<>::decode_string(coder, bytes, pos);
-        }));
+        expect(
+            throws<error::http::TruncatedDataError>(
+                [&]
+                {
+                    Atom<>::decode_string(coder, bytes, pos);
+                }
+            )
+        );
     };
 
-    "decode_string rejects a length exceeding MAX_LENGTH"_test = [] {
+    "decode_string rejects a length exceeding MAX_LENGTH"_test = []
+    {
         huffman::Huffman<4> coder;
         std::vector<std::uint8_t> bytes;
         Atom<>::encode_int(70'000U, 7U, PrefixHelper::HUFFMAN_DISABLED, std::back_inserter(bytes));
 
         std::size_t pos = 0;
-        expect(throws<error::http::StringDecodeError>([&] {
-            Atom<>::decode_string(coder, bytes, pos);
-        }));
+        expect(
+            throws<error::http::StringDecodeError>(
+                [&]
+                {
+                    Atom<>::decode_string(coder, bytes, pos);
+                }
+            )
+        );
     };
 };
 

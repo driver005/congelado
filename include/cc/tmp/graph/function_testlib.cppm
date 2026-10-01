@@ -37,7 +37,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
         namespace test {
             namespace function {
@@ -572,7 +571,8 @@ export {
                         // Args
                         {"x: int32"},
                         // Return values
-                        {"y: int32"}, {},
+                        {"y: int32"},
+                        {},
                         // Nodes
                         {
                             {{"two"}, "Const", {}, {{"value", kTwo}, {"dtype", DT_INT64}}},
@@ -903,7 +903,9 @@ export {
 
                          {{"strided_slice"},
                           "StridedSlice",
-                          {"Less", "strided_slice/stack", "strided_slice/stack_1",
+                          {"Less",
+                           "strided_slice/stack",
+                           "strided_slice/stack_1",
                            "strided_slice/stack_2"},
                           {{"Index", DT_INT32},
                            {"T", DT_BOOL},
@@ -940,7 +942,8 @@ export {
                         {"input_dataset: variant", "batch_size: int64", "drop_remainder: bool"},
                         /*ret_def=*/{"y: variant"},
                         /*attr_def=*/
-                        {"parallel_copy: bool = false", "output_types: list(type) >= 1",
+                        {"parallel_copy: bool = false",
+                         "output_types: list(type) >= 1",
                          "output_shapes: list(shape) >= 1"},
                         /*node_def=*/
                         {{/*ret=*/{"y"},
@@ -968,8 +971,11 @@ export {
                         /*ret_def=*/
                         {"y: variant"},
                         /*attr_def=*/
-                        {"f: func", "Targuments: list(type) >= 0", "output_types: list(type) >= 1",
-                         "output_shapes: list(shape) >= 1", "use_inter_op_parallelism: bool = true",
+                        {"f: func",
+                         "Targuments: list(type) >= 0",
+                         "output_types: list(type) >= 1",
+                         "output_shapes: list(shape) >= 1",
+                         "use_inter_op_parallelism: bool = true",
                          "preserve_cardinality: bool = false"},
                         /*node_def=*/
                         {{/*ret=*/{"y"},

@@ -18,12 +18,12 @@ export import cc_ice_sycl_backend:executor;
 export namespace ice::builder {
 
 // Tensor backend
-using SyclTensor      = XPU_AsyncTensorOps;
-using SyclAsyncEvent  = XPU_AsyncEvent;
+using SyclTensor = XPU_AsyncTensorOps;
+using SyclAsyncEvent = XPU_AsyncEvent;
 using SyclAsyncResult = AsyncResult;
 
 // Buffer backends
-using SyclBuffer       = XPU_AsyncBuffer;
+using SyclBuffer = XPU_AsyncBuffer;
 using SyclPooledBuffer = XPU_PooledAsyncBuffer;
 
 // Executor backend

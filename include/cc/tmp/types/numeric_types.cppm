@@ -27,7 +27,6 @@ import std;
 import cc_abi;
 
 export {
-
     // Disable clang-format to prevent 'FixedPoint' header from being included
     // before 'Tensor' header on which it depends.
     // clang-format off

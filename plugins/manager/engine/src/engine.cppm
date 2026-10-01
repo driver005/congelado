@@ -63,35 +63,44 @@ inline void install_cron_scheduling(EngineContext& ctx, interfaces::IWorkflowOrc
     if (cron == nullptr) {
         return;
     }
-    cron->set_fire_callback([&ctx, workflow](std::string_view job_name) {
-        auto now = std::chrono::system_clock::now();
-        ctx.get_connector().find<model::WorkflowSchedule>(
-            std::string{job_name},
-            [&ctx, workflow, now](std::optional<model::WorkflowSchedule> schedule) {
-                if (!schedule || !schedule->get_enabled() || schedule->get_paused()) {
-                    return;
-                }
-                schedule->set_last_fired_at(now);
-                ctx.get_connector().update<model::WorkflowSchedule>(*schedule, [](bool) {});
-                core::logger::info(
-                    "engine", "schedule '{}' firing workflow '{}'", schedule->get_name(),
-                    schedule->get_workflow_name()
-                );
-                core::events::publish(
-                    "engine.schedule.fired", {{"schedule_name", schedule->get_name()},
-                                              {"workflow_name", schedule->get_workflow_name()}}
-                );
-                if (workflow != nullptr) {
-                    workflow->start_workflow(
-                        schedule->get_workflow_name(), schedule->get_seed_variables(),
-                        [](std::optional<std::string>) {}
+    cron->set_fire_callback(
+        [&ctx, workflow](std::string_view job_name)
+        {
+            auto now = std::chrono::system_clock::now();
+            ctx.get_connector().find<model::WorkflowSchedule>(
+                std::string{job_name},
+                [&ctx, workflow, now](std::optional<model::WorkflowSchedule> schedule)
+                {
+                    if (!schedule || !schedule->get_enabled() || schedule->get_paused()) {
+                        return;
+                    }
+                    schedule->set_last_fired_at(now);
+                    ctx.get_connector().update<model::WorkflowSchedule>(*schedule, [](bool) {});
+                    core::logger::info(
+                        "engine",
+                        "schedule '{}' firing workflow '{}'",
+                        schedule->get_name(),
+                        schedule->get_workflow_name()
                     );
+                    core::events::publish(
+                        "engine.schedule.fired",
+                        {{"schedule_name", schedule->get_name()},
+                         {"workflow_name", schedule->get_workflow_name()}}
+                    );
+                    if (workflow != nullptr) {
+                        workflow->start_workflow(
+                            schedule->get_workflow_name(),
+                            schedule->get_seed_variables(),
+                            [](std::optional<std::string>) {}
+                        );
+                    }
                 }
-            }
-        );
-    });
+            );
+        }
+    );
     ctx.get_connector().find_all<model::WorkflowSchedule>(
-        [cron](std::vector<model::WorkflowSchedule> schedules) {
+        [cron](std::vector<model::WorkflowSchedule> schedules)
+        {
             for (auto& schedule: schedules) {
                 if (!schedule.get_enabled() || schedule.get_paused()) {
                     continue;
@@ -118,29 +127,38 @@ namespace detail {
             cont(true);
         } else {
             using T = std::tuple_element_t<I, Tuple>;
-            conn.create_table<T>([&conn, cont = std::move(cont)](bool ok) mutable {
-                if (!ok) {
-                    core::logger::error(
-                        "engine.migrations", "create_table failed for model index {}", I
-                    );
-                    cont(false);
-                    return;
+            conn.create_table<T>(
+                [&conn, cont = std::move(cont)](bool ok) mutable
+                {
+                    if (!ok) {
+                        core::logger::error(
+                            "engine.migrations",
+                            "create_table failed for model index {}",
+                            I
+                        );
+                        cont(false);
+                        return;
+                    }
+                    create_tables<I + 1, Tuple>(conn, std::move(cont));
                 }
-                create_tables<I + 1, Tuple>(conn, std::move(cont));
-            });
+            );
         }
     }
 
     void register_engine_baseline()
     {
         migration::Registry::instance().add_baseline(
-            "engine", [](interfaces::IDatabase& /*db*/, connector::Connector& conn,
-                         std::move_only_function<void(bool)> done) mutable {
+            "engine",
+            [](interfaces::IDatabase& /*db*/,
+               connector::Connector& conn,
+               std::move_only_function<void(bool)> done) mutable
+            {
                 using Tables = model::AllModels;
 
                 auto done_ptr =
                     std::make_shared<std::move_only_function<void(bool)>>(std::move(done));
-                std::function<void(bool)> cont = [done_ptr](bool ok) mutable {
+                std::function<void(bool)> cont = [done_ptr](bool ok) mutable
+                {
                     (*done_ptr)(ok);
                 };
 
@@ -184,28 +202,32 @@ public:
     }
 
     void query(
-        std::string_view, std::move_only_function<void(std::string_view)>&& result
+        std::string_view,
+        std::move_only_function<void(std::string_view)>&& result
     ) noexcept override
     {
         result("");
     }
 
     void insert(
-        std::string_view, std::move_only_function<void(std::string_view)>&& result
+        std::string_view,
+        std::move_only_function<void(std::string_view)>&& result
     ) noexcept override
     {
         result("");
     }
 
     void update(
-        std::string_view, std::move_only_function<void(std::string_view)>&& result
+        std::string_view,
+        std::move_only_function<void(std::string_view)>&& result
     ) noexcept override
     {
         result("");
     }
 
     void remove(
-        std::string_view, std::move_only_function<void(std::string_view)>&& result
+        std::string_view,
+        std::move_only_function<void(std::string_view)>&& result
     ) noexcept override
     {
         result("");
@@ -221,21 +243,25 @@ public:
     }
 
     void get(
-        std::string_view, std::move_only_function<void(std::string_view)>&& result
+        std::string_view,
+        std::move_only_function<void(std::string_view)>&& result
     ) noexcept override
     {
         result("");
     }
 
     void set(
-        std::string_view, std::string_view, std::move_only_function<void(std::string_view)>&& result
+        std::string_view,
+        std::string_view,
+        std::move_only_function<void(std::string_view)>&& result
     ) noexcept override
     {
         result("");
     }
 
     void remove(
-        std::string_view, std::move_only_function<void(std::string_view)>&& result
+        std::string_view,
+        std::move_only_function<void(std::string_view)>&& result
     ) noexcept override
     {
         result("");
@@ -325,7 +351,8 @@ public:
     }
 
     void on_execution_terminal(
-        std::string_view, std::move_only_function<void(bool)> callback
+        std::string_view,
+        std::move_only_function<void(bool)> callback
     ) override
     {
         callback(true);
@@ -411,15 +438,18 @@ private:
     std::string m_last_workflow_name;
 };
 
-suite<"set_shared_connector / set_cron"> engine_ctx_wiring_suite = [] {
-    "set_shared_connector points the context at the given Connector"_test = [] {
+suite<"set_shared_connector / set_cron"> engine_ctx_wiring_suite = []
+{
+    "set_shared_connector points the context at the given Connector"_test = []
+    {
         EngineContext ctx;
         connector::Connector external;
         set_shared_connector(ctx, static_cast<void*>(&external));
         expect(&ctx.get_connector() == &external);
     };
 
-    "set_cron points the context at the given ICron"_test = [] {
+    "set_cron points the context at the given ICron"_test = []
+    {
         EngineContext ctx;
         expect(ctx.get_cron() == nullptr);
         FakeCron cron;
@@ -428,71 +458,86 @@ suite<"set_shared_connector / set_cron"> engine_ctx_wiring_suite = [] {
     };
 };
 
-suite<"install_cron_scheduling"> install_cron_scheduling_suite = [] {
-    "no-ops when no cron backend is resolved"_test = [] {
+suite<"install_cron_scheduling"> install_cron_scheduling_suite = []
+{
+    "no-ops when no cron backend is resolved"_test = []
+    {
         EngineContext ctx;
         FakeWorkflowOrchestrator workflow;
-        expect(nothrow([&] {
-            install_cron_scheduling(ctx, &workflow);
-        }));
+        expect(nothrow(
+            [&]
+            {
+                install_cron_scheduling(ctx, &workflow);
+            }
+        ));
         expect(workflow.get_start_workflow_count() == 0);
     };
 
     "installs a fire callback and seeds only enabled, unpaused schedules into the cron backend"_test =
-        [] {
-            EngineContext ctx;
-            FakeCache cache;
-            ctx.set_cache(&cache);
-            FakeCron cron;
-            ctx.set_cron(&cron);
+        []
+    {
+        EngineContext ctx;
+        FakeCache cache;
+        ctx.set_cache(&cache);
+        FakeCron cron;
+        ctx.set_cron(&cron);
 
-            model::WorkflowSchedule enabled;
-            enabled.set_name("nightly");
-            enabled.set_workflow_name("report_pipeline");
-            enabled.set_cron_expression("0 0 * * *");
-            bool seeded_enabled = false;
-            ctx.get_connector().upsert<model::WorkflowSchedule>(
-                enabled, [&seeded_enabled](bool ok) {
-                    seeded_enabled = ok;
-                }
-            );
-            expect(seeded_enabled) << fatal;
+        model::WorkflowSchedule enabled;
+        enabled.set_name("nightly");
+        enabled.set_workflow_name("report_pipeline");
+        enabled.set_cron_expression("0 0 * * *");
+        bool seeded_enabled = false;
+        ctx.get_connector().upsert<model::WorkflowSchedule>(
+            enabled,
+            [&seeded_enabled](bool ok)
+            {
+                seeded_enabled = ok;
+            }
+        );
+        expect(seeded_enabled) << fatal;
 
-            model::WorkflowSchedule disabled;
-            disabled.set_name("disabled_one");
-            disabled.set_workflow_name("x");
-            disabled.set_cron_expression("* * * * *");
-            disabled.set_enabled(false);
-            bool seeded_disabled = false;
-            ctx.get_connector().upsert<model::WorkflowSchedule>(
-                disabled, [&seeded_disabled](bool ok) {
-                    seeded_disabled = ok;
-                }
-            );
-            expect(seeded_disabled) << fatal;
+        model::WorkflowSchedule disabled;
+        disabled.set_name("disabled_one");
+        disabled.set_workflow_name("x");
+        disabled.set_cron_expression("* * * * *");
+        disabled.set_enabled(false);
+        bool seeded_disabled = false;
+        ctx.get_connector().upsert<model::WorkflowSchedule>(
+            disabled,
+            [&seeded_disabled](bool ok)
+            {
+                seeded_disabled = ok;
+            }
+        );
+        expect(seeded_disabled) << fatal;
 
-            model::WorkflowSchedule paused;
-            paused.set_name("paused_one");
-            paused.set_workflow_name("y");
-            paused.set_cron_expression("* * * * *");
-            paused.set_paused(true);
-            bool seeded_paused = false;
-            ctx.get_connector().upsert<model::WorkflowSchedule>(paused, [&seeded_paused](bool ok) {
+        model::WorkflowSchedule paused;
+        paused.set_name("paused_one");
+        paused.set_workflow_name("y");
+        paused.set_cron_expression("* * * * *");
+        paused.set_paused(true);
+        bool seeded_paused = false;
+        ctx.get_connector().upsert<model::WorkflowSchedule>(
+            paused,
+            [&seeded_paused](bool ok)
+            {
                 seeded_paused = ok;
-            });
-            expect(seeded_paused) << fatal;
+            }
+        );
+        expect(seeded_paused) << fatal;
 
-            FakeWorkflowOrchestrator workflow;
-            install_cron_scheduling(ctx, &workflow);
+        FakeWorkflowOrchestrator workflow;
+        install_cron_scheduling(ctx, &workflow);
 
-            expect(cron.has_fire_callback());
-            auto& upserted = cron.get_upserted();
-            expect(upserted.size() == 1U) << fatal;
-            expect(upserted[0].first == "nightly");
-            expect(upserted[0].second == "0 0 * * *");
-        };
+        expect(cron.has_fire_callback());
+        auto& upserted = cron.get_upserted();
+        expect(upserted.size() == 1U) << fatal;
+        expect(upserted[0].first == "nightly");
+        expect(upserted[0].second == "0 0 * * *");
+    };
 
-    "the installed fire callback no-ops for a job name with no matching schedule"_test = [] {
+    "the installed fire callback no-ops for a job name with no matching schedule"_test = []
+    {
         EngineContext ctx;
         FakeCache cache;
         ctx.set_cache(&cache);
@@ -502,13 +547,17 @@ suite<"install_cron_scheduling"> install_cron_scheduling_suite = [] {
         install_cron_scheduling(ctx, &workflow);
         expect(cron.has_fire_callback()) << fatal;
 
-        expect(nothrow([&] {
-            cron.fire("does-not-exist");
-        }));
+        expect(nothrow(
+            [&]
+            {
+                cron.fire("does-not-exist");
+            }
+        ));
         expect(workflow.get_start_workflow_count() == 0);
     };
 
-    "the installed fire callback starts the workflow for an enabled, unpaused schedule"_test = [] {
+    "the installed fire callback starts the workflow for an enabled, unpaused schedule"_test = []
+    {
         EngineContext ctx;
         FakeCache cache;
         ctx.set_cache(&cache);
@@ -520,9 +569,13 @@ suite<"install_cron_scheduling"> install_cron_scheduling_suite = [] {
         schedule.set_workflow_name("report_pipeline");
         schedule.set_cron_expression("0 0 * * *");
         bool seeded = false;
-        ctx.get_connector().upsert<model::WorkflowSchedule>(schedule, [&seeded](bool ok) {
-            seeded = ok;
-        });
+        ctx.get_connector().upsert<model::WorkflowSchedule>(
+            schedule,
+            [&seeded](bool ok)
+            {
+                seeded = ok;
+            }
+        );
         expect(seeded) << fatal;
 
         FakeWorkflowOrchestrator workflow;
@@ -534,7 +587,8 @@ suite<"install_cron_scheduling"> install_cron_scheduling_suite = [] {
         expect(workflow.get_last_workflow_name() == "report_pipeline");
     };
 
-    "the installed fire callback skips a found-but-disabled schedule"_test = [] {
+    "the installed fire callback skips a found-but-disabled schedule"_test = []
+    {
         EngineContext ctx;
         FakeCache cache;
         ctx.set_cache(&cache);
@@ -547,9 +601,13 @@ suite<"install_cron_scheduling"> install_cron_scheduling_suite = [] {
         schedule.set_cron_expression("0 0 * * *");
         schedule.set_enabled(false);
         bool seeded = false;
-        ctx.get_connector().upsert<model::WorkflowSchedule>(schedule, [&seeded](bool ok) {
-            seeded = ok;
-        });
+        ctx.get_connector().upsert<model::WorkflowSchedule>(
+            schedule,
+            [&seeded](bool ok)
+            {
+                seeded = ok;
+            }
+        );
         expect(seeded) << fatal;
 
         FakeWorkflowOrchestrator workflow;
@@ -558,7 +616,8 @@ suite<"install_cron_scheduling"> install_cron_scheduling_suite = [] {
         expect(workflow.get_start_workflow_count() == 0);
     };
 
-    "the installed fire callback tolerates a null workflow backend instead of crashing"_test = [] {
+    "the installed fire callback tolerates a null workflow backend instead of crashing"_test = []
+    {
         EngineContext ctx;
         FakeCache cache;
         ctx.set_cache(&cache);
@@ -570,46 +629,58 @@ suite<"install_cron_scheduling"> install_cron_scheduling_suite = [] {
         schedule.set_workflow_name("report_pipeline");
         schedule.set_cron_expression("0 0 * * *");
         bool seeded = false;
-        ctx.get_connector().upsert<model::WorkflowSchedule>(schedule, [&seeded](bool ok) {
-            seeded = ok;
-        });
+        ctx.get_connector().upsert<model::WorkflowSchedule>(
+            schedule,
+            [&seeded](bool ok)
+            {
+                seeded = ok;
+            }
+        );
         expect(seeded) << fatal;
 
         install_cron_scheduling(ctx, nullptr);
-        expect(nothrow([&] {
-            cron.fire("nightly");
-        }));
+        expect(nothrow(
+            [&]
+            {
+                cron.fire("nightly");
+            }
+        ));
     };
 };
 
-suite<"register_migrations"> register_migrations_suite = [] {
+suite<"register_migrations"> register_migrations_suite = []
+{
     "registers exactly one \"engine\" baseline that create_table()s every model and reports success"_test =
-        [] {
-            auto& registry = migration::Registry::instance();
-            auto before = registry.baselines().size();
+        []
+    {
+        auto& registry = migration::Registry::instance();
+        auto before = registry.baselines().size();
 
-            register_migrations();
+        register_migrations();
 
-            expect(registry.baselines().size() == before + 1) << fatal;
-            auto& [name, fn] = registry.baselines().back();
-            expect(name == "engine");
+        expect(registry.baselines().size() == before + 1) << fatal;
+        auto& [name, fn] = registry.baselines().back();
+        expect(name == "engine");
 
-            // Unused by the registered lambda body (it ignores its IDatabase& param), but the
-            // callback signature still needs a live reference to bind.
-            FakeDatabase db;
-            // No database configured — create_table<T>() is a synchronous local-store no-op
-            // success for every T in model::AllModels.
-            connector::Connector conn;
-            bool done_called = false;
-            bool done_ok = false;
-            fn(db, conn, [&done_called, &done_ok](bool ok) {
-                done_called = true;
-                done_ok = ok;
-            });
+        // Unused by the registered lambda body (it ignores its IDatabase& param), but the
+        // callback signature still needs a live reference to bind.
+        FakeDatabase db;
+        // No database configured — create_table<T>() is a synchronous local-store no-op
+        // success for every T in model::AllModels.
+        connector::Connector conn;
+        bool done_called = false;
+        bool done_ok = false;
+        fn(db,
+           conn,
+           [&done_called, &done_ok](bool ok)
+           {
+               done_called = true;
+               done_ok = ok;
+           });
 
-            expect(done_called);
-            expect(done_ok);
-        };
+        expect(done_called);
+        expect(done_ok);
+    };
 };
 
 } // namespace engine::engine_module_tests

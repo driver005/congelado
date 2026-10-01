@@ -7,9 +7,10 @@
 
 module;
 
-#include "include/c/extern/kernel/builder.h"
-#include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
 #include "docs/aten_xpu/sycl_backend/kernels/kernel_construction_view.h"
+#include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
+#include "include/c/extern/kernel/builder.h"
+
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_sycl.hpp>
 
@@ -78,15 +79,13 @@ public:
         const std::vector<int64_t> weight_dims = shape_of(*weight);
 
         const int64_t output_height = (source_dims[2] - 1) * attrs.stride - 2 * attrs.padding +
-            attrs.dilation * (weight_dims[2] - 1) + 1 + attrs.output_padding;
+                                      attrs.dilation * (weight_dims[2] - 1) + 1 +
+                                      attrs.output_padding;
         const int64_t output_width = (source_dims[3] - 1) * attrs.stride - 2 * attrs.padding +
-            attrs.dilation * (weight_dims[3] - 1) + 1 + attrs.output_padding;
-        const std::vector<int64_t> dst_dims{
-            source_dims[0],
-            weight_dims[1],
-            output_height,
-            output_width
-        };
+                                     attrs.dilation * (weight_dims[3] - 1) + 1 +
+                                     attrs.output_padding;
+        const std::vector<int64_t>
+            dst_dims{source_dims[0], weight_dims[1], output_height, output_width};
 
         uint64_t element_count = 1;
         for (int64_t extent: dst_dims) {
@@ -182,9 +181,10 @@ private:
         // Deconv weight is [C_in, C_out, kH, kW] — oneDNN's iohw tag.
         dnnl::memory::desc weight_md{weight_dims, data_type, dnnl::memory::format_tag::iohw};
         dnnl::memory::desc dst_md{dst_dims, data_type, dnnl::memory::format_tag::nchw};
-        dnnl::memory::desc bias_md = bias_data != nullptr
-            ? dnnl::memory::desc{bias_dims, data_type, dnnl::memory::format_tag::x}
-            : dnnl::memory::desc{};
+        dnnl::memory::desc bias_md =
+            bias_data != nullptr
+                ? dnnl::memory::desc{bias_dims, data_type, dnnl::memory::format_tag::x}
+                : dnnl::memory::desc{};
 
         dnnl::primitive_attr attributes;
         attributes.set_scratchpad_mode(dnnl::scratchpad_mode::user);

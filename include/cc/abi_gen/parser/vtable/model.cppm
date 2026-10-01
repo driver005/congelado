@@ -131,7 +131,8 @@ public:
             return std::unexpected(std::string{"Header path is empty"});
         }
         std::string name = std::filesystem::path(m_header_path).stem().generic_string();
-        constexpr std::array<std::string_view, 3> k_module_keywords = {"module", "import", "export"};
+        constexpr std::array<std::string_view, 3> k_module_keywords =
+            {"module", "import", "export"};
         if (std::ranges::find(k_module_keywords, name) != k_module_keywords.end()) {
             name += '_';
         }
@@ -209,7 +210,10 @@ public:
     {
         auto found = std::ranges::find_if(
             m_slots,
-            [slot_name](const slot::Slot& slot) { return slot.get_name() == slot_name; }
+            [slot_name](const slot::Slot& slot)
+            {
+                return slot.get_name() == slot_name;
+            }
         );
         if (found == m_slots.end()) {
             return std::nullopt;

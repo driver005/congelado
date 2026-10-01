@@ -1,13 +1,13 @@
 #ifndef TENSORFLOW_C_EXTERN_IO_H_
 #define TENSORFLOW_C_EXTERN_IO_H_
 
-#include "include/c/macros.h"
-#include "include/c/intern/status.h"
 #include "include/c/extern/io/client.h"
 #include "include/c/extern/io/request.h"
 #include "include/c/extern/io/response.h"
 #include "include/c/extern/io/server.h"
 #include "include/c/extern/io/socket.h"
+#include "include/c/intern/status.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -26,7 +26,8 @@ extern "C"
         const TF_SocketOps* socket_ops;
     } TF_Io;
 
-    // Real implementation, not declared-only — calls every io/*.h create_x and fills in io's ops fields.
+    // Real implementation, not declared-only — calls every io/*.h create_x and fills in io's ops
+    // fields.
     static inline void init_io(TF_Io* io, TF_Status* out_status)
     {
         TF_ClientOps* client_ops = NULL;

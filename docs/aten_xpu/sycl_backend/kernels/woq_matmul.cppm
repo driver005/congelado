@@ -9,9 +9,10 @@
 
 module;
 
-#include "include/c/extern/kernel/builder.h"
-#include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
 #include "docs/aten_xpu/sycl_backend/kernels/kernel_construction_view.h"
+#include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
+#include "include/c/extern/kernel/builder.h"
+
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_sycl.hpp>
 
@@ -65,9 +66,8 @@ public:
         auto* weight_handle = ctx.get_input(1, &status);
         auto* scale_handle = ctx.get_input(2, &status);
         auto* zero_point_handle = ctx.get_input(3, &status);
-        if (activation_handle == nullptr || weight_handle == nullptr ||
-            scale_handle == nullptr || zero_point_handle == nullptr)
-        {
+        if (activation_handle == nullptr || weight_handle == nullptr || scale_handle == nullptr ||
+            zero_point_handle == nullptr) {
             ctx.fail(&status);
             return;
         }
@@ -163,14 +163,19 @@ private:
 
         // The packed weight is reinterpreted as u4 directly at its real address — same trick
         // WoQMatmul.cpp uses (m2_u4_m wraps m2_usr_m's data_handle), rather than an extra copy.
-        dnnl::memory::desc weight_md{{k, n}, dnnl::memory::data_type::u4, dnnl::memory::format_tag::ab};
+        dnnl::memory::desc weight_md{
+            {k, n},
+            dnnl::memory::data_type::u4,
+            dnnl::memory::format_tag::ab
+        };
         dnnl::memory weight_memory{weight_md, engine, packed_weight_data};
 
         dnnl::primitive_attr attributes;
         attributes.set_scratchpad_mode(dnnl::scratchpad_mode::user);
         // Per-group scale/zero-point along both the K (mask bit 0) and N (mask bit 1) axes —
         // matches WoQMatmul.cpp's set_scales/set_zero_points mask (1<<0)+(1<<1).
-        attributes.set_scales(DNNL_ARG_WEIGHTS, (1 << 0) + (1 << 1), {group_size, 1}, activation_type);
+        attributes
+            .set_scales(DNNL_ARG_WEIGHTS, (1 << 0) + (1 << 1), {group_size, 1}, activation_type);
         attributes.set_zero_points(
             DNNL_ARG_WEIGHTS,
             (1 << 0) + (1 << 1),
@@ -178,7 +183,8 @@ private:
             dnnl::memory::data_type::s8
         );
 
-        dnnl::matmul::primitive_desc primitive_desc{engine, activation_md, weight_md, dst_md, attributes};
+        dnnl::matmul::primitive_desc
+            primitive_desc{engine, activation_md, weight_md, dst_md, attributes};
         dnnl::matmul matmul{primitive_desc};
 
         const int64_t num_groups = k / group_size;

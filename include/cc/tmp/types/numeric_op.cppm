@@ -28,7 +28,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // One input and one output, both the same type.
@@ -125,7 +124,8 @@ export {
                         context->SetStatus(
                             absl::InvalidArgumentError(
                                 absl::StrCat(
-                                    "We only handle up to Tensor::dims() up to 8, not ", a.dims()
+                                    "We only handle up to Tensor::dims() up to 8, not ",
+                                    a.dims()
                                 )
                             )
                         );

@@ -16,20 +16,30 @@ import std;
 import boost.ut;
 #endif
 
-class PostgresPlugin : public congelado::Plugin,
-                       public interfaces::IDatabase,
-                       public interfaces::ISearchProvider {
-  public:
+class PostgresPlugin :
+    public congelado::Plugin,
+    public interfaces::IDatabase,
+    public interfaces::ISearchProvider
+{
+public:
     /**
      * @brief Plugin name reported to the host.
      * @return `"postgres"`.
      */
-    [[nodiscard]] std::string_view get_name() const noexcept override { return "postgres"; }
+    [[nodiscard]] std::string_view get_name() const noexcept override
+    {
+        return "postgres";
+    }
+
     /**
      * @brief Version string for this build of the postgres plugin.
      * @return `"0.1.0"`.
      */
-    [[nodiscard]] std::string_view get_version() const noexcept override { return "0.1.0"; }
+    [[nodiscard]] std::string_view get_version() const noexcept override
+    {
+        return "0.1.0";
+    }
+
     /**
      * @brief Flags this as both a storage-capable AND search-capable plugin, so the host wires
      * both `storage_get`/`search_get` into the `_cap_dispatch` routing — this plugin reuses its
@@ -37,7 +47,8 @@ class PostgresPlugin : public congelado::Plugin,
      * one, so both capabilities live on the same instance.
      * @return `CONGELADO_CAP_STORAGE | CONGELADO_CAP_SEARCH`.
      */
-    [[nodiscard]] std::uint32_t capabilities() const noexcept override {
+    [[nodiscard]] std::uint32_t capabilities() const noexcept override
+    {
         return CONGELADO_CAP_STORAGE | CONGELADO_CAP_SEARCH;
     }
 
@@ -53,7 +64,8 @@ class PostgresPlugin : public congelado::Plugin,
      * (default empty), `host` (default `localhost`), `dbname` (default `congelado`), and `port`
      * (default `5432`).
      */
-    void on_load(CongeladoHostCallbacks const &host, CongeladoConfigView const &cfg) override {
+    void on_load(const CongeladoHostCallbacks& host, const CongeladoConfigView& cfg) override
+    {
         // Pull connection params out of config, falling back to sane local-dev defaults for
         // anything not set.
         const auto USER = std::string{congelado::config_get(cfg, "user").value_or("postgres")};
@@ -64,8 +76,14 @@ class PostgresPlugin : public congelado::Plugin,
 
         // Build the libpq connstring and fire off the connect — synchronous, blocks on_load
         // until it resolves one way or the other.
-        const auto CONNSTR = std::format("host='{}' port='{}' dbname='{}' user='{}' password='{}'",
-                                         HOST_S, PORT_S, DBNAME, USER, PASS);
+        const auto CONNSTR = std::format(
+            "host='{}' port='{}' dbname='{}' user='{}' password='{}'",
+            HOST_S,
+            PORT_S,
+            DBNAME,
+            USER,
+            PASS
+        );
         m_conn = PQconnectdb(CONNSTR.c_str());
         // A bad connect doesn't take the process down — just log it, free the handle, and
         // leave m_conn null so every query later degrades to reporting empty instead of
@@ -78,10 +96,18 @@ class PostgresPlugin : public congelado::Plugin,
             // core::logger reaches this project's own LoggerRegistry fan-out (e.g. file_logger)
             // — a separate sink from host.log above (which only reaches whatever plugin-provided
             // logger is wired in via the ABI), not a redundant duplicate of it.
-            core::logger::warning("postgres", "connect to {}:{}/{} failed: {}", HOST_S, PORT_S,
-                                  DBNAME, PQerrorMessage(m_conn));
-            core::events::publish("postgres.connection.failed",
-                                 {{"host", HOST_S}, {"port", PORT_S}, {"dbname", DBNAME}});
+            core::logger::warning(
+                "postgres",
+                "connect to {}:{}/{} failed: {}",
+                HOST_S,
+                PORT_S,
+                DBNAME,
+                PQerrorMessage(m_conn)
+            );
+            core::events::publish(
+                "postgres.connection.failed",
+                {{"host", HOST_S}, {"port", PORT_S}, {"dbname", DBNAME}}
+            );
             PQfinish(m_conn);
             m_conn = nullptr;
         } else {
@@ -89,14 +115,17 @@ class PostgresPlugin : public congelado::Plugin,
                 host.log(host.ctx, 2, "postgres plugin loaded", 22);
             }
             core::logger::debug("postgres", "connected to {}:{}/{}", HOST_S, PORT_S, DBNAME);
-            core::events::publish("postgres.connection.established",
-                                 {{"host", HOST_S}, {"port", PORT_S}, {"dbname", DBNAME}});
+            core::events::publish(
+                "postgres.connection.established",
+                {{"host", HOST_S}, {"port", PORT_S}, {"dbname", DBNAME}}
+            );
             ensure_search_tables();
         }
     }
 
     /// @brief Closes the libpq connection if one's open — clean teardown, no leaked handle.
-    void on_unload() noexcept override {
+    void on_unload() noexcept override
+    {
         if (m_conn != nullptr) {
             PQfinish(m_conn);
             m_conn = nullptr;
@@ -107,7 +136,10 @@ class PostgresPlugin : public congelado::Plugin,
      * @brief Capability hook the host calls to get at this plugin's `IDatabase` surface.
      * @return this instance, upcast to `interfaces::IDatabase*`.
      */
-    void *storage_get() noexcept { return static_cast<interfaces::IDatabase *>(this); }
+    void* storage_get() noexcept
+    {
+        return static_cast<interfaces::IDatabase*>(this);
+    }
 
     /**
      * @brief Capability hook the host calls to get at this plugin's `ISearchProvider` surface —
@@ -115,24 +147,38 @@ class PostgresPlugin : public congelado::Plugin,
      * over it.
      * @return this instance, upcast to `interfaces::ISearchProvider*`.
      */
-    void *search_get() noexcept { return static_cast<interfaces::ISearchProvider *>(this); }
+    void* search_get() noexcept
+    {
+        return static_cast<interfaces::ISearchProvider*>(this);
+    }
 
     /**
      * @brief Identifies this db backend.
      * @return `"postgres"`.
      */
-    [[nodiscard]] std::string_view backend_name() const noexcept override { return "postgres"; }
+    [[nodiscard]] std::string_view backend_name() const noexcept override
+    {
+        return "postgres";
+    }
+
     /**
      * @brief Says whether this backend is load-bearing.
      * @return always `true` — postgres is a hard requirement here, no optional motion.
      */
-    [[nodiscard]] bool required() const noexcept { return true; }
+    [[nodiscard]] bool required() const noexcept
+    {
+        return true;
+    }
+
     /**
      * @brief Says whether libpq actually has a live connection right now.
      * @return true if `on_load`'s `PQconnectdb` succeeded and the connection hasn't been torn
      * down; false if it failed (`m_conn` left null — see `on_load`'s comment) or `on_unload` ran.
      */
-    [[nodiscard]] bool is_connected() const noexcept override { return m_conn != nullptr; }
+    [[nodiscard]] bool is_connected() const noexcept override
+    {
+        return m_conn != nullptr;
+    }
 
     /**
      * @brief Runs `sql` through libpq and forwards the outcome.
@@ -145,9 +191,11 @@ class PostgresPlugin : public congelado::Plugin,
      * @param callback gets the JSON row array on a successful SELECT, `"ok"` on a successful
      * command, `""` on failure or if there's no live connection.
      */
-    void query(std::string_view sql, shared::QueryReadFn &&callback) noexcept override {
+    void query(std::string_view sql, shared::QueryReadFn&& callback) noexcept override
+    {
         exec(sql, std::move(callback));
     }
+
     /**
      * @brief Runs `sql` through libpq and forwards the outcome.
      * @note Same `exec()` path as `query()` — this only ever runs command-style SQL (no rows to
@@ -155,9 +203,11 @@ class PostgresPlugin : public congelado::Plugin,
      * @param sql the insert statement to run.
      * @param callback gets `"ok"` on success, `""` on failure or if there's no live connection.
      */
-    void insert(std::string_view sql, shared::QueryReadFn &&callback) noexcept override {
+    void insert(std::string_view sql, shared::QueryReadFn&& callback) noexcept override
+    {
         exec(sql, std::move(callback));
     }
+
     /**
      * @brief Runs `sql` through libpq and forwards the outcome.
      * @note Same `exec()` path as `query()` — this only ever runs command-style SQL (no rows to
@@ -165,9 +215,11 @@ class PostgresPlugin : public congelado::Plugin,
      * @param sql the update statement to run.
      * @param callback gets `"ok"` on success, `""` on failure or if there's no live connection.
      */
-    void update(std::string_view sql, shared::QueryReadFn &&callback) noexcept override {
+    void update(std::string_view sql, shared::QueryReadFn&& callback) noexcept override
+    {
         exec(sql, std::move(callback));
     }
+
     /**
      * @brief Runs `sql` through libpq and forwards the outcome.
      * @note Same `exec()` path as `query()` — this only ever runs command-style SQL (no rows to
@@ -175,7 +227,8 @@ class PostgresPlugin : public congelado::Plugin,
      * @param sql the delete statement to run.
      * @param callback gets `"ok"` on success, `""` on failure or if there's no live connection.
      */
-    void remove(std::string_view sql, shared::QueryReadFn &&callback) noexcept override {
+    void remove(std::string_view sql, shared::QueryReadFn&& callback) noexcept override
+    {
         exec(sql, std::move(callback));
     }
 
@@ -188,28 +241,45 @@ class PostgresPlugin : public congelado::Plugin,
      * a `JSONB` column, never destructured into individual SQL columns.
      * @param callback gets `"ok"` on success, `""` on failure or if there's no live connection.
      */
-    void index(std::string_view collection, std::string_view id, std::string_view document_json,
-              shared::QueryReadFn &&callback) noexcept override {
+    void index(
+        std::string_view collection,
+        std::string_view id,
+        std::string_view document_json,
+        shared::QueryReadFn&& callback
+    ) noexcept override
+    {
         auto sql = std::format(
             "INSERT INTO search_documents (collection, id, data, updated_at) "
             "VALUES ('{}', '{}', '{}'::jsonb, now()) "
             "ON CONFLICT (collection, id) DO UPDATE SET data = excluded.data, "
             "updated_at = excluded.updated_at",
-            escape_sql_literal(collection), escape_sql_literal(id), escape_sql_literal(document_json));
+            escape_sql_literal(collection),
+            escape_sql_literal(id),
+            escape_sql_literal(document_json)
+        );
         exec(sql, std::move(callback));
     }
+
     /**
      * @brief Deletes a document from the index.
      * @param collection which set of documents this belongs to.
      * @param id the document's id within `collection`.
      * @param callback gets `"ok"` on success, `""` on failure or if there's no live connection.
      */
-    void remove(std::string_view collection, std::string_view id,
-               shared::QueryReadFn &&callback) noexcept override {
-        auto sql = std::format("DELETE FROM search_documents WHERE collection = '{}' AND id = '{}'",
-                               escape_sql_literal(collection), escape_sql_literal(id));
+    void remove(
+        std::string_view collection,
+        std::string_view id,
+        shared::QueryReadFn&& callback
+    ) noexcept override
+    {
+        auto sql = std::format(
+            "DELETE FROM search_documents WHERE collection = '{}' AND id = '{}'",
+            escape_sql_literal(collection),
+            escape_sql_literal(id)
+        );
         exec(sql, std::move(callback));
     }
+
     /**
      * @brief Searches documents within one collection.
      * @param collection which set of documents to search.
@@ -222,8 +292,12 @@ class PostgresPlugin : public congelado::Plugin,
      * @param callback gets a JSON array of matched documents (`"[]"` for zero hits), or `""` on
      * failure or if there's no live connection.
      */
-    void search(std::string_view collection, const interfaces::SearchQuery &query,
-               shared::QueryReadFn &&callback) noexcept override {
+    void search(
+        std::string_view collection,
+        const interfaces::SearchQuery& query,
+        shared::QueryReadFn&& callback
+    ) noexcept override
+    {
         if (m_conn == nullptr) {
             core::logger::warning("postgres", "search skipped, no live connection: {}", collection);
             callback("");
@@ -231,7 +305,8 @@ class PostgresPlugin : public congelado::Plugin,
         }
         std::string where = std::format("collection = '{}'", escape_sql_literal(collection));
         if (!query.free_text.empty()) {
-            where += std::format(" AND data::text ILIKE '%{}%'", escape_sql_literal(query.free_text));
+            where +=
+                std::format(" AND data::text ILIKE '%{}%'", escape_sql_literal(query.free_text));
         }
         // SECURITY: SQL injection. Unlike free_text just above, query.query is spliced into the
         // WHERE clause with zero escaping — it's taken verbatim from the request body
@@ -244,13 +319,17 @@ class PostgresPlugin : public congelado::Plugin,
             where += std::format(" AND ({})", query.query);
         }
         auto sql = std::format(
-            "SELECT data FROM search_documents WHERE {} ORDER BY updated_at DESC LIMIT {} OFFSET {}",
-            where, query.size, query.start);
+            "SELECT data FROM search_documents WHERE {} ORDER BY updated_at DESC LIMIT {} OFFSET "
+            "{}",
+            where,
+            query.size,
+            query.start
+        );
         select_documents(sql, std::move(callback));
     }
 
-  private:
-    PGconn *m_conn{nullptr};
+private:
+    PGconn* m_conn{nullptr};
 
     /**
      * @brief Executes raw SQL against the live connection and reports the outcome — real row
@@ -260,7 +339,8 @@ class PostgresPlugin : public congelado::Plugin,
      * `PGRES_TUPLES_OK`; `"ok"` for `PGRES_COMMAND_OK`; `""` for a dead connection, a failed
      * query, or a thrown exception.
      */
-    void exec(std::string_view sql, shared::QueryReadFn callback) noexcept {
+    void exec(std::string_view sql, shared::QueryReadFn callback) noexcept
+    {
         // Dead connection means an instant empty result — no point even attempting the query.
         if (m_conn == nullptr) {
             core::logger::warning("postgres", "exec skipped, no live connection: {}", sql);
@@ -270,7 +350,7 @@ class PostgresPlugin : public congelado::Plugin,
         core::logger::debug("postgres", "executing: {}", sql);
         try {
             std::string statement{sql};
-            PGresult *result = PQexec(m_conn, statement.c_str());
+            PGresult* result = PQexec(m_conn, statement.c_str());
             auto st = PQresultStatus(result);
             if (st == PGRES_TUPLES_OK) {
                 // SELECT — hand the real rows back instead of collapsing them away.
@@ -278,14 +358,18 @@ class PostgresPlugin : public congelado::Plugin,
                 core::logger::debug("postgres", "returned {} row(s)", row_count);
                 callback(rows_to_json(result));
             } else if (st == PGRES_COMMAND_OK) {
-                core::logger::debug("postgres", "command ok, {} row(s) affected",
-                                    PQcmdTuples(result));
+                core::logger::debug(
+                    "postgres",
+                    "command ok, {} row(s) affected",
+                    PQcmdTuples(result)
+                );
                 callback("ok");
             } else {
                 core::logger::warning("postgres", "exec failed: {}", PQresultErrorMessage(result));
-                core::events::publish("postgres.exec.failed",
-                                     {{"sql", std::string{sql}},
-                                      {"error", PQresultErrorMessage(result)}});
+                core::events::publish(
+                    "postgres.exec.failed",
+                    {{"sql", std::string{sql}}, {"error", PQresultErrorMessage(result)}}
+                );
                 callback("");
             }
             PQclear(result);
@@ -303,12 +387,15 @@ class PostgresPlugin : public congelado::Plugin,
      * holds the whole JSON blob verbatim, so a caller-side document shape change needs no
      * matching migration here.
      */
-    void ensure_search_tables() noexcept {
-        exec("CREATE TABLE IF NOT EXISTS search_documents ("
-             "collection TEXT NOT NULL, id TEXT NOT NULL, data JSONB NOT NULL, "
-             "updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), "
-             "PRIMARY KEY (collection, id))",
-             [](std::string_view) {});
+    void ensure_search_tables() noexcept
+    {
+        exec(
+            "CREATE TABLE IF NOT EXISTS search_documents ("
+            "collection TEXT NOT NULL, id TEXT NOT NULL, data JSONB NOT NULL, "
+            "updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), "
+            "PRIMARY KEY (collection, id))",
+            [](std::string_view) {}
+        );
     }
 
     /**
@@ -318,10 +405,11 @@ class PostgresPlugin : public congelado::Plugin,
      * @param value the raw text to escape.
      * @return `value` with every `'` doubled, still missing the surrounding quotes.
      */
-    [[nodiscard]] static std::string escape_sql_literal(std::string_view value) {
+    [[nodiscard]] static std::string escape_sql_literal(std::string_view value)
+    {
         std::string out;
         out.reserve(value.size());
-        for (char character : value) {
+        for (char character: value) {
             if (character == '\'') {
                 out += "''";
             } else {
@@ -341,16 +429,22 @@ class PostgresPlugin : public congelado::Plugin,
      * @param callback gets the matched rows as a JSON array (`"[]"` for zero hits), or `""` on
      * failure.
      */
-    void select_documents(std::string_view sql, shared::QueryReadFn &&callback) noexcept {
+    void select_documents(std::string_view sql, shared::QueryReadFn&& callback) noexcept
+    {
         core::logger::debug("postgres", "search executing: {}", sql);
         try {
             std::string statement{sql};
-            PGresult *result = PQexec(m_conn, statement.c_str());
+            PGresult* result = PQexec(m_conn, statement.c_str());
             if (PQresultStatus(result) != PGRES_TUPLES_OK) {
-                core::logger::warning("postgres", "search failed: {}", PQresultErrorMessage(result));
-                core::events::publish("postgres.search.failed",
-                                     {{"sql", std::string{sql}},
-                                      {"error", PQresultErrorMessage(result)}});
+                core::logger::warning(
+                    "postgres",
+                    "search failed: {}",
+                    PQresultErrorMessage(result)
+                );
+                core::events::publish(
+                    "postgres.search.failed",
+                    {{"sql", std::string{sql}}, {"error", PQresultErrorMessage(result)}}
+                );
                 PQclear(result);
                 callback("");
                 return;
@@ -382,32 +476,33 @@ class PostgresPlugin : public congelado::Plugin,
      * @param value the raw cell text to escape.
      * @return `value`, JSON-string-literal-safe (still missing the surrounding quotes).
      */
-    [[nodiscard]] static std::string escape_json(std::string_view value) {
+    [[nodiscard]] static std::string escape_json(std::string_view value)
+    {
         std::string out;
         out.reserve(value.size());
-        for (char character : value) {
+        for (char character: value) {
             switch (character) {
-            case '"':
-                out += "\\\"";
-                break;
-            case '\\':
-                out += "\\\\";
-                break;
-            case '\n':
-                out += "\\n";
-                break;
-            case '\r':
-                out += "\\r";
-                break;
-            case '\t':
-                out += "\\t";
-                break;
-            default:
-                if (static_cast<unsigned char>(character) < 0x20) {
-                    out += std::format("\\u{:04x}", static_cast<unsigned char>(character));
-                } else {
-                    out += character;
-                }
+                case '"':
+                    out += "\\\"";
+                    break;
+                case '\\':
+                    out += "\\\\";
+                    break;
+                case '\n':
+                    out += "\\n";
+                    break;
+                case '\r':
+                    out += "\\r";
+                    break;
+                case '\t':
+                    out += "\\t";
+                    break;
+                default:
+                    if (static_cast<unsigned char>(character) < 0x20) {
+                        out += std::format("\\u{:04x}", static_cast<unsigned char>(character));
+                    } else {
+                        out += character;
+                    }
             }
         }
         return out;
@@ -422,7 +517,8 @@ class PostgresPlugin : public congelado::Plugin,
      * @return the result set as a JSON array of `{"column": "value", ...}` objects; a SQL `NULL`
      * cell becomes JSON `null`, unquoted.
      */
-    [[nodiscard]] static std::string rows_to_json(PGresult *result) {
+    [[nodiscard]] static std::string rows_to_json(PGresult* result)
+    {
         const int ROW_COUNT = PQntuples(result);
         const int COLUMN_COUNT = PQnfields(result);
 
@@ -442,7 +538,10 @@ class PostgresPlugin : public congelado::Plugin,
                 if (column > 0) {
                     out += ",";
                 }
-                out += std::format("\"{}\":", escape_json(column_names[static_cast<std::size_t>(column)]));
+                out += std::format(
+                    "\"{}\":",
+                    escape_json(column_names[static_cast<std::size_t>(column)])
+                );
                 if (PQgetisnull(result, row, column) != 0) {
                     out += "null";
                 } else {
@@ -480,31 +579,52 @@ using namespace boost::ut;
 /// is covered below instead, just to confirm that path doesn't itself misbehave (e.g. crash) on
 /// attacker-shaped input before a connection even exists.
 suite<"PostgresPlugin::search fail-safe path (findings #1/#2 — documented-skip, see comment above)">
-    postgres_search_failsafe_suite = [] {
-    "search with no live connection short-circuits to an empty result before ever building SQL, even with an injection-shaped query.query"_test = [] {
+    postgres_search_failsafe_suite = []
+{
+    "search with no live connection short-circuits to an empty result before ever building SQL, even with an injection-shaped query.query"_test =
+        []
+    {
         PostgresPlugin plugin;
-        interfaces::SearchQuery query{.query = "'; DROP TABLE workflow_definitions; --",
-                                      .free_text = "",
-                                      .start = 0,
-                                      .size = 100,
-                                      .sort = ""};
+        interfaces::SearchQuery query{
+            .query = "'; DROP TABLE workflow_definitions; --",
+            .free_text = "",
+            .start = 0,
+            .size = 100,
+            .sort = ""
+        };
         std::optional<std::string> observed;
-        plugin.search("workflow_summaries", query,
-                      [&](std::string_view result) { observed = std::string{result}; });
+        plugin.search(
+            "workflow_summaries",
+            query,
+            [&](std::string_view result)
+            {
+                observed = std::string{result};
+            }
+        );
         expect(observed.has_value()) << fatal;
         expect(observed->empty());
     };
 
-    "search with no live connection short-circuits to an empty result even with an unbounded query.size/query.start"_test = [] {
+    "search with no live connection short-circuits to an empty result even with an unbounded query.size/query.start"_test =
+        []
+    {
         PostgresPlugin plugin;
-        interfaces::SearchQuery query{.query = "",
-                                      .free_text = "",
-                                      .start = std::numeric_limits<std::uint32_t>::max(),
-                                      .size = std::numeric_limits<std::uint32_t>::max(),
-                                      .sort = ""};
+        interfaces::SearchQuery query{
+            .query = "",
+            .free_text = "",
+            .start = std::numeric_limits<std::uint32_t>::max(),
+            .size = std::numeric_limits<std::uint32_t>::max(),
+            .sort = ""
+        };
         std::optional<std::string> observed;
-        plugin.search("workflow_summaries", query,
-                      [&](std::string_view result) { observed = std::string{result}; });
+        plugin.search(
+            "workflow_summaries",
+            query,
+            [&](std::string_view result)
+            {
+                observed = std::string{result};
+            }
+        );
         expect(observed.has_value()) << fatal;
         expect(observed->empty());
     };
@@ -520,19 +640,35 @@ suite<"PostgresPlugin::search fail-safe path (findings #1/#2 — documented-skip
 /// leaving trailing characters libpq's connstring grammar doesn't expect) — libpq's own parser
 /// rejects this as a syntax error before ever attempting a socket, so this is a fast,
 /// deterministic, network-free failure, not a real connection attempt against a live server.
-suite<"PostgresPlugin::on_load connstring interpolation (finding #3)"> postgres_connstr_suite = [] {
-    "on_load's unescaped connstring interpolation breaks on a single quote embedded in the password config value, observed via host.log"_test = [] {
+suite<"PostgresPlugin::on_load connstring interpolation (finding #3)"> postgres_connstr_suite = []
+{
+    "on_load's unescaped connstring interpolation breaks on a single quote embedded in the password config value, observed via host.log"_test =
+        []
+    {
         PostgresPlugin plugin;
 
-        const char *keys[] = {"user", "password", "host", "dbname", "port"};    // NOLINT(cppcoreguidelines-avoid-c-arrays)
-        const char *values[] = {"postgres", "abc'req", "localhost", "congelado", "5432"};    // NOLINT(cppcoreguidelines-avoid-c-arrays)
+        const char* keys[] = {
+            "user",
+            "password",
+            "host",
+            "dbname",
+            "port"
+        }; // NOLINT(cppcoreguidelines-avoid-c-arrays)
+        const char* values[] = {
+            "postgres",
+            "abc'req",
+            "localhost",
+            "congelado",
+            "5432"
+        }; // NOLINT(cppcoreguidelines-avoid-c-arrays)
         CongeladoConfigView cfg{.keys = keys, .values = values, .count = 5};
 
         std::string captured_log;
         CongeladoHostCallbacks host{};
         host.ctx = &captured_log;
-        host.log = [](void *ctx, int /*level*/, const char *msg, std::size_t len) {
-            *static_cast<std::string *>(ctx) = std::string{msg, len};
+        host.log = [](void* ctx, int /*level*/, const char* msg, std::size_t len)
+        {
+            *static_cast<std::string*>(ctx) = std::string{msg, len};
         };
 
         plugin.on_load(host, cfg);

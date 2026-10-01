@@ -1,10 +1,10 @@
 module;
 
+#include "include/cc/templating/generated/cc_templating_templates.h"
+
 #include <expected>
 #include <inja/inja.hpp>
 #include <nlohmann/json.hpp>
-
-#include "include/cc/templating/generated/cc_templating_templates.h"
 
 export module cc_templating;
 
@@ -29,10 +29,8 @@ public:
         return render(pattern, data);
     }
 
-    static std::expected<std::string, std::string> render(
-        std::string_view pattern,
-        const nlohmann::json& data
-    ) noexcept
+    static std::expected<std::string, std::string>
+    render(std::string_view pattern, const nlohmann::json& data) noexcept
     {
         inja::Environment environment;
 
@@ -59,10 +57,8 @@ public:
         return render(find_template(template_name), data);
     }
 
-    static std::expected<std::string, std::string> render_template_json(
-        std::string_view template_name,
-        const nlohmann::json& data
-    ) noexcept
+    static std::expected<std::string, std::string>
+    render_template_json(std::string_view template_name, const nlohmann::json& data) noexcept
     {
         return render(find_template(template_name), data);
     }

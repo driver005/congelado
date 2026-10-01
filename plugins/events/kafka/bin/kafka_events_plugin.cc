@@ -22,11 +22,21 @@ import boost.ut;
  * single topic + key, not per-event-name topics, avoids runtime topic auto-creation surprises
  * (documented simplification, not a silent gap).
  */
-class KafkaEventsPlugin : public congelado::Plugin, public interfaces::IEventSink {
-  public:
-    [[nodiscard]] std::string_view get_name() const noexcept override { return "kafka"; }
-    [[nodiscard]] std::string_view get_version() const noexcept override { return "0.1.0"; }
-    [[nodiscard]] std::uint32_t capabilities() const noexcept override {
+class KafkaEventsPlugin : public congelado::Plugin, public interfaces::IEventSink
+{
+public:
+    [[nodiscard]] std::string_view get_name() const noexcept override
+    {
+        return "kafka";
+    }
+
+    [[nodiscard]] std::string_view get_version() const noexcept override
+    {
+        return "0.1.0";
+    }
+
+    [[nodiscard]] std::uint32_t capabilities() const noexcept override
+    {
         return CONGELADO_CAP_EVENTS;
     }
 
@@ -42,16 +52,17 @@ class KafkaEventsPlugin : public congelado::Plugin, public interfaces::IEventSin
      * @param cfg this plugin's config view; reads `bootstrap_servers` (default `localhost:9092`)
      * and `topic` (default `congelado-events`).
      */
-    void on_load(CongeladoHostCallbacks const & /*host*/,
-                CongeladoConfigView const &cfg) override {
+    void on_load(const CongeladoHostCallbacks& /*host*/, const CongeladoConfigView& cfg) override
+    {
         m_topic = congelado::config_get(cfg, "topic").value_or("congelado-events");
         auto brokers = congelado::config_get(cfg, "bootstrap_servers").value_or("localhost:9092");
 
         char errstr[512];
-        rd_kafka_conf_t *conf = rd_kafka_conf_new();
-        if (rd_kafka_conf_set(conf, "bootstrap.servers", brokers.c_str(), errstr,
-                              sizeof(errstr)) != RD_KAFKA_CONF_OK) {
-            auto error_message = std::format("kafka: conf_set bootstrap.servers failed: {}", errstr);
+        rd_kafka_conf_t* conf = rd_kafka_conf_new();
+        if (rd_kafka_conf_set(conf, "bootstrap.servers", brokers.c_str(), errstr, sizeof(errstr)) !=
+            RD_KAFKA_CONF_OK) {
+            auto error_message =
+                std::format("kafka: conf_set bootstrap.servers failed: {}", errstr);
             core::logger::error("kafka", "{}", error_message);
             core::events::publish("kafka.config_failed", {{"error", std::string{errstr}}});
             rd_kafka_conf_destroy(conf);
@@ -72,9 +83,10 @@ class KafkaEventsPlugin : public congelado::Plugin, public interfaces::IEventSin
     }
 
     /// @brief Flushes any in-flight messages (bounded timeout) then destroys the producer handle.
-    void on_unload() noexcept override {
+    void on_unload() noexcept override
+    {
         if (m_producer != nullptr) {
-            rd_kafka_flush(m_producer, 5000);
+            rd_kafka_flush(m_producer, 5'000);
             rd_kafka_destroy(m_producer);
             m_producer = nullptr;
         }
@@ -84,14 +96,18 @@ class KafkaEventsPlugin : public congelado::Plugin, public interfaces::IEventSin
      * @brief Capability hook the host calls to get at this plugin's `IEventSink` surface.
      * @return this instance, upcast to `interfaces::IEventSink*`.
      */
-    void *event_get() noexcept { return static_cast<interfaces::IEventSink *>(this); }
+    void* event_get() noexcept
+    {
+        return static_cast<interfaces::IEventSink*>(this);
+    }
 
     /**
      * @brief Publishes via `rd_kafka_producev` onto the fixed configured topic.
      * @param event_name the published event's name, sent as the Kafka message key.
      * @param payload_json the event's JSON-encoded payload, sent as the message value.
      */
-    void publish(std::string_view event_name, std::string_view payload_json) noexcept override {
+    void publish(std::string_view event_name, std::string_view payload_json) noexcept override
+    {
         if (m_producer == nullptr) {
             core::logger::warning("kafka", "publish skipped, no live producer: {}", event_name);
             return;
@@ -100,13 +116,20 @@ class KafkaEventsPlugin : public congelado::Plugin, public interfaces::IEventSin
             std::string key{event_name};
             std::string value{payload_json};
             auto err = rd_kafka_producev(
-                m_producer, RD_KAFKA_V_TOPIC(m_topic.c_str()),
+                m_producer,
+                RD_KAFKA_V_TOPIC(m_topic.c_str()),
                 RD_KAFKA_V_KEY(key.data(), key.size()),
                 RD_KAFKA_V_VALUE(value.data(), value.size()),
-                RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY), RD_KAFKA_V_END);
+                RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_COPY),
+                RD_KAFKA_V_END
+            );
             if (err != RD_KAFKA_RESP_ERR_NO_ERROR) {
-                core::logger::warning("kafka", "publish failed for '{}': {}", event_name,
-                                      rd_kafka_err2str(err));
+                core::logger::warning(
+                    "kafka",
+                    "publish failed for '{}': {}",
+                    event_name,
+                    rd_kafka_err2str(err)
+                );
                 return;
             }
             // Non-blocking poll to serve delivery-report callbacks — bounded, never stalls the
@@ -117,8 +140,8 @@ class KafkaEventsPlugin : public congelado::Plugin, public interfaces::IEventSin
         }
     }
 
-  private:
-    rd_kafka_t *m_producer{nullptr};
+private:
+    rd_kafka_t* m_producer{nullptr};
     std::string m_topic;
 };
 
@@ -141,28 +164,34 @@ using namespace boost::ut;
 //   collection/id URL-building in ElasticsearchPlugin's index()/remove()/search() — not reachable
 //   without a live producer, so whether event_name/payload_json get spliced into the Kafka
 //   key/value safely can't be observed here either.
-suite<"KafkaEventsPlugin"> kafka_events_plugin_suite = [] {
-    "get_name reports 'kafka'"_test = [] {
+suite<"KafkaEventsPlugin"> kafka_events_plugin_suite = []
+{
+    "get_name reports 'kafka'"_test = []
+    {
         KafkaEventsPlugin plugin;
         expect(plugin.get_name() == "kafka");
     };
 
-    "get_version reports a non-empty version string"_test = [] {
+    "get_version reports a non-empty version string"_test = []
+    {
         KafkaEventsPlugin plugin;
         expect(plugin.get_version() == "0.1.0");
     };
 
-    "capabilities reports CONGELADO_CAP_EVENTS"_test = [] {
+    "capabilities reports CONGELADO_CAP_EVENTS"_test = []
+    {
         KafkaEventsPlugin plugin;
         expect(plugin.capabilities() == CONGELADO_CAP_EVENTS);
     };
 
-    "event_get returns this instance upcast to IEventSink*"_test = [] {
+    "event_get returns this instance upcast to IEventSink*"_test = []
+    {
         KafkaEventsPlugin plugin;
-        expect(plugin.event_get() == static_cast<interfaces::IEventSink *>(&plugin));
+        expect(plugin.event_get() == static_cast<interfaces::IEventSink*>(&plugin));
     };
 
-    "publish with no live producer is a safe no-op"_test = [] {
+    "publish with no live producer is a safe no-op"_test = []
+    {
         KafkaEventsPlugin plugin;
         plugin.publish("some.event", R"({"payload":true})");
         // No live m_producer (on_load never ran) — publish() must early-return without ever
@@ -174,18 +203,28 @@ suite<"KafkaEventsPlugin"> kafka_events_plugin_suite = [] {
     // key/value framing (rd_kafka_producev takes key/value as raw byte buffers, not delimited
     // text, so there's nothing to "break out" of even on the live path) — pins that the guard
     // clause swallows this before any of that matters.
-    "publish with no live producer tolerates injection-shaped event_name/payload"_test = [] {
+    "publish with no live producer tolerates injection-shaped event_name/payload"_test = []
+    {
         KafkaEventsPlugin plugin;
-        expect(nothrow([&] {
-            plugin.publish("topic\0hijack", R"({"a":"'; DROP TABLE t; --\n\r\x00"})");
-        }));
+        expect(nothrow(
+            [&]
+            {
+                plugin.publish("topic\0hijack", R"({"a":"'; DROP TABLE t; --\n\r\x00"})");
+            }
+        ));
     };
 
-    "on_unload with no live producer is a safe no-op"_test = [] {
+    "on_unload with no live producer is a safe no-op"_test = []
+    {
         KafkaEventsPlugin plugin;
         // m_producer is nullptr (on_load never ran) — on_unload()'s null-guard means
         // rd_kafka_flush()/rd_kafka_destroy() never get called.
-        expect(nothrow([&] { plugin.on_unload(); }));
+        expect(nothrow(
+            [&]
+            {
+                plugin.on_unload();
+            }
+        ));
     };
 };
 

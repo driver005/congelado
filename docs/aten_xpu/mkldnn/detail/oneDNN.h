@@ -14,7 +14,8 @@ TORCH_API sycl::event matmul(
     const at::Tensor& b_raw,
     bool m2_trans,
     Attr attr,
-    const std::vector<sycl::event>& deps = {});
+    const std::vector<sycl::event>& deps = {}
+);
 
 TORCH_API sycl::event convolution(
     at::Tensor& dst,
@@ -27,7 +28,8 @@ TORCH_API sycl::event convolution(
     IntArrayRef dilation,
     int64_t groups,
     Attr& attr,
-    const std::vector<sycl::event>& deps = {});
+    const std::vector<sycl::event>& deps = {}
+);
 
 TORCH_API sycl::event convolution_backward_weights(
     at::Tensor& diff_weight,
@@ -40,7 +42,8 @@ TORCH_API sycl::event convolution_backward_weights(
     IntArrayRef stride,
     IntArrayRef dilation,
     int64_t groups,
-    const std::vector<sycl::event>& deps = {});
+    const std::vector<sycl::event>& deps = {}
+);
 
 TORCH_API sycl::event convolution_backward_data(
     at::Tensor& diff_src,
@@ -52,7 +55,8 @@ TORCH_API sycl::event convolution_backward_data(
     IntArrayRef dilation,
     int64_t groups,
     bool bias_defined,
-    const std::vector<sycl::event>& deps = {});
+    const std::vector<sycl::event>& deps = {}
+);
 
 TORCH_API sycl::event deconvolution(
     at::Tensor& dst,
@@ -65,7 +69,8 @@ TORCH_API sycl::event deconvolution(
     IntArrayRef dilation,
     int64_t groups,
     Attr& attr,
-    const std::vector<sycl::event>& deps = {});
+    const std::vector<sycl::event>& deps = {}
+);
 
 TORCH_API sycl::event deconvolution_backward_data(
     at::Tensor& diff_src,
@@ -77,7 +82,8 @@ TORCH_API sycl::event deconvolution_backward_data(
     IntArrayRef dilation,
     int64_t groups,
     bool bias_defined,
-    const std::vector<sycl::event>& deps = {});
+    const std::vector<sycl::event>& deps = {}
+);
 
 TORCH_API sycl::event deconvolution_backward_weights(
     at::Tensor& diff_weight,
@@ -89,16 +95,18 @@ TORCH_API sycl::event deconvolution_backward_weights(
     IntArrayRef dst_padding,
     IntArrayRef dilation,
     int64_t groups,
-    const std::vector<sycl::event>& deps = {});
+    const std::vector<sycl::event>& deps = {}
+);
 
 TORCH_API void woq_matmul_int4(
-    at::Tensor& result, // dst, [M, N]
+    at::Tensor& result,      // dst, [M, N]
     const at::Tensor& mat1_, // src, [M, K]
     const at::Tensor& mat2_, // quantized weight, [K/8, N]
     const at::Tensor& scale, // [K/group_size, N]
-    const at::Tensor& zp, // [k/group_size, N]
+    const at::Tensor& zp,    // [k/group_size, N]
     int64_t group_size,
-    bool pri_cache = true);
+    bool pri_cache = true
+);
 
 dnnl::memory::dims conv_dst_size(
     int64_t ndim,
@@ -107,7 +115,8 @@ dnnl::memory::dims conv_dst_size(
     IntArrayRef padding_front_top_left,
     IntArrayRef padding_back_bottom_right,
     IntArrayRef stride,
-    IntArrayRef dilation);
+    IntArrayRef dilation
+);
 
 dnnl::memory::dims deconv_dst_size(
     IntArrayRef src_size,
@@ -116,7 +125,8 @@ dnnl::memory::dims deconv_dst_size(
     IntArrayRef stride,
     IntArrayRef dilation,
     IntArrayRef dst_padding,
-    int64_t groups);
+    int64_t groups
+);
 
 at::Tensor quantized_convolution(
     at::Tensor act,
@@ -142,7 +152,8 @@ at::Tensor quantized_convolution(
     std::optional<at::Scalar> binary_alpha,
     std::optional<std::string_view> unary_attr,
     torch::List<std::optional<at::Scalar>> unary_scalars,
-    std::optional<std::string_view> unary_algorithm);
+    std::optional<std::string_view> unary_algorithm
+);
 
 void quantized_matmul(
     at::Tensor mat1, // act
@@ -164,7 +175,8 @@ void quantized_matmul(
     const std::string_view& unary_post_op,
     torch::List<std::optional<at::Scalar>>& unary_post_op_args,
     std::string_view unary_post_op_algorithm,
-    bool m2_trnas);
+    bool m2_trnas
+);
 
 void sdpa(
     int batch_size,
@@ -185,7 +197,8 @@ void sdpa(
     const Tensor& logsumexp,
     float dropout_probability,
     const Tensor& philox_seed,
-    const Tensor& philox_offset);
+    const Tensor& philox_offset
+);
 
 void sdpa_backward(
     int batch_size,
@@ -209,7 +222,8 @@ void sdpa_backward(
     Tensor& grad_value,
     float dropout_probability,
     const Tensor& philox_seed,
-    const Tensor& philox_offset);
+    const Tensor& philox_offset
+);
 
 sycl::event scaled_matmul(
     const Tensor& mat1,
@@ -222,5 +236,6 @@ sycl::event scaled_matmul(
     const std::optional<at::Tensor>& bias,
     const std::optional<at::Tensor>& scale_result,
     bool use_fast_accum,
-    const std::optional<at::Tensor>& alpha = std::nullopt);
+    const std::optional<at::Tensor>& alpha = std::nullopt
+);
 } // namespace at::native::onednn

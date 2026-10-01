@@ -38,7 +38,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         namespace full_type {
@@ -155,14 +154,16 @@ export {
 
             OpTypeConstructor NoOutputs()
             {
-                return [](OpDef* op_def) {
+                return [](OpDef* op_def)
+                {
                     return absl::OkStatus();
                 };
             }
 
             OpTypeConstructor Nullary(FullTypeId t)
             {
-                return [t](OpDef* op_def) {
+                return [t](OpDef* op_def)
+                {
                     FullTypeDef* tdef =
                         op_def->mutable_output_arg(0)->mutable_experimental_full_type();
                     tdef->set_type_id(t);
@@ -172,7 +173,8 @@ export {
 
             OpTypeConstructor Unary(FullTypeId t, const std::string& var_name)
             {
-                return [t, var_name](OpDef* op_def) {
+                return [t, var_name](OpDef* op_def)
+                {
                     FullTypeDef* tdef =
                         op_def->mutable_output_arg(0)->mutable_experimental_full_type();
                     tdef->set_type_id(t);
@@ -187,7 +189,8 @@ export {
 
             OpTypeConstructor UnaryGeneric(FullTypeId t)
             {
-                return [t](OpDef* op_def) {
+                return [t](OpDef* op_def)
+                {
                     FullTypeDef* tdef =
                         op_def->mutable_output_arg(0)->mutable_experimental_full_type();
                     tdef->set_type_id(t);
@@ -201,7 +204,8 @@ export {
 
             OpTypeConstructor UnaryTensorContainer(FullTypeId t, FullTypeId dtype)
             {
-                return [t, dtype](OpDef* op_def) {
+                return [t, dtype](OpDef* op_def)
+                {
                     FullTypeDef* tdef =
                         op_def->mutable_output_arg(0)->mutable_experimental_full_type();
                     tdef->set_type_id(t);
@@ -217,7 +221,8 @@ export {
 
             OpTypeConstructor UnaryTensorContainer(FullTypeId t, const std::string& var_name)
             {
-                return [t, var_name](OpDef* op_def) {
+                return [t, var_name](OpDef* op_def)
+                {
                     FullTypeDef* tdef =
                         op_def->mutable_output_arg(0)->mutable_experimental_full_type();
                     tdef->set_type_id(t);
@@ -234,7 +239,8 @@ export {
 
             OpTypeConstructor VariadicTensorContainer(FullTypeId t, const std::string& var_name)
             {
-                return [t, var_name](OpDef* op_def) {
+                return [t, var_name](OpDef* op_def)
+                {
                     FullTypeDef* tdef =
                         op_def->mutable_output_arg(0)->mutable_experimental_full_type();
                     tdef->set_type_id(t);
@@ -269,7 +275,8 @@ export {
                         return absl::Status(
                             absl::StatusCode::kInvalidArgument,
                             absl::StrCat(
-                                "Unexpected Var type, expected args_size 0, found ", t.args_size()
+                                "Unexpected Var type, expected args_size 0, found ",
+                                t.args_size()
                             )
                         );
                     }
@@ -293,7 +300,9 @@ export {
                                 absl::StatusCode::kUnimplemented,
                                 absl::StrCat(
                                     "lists or other than one type element\n",
-                                    attr_list.DebugString(), "\nkey=", var_name
+                                    attr_list.DebugString(),
+                                    "\nkey=",
+                                    var_name
                                 )
                             );
                         }
@@ -302,7 +311,9 @@ export {
                         return absl::Status(
                             absl::StatusCode::kUnimplemented,
                             absl::StrCat(
-                                "unsupported attribute type ", attr->DebugString(), " for name ",
+                                "unsupported attribute type ",
+                                attr->DebugString(),
+                                " for name ",
                                 var_name
                             )
                         );
@@ -317,7 +328,8 @@ export {
                         return absl::Status(
                             absl::StatusCode::kInvalidArgument,
                             absl::StrCat(
-                                "illegal FOR_EACH type, expected 3 args, got ", t.args_size()
+                                "illegal FOR_EACH type, expected 3 args, got ",
+                                t.args_size()
                             )
                         );
                     }
@@ -343,8 +355,13 @@ export {
                         FullTypeDef* target = result.add_args();
                         *target = tmpl;
                         TF_RETURN_WITH_CONTEXT_IF_ERROR(
-                            SubstituteFromAttrs(attrs, *target), "while substituting '", var_name,
-                            "' from\n", attr->DebugString(), "\ninto ", target->DebugString()
+                            SubstituteFromAttrs(attrs, *target),
+                            "while substituting '",
+                            var_name,
+                            "' from\n",
+                            attr->DebugString(),
+                            "\ninto ",
+                            target->DebugString()
                         );
                     } else if (attr_type == AttrValue::kList) {
                         const auto& attr_list = attr->list();
@@ -353,8 +370,10 @@ export {
                             return absl::Status(
                                 absl::StatusCode::kUnimplemented,
                                 absl::StrCat(
-                                    "unsupported list attribute type\n", attr_list.DebugString(),
-                                    "\nkey=", var_name
+                                    "unsupported list attribute type\n",
+                                    attr_list.DebugString(),
+                                    "\nkey=",
+                                    var_name
                                 )
                             );
                         }
@@ -365,8 +384,14 @@ export {
                             FullTypeDef* target = result.add_args();
                             *target = tmpl;
                             TF_RETURN_WITH_CONTEXT_IF_ERROR(
-                                SubstituteFromAttrs(attrs, *target), "while substituting '",
-                                var_name, "' from\n", attr->DebugString(), "\n[", i, "] into\n",
+                                SubstituteFromAttrs(attrs, *target),
+                                "while substituting '",
+                                var_name,
+                                "' from\n",
+                                attr->DebugString(),
+                                "\n[",
+                                i,
+                                "] into\n",
                                 target->DebugString()
                             );
                         }
@@ -377,7 +402,9 @@ export {
                         return absl::Status(
                             absl::StatusCode::kUnimplemented,
                             absl::StrCat(
-                                "unsupported attribute type\n", attr->DebugString(), "\nfor name ",
+                                "unsupported attribute type\n",
+                                attr->DebugString(),
+                                "\nfor name ",
                                 var_name
                             )
                         );
@@ -392,7 +419,10 @@ export {
                     for (int j = 0; j < nargs; j++) {
                         FullTypeDef* arg_t = t.mutable_args(j);
                         TF_RETURN_WITH_CONTEXT_IF_ERROR(
-                            SubstituteFromAttrs(attrs, *arg_t), "while substituting arg ", j, ": ",
+                            SubstituteFromAttrs(attrs, *arg_t),
+                            "while substituting arg ",
+                            j,
+                            ": ",
                             arg_t->DebugString()
                         );
 
@@ -457,8 +487,11 @@ export {
                     auto& t = *(target.add_args());
                     t = op_def.output_arg(i).experimental_full_type();
                     TF_RETURN_WITH_CONTEXT_IF_ERROR(
-                        SubstituteFromAttrs(map, t), "while expanding vars of\n", t.DebugString(),
-                        "\nfrom\n", attrs.SummarizeNode()
+                        SubstituteFromAttrs(map, t),
+                        "while expanding vars of\n",
+                        t.DebugString(),
+                        "\nfrom\n",
+                        attrs.SummarizeNode()
                     );
                 }
 
@@ -467,7 +500,8 @@ export {
 
             const FullTypeDef& GetArgDefaultUnset(const FullTypeDef& t, int i)
             {
-                static FullTypeDef* unset_type = []() {
+                static FullTypeDef* unset_type = []()
+                {
                     FullTypeDef* t = new FullTypeDef();
                     return t;
                 }();
@@ -480,7 +514,8 @@ export {
 
             const FullTypeDef& GetArgDefaultAny(const FullTypeDef& t, int i)
             {
-                static FullTypeDef* any_type = []() {
+                static FullTypeDef* any_type = []()
+                {
                     FullTypeDef* t = new FullTypeDef();
                     t->set_type_id(TFT_ANY);
                     return t;

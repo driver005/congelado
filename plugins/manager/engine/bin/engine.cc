@@ -15,24 +15,34 @@ import migration;
 
 namespace {
 
-class EnginePlugin final : public congelado::Plugin {
-  public:
+class EnginePlugin final : public congelado::Plugin
+{
+public:
     /**
      * @brief Plugin name reported to the host.
      * @return `"engine"`.
      */
-    [[nodiscard]] std::string_view get_name() const noexcept override { return "engine"; }
+    [[nodiscard]] std::string_view get_name() const noexcept override
+    {
+        return "engine";
+    }
+
     /**
      * @brief Version string for this build of the engine plugin.
      * @return `"1.0.0"`.
      */
-    [[nodiscard]] std::string_view get_version() const noexcept override { return "1.0.0"; }
+    [[nodiscard]] std::string_view get_version() const noexcept override
+    {
+        return "1.0.0";
+    }
+
     /**
      * @brief This plugin has zero hard dependencies — it just needs a router context handed in
      * through `on_load`, no other plugin needs to be up first.
      * @return an empty span, no required plugin types.
      */
-    [[nodiscard]] std::span<const std::string_view> get_requires() const noexcept override {
+    [[nodiscard]] std::span<const std::string_view> get_requires() const noexcept override
+    {
         return {};
     }
 
@@ -42,8 +52,8 @@ class EnginePlugin final : public congelado::Plugin {
      * requests — ordering matters here, bet.
      * @return a span containing `"protocol"`.
      */
-    [[nodiscard]] std::span<const std::string_view>
-    get_load_before_types() const noexcept override {
+    [[nodiscard]] std::span<const std::string_view> get_load_before_types() const noexcept override
+    {
         static constexpr std::string_view TYPES[] = {"protocol"};
         return TYPES;
     }
@@ -53,7 +63,10 @@ class EnginePlugin final : public congelado::Plugin {
      * route registration on load.
      * @return `CONGELADO_CAP_CUSTOM`.
      */
-    [[nodiscard]] uint32_t capabilities() const noexcept override { return CONGELADO_CAP_CUSTOM; }
+    [[nodiscard]] uint32_t capabilities() const noexcept override
+    {
+        return CONGELADO_CAP_CUSTOM;
+    }
 
     /**
      * @brief Pulls the router context out of the host callback table and registers the engine's
@@ -63,11 +76,14 @@ class EnginePlugin final : public congelado::Plugin {
      * @param host the host callback table; used here to fetch the router context.
      * @param cfg_view unnamed/unused — this plugin doesn't read any config.
      */
-    void on_load(CongeladoHostCallbacks const &host,
-                 CongeladoConfigView const & /*cfg_view*/) override {
+    void on_load(
+        const CongeladoHostCallbacks& host,
+        const CongeladoConfigView& /*cfg_view*/
+    ) override
+    {
         // Pull the router context out of the host callback table first — nothing else in
         // here can happen without it.
-        auto *router_ctx = congelado::router_ctx<core::router::RouterContext<>>(host);
+        auto* router_ctx = congelado::router_ctx<core::router::RouterContext<>>(host);
 
         // No router, no motion — log it and bail instead of dereferencing a null pointer.
         if (router_ctx == nullptr) {
@@ -90,7 +106,7 @@ class EnginePlugin final : public congelado::Plugin {
         // Same early-resolution story as the connector above, for the Lua bridge SWITCH/DO_WHILE
         // condition evaluation needs — see sdk/heart/app.cppm's load_plugins() for where this
         // gets populated (a separate pre-build() walk filtered to runtime_name() == "lua").
-        if (auto *bridge = congelado::lua_bridge_ctx<interfaces::IBridge>(host)) {
+        if (auto* bridge = congelado::lua_bridge_ctx<interfaces::IBridge>(host)) {
             m_engine_ctx.set_lua_bridge(bridge);
         }
 
@@ -98,7 +114,7 @@ class EnginePlugin final : public congelado::Plugin {
         // backend SummaryProjector pushes WorkflowSummary/TaskSummary projections into on every
         // terminal transition. No provider configured is fine — search routes just degrade to
         // empty results.
-        if (auto *search = congelado::search_ctx<interfaces::ISearchProvider>(host)) {
+        if (auto* search = congelado::search_ctx<interfaces::ISearchProvider>(host)) {
             m_engine_ctx.set_search(search);
         }
 
@@ -110,12 +126,13 @@ class EnginePlugin final : public congelado::Plugin {
             core::events::publish("engine.no_cron_backend");
         } else {
             engine::set_cron(m_engine_ctx, host.cron_ctx);
-            // Install the fire callback (fired job name → started workflow via the workflow backend)
-            // and seed the backend with every currently active schedule, since the cron plugin
-            // starts empty.
+            // Install the fire callback (fired job name → started workflow via the workflow
+            // backend) and seed the backend with every currently active schedule, since the cron
+            // plugin starts empty.
             engine::install_cron_scheduling(
                 m_engine_ctx,
-                static_cast<interfaces::IWorkflowOrchestrator *>(host.workflow_orchestrator_ctx));
+                static_cast<interfaces::IWorkflowOrchestrator*>(host.workflow_orchestrator_ctx)
+            );
         }
 
         // Externalized payload storage is now a resolved capability (the payload_local plugin, or
@@ -125,19 +142,23 @@ class EnginePlugin final : public congelado::Plugin {
             core::logger::warning("engine", "no payload_storage backend resolved");
         } else {
             m_engine_ctx.set_payload_storage(
-                static_cast<interfaces::IExternalPayloadStorage *>(host.payload_storage_ctx));
+                static_cast<interfaces::IExternalPayloadStorage*>(host.payload_storage_ctx)
+            );
         }
 
         // Route dispatch through the resolved worker_orchestrator backend (e.g. the local
         // orchestrator plugin) — the engine no longer carries its own queue logic. With no backend
         // resolved the queue endpoints (poll/claim) degrade to an error; log it loudly.
         if (host.worker_orchestrator_ctx == nullptr) {
-            core::logger::error("engine",
-                                "no worker_orchestrator backend — task dispatch will not work");
+            core::logger::error(
+                "engine",
+                "no worker_orchestrator backend — task dispatch will not work"
+            );
             core::events::publish("engine.no_worker_orchestrator");
         } else {
             m_engine_ctx.set_orchestrator(
-                static_cast<interfaces::IWorkerOrchestrator *>(host.worker_orchestrator_ctx));
+                static_cast<interfaces::IWorkerOrchestrator*>(host.worker_orchestrator_ctx)
+            );
         }
 
         // The workflow-lifecycle backend (DAG side), resolved the same way. The engine's built-in
@@ -147,7 +168,8 @@ class EnginePlugin final : public congelado::Plugin {
             core::events::publish("engine.no_workflow_orchestrator");
         } else {
             m_engine_ctx.set_workflow_orchestrator(
-                static_cast<interfaces::IWorkflowOrchestrator *>(host.workflow_orchestrator_ctx));
+                static_cast<interfaces::IWorkflowOrchestrator*>(host.workflow_orchestrator_ctx)
+            );
         }
 
         // Router's live — wire this engine's routes onto it and let the host know it's done.
@@ -167,7 +189,7 @@ class EnginePlugin final : public congelado::Plugin {
         // orchestrator and registers no sweep — the plugin owns both.
     }
 
-  private:
+private:
     engine::EngineContext m_engine_ctx;
 };
 

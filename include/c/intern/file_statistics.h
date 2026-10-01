@@ -16,9 +16,9 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_FILE_STATISTICS_H_
 #define TENSORFLOW_C_TF_FILE_STATISTICS_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -62,8 +62,11 @@ extern "C"
 
 #define TF_FILE_STATISTICS_STRUCT_SIZE TF_OFFSET_OF_END(TF_FileStatisticsOps, set_mtime_nsec)
 
-    TF_CAPI_EXPORT void
-    create_file_statistics(TF_FileStatisticsOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void create_file_statistics(
+        TF_FileStatisticsOps** ops,
+        void** plugin_context,
+        TF_Status* out_status
+    );
     TF_CAPI_EXPORT void destroy_file_statistics(void* plugin_context);
 
     // Real implementation, not declared-only — calls create_file_statistics

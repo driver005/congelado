@@ -1,9 +1,9 @@
 #ifndef TENSORFLOW_C_TF_HIVE_HIVE_H_
 #define TENSORFLOW_C_TF_HIVE_HIVE_H_
 
-#include "include/c/macros.h"
-#include "include/c/intern/status.h"
 #include "include/c/intern/hive/slot.h"
+#include "include/c/intern/status.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -12,7 +12,9 @@ extern "C"
 {
 #endif
 
-    // TF_Hive — plugin vtable for a type-erased stable-address bucket container (C++26 std::hive/colony equivalent), fixed to element_size bytes per element at creation. Insert/erase are O(1) and never invalidate other elements' slot handles, unlike TF_Vector.
+    // TF_Hive — plugin vtable for a type-erased stable-address bucket container (C++26
+    // std::hive/colony equivalent), fixed to element_size bytes per element at creation.
+    // Insert/erase are O(1) and never invalidate other elements' slot handles, unlike TF_Vector.
 
     typedef struct TF_Hive
     {
@@ -31,21 +33,28 @@ extern "C"
 
         void (*set_element_size)(TF_Hive* hive, size_t element_size);
 
-        // Copy one element_size-byte element from value into a newly allocated slot, returning a stable handle to it.
-        void (*insert)(TF_Hive* hive, const void* value, TFHiveSlot* out_slot, TF_Status* out_status);
+        // Copy one element_size-byte element from value into a newly allocated slot, returning a
+        // stable handle to it.
+        void (*insert)(
+            TF_Hive* hive,
+            const void* value,
+            TFHiveSlot* out_slot,
+            TF_Status* out_status
+        );
 
         // Erase the element at slot, invalidating it.
         void (*erase)(TF_Hive* hive, TFHiveSlot* slot, TF_Status* out_status);
 
         // Non-owning pointer to the element at slot; NULL if slot has been erased.
-        void (*get)(const TF_Hive* hive, const TFHiveSlot* slot, const void** out_value, TF_Status* out_status);
+        void (*get)(
+            const TF_Hive* hive,
+            const TFHiveSlot* slot,
+            const void** out_value,
+            TF_Status* out_status
+        );
 
         // Call visitor(capture, element) once per live element, in unspecified order.
-        void (*for_each)(
-            const TF_Hive* hive,
-            TF_HiveVisitor visitor,
-            void* capture
-        );
+        void (*for_each)(const TF_Hive* hive, TF_HiveVisitor visitor, void* capture);
 
         // Current live element count.
         void (*size)(const TF_Hive* hive, size_t* out_size);

@@ -16,8 +16,8 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_TSTRING_H_
 #define TENSORFLOW_C_TF_TSTRING_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 
@@ -35,14 +35,18 @@ extern "C"
         TF_TSTR_VIEW = 3
     } TFTStringType;
 
-    // Opaque small-string-optimized string storage. Owned and laid out entirely by whichever backend's create_string() supplied the TF_String ops below — callers never look inside it, only ever hold/pass a pointer.
+    // Opaque small-string-optimized string storage. Owned and laid out entirely by whichever
+    // backend's create_string() supplied the TF_String ops below — callers never look inside it,
+    // only ever hold/pass a pointer.
 
     typedef struct TF_String
     {
         void* plugin_data;
     } TF_String;
 
-    // Ops vtable for TF_String — matches the intern/extern convention (struct_size first) instead of free functions, so this type registers with cc_abi_gen exactly like TF_Buffer/TF_Shape/TF_Registration.
+    // Ops vtable for TF_String — matches the intern/extern convention (struct_size first) instead
+    // of free functions, so this type registers with cc_abi_gen exactly like
+    // TF_Buffer/TF_Shape/TF_Registration.
     typedef struct TF_StringOps
     {
         size_t struct_size;
@@ -61,8 +65,10 @@ extern "C"
 
 #define TF_STRING_STRUCT_SIZE TF_OFFSET_OF_END(TF_StringOps, dealloc)
 
-    // Declared-only, like create_buffer/create_shape: no default implementation lives anywhere in the repo, graceful null-ops degradation expected.
-    TF_CAPI_EXPORT void create_string(TF_StringOps** ops, void** plugin_context, TF_Status* out_status);
+    // Declared-only, like create_buffer/create_shape: no default implementation lives anywhere in
+    // the repo, graceful null-ops degradation expected.
+    TF_CAPI_EXPORT void
+    create_string(TF_StringOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_string(void* plugin_context);
 
     // Real implementation, not declared-only — calls create_string

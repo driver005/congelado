@@ -122,9 +122,9 @@ public:
             m_device.get_info<sycl::info::device::profiling_timer_resolution>();
 
         if (m_device.has(sycl::aspect::ext_intel_device_id)) {
-            out_properties->device_id =
-                static_cast<int32_t>(m_device.get_info<sycl::ext::intel::info::device::device_id>()
-                );
+            out_properties->device_id = static_cast<int32_t>(
+                m_device.get_info<sycl::ext::intel::info::device::device_id>()
+            );
         }
 
         fill_sub_group_sizes(*out_properties);
@@ -179,8 +179,7 @@ private:
             m_device.has(syclex::aspect::ext_oneapi_matrix);
         properties.has_subgroup_matrix_multiply_accumulate_tensor_float32 =
             properties.has_subgroup_matrix_multiply_accumulate;
-        properties.has_subgroup_2d_block_io =
-            m_device.has(syclex::aspect::ext_oneapi_tensor_map);
+        properties.has_subgroup_2d_block_io = m_device.has(syclex::aspect::ext_oneapi_tensor_map);
     }
 
     sycl::device m_device;

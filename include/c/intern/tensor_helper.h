@@ -16,9 +16,9 @@ limitations under the License.
 #ifndef TENSORFLOW_C_TF_TENSOR_HELPER_H_
 #define TENSORFLOW_C_TF_TENSOR_HELPER_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/datatype.h"
 #include "include/c/intern/tensor.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 #include <stdint.h>

@@ -30,10 +30,9 @@ import std;
 import cc_abi;
 
 export {
-
 // Classes to maintain a static registry of memory allocator factories.
 #ifndef TENSORFLOW_CORE_FRAMEWORK_ALLOCATOR_REGISTRY_H_
-#    define TENSORFLOW_CORE_FRAMEWORK_ALLOCATOR_REGISTRY_H_
+    #define TENSORFLOW_CORE_FRAMEWORK_ALLOCATOR_REGISTRY_H_
 
     namespace tensorflow {
 
@@ -151,22 +150,20 @@ export {
                 AllocatorFactory* factory
             )
             {
-                AllocatorFactoryRegistry::singleton()->Register(
-                    file, line, name, priority, factory
-                );
+                AllocatorFactoryRegistry::singleton()
+                    ->Register(file, line, name, priority, factory);
             }
         };
 
-#    define REGISTER_MEM_ALLOCATOR(name, priority, factory)                                        \
+    #define REGISTER_MEM_ALLOCATOR(name, priority, factory)                                        \
         REGISTER_MEM_ALLOCATOR_UNIQ_HELPER(__COUNTER__, __FILE__, __LINE__, name, priority, factory)
 
-#    define REGISTER_MEM_ALLOCATOR_UNIQ_HELPER(ctr, file, line, name, priority, factory)           \
+    #define REGISTER_MEM_ALLOCATOR_UNIQ_HELPER(ctr, file, line, name, priority, factory)           \
         REGISTER_MEM_ALLOCATOR_UNIQ(ctr, file, line, name, priority, factory)
 
-#    define REGISTER_MEM_ALLOCATOR_UNIQ(ctr, file, line, name, priority, factory)                  \
-        static AllocatorFactoryRegistration allocator_factory_reg_##ctr(                           \
-            file, line, name, priority, new factory                                                \
-        )
+    #define REGISTER_MEM_ALLOCATOR_UNIQ(ctr, file, line, name, priority, factory)                  \
+        static AllocatorFactoryRegistration                                                        \
+        allocator_factory_reg_##ctr(file, line, name, priority, new factory)
 
     } // namespace tensorflow
 

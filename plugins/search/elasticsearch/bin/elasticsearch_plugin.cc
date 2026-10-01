@@ -20,8 +20,9 @@ namespace {
 
 /// @brief Accumulates a libcurl response body — the `CURLOPT_WRITEFUNCTION` callback appends
 /// every chunk libcurl hands it into `*static_cast<std::string*>(userdata)`.
-std::size_t write_callback(char *ptr, std::size_t size, std::size_t nmemb, void *userdata) {
-    auto *out = static_cast<std::string *>(userdata);
+std::size_t write_callback(char* ptr, std::size_t size, std::size_t nmemb, void* userdata)
+{
+    auto* out = static_cast<std::string*>(userdata);
     out->append(ptr, size * nmemb);
     return size * nmemb;
 }
@@ -36,11 +37,21 @@ std::size_t write_callback(char *ptr, std::size_t size, std::size_t nmemb, void 
  * anywhere in this codebase to build on (`IClient` implementations are all router/protocol-layer
  * integrated), so this is the established escape hatch, not a one-off shortcut.
  */
-class ElasticsearchPlugin : public congelado::Plugin, public interfaces::ISearchProvider {
-  public:
-    [[nodiscard]] std::string_view get_name() const noexcept override { return "elasticsearch"; }
-    [[nodiscard]] std::string_view get_version() const noexcept override { return "0.1.0"; }
-    [[nodiscard]] std::uint32_t capabilities() const noexcept override {
+class ElasticsearchPlugin : public congelado::Plugin, public interfaces::ISearchProvider
+{
+public:
+    [[nodiscard]] std::string_view get_name() const noexcept override
+    {
+        return "elasticsearch";
+    }
+
+    [[nodiscard]] std::string_view get_version() const noexcept override
+    {
+        return "0.1.0";
+    }
+
+    [[nodiscard]] std::uint32_t capabilities() const noexcept override
+    {
         return CONGELADO_CAP_SEARCH;
     }
 
@@ -63,8 +74,8 @@ class ElasticsearchPlugin : public congelado::Plugin, public interfaces::ISearch
      * `index_prefix` (default `congelado_`), and optional `username`/`password` for HTTP basic
      * auth.
      */
-    void on_load(CongeladoHostCallbacks const & /*host*/,
-                CongeladoConfigView const &cfg) override {
+    void on_load(const CongeladoHostCallbacks& /*host*/, const CongeladoConfigView& cfg) override
+    {
         m_base_url = congelado::config_get(cfg, "hosts").value_or("http://localhost:9200");
         m_index_prefix = congelado::config_get(cfg, "index_prefix").value_or("congelado_");
         m_username = congelado::config_get(cfg, "username").value_or("");
@@ -85,15 +96,22 @@ class ElasticsearchPlugin : public congelado::Plugin, public interfaces::ISearch
     }
 
     /// @brief Tears down libcurl's global state.
-    void on_unload() noexcept override { curl_global_cleanup(); }
+    void on_unload() noexcept override
+    {
+        curl_global_cleanup();
+    }
 
     /**
      * @brief Capability hook the host calls to get at this plugin's `ISearchProvider` surface.
      * @return this instance, upcast to `interfaces::ISearchProvider*`.
      */
-    void *search_get() noexcept { return static_cast<interfaces::ISearchProvider *>(this); }
+    void* search_get() noexcept
+    {
+        return static_cast<interfaces::ISearchProvider*>(this);
+    }
 
-    [[nodiscard]] std::string_view backend_name() const noexcept override {
+    [[nodiscard]] std::string_view backend_name() const noexcept override
+    {
         return "elasticsearch";
     }
 
@@ -104,8 +122,13 @@ class ElasticsearchPlugin : public congelado::Plugin, public interfaces::ISearch
      * @param document_json the document body, already JSON-encoded by the caller.
      * @param callback gets `"ok"` on a 2xx response, `""` otherwise.
      */
-    void index(std::string_view collection, std::string_view id, std::string_view document_json,
-              shared::QueryReadFn &&callback) noexcept override {
+    void index(
+        std::string_view collection,
+        std::string_view id,
+        std::string_view document_json,
+        shared::QueryReadFn&& callback
+    ) noexcept override
+    {
         // SECURITY: URL-path injection. `collection`/`id` are spliced into the REST URL path with
         // zero percent-encoding — unlike `query.query` in search() below (already documented as
         // an accepted raw-Query-DSL trust boundary), this splice was never called out. An `id`
@@ -129,8 +152,12 @@ class ElasticsearchPlugin : public congelado::Plugin, public interfaces::ISearch
      * @param callback gets `"ok"` on a 2xx or 404 (already gone counts as removed) response,
      * `""` otherwise.
      */
-    void remove(std::string_view collection, std::string_view id,
-               shared::QueryReadFn &&callback) noexcept override {
+    void remove(
+        std::string_view collection,
+        std::string_view id,
+        shared::QueryReadFn&& callback
+    ) noexcept override
+    {
         // SECURITY: same unescaped URL-path splice of `collection`/`id` as index() above.
         auto url = std::format("{}/{}{}/_doc/{}", m_base_url, m_index_prefix, collection, id);
         auto [status, body] = request("DELETE", url, "");
@@ -149,20 +176,24 @@ class ElasticsearchPlugin : public congelado::Plugin, public interfaces::ISearch
      * @param callback gets a JSON array of matched `_source` documents (`"[]"` for zero hits),
      * or `""` on failure.
      */
-    void search(std::string_view collection, const interfaces::SearchQuery &query,
-               shared::QueryReadFn &&callback) noexcept override {
+    void search(
+        std::string_view collection,
+        const interfaces::SearchQuery& query,
+        shared::QueryReadFn&& callback
+    ) noexcept override
+    {
         // SECURITY: same unescaped URL-path splice of `collection` as index()'s finding above.
         auto url = std::format("{}/{}{}/_search", m_base_url, m_index_prefix, collection);
-        std::string clause = query.query.empty()
-                                 ? R"({"match_all":{}})"
-                                 : query.query;
+        std::string clause = query.query.empty() ? R"({"match_all":{}})" : query.query;
         if (!query.free_text.empty()) {
             clause = std::format(
-                R"({{"bool":{{"must":[{},{{"query_string":{{"query":"{}"}}}}]}}}})", clause,
-                escape_json(query.free_text));
+                R"({{"bool":{{"must":[{},{{"query_string":{{"query":"{}"}}}}]}}}})",
+                clause,
+                escape_json(query.free_text)
+            );
         }
-        auto body = std::format(R"({{"from":{},"size":{},"query":{}}})", query.start, query.size,
-                                clause);
+        auto body =
+            std::format(R"({{"from":{},"size":{},"query":{}}})", query.start, query.size, clause);
         auto [status, response] = request("POST", url, body);
         if (status < 200 || status >= 300) {
             callback("");
@@ -171,7 +202,7 @@ class ElasticsearchPlugin : public congelado::Plugin, public interfaces::ISearch
         callback(extract_sources(response));
     }
 
-  private:
+private:
     std::string m_base_url;
     std::string m_index_prefix;
     std::string m_username;
@@ -184,16 +215,17 @@ class ElasticsearchPlugin : public congelado::Plugin, public interfaces::ISearch
      * @param body the request body, empty for a bodyless request.
      * @return the response's HTTP status code (0 on a transport-level failure) and body text.
      */
-    [[nodiscard]] std::pair<long, std::string> request(const char *method, std::string_view url,
-                                                       std::string_view body) const noexcept {
-        CURL *curl = curl_easy_init();
+    [[nodiscard]] std::pair<long, std::string>
+    request(const char* method, std::string_view url, std::string_view body) const noexcept
+    {
+        CURL* curl = curl_easy_init();
         if (curl == nullptr) {
             return {0, ""};
         }
         std::string response;
         std::string url_owned{url};
         std::string body_owned{body};
-        struct curl_slist *headers = nullptr;
+        struct curl_slist* headers = nullptr;
         headers = curl_slist_append(headers, "Content-Type: application/json");
 
         curl_easy_setopt(curl, CURLOPT_URL, url_owned.c_str());
@@ -216,12 +248,19 @@ class ElasticsearchPlugin : public congelado::Plugin, public interfaces::ISearch
         if (result == CURLE_OK) {
             curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &status);
         } else {
-            core::logger::warning("elasticsearch", "{} {} failed: {}", method, url_owned,
-                                  curl_easy_strerror(result));
-            core::events::publish("elasticsearch.request_failed",
-                                  {{"method", std::string{method}},
-                                   {"url", url_owned},
-                                   {"error", curl_easy_strerror(result)}});
+            core::logger::warning(
+                "elasticsearch",
+                "{} {} failed: {}",
+                method,
+                url_owned,
+                curl_easy_strerror(result)
+            );
+            core::events::publish(
+                "elasticsearch.request_failed",
+                {{"method", std::string{method}},
+                 {"url", url_owned},
+                 {"error", curl_easy_strerror(result)}}
+            );
         }
         curl_slist_free_all(headers);
         curl_easy_cleanup(curl);
@@ -235,22 +274,23 @@ class ElasticsearchPlugin : public congelado::Plugin, public interfaces::ISearch
      * @param value the raw text to escape.
      * @return `value`, JSON-string-literal-safe, still missing the surrounding quotes.
      */
-    [[nodiscard]] static std::string escape_json(std::string_view value) {
+    [[nodiscard]] static std::string escape_json(std::string_view value)
+    {
         std::string out;
         out.reserve(value.size());
-        for (char character : value) {
+        for (char character: value) {
             switch (character) {
-            case '"':
-                out += "\\\"";
-                break;
-            case '\\':
-                out += "\\\\";
-                break;
-            case '\n':
-                out += "\\n";
-                break;
-            default:
-                out += character;
+                case '"':
+                    out += "\\\"";
+                    break;
+                case '\\':
+                    out += "\\\\";
+                    break;
+                case '\n':
+                    out += "\\n";
+                    break;
+                default:
+                    out += character;
             }
         }
         return out;
@@ -266,7 +306,8 @@ class ElasticsearchPlugin : public congelado::Plugin, public interfaces::ISearch
      * @return a JSON array of the matched documents' `_source` objects, `"[]"` if none were
      * found.
      */
-    [[nodiscard]] static std::string extract_sources(std::string_view response) {
+    [[nodiscard]] static std::string extract_sources(std::string_view response)
+    {
         static constexpr std::string_view MARKER = "\"_source\":";
         std::string out = "[";
         bool first = true;
@@ -303,7 +344,8 @@ class ElasticsearchPlugin : public congelado::Plugin, public interfaces::ISearch
      * @param open the index of the opening `{`.
      * @return the matching `}`'s index, or `std::string_view::npos` if the text ends unbalanced.
      */
-    [[nodiscard]] static std::size_t matching_brace(std::string_view text, std::size_t open) {
+    [[nodiscard]] static std::size_t matching_brace(std::string_view text, std::size_t open)
+    {
         int depth = 0;
         bool in_string = false;
         for (std::size_t index = open; index < text.size(); ++index) {
@@ -354,28 +396,34 @@ using namespace boost::ut;
 // findings just above (index()/remove()/search()'s unescaped `collection`/`id` URL-path splice)
 // are pinned as comments rather than tests for the same reason: observing the actual built URL
 // needs either a live ES node or a code-level seam, neither of which this pass adds.
-suite<"ElasticsearchPlugin"> elasticsearch_plugin_suite = [] {
-    "get_name reports 'elasticsearch'"_test = [] {
+suite<"ElasticsearchPlugin"> elasticsearch_plugin_suite = []
+{
+    "get_name reports 'elasticsearch'"_test = []
+    {
         ElasticsearchPlugin plugin;
         expect(plugin.get_name() == "elasticsearch");
     };
 
-    "get_version reports a non-empty version string"_test = [] {
+    "get_version reports a non-empty version string"_test = []
+    {
         ElasticsearchPlugin plugin;
         expect(plugin.get_version() == "0.1.0");
     };
 
-    "capabilities reports CONGELADO_CAP_SEARCH"_test = [] {
+    "capabilities reports CONGELADO_CAP_SEARCH"_test = []
+    {
         ElasticsearchPlugin plugin;
         expect(plugin.capabilities() == CONGELADO_CAP_SEARCH);
     };
 
-    "search_get returns this instance upcast to ISearchProvider*"_test = [] {
+    "search_get returns this instance upcast to ISearchProvider*"_test = []
+    {
         ElasticsearchPlugin plugin;
-        expect(plugin.search_get() == static_cast<interfaces::ISearchProvider *>(&plugin));
+        expect(plugin.search_get() == static_cast<interfaces::ISearchProvider*>(&plugin));
     };
 
-    "backend_name reports 'elasticsearch'"_test = [] {
+    "backend_name reports 'elasticsearch'"_test = []
+    {
         ElasticsearchPlugin plugin;
         expect(plugin.backend_name() == "elasticsearch");
     };

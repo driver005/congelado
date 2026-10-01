@@ -115,7 +115,9 @@ public:
 
     /// @brief Handles `POST /api/v1/workflow/search` against the WorkflowSummary projection.
     void search_workflows(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         run_search(req, res, std::move(send), WORKFLOW_SUMMARY_COLLECTION);
@@ -123,7 +125,9 @@ public:
 
     /// @brief Handles `POST /api/v1/tasks/search` against the TaskSummary projection.
     void search_tasks(
-        interfaces::io::IRequest& req, interfaces::io::IResponse& res, std::function<void()> send
+        interfaces::io::IRequest& req,
+        interfaces::io::IResponse& res,
+        std::function<void()> send
     )
     {
         run_search(req, res, std::move(send), TASK_SUMMARY_COLLECTION);
@@ -153,7 +157,10 @@ private:
             return;
         }
         provider->search(
-            collection, query, [&res, accept, send = std::move(send)](std::string_view result) {
+            collection,
+            query,
+            [&res, accept, send = std::move(send)](std::string_view result)
+            {
                 reply(res, serde::Ser::serialize_raw(accept, result.empty() ? "[]" : result));
                 send();
             }
@@ -191,19 +198,24 @@ struct serde::Serializable<engine::SearchRequestBody>
     {
         return std::tuple{
             serde::FieldDesc<
-                "query", &engine::SearchRequestBody::get_query,
+                "query",
+                &engine::SearchRequestBody::get_query,
                 &engine::SearchRequestBody::set_query>{},
             serde::FieldDesc<
-                "free_text", &engine::SearchRequestBody::get_free_text,
+                "free_text",
+                &engine::SearchRequestBody::get_free_text,
                 &engine::SearchRequestBody::set_free_text>{},
             serde::FieldDesc<
-                "start", &engine::SearchRequestBody::get_start,
+                "start",
+                &engine::SearchRequestBody::get_start,
                 &engine::SearchRequestBody::set_start>{},
             serde::FieldDesc<
-                "size", &engine::SearchRequestBody::get_size,
+                "size",
+                &engine::SearchRequestBody::get_size,
                 &engine::SearchRequestBody::set_size>{},
             serde::FieldDesc<
-                "sort", &engine::SearchRequestBody::get_sort,
+                "sort",
+                &engine::SearchRequestBody::get_sort,
                 &engine::SearchRequestBody::set_sort>{},
         };
     }
@@ -285,8 +297,10 @@ private:
     return out;
 }
 
-suite<"SearchRequestBody"> search_request_body_suite = [] {
-    "default-constructs with empty query/free_text/sort, start 0, size 100"_test = [] {
+suite<"SearchRequestBody"> search_request_body_suite = []
+{
+    "default-constructs with empty query/free_text/sort, start 0, size 100"_test = []
+    {
         engine::SearchRequestBody body;
         expect(body.get_query().empty());
         expect(body.get_free_text().empty());
@@ -295,37 +309,43 @@ suite<"SearchRequestBody"> search_request_body_suite = [] {
         expect(body.get_sort().empty());
     };
 
-    "set_query/get_query round-trip"_test = [] {
+    "set_query/get_query round-trip"_test = []
+    {
         engine::SearchRequestBody body;
         body.set_query("status:RUNNING");
         expect(body.get_query() == "status:RUNNING");
     };
 
-    "set_free_text/get_free_text round-trip"_test = [] {
+    "set_free_text/get_free_text round-trip"_test = []
+    {
         engine::SearchRequestBody body;
         body.set_free_text("hello world");
         expect(body.get_free_text() == "hello world");
     };
 
-    "set_start/get_start round-trip"_test = [] {
+    "set_start/get_start round-trip"_test = []
+    {
         engine::SearchRequestBody body;
         body.set_start(20);
         expect(body.get_start() == 20);
     };
 
-    "set_size/get_size round-trip"_test = [] {
+    "set_size/get_size round-trip"_test = []
+    {
         engine::SearchRequestBody body;
         body.set_size(10);
         expect(body.get_size() == 10);
     };
 
-    "set_sort/get_sort round-trip"_test = [] {
+    "set_sort/get_sort round-trip"_test = []
+    {
         engine::SearchRequestBody body;
         body.set_sort("created_at:desc");
         expect(body.get_sort() == "created_at:desc");
     };
 
-    "to_search_query copies every field across into a real SearchQuery"_test = [] {
+    "to_search_query copies every field across into a real SearchQuery"_test = []
+    {
         engine::SearchRequestBody body;
         body.set_query("q");
         body.set_free_text("ft");
@@ -343,34 +363,47 @@ suite<"SearchRequestBody"> search_request_body_suite = [] {
     };
 };
 
-suite<"SearchHandler"> search_handler_suite = [] {
+suite<"SearchHandler"> search_handler_suite = []
+{
     "search_workflows replies 200 with an empty array when no search provider is configured"_test =
-        [] {
-            engine::EngineContext ctx;
-            engine::SearchHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            bool sent = false;
-
-            handler.search_workflows(req, res, [&sent] {
-                sent = true;
-            });
-
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::OK);
-            expect(body_to_string(res) == "[]");
-        };
-
-    "search_tasks replies 200 with an empty array when no search provider is configured"_test = [] {
+        []
+    {
         engine::EngineContext ctx;
         engine::SearchHandler handler{ctx};
         io::layer::http2::HttpRequest req{1};
         io::layer::http2::HttpResponse res{1};
         bool sent = false;
 
-        handler.search_tasks(req, res, [&sent] {
-            sent = true;
-        });
+        handler.search_workflows(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
+
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::OK);
+        expect(body_to_string(res) == "[]");
+    };
+
+    "search_tasks replies 200 with an empty array when no search provider is configured"_test = []
+    {
+        engine::EngineContext ctx;
+        engine::SearchHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        bool sent = false;
+
+        handler.search_tasks(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::OK);
@@ -378,63 +411,81 @@ suite<"SearchHandler"> search_handler_suite = [] {
     };
 
     "search_workflows replies 200 with the provider's result, searching the workflow_summaries collection"_test =
-        [] {
-            engine::EngineContext ctx;
-            FakeSearchProvider provider{R"([{"exec_id":"e1"}])"};
-            ctx.set_search(&provider);
-            engine::SearchHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            bool sent = false;
+        []
+    {
+        engine::EngineContext ctx;
+        FakeSearchProvider provider{R"([{"exec_id":"e1"}])"};
+        ctx.set_search(&provider);
+        engine::SearchHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        bool sent = false;
 
-            handler.search_workflows(req, res, [&sent] {
+        handler.search_workflows(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::OK);
-            expect(body_to_string(res) == R"([{"exec_id":"e1"}])");
-            expect(provider.last_collection() == engine::WORKFLOW_SUMMARY_COLLECTION);
-        };
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::OK);
+        expect(body_to_string(res) == R"([{"exec_id":"e1"}])");
+        expect(provider.last_collection() == engine::WORKFLOW_SUMMARY_COLLECTION);
+    };
 
     "search_tasks replies 200 with the provider's result, searching the task_summaries collection"_test =
-        [] {
-            engine::EngineContext ctx;
-            FakeSearchProvider provider{R"([{"task_id":"t1"}])"};
-            ctx.set_search(&provider);
-            engine::SearchHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            bool sent = false;
+        []
+    {
+        engine::EngineContext ctx;
+        FakeSearchProvider provider{R"([{"task_id":"t1"}])"};
+        ctx.set_search(&provider);
+        engine::SearchHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        bool sent = false;
 
-            handler.search_tasks(req, res, [&sent] {
+        handler.search_tasks(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::OK);
-            expect(body_to_string(res) == R"([{"task_id":"t1"}])");
-            expect(provider.last_collection() == engine::TASK_SUMMARY_COLLECTION);
-        };
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::OK);
+        expect(body_to_string(res) == R"([{"task_id":"t1"}])");
+        expect(provider.last_collection() == engine::TASK_SUMMARY_COLLECTION);
+    };
 
     "search_workflows falls back to an empty array when the provider reports failure (empty result)"_test =
-        [] {
-            engine::EngineContext ctx;
-            FakeSearchProvider provider{""};
-            ctx.set_search(&provider);
-            engine::SearchHandler handler{ctx};
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            bool sent = false;
+        []
+    {
+        engine::EngineContext ctx;
+        FakeSearchProvider provider{""};
+        ctx.set_search(&provider);
+        engine::SearchHandler handler{ctx};
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        bool sent = false;
 
-            handler.search_workflows(req, res, [&sent] {
+        handler.search_workflows(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::OK);
-            expect(body_to_string(res) == "[]");
-        };
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::OK);
+        expect(body_to_string(res) == "[]");
+    };
 };
 
 } // namespace engine::search_handler_tests

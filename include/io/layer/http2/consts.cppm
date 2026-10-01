@@ -11,7 +11,8 @@ inline constexpr std::uint8_t HEADER_SIZE = 9;
 
 // "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n"
 // Ensure this is an array of std::byte
-inline constexpr std::array<std::byte, 24> HTTP2_CONNECTION_PREFACE = [] {
+inline constexpr std::array<std::byte, 24> HTTP2_CONNECTION_PREFACE = []
+{
     std::string_view sv = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
     std::array<std::byte, 24> arr{};
     // Copy each char of the literal preface into the byte array one at a time — no
@@ -39,12 +40,15 @@ inline constexpr std::uint32_t MAX_FRAME_SIZE = (1U << 24) - 1; // 16777215 (2^2
 namespace io::layer::http2::tests {
 using namespace boost::ut;
 
-suite<"http2 consts"> http2_consts_suite = [] {
-    "HEADER_SIZE is the fixed 9-byte HTTP/2 frame header"_test = [] {
+suite<"http2 consts"> http2_consts_suite = []
+{
+    "HEADER_SIZE is the fixed 9-byte HTTP/2 frame header"_test = []
+    {
         expect(HEADER_SIZE == 9);
     };
 
-    "HTTP2_CONNECTION_PREFACE spells out the RFC 9113 magic string"_test = [] {
+    "HTTP2_CONNECTION_PREFACE spells out the RFC 9113 magic string"_test = []
+    {
         constexpr std::string_view EXPECTED = "PRI * HTTP/2.0\r\n\r\nSM\r\n\r\n";
 
         expect(HTTP2_CONNECTION_PREFACE.size() == 24);
@@ -60,7 +64,8 @@ suite<"http2 consts"> http2_consts_suite = [] {
         expect(matches);
     };
 
-    "window/stream/table/frame size limits match RFC 9113 defaults"_test = [] {
+    "window/stream/table/frame size limits match RFC 9113 defaults"_test = []
+    {
         expect(DEFAULT_INITIAL_WINDOW_SIZE == 65'535U);
         expect(MAX_INITIAL_WINDOW_SIZE == 2'147'483'647U);
         expect(MAX_CONNECTED_STREAMS == 2'147'483'647U);

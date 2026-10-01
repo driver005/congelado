@@ -15,13 +15,15 @@ export namespace utils::openapi {
  * formats, only one thing ever matters here — whether at least one generator backend is loaded
  * at all — so this registry only supports registering and iterating/checking, not a keyed find().
  */
-class OpenApiGeneratorRegistry {
-  public:
+class OpenApiGeneratorRegistry
+{
+public:
     /**
      * @brief Registers a loaded generator plugin. No-op if `generator` is null.
      * @param generator the generator instance to add.
      */
-    void add_generator(std::shared_ptr<interfaces::IOpenApiGenerator> generator) {
+    void add_generator(std::shared_ptr<interfaces::IOpenApiGenerator> generator)
+    {
         if (generator) {
             m_generators.push_back(std::move(generator));
         }
@@ -32,11 +34,16 @@ class OpenApiGeneratorRegistry {
      * matters here, since there's no fixed key to look up by.
      * @return true if one or more generators are registered, false otherwise.
      */
-    [[nodiscard]] bool has_generator() const noexcept { return !m_generators.empty(); }
+    [[nodiscard]] bool has_generator() const noexcept
+    {
+        return !m_generators.empty();
+    }
 
-    /// @brief Gets every registered generator. @return all registered generators, in registration order.
-    [[nodiscard]] const std::vector<std::shared_ptr<interfaces::IOpenApiGenerator>> &
-    get_generators() const noexcept {
+    /// @brief Gets every registered generator. @return all registered generators, in registration
+    /// order.
+    [[nodiscard]] const std::vector<std::shared_ptr<interfaces::IOpenApiGenerator>>&
+    get_generators() const noexcept
+    {
         return m_generators;
     }
 
@@ -45,17 +52,24 @@ class OpenApiGeneratorRegistry {
      * the process's one `OpenApiGeneratorRegistry`, mirroring `SerdeFormatRegistry::set_active()`.
      * @param registry the instance to make active, or `nullptr` to clear it.
      */
-    static void set_active(OpenApiGeneratorRegistry *registry) noexcept { s_active = registry; }
+    static void set_active(OpenApiGeneratorRegistry* registry) noexcept
+    {
+        s_active = registry;
+    }
 
     /**
      * @brief Gets the currently active registry, if one was set.
-     * @return the active `OpenApiGeneratorRegistry`, or `nullptr` if `set_active()` was never called.
+     * @return the active `OpenApiGeneratorRegistry`, or `nullptr` if `set_active()` was never
+     * called.
      */
-    [[nodiscard]] static OpenApiGeneratorRegistry *get_active() noexcept { return s_active; }
+    [[nodiscard]] static OpenApiGeneratorRegistry* get_active() noexcept
+    {
+        return s_active;
+    }
 
-  private:
+private:
     std::vector<std::shared_ptr<interfaces::IOpenApiGenerator>> m_generators;
-    static inline OpenApiGeneratorRegistry *s_active{nullptr};
+    static inline OpenApiGeneratorRegistry* s_active{nullptr};
 };
 
 } // namespace utils::openapi
@@ -69,13 +83,16 @@ class OpenApiGeneratorRegistry {
 namespace utils::openapi::tests {
 using namespace boost::ut;
 
-suite<"OpenApiGeneratorRegistry"> openapi_generator_registry_suite = [] {
-    "defaults to no generators registered"_test = [] {
+suite<"OpenApiGeneratorRegistry"> openapi_generator_registry_suite = []
+{
+    "defaults to no generators registered"_test = []
+    {
         OpenApiGeneratorRegistry registry;
         expect(not registry.has_generator());
         expect(registry.get_generators().empty());
     };
-    "set_active/get_active track the ambient pointer"_test = [] {
+    "set_active/get_active track the ambient pointer"_test = []
+    {
         expect(OpenApiGeneratorRegistry::get_active() == nullptr);
 
         OpenApiGeneratorRegistry registry;
@@ -85,7 +102,8 @@ suite<"OpenApiGeneratorRegistry"> openapi_generator_registry_suite = [] {
         OpenApiGeneratorRegistry::set_active(nullptr);
         expect(OpenApiGeneratorRegistry::get_active() == nullptr);
     };
-    "add_generator is a no-op for a null generator"_test = [] {
+    "add_generator is a no-op for a null generator"_test = []
+    {
         OpenApiGeneratorRegistry registry;
         registry.add_generator(nullptr);
         expect(not registry.has_generator());

@@ -52,9 +52,14 @@ public:
 
         // Convert the constant literal into bytes, then ship it — no actual liveness check.
         std::vector<std::byte> bytes(OK_JSON.size());
-        std::ranges::transform(OK_JSON, bytes.begin(), [](char character) noexcept {
-            return std::byte(character);
-        });
+        std::ranges::transform(
+            OK_JSON,
+            bytes.begin(),
+            [](char character) noexcept
+            {
+                return std::byte(character);
+            }
+        );
         res.set_body(std::move(bytes));
         res.set_status(interfaces::io::types::Status::OK);
         send();
@@ -113,7 +118,9 @@ public:
             send();
         } catch (const std::exception& e) {
             core::logger::error(
-                "worker/status", "unhandled exception in worker_info: {}", e.what()
+                "worker/status",
+                "unhandled exception in worker_info: {}",
+                e.what()
             );
             core::events::publish("worker.status.worker_info_exception", {{"error", e.what()}});
             res.set_status(interfaces::io::types::Status::INTERNAL_SERVER_ERROR);
@@ -162,15 +169,22 @@ private:
     return out;
 }
 
-suite<"StatusHandler::health_check"> status_handler_health_suite = [] {
-    "replies 200 with the fixed {\"status\":\"ok\"} body"_test = [] {
+suite<"StatusHandler::health_check"> status_handler_health_suite = []
+{
+    "replies 200 with the fixed {\"status\":\"ok\"} body"_test = []
+    {
         io::layer::http2::HttpRequest req{1};
         io::layer::http2::HttpResponse res{1};
         bool sent = false;
 
-        StatusHandler::health_check(req, res, [&sent] {
-            sent = true;
-        });
+        StatusHandler::health_check(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(res.get_status() == interfaces::io::types::Status::OK);
@@ -178,29 +192,36 @@ suite<"StatusHandler::health_check"> status_handler_health_suite = [] {
     };
 };
 
-suite<"StatusHandler::worker_info"> status_handler_info_suite = [] {
+suite<"StatusHandler::worker_info"> status_handler_info_suite = []
+{
     "replies 200 with worker_id, empty task_types, and status active when nothing's registered"_test =
-        [] {
-            WorkerContext ctx;
-            ctx.set_worker_id("worker-1");
-            StatusHandler::bind(ctx);
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            bool sent = false;
+        []
+    {
+        WorkerContext ctx;
+        ctx.set_worker_id("worker-1");
+        StatusHandler::bind(ctx);
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        bool sent = false;
 
-            StatusHandler::worker_info(req, res, [&sent] {
+        StatusHandler::worker_info(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::OK);
-            expect(
-                body_to_string(res) ==
-                R"({"worker_id":"worker-1","task_types":[],"status":"active"})"
-            );
-        };
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::OK);
+        expect(
+            body_to_string(res) == R"({"worker_id":"worker-1","task_types":[],"status":"active"})"
+        );
+    };
 
-    "lists a single registered task type"_test = [] {
+    "lists a single registered task type"_test = []
+    {
         WorkerContext ctx;
         ctx.set_worker_id("worker-1");
         FakeWorker echo{"echo"};
@@ -210,9 +231,14 @@ suite<"StatusHandler::worker_info"> status_handler_info_suite = [] {
         io::layer::http2::HttpResponse res{1};
         bool sent = false;
 
-        StatusHandler::worker_info(req, res, [&sent] {
-            sent = true;
-        });
+        StatusHandler::worker_info(
+            req,
+            res,
+            [&sent]
+            {
+                sent = true;
+            }
+        );
 
         expect(sent);
         expect(
@@ -226,25 +252,31 @@ suite<"StatusHandler::worker_info"> status_handler_info_suite = [] {
     // (a real JSON parser would fail on this, not just see a surprising string value). Current
     // (buggy) behavior is documented here, not fixed.
     "a `\"` inside worker_id breaks the hand-rolled JSON's structure instead of being escaped"_test =
-        [] {
-            WorkerContext ctx;
-            ctx.set_worker_id(R"(bad"id)");
-            StatusHandler::bind(ctx);
-            io::layer::http2::HttpRequest req{1};
-            io::layer::http2::HttpResponse res{1};
-            bool sent = false;
+        []
+    {
+        WorkerContext ctx;
+        ctx.set_worker_id(R"(bad"id)");
+        StatusHandler::bind(ctx);
+        io::layer::http2::HttpRequest req{1};
+        io::layer::http2::HttpResponse res{1};
+        bool sent = false;
 
-            StatusHandler::worker_info(req, res, [&sent] {
+        StatusHandler::worker_info(
+            req,
+            res,
+            [&sent]
+            {
                 sent = true;
-            });
+            }
+        );
 
-            expect(sent);
-            expect(res.get_status() == interfaces::io::types::Status::OK);
-            auto body = body_to_string(res);
-            // The raw quote from worker_id lands unescaped, splitting what should be one JSON
-            // string value into `"worker_id":"bad"` followed by a stray `id"` — not valid JSON.
-            expect(body == R"({"worker_id":"bad"id","task_types":[],"status":"active"})");
-        };
+        expect(sent);
+        expect(res.get_status() == interfaces::io::types::Status::OK);
+        auto body = body_to_string(res);
+        // The raw quote from worker_id lands unescaped, splitting what should be one JSON
+        // string value into `"worker_id":"bad"` followed by a stray `id"` — not valid JSON.
+        expect(body == R"({"worker_id":"bad"id","task_types":[],"status":"active"})");
+    };
 };
 
 } // namespace worker::status_handler_tests

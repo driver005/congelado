@@ -46,9 +46,9 @@ public:
 
         auto* native_device = dynamic_cast<SyclDevice*>(&device);
         if (native_device == nullptr) {
-            return std::unexpected{
-                ice::sonic::Status::from_message("SyclMemory: device was not created by this plugin")
-            };
+            return std::unexpected{ice::sonic::Status::from_message(
+                "SyclMemory: device was not created by this plugin"
+            )};
         }
 
         auto owned = std::make_unique<SyclAllocator>(
@@ -65,7 +65,9 @@ public:
         std::erase_if(
             m_allocators,
             [&allocator](const std::unique_ptr<SyclAllocator>& candidate)
-            { return candidate.get() == &allocator; }
+            {
+                return candidate.get() == &allocator;
+            }
         );
     }
 

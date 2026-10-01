@@ -1,9 +1,9 @@
 #ifndef TENSORFLOW_C_EXTERN_SOCKET_H_
 #define TENSORFLOW_C_EXTERN_SOCKET_H_
 
-#include "include/c/macros.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
+#include "include/c/macros.h"
 
 #include <stddef.h>
 #include <stdint.h>
@@ -14,7 +14,10 @@ extern "C"
 #endif
 
     // --------------------------------------------------------------------------
-    // TF_Socket — generic transport socket, covering TCP/UDP/TLS/QUIC uniformly. Mirrors io::base::socket::Socket<Protocol> directly, with the protocol chosen at construction (a runtime enum here, since C has no template parameter) rather than reinventing a narrower design.
+    // TF_Socket — generic transport socket, covering TCP/UDP/TLS/QUIC uniformly. Mirrors
+    // io::base::socket::Socket<Protocol> directly, with the protocol chosen at construction (a
+    // runtime enum here, since C has no template parameter) rather than reinventing a narrower
+    // design.
     typedef enum TFSocketProtocol
     {
         TF_SOCKET_TCP = 0,
@@ -36,6 +39,7 @@ extern "C"
     {
         void* plugin_data;
     } TF_Socket;
+
     typedef void (*TFSocketAckFn)(void* user_data, TF_Status* out_status);
     typedef void (*TFSocketAcceptFn)(void* user_data, TF_Socket* accepted, TF_Status* out_status);
     typedef void (*TFSocketTransferFn)(void* user_data, size_t bytes, TF_Status* out_status);
@@ -60,8 +64,18 @@ extern "C"
         void (*set_tcp_no_delay)(TF_Socket* socket, int enabled, TF_Status* out_status);
 
         // TLS (TF_SOCKET_TLS/TF_SOCKET_QUIC only).
-        void (*load_certificate)(TF_Socket* socket, const TF_String* cert_path, const TF_String* key_path, TF_Status* out_status);
-        void (*generate_certificate)(TF_Socket* socket, const TF_String* cert_path, const TF_String* key_path, TF_Status* out_status);
+        void (*load_certificate)(
+            TF_Socket* socket,
+            const TF_String* cert_path,
+            const TF_String* key_path,
+            TF_Status* out_status
+        );
+        void (*generate_certificate)(
+            TF_Socket* socket,
+            const TF_String* cert_path,
+            const TF_String* key_path,
+            TF_Status* out_status
+        );
         void (*set_verify_peer)(TF_Socket* socket, int enabled, TF_Status* out_status);
 
         // Server-side lifecycle.
@@ -72,14 +86,32 @@ extern "C"
         void (*join_multicast)(TF_Socket* socket, const TF_String* group, TF_Status* out_status);
 
         void (*accept)(TF_Socket* socket, TF_Socket* out_accepted, TF_Status* out_status);
-        void (*accept_async)(TF_Socket* socket, TFSocketAcceptFn completion, void* user_data, TF_Status* out_status);
+        void (*accept_async)(
+            TF_Socket* socket,
+            TFSocketAcceptFn completion,
+            void* user_data,
+            TF_Status* out_status
+        );
 
         // Client-side lifecycle.
         void (*connect)(TF_Socket* socket, int64_t timeout_ms, TF_Status* out_status);
-        void (*connect_async)(TF_Socket* socket, int64_t timeout_ms, TFSocketAckFn completion, void* user_data, TF_Status* out_status);
+        void (*connect_async)(
+            TF_Socket* socket,
+            int64_t timeout_ms,
+            TFSocketAckFn completion,
+            void* user_data,
+            TF_Status* out_status
+        );
 
-        // Data transfer (connected sockets: TCP/TLS/QUIC, or a UDP socket that has itself called connect()).
-        void (*send)(TF_Socket* socket, const void* data, size_t length, size_t* out_bytes_sent, TF_Status* out_status);
+        // Data transfer (connected sockets: TCP/TLS/QUIC, or a UDP socket that has itself called
+        // connect()).
+        void (*send)(
+            TF_Socket* socket,
+            const void* data,
+            size_t length,
+            size_t* out_bytes_sent,
+            TF_Status* out_status
+        );
         void (*send_async)(
             TF_Socket* socket,
             const void* data,
@@ -88,7 +120,13 @@ extern "C"
             void* user_data,
             TF_Status* out_status
         );
-        void (*receive)(TF_Socket* socket, void* out_buffer, size_t buffer_size, size_t* out_bytes_received, TF_Status* out_status);
+        void (*receive)(
+            TF_Socket* socket,
+            void* out_buffer,
+            size_t buffer_size,
+            size_t* out_bytes_received,
+            TF_Status* out_status
+        );
         void (*receive_async)(
             TF_Socket* socket,
             void* out_buffer,
@@ -98,7 +136,8 @@ extern "C"
             TF_Status* out_status
         );
 
-        // Connectionless data transfer (UDP without connect()) — explicit per-datagram destination/sender, matching sendto/recvfrom.
+        // Connectionless data transfer (UDP without connect()) — explicit per-datagram
+        // destination/sender, matching sendto/recvfrom.
         void (*send_to)(
             TF_Socket* socket,
             const void* data,
@@ -131,8 +170,18 @@ extern "C"
         void (*get_error_code)(TF_Socket* socket, int* out_error_code);
 
         // Introspection.
-        void (*get_local_endpoint)(TF_Socket* socket, TF_String* out_host, uint16_t* out_port, TF_Status* out_status);
-        void (*get_remote_endpoint)(TF_Socket* socket, TF_String* out_host, uint16_t* out_port, TF_Status* out_status);
+        void (*get_local_endpoint)(
+            TF_Socket* socket,
+            TF_String* out_host,
+            uint16_t* out_port,
+            TF_Status* out_status
+        );
+        void (*get_remote_endpoint)(
+            TF_Socket* socket,
+            TF_String* out_host,
+            uint16_t* out_port,
+            TF_Status* out_status
+        );
         void (*get_protocol)(TF_Socket* socket, TFSocketProtocol* out_protocol);
 
         // Raw OS handle, for interop/leverager registration.
@@ -144,7 +193,8 @@ extern "C"
 
 #define TF_SOCKET_STRUCT_SIZE TF_OFFSET_OF_END(TF_SocketOps, is_valid)
 
-    TF_CAPI_EXPORT void create_socket(TF_SocketOps** ops, void** plugin_context, TF_Status* out_status);
+    TF_CAPI_EXPORT void
+    create_socket(TF_SocketOps** ops, void** plugin_context, TF_Status* out_status);
     TF_CAPI_EXPORT void destroy_socket(void* plugin_context);
 
 #ifdef __cplusplus

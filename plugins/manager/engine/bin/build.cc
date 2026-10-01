@@ -25,7 +25,8 @@ import utils_openapi;
 // Paths are relative to this file's own directory (curdir is pinned there by
 // xmake/modules/build_tool.lua's os.execv(... {curdir = target:scriptdir() .. "/src"})), hence
 // "../generated/engine/".
-int main() {
+int main()
+{
     // Force-load the JSON format plugin before anything below calls serde::Ser::serialize —
     // the openapi_generator plugin's write_document() dispatches through Ser (runtime format
     // lookup) same as everywhere else, instead of calling serde::Json::encode directly; this
@@ -53,14 +54,20 @@ int main() {
     plugin_store.scan("../../../../build/plugins");
     auto json_open_res = plugin_store.open("../../../../build/plugins/libjson_plugin.so");
     if (!json_open_res) {
-        std::println(stderr, "build.cc: plugin load failed: {}",
-                     json_open_res.error().get_message());
+        std::println(
+            stderr,
+            "build.cc: plugin load failed: {}",
+            json_open_res.error().get_message()
+        );
         return 1;
     }
     auto openapi_open_res = plugin_store.open("../../../../build/plugins/libopenapi_generator.so");
     if (!openapi_open_res) {
-        std::println(stderr, "build.cc: plugin load failed: {}",
-                     openapi_open_res.error().get_message());
+        std::println(
+            stderr,
+            "build.cc: plugin load failed: {}",
+            openapi_open_res.error().get_message()
+        );
         return 1;
     }
 
@@ -70,29 +77,34 @@ int main() {
         std::println(stderr, "build.cc: plugin build failed: {}", build_res.error().get_message());
         return 1;
     }
-    plugin_store.for_each([&format_registry, &generator_registry](
-                              const std::shared_ptr<core::plugin::FfiRuntime> &runtime) {
-        auto plugin = runtime->get_plugin();
-        if (!plugin) {
-            return;
+    plugin_store.for_each(
+        [&format_registry,
+         &generator_registry](const std::shared_ptr<core::plugin::FfiRuntime>& runtime)
+        {
+            auto plugin = runtime->get_plugin();
+            if (!plugin) {
+                return;
+            }
+            if (auto format = congelado::heart::resolve_serde_format(*plugin)) {
+                format_registry.add_format(std::move(format));
+            }
+            if (auto generator = congelado::heart::resolve_openapi_generator(*plugin)) {
+                generator_registry.add_generator(std::move(generator));
+            }
         }
-        if (auto format = congelado::heart::resolve_serde_format(*plugin)) {
-            format_registry.add_format(std::move(format));
-        }
-        if (auto generator = congelado::heart::resolve_openapi_generator(*plugin)) {
-            generator_registry.add_generator(std::move(generator));
-        }
-    });
+    );
     if (format_registry.find("application/json") == nullptr) {
         std::println(stderr, "build.cc: no JSON format plugin loaded — was json_plugin built?");
         return 1;
     }
     if (!generator_registry.has_generator()) {
-        std::println(stderr,
-                     "build.cc: no OpenAPI generator plugin loaded — was openapi_generator built?");
+        std::println(
+            stderr,
+            "build.cc: no OpenAPI generator plugin loaded — was openapi_generator built?"
+        );
         return 1;
     }
-    auto *doc_generator = generator_registry.get_generators().front().get();
+    auto* doc_generator = generator_registry.get_generators().front().get();
 
     core::router::RouterContext<> engine_router;
     engine::EngineContext ctx;
@@ -102,10 +114,15 @@ int main() {
     std::filesystem::path client_dir{"../generated/engine/client"};
     std::filesystem::create_directories(client_dir);
 
-    if (auto write_res = doc_generator->write_document("Congelado Engine API", "1.0.0", openapi_path);
+    if (auto write_res =
+            doc_generator->write_document("Congelado Engine API", "1.0.0", openapi_path);
         !write_res) {
-        std::println(stderr, "build.cc: failed to write '{}': {}", openapi_path.string(),
-                     write_res.error());
+        std::println(
+            stderr,
+            "build.cc: failed to write '{}': {}",
+            openapi_path.string(),
+            write_res.error()
+        );
         return 1;
     }
 
@@ -116,7 +133,10 @@ int main() {
         return 1;
     }
 
-    std::println("build.cc: wrote '{}' and generated client SDK in '{}'", openapi_path.string(),
-                 client_dir.string());
+    std::println(
+        "build.cc: wrote '{}' and generated client SDK in '{}'",
+        openapi_path.string(),
+        client_dir.string()
+    );
     return 0;
 }

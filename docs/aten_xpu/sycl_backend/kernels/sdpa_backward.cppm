@@ -15,8 +15,9 @@
 
 module;
 
-#include "include/c/extern/kernel/builder.h"
 #include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
+#include "include/c/extern/kernel/builder.h"
+
 #include <oneapi/dnnl/dnnl.hpp>
 #include <oneapi/dnnl/dnnl_sycl.hpp>
 
@@ -48,8 +49,7 @@ public:
         auto* value_handle = ctx.get_input(2, &status);
         auto* grad_output_handle = ctx.get_input(3, &status);
         if (query_handle == nullptr || key_handle == nullptr || value_handle == nullptr ||
-            grad_output_handle == nullptr)
-        {
+            grad_output_handle == nullptr) {
             ctx.fail(&status);
             return;
         }
@@ -96,8 +96,7 @@ public:
             &status
         );
         if (grad_query_handle == nullptr || grad_key_handle == nullptr ||
-            grad_value_handle == nullptr)
-        {
+            grad_value_handle == nullptr) {
             ctx.fail(&status);
             return;
         }
@@ -220,13 +219,21 @@ private:
         void* scores_data = sycl::malloc_device(scores_count * sizeof(float), queue);
         void* grad_scores_data = sycl::malloc_device(scores_count * sizeof(float), queue);
 
-        dnnl::memory::desc query_md{{batch_heads, seq_q, head_dim}, data_type, dnnl::memory::format_tag::abc};
+        dnnl::memory::desc query_md{
+            {batch_heads, seq_q, head_dim},
+            data_type,
+            dnnl::memory::format_tag::abc
+        };
         dnnl::memory::desc key_transposed_md{
             {batch_heads, head_dim, seq_k},
             data_type,
             dnnl::memory::dims{seq_k * head_dim, 1, head_dim}
         };
-        dnnl::memory::desc scores_md{{batch_heads, seq_q, seq_k}, data_type, dnnl::memory::format_tag::abc};
+        dnnl::memory::desc scores_md{
+            {batch_heads, seq_q, seq_k},
+            data_type,
+            dnnl::memory::format_tag::abc
+        };
 
         // STEP 1: recompute P = softmax(scale * Q @ K^T [+ causal mask]).
         matmul_into(
@@ -244,7 +251,8 @@ private:
         {
             auto* scores = static_cast<float*>(scores_data);
             const auto scale_factor = static_cast<float>(scale);
-            queue.parallel_for(
+            queue
+                .parallel_for(
                     sycl::range<3>{
                         static_cast<std::size_t>(batch_heads),
                         static_cast<std::size_t>(seq_q),
@@ -284,8 +292,16 @@ private:
         queue.wait();
 
         // STEP 2: dV = P^T @ dOut. Read P as [batch_heads, seq_k, seq_q] via strides.
-        dnnl::memory::desc value_grad_md{{batch_heads, seq_k, head_dim}, data_type, dnnl::memory::format_tag::abc};
-        dnnl::memory::desc grad_output_md{{batch_heads, seq_q, head_dim}, data_type, dnnl::memory::format_tag::abc};
+        dnnl::memory::desc value_grad_md{
+            {batch_heads, seq_k, head_dim},
+            data_type,
+            dnnl::memory::format_tag::abc
+        };
+        dnnl::memory::desc grad_output_md{
+            {batch_heads, seq_q, head_dim},
+            data_type,
+            dnnl::memory::format_tag::abc
+        };
         dnnl::memory::desc scores_transposed_md{
             {batch_heads, seq_k, seq_q},
             data_type,
@@ -325,8 +341,12 @@ private:
         {
             auto* p = static_cast<float*>(scores_data);
             auto* dp = static_cast<float*>(grad_scores_data);
-            queue.parallel_for(
-                    sycl::range<2>{static_cast<std::size_t>(batch_heads), static_cast<std::size_t>(seq_q)},
+            queue
+                .parallel_for(
+                    sycl::range<2>{
+                        static_cast<std::size_t>(batch_heads),
+                        static_cast<std::size_t>(seq_q)
+                    },
                     [p, dp, seq_q, seq_k](sycl::id<2> index)
                     {
                         const auto batch_head = static_cast<int64_t>(index[0]);
@@ -346,7 +366,11 @@ private:
         }
 
         // STEP 5: dQuery = scale * dScores @ K, dKey = scale * dScores^T @ Q.
-        dnnl::memory::desc key_md{{batch_heads, seq_k, head_dim}, data_type, dnnl::memory::format_tag::abc};
+        dnnl::memory::desc key_md{
+            {batch_heads, seq_k, head_dim},
+            data_type,
+            dnnl::memory::format_tag::abc
+        };
         matmul_into(
             engine,
             dnnl_stream,
@@ -376,11 +400,17 @@ private:
             const auto scale_factor = static_cast<float>(scale);
             queue.parallel_for(
                 sycl::range<1>{static_cast<std::size_t>(batch_heads * seq_q * head_dim)},
-                [dq, scale_factor](sycl::id<1> index) { dq[index] *= scale_factor; }
+                [dq, scale_factor](sycl::id<1> index)
+                {
+                    dq[index] *= scale_factor;
+                }
             );
             queue.parallel_for(
                 sycl::range<1>{static_cast<std::size_t>(batch_heads * seq_k * head_dim)},
-                [dk, scale_factor](sycl::id<1> index) { dk[index] *= scale_factor; }
+                [dk, scale_factor](sycl::id<1> index)
+                {
+                    dk[index] *= scale_factor;
+                }
             );
             queue.wait();
         }

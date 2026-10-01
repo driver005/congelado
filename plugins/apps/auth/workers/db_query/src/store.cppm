@@ -66,7 +66,10 @@ public:
      * @param completion fired once with the read-back pair, or std::nullopt on failure.
      */
     static void store_and_read_async(
-        void* connector_ctx, std::string username, std::string password_hash, Completion completion
+        void* connector_ctx,
+        std::string username,
+        std::string password_hash,
+        Completion completion
     )
     {
         if (connector_ctx == nullptr) {
@@ -80,24 +83,30 @@ public:
         user.set_password_hash(std::move(password_hash));
 
         auto shared_completion = std::make_shared<Completion>(std::move(completion));
-        conn.upsert<model::AuthUser>(user, [connector_ctx, username, shared_completion](bool ok) {
-            if (!ok) {
-                (*shared_completion)(std::nullopt);
-                return;
-            }
-            auto& connector_ref = *static_cast<connector::Connector*>(connector_ctx);
-            connector_ref.find<model::AuthUser>(
-                username, [shared_completion](std::optional<model::AuthUser> found) {
-                    if (!found) {
-                        (*shared_completion)(std::nullopt);
-                        return;
-                    }
-                    (*shared_completion)(
-                        std::make_pair(found->get_username(), found->get_password_hash())
-                    );
+        conn.upsert<model::AuthUser>(
+            user,
+            [connector_ctx, username, shared_completion](bool ok)
+            {
+                if (!ok) {
+                    (*shared_completion)(std::nullopt);
+                    return;
                 }
-            );
-        });
+                auto& connector_ref = *static_cast<connector::Connector*>(connector_ctx);
+                connector_ref.find<model::AuthUser>(
+                    username,
+                    [shared_completion](std::optional<model::AuthUser> found)
+                    {
+                        if (!found) {
+                            (*shared_completion)(std::nullopt);
+                            return;
+                        }
+                        (*shared_completion)(
+                            std::make_pair(found->get_username(), found->get_password_hash())
+                        );
+                    }
+                );
+            }
+        );
     }
 };
 
@@ -112,7 +121,9 @@ struct serde::Serializable<auth::DbQueryInput>
         return std::tuple{
             serde::FieldDesc<"username", &DbQueryInput::getUsername, &DbQueryInput::setUsername>{},
             serde::FieldDesc<
-                "password_hash", &DbQueryInput::getPasswordHash, &DbQueryInput::setPasswordHash>{},
+                "password_hash",
+                &DbQueryInput::getPasswordHash,
+                &DbQueryInput::setPasswordHash>{},
         };
     }
 };
@@ -148,15 +159,18 @@ public:
     }
 };
 
-suite<"DbQueryInput"> db_query_input_suite = [] {
-    "defaults to username 'default_user' and an empty password_hash"_test = [] {
+suite<"DbQueryInput"> db_query_input_suite = []
+{
+    "defaults to username 'default_user' and an empty password_hash"_test = []
+    {
         auth::DbQueryInput input;
 
         expect(input.getUsername() == "default_user");
         expect(input.getPasswordHash().empty());
     };
 
-    "setters round-trip through their getters"_test = [] {
+    "setters round-trip through their getters"_test = []
+    {
         auth::DbQueryInput input;
         input.setUsername("alice");
         input.setPasswordHash("$argon2id$v=19$salted-hash");
@@ -166,8 +180,10 @@ suite<"DbQueryInput"> db_query_input_suite = [] {
     };
 };
 
-suite<"Serializable<DbQueryInput>"> db_query_input_serde_suite = [] {
-    "from_map populates both fields when present"_test = [] {
+suite<"Serializable<DbQueryInput>"> db_query_input_serde_suite = []
+{
+    "from_map populates both fields when present"_test = []
+    {
         auto result = serde::Ser::from_map<auth::DbQueryInput>(
             {{"username", "bob"}, {"password_hash", "hashval"}}
         );
@@ -177,7 +193,8 @@ suite<"Serializable<DbQueryInput>"> db_query_input_serde_suite = [] {
         expect(result->getPasswordHash() == "hashval");
     };
 
-    "from_map leaves username at its 'default_user' default when the key is absent"_test = [] {
+    "from_map leaves username at its 'default_user' default when the key is absent"_test = []
+    {
         auto result = serde::Ser::from_map<auth::DbQueryInput>({{"password_hash", "hashval"}});
 
         expect(result.has_value()) << fatal;
@@ -186,14 +203,19 @@ suite<"Serializable<DbQueryInput>"> db_query_input_serde_suite = [] {
     };
 };
 
-suite<"UserStore::store_and_read_async"> user_store_suite = [] {
-    "a null connector_ctx completes with nullopt, no crash"_test = [] {
+suite<"UserStore::store_and_read_async"> user_store_suite = []
+{
+    "a null connector_ctx completes with nullopt, no crash"_test = []
+    {
         std::optional<std::pair<std::string, std::string>> observed{std::make_pair("x", "y")};
         bool called = false;
 
         auth::UserStore::store_and_read_async(
-            nullptr, "alice", "hash1",
-            [&](std::optional<std::pair<std::string, std::string>> result) {
+            nullptr,
+            "alice",
+            "hash1",
+            [&](std::optional<std::pair<std::string, std::string>> result)
+            {
                 called = true;
                 observed = std::move(result);
             }
@@ -204,65 +226,87 @@ suite<"UserStore::store_and_read_async"> user_store_suite = [] {
     };
 
     "stores then reads back the exact username/password_hash through a local-only connector"_test =
-        [] {
-            NullCache cache;
-            connector::Connector conn;
-            conn.set_cache(&cache);
+        []
+    {
+        NullCache cache;
+        connector::Connector conn;
+        conn.set_cache(&cache);
 
-            std::optional<std::pair<std::string, std::string>> observed;
-            bool called = false;
-            auth::UserStore::store_and_read_async(
-                &conn, "carol", "$2b$12$abcdefghijklmnopqrstuv",
-                [&](std::optional<std::pair<std::string, std::string>> result) {
-                    called = true;
-                    observed = std::move(result);
-                }
-            );
+        std::optional<std::pair<std::string, std::string>> observed;
+        bool called = false;
+        auth::UserStore::store_and_read_async(
+            &conn,
+            "carol",
+            "$2b$12$abcdefghijklmnopqrstuv",
+            [&](std::optional<std::pair<std::string, std::string>> result)
+            {
+                called = true;
+                observed = std::move(result);
+            }
+        );
 
-            expect(called) << fatal;
-            expect(observed.has_value()) << fatal;
-            expect(observed->first == "carol");
-            expect(observed->second == "$2b$12$abcdefghijklmnopqrstuv");
-        };
+        expect(called) << fatal;
+        expect(observed.has_value()) << fatal;
+        expect(observed->first == "carol");
+        expect(observed->second == "$2b$12$abcdefghijklmnopqrstuv");
+    };
 
     "a second store for the same username overwrites the prior password_hash (upsert semantics)"_test =
-        [] {
-            NullCache cache;
-            connector::Connector conn;
-            conn.set_cache(&cache);
+        []
+    {
+        NullCache cache;
+        connector::Connector conn;
+        conn.set_cache(&cache);
 
-            std::optional<std::pair<std::string, std::string>> first;
-            auth::UserStore::store_and_read_async(&conn, "dave", "hash-v1", [&](auto result) {
+        std::optional<std::pair<std::string, std::string>> first;
+        auth::UserStore::store_and_read_async(
+            &conn,
+            "dave",
+            "hash-v1",
+            [&](auto result)
+            {
                 first = std::move(result);
-            });
-            std::optional<std::pair<std::string, std::string>> second;
-            auth::UserStore::store_and_read_async(&conn, "dave", "hash-v2", [&](auto result) {
+            }
+        );
+        std::optional<std::pair<std::string, std::string>> second;
+        auth::UserStore::store_and_read_async(
+            &conn,
+            "dave",
+            "hash-v2",
+            [&](auto result)
+            {
                 second = std::move(result);
-            });
+            }
+        );
 
-            expect(first.has_value()) << fatal;
-            expect(second.has_value()) << fatal;
-            expect(first->second == "hash-v1");
-            expect(second->second == "hash-v2");
-        };
+        expect(first.has_value()) << fatal;
+        expect(second.has_value()) << fatal;
+        expect(first->second == "hash-v1");
+        expect(second->second == "hash-v2");
+    };
 
     "a SQL-injection-shaped username round-trips as inert data — this path never builds SQL text from it (local-only mode is a plain in-memory map, not a query)"_test =
-        [] {
-            NullCache cache;
-            connector::Connector conn;
-            conn.set_cache(&cache);
+        []
+    {
+        NullCache cache;
+        connector::Connector conn;
+        conn.set_cache(&cache);
 
-            std::string hostile_username = "robert'); DROP TABLE auth_users; --";
-            std::optional<std::pair<std::string, std::string>> observed;
-            auth::UserStore::store_and_read_async(
-                &conn, hostile_username, "hash", [&](auto result) {
-                    observed = std::move(result);
-                }
-            );
+        std::string hostile_username = "robert'); DROP TABLE auth_users; --";
+        std::optional<std::pair<std::string, std::string>> observed;
+        auth::UserStore::store_and_read_async(
+            &conn,
+            hostile_username,
+            "hash",
+            [&](auto result)
+            {
+                observed = std::move(result);
+            }
+        );
 
-            expect(observed.has_value()) << fatal;
-            expect(observed->first == hostile_username);
-        };
+        expect(observed.has_value()) << fatal;
+        expect(observed->first == hostile_username);
+    };
 
     // SECURITY: pins what actually crosses back out of this layer. The read-back pair's
     // `.second` is the raw, unredacted password_hash — db_query.cc's DbQueryWorker::run() takes
@@ -272,21 +316,26 @@ suite<"UserStore::store_and_read_async"> user_store_suite = [] {
     // downstream caller/API consumer would see when inspecting that task's result is the same
     // value that was persisted, not a placeholder/redaction.
     "the read-back pair exposes the raw password_hash unmodified — the exact value db_query.cc's run() forwards into WorkerOutput's unmasked 'stored_hash' key"_test =
-        [] {
-            NullCache cache;
-            connector::Connector conn;
-            conn.set_cache(&cache);
+        []
+    {
+        NullCache cache;
+        connector::Connector conn;
+        conn.set_cache(&cache);
 
-            std::optional<std::pair<std::string, std::string>> observed;
-            auth::UserStore::store_and_read_async(
-                &conn, "erin", "super-secret-derived-hash", [&](auto result) {
-                    observed = std::move(result);
-                }
-            );
+        std::optional<std::pair<std::string, std::string>> observed;
+        auth::UserStore::store_and_read_async(
+            &conn,
+            "erin",
+            "super-secret-derived-hash",
+            [&](auto result)
+            {
+                observed = std::move(result);
+            }
+        );
 
-            expect(observed.has_value()) << fatal;
-            expect(observed->second == "super-secret-derived-hash");
-        };
+        expect(observed.has_value()) << fatal;
+        expect(observed->second == "super-secret-derived-hash");
+    };
 };
 
 } // namespace auth_db_query_store_tests

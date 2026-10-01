@@ -89,13 +89,18 @@ concept AsyncExecutor =
         IFlags iflags
     ) {
         {
-            executor.read_fixed(
-                descriptor, buf, nbytes, offset, buf_index, std::move(callback), iflags
-            )
+            executor
+                .read_fixed(descriptor, buf, nbytes, offset, buf_index, std::move(callback), iflags)
         } -> std::same_as<void>;
         {
             executor.write_fixed(
-                descriptor, cbuf, nbytes, offset, buf_index, std::move(callback), iflags
+                descriptor,
+                cbuf,
+                nbytes,
+                offset,
+                buf_index,
+                std::move(callback),
+                iflags
             )
         } -> std::same_as<void>;
     } &&
@@ -222,35 +227,43 @@ public:
 
 using namespace boost::ut;
 
-suite<"IFlags bitwise operators"> iflags_suite = [] {
-    "operator| combines two distinct flags"_test = [] {
+suite<"IFlags bitwise operators"> iflags_suite = []
+{
+    "operator| combines two distinct flags"_test = []
+    {
         auto combined = IFlags::FIXED_FILE | IFlags::IO_DRAIN;
         expect(combined & IFlags::FIXED_FILE);
         expect(combined & IFlags::IO_DRAIN);
         expect(!(combined & IFlags::IO_LINK));
     };
 
-    "operator& is false when neither operand shares a bit"_test = [] {
+    "operator& is false when neither operand shares a bit"_test = []
+    {
         expect(!(IFlags::FIXED_FILE & IFlags::IO_DRAIN));
     };
 
-    "NONE has no bits set"_test = [] {
+    "NONE has no bits set"_test = []
+    {
         expect(!(IFlags::NONE & IFlags::FIXED_FILE));
         expect(!(IFlags::NONE & IFlags::ASYNC));
     };
 
-    "operator| is associative/idempotent when combining the same flag twice"_test = [] {
+    "operator| is associative/idempotent when combining the same flag twice"_test = []
+    {
         auto combined = IFlags::ASYNC | IFlags::ASYNC;
         expect(combined & IFlags::ASYNC);
     };
 };
 
-suite<"AsyncExecutor concept"> async_executor_concept_suite = [] {
-    "a type implementing every required member satisfies AsyncExecutor"_test = [] {
+suite<"AsyncExecutor concept"> async_executor_concept_suite = []
+{
+    "a type implementing every required member satisfies AsyncExecutor"_test = []
+    {
         expect(AsyncExecutor<FullMockExecutor>);
     };
 
-    "a type missing the I/O members does not satisfy AsyncExecutor"_test = [] {
+    "a type missing the I/O members does not satisfy AsyncExecutor"_test = []
+    {
         expect(!AsyncExecutor<PartialMockExecutor>);
     };
 };

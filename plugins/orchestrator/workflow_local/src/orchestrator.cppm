@@ -90,7 +90,8 @@ public:
      */
     shared::WorkerFunction on_execute() override
     {
-        return [this]() {
+        return [this]()
+        {
             if (!migration::Status::is_ready()) {
                 std::this_thread::sleep_for(std::chrono::milliseconds{100});
                 shared::this_handler::shedule();
@@ -125,8 +126,11 @@ public:
     {
         m_ctx.get().get_connector().find<model::WorkflowDef>(
             def_name,
-            [this, variables = std::move(variables), parent_exec_id,
-             callback = std::move(callback)](std::optional<model::WorkflowDef> def) mutable {
+            [this,
+             variables = std::move(variables),
+             parent_exec_id,
+             callback = std::move(callback)](std::optional<model::WorkflowDef> def) mutable
+            {
                 if (!def) {
                     callback(std::nullopt);
                     return;
@@ -144,14 +148,17 @@ public:
                 exec.set_timings(timings);
 
                 advance(
-                    std::move(exec), *def,
+                    std::move(exec),
+                    *def,
                     [this,
-                     callback = std::move(callback)](model::WorkflowExecution advanced) mutable {
+                     callback = std::move(callback)](model::WorkflowExecution advanced) mutable
+                    {
                         auto to_return = advanced;
                         m_ctx.get().get_connector().insert<model::WorkflowExecution>(
                             std::move(advanced),
                             [callback = std::move(callback),
-                             to_return = std::move(to_return)](bool oke) mutable {
+                             to_return = std::move(to_return)](bool oke) mutable
+                            {
                                 callback(
                                     oke ? std::optional<model::WorkflowExecution>{std::move(
                                               to_return
@@ -195,8 +202,10 @@ public:
         // in-process-only scope).
         m_ctx.get().get_connector().find<model::WorkflowDef>(
             child.get_def_name(),
-            [this, exec_id = std::format("{}", child.get_exec_id()),
-             status = child.get_status()](std::optional<model::WorkflowDef> def) {
+            [this,
+             exec_id = std::format("{}", child.get_exec_id()),
+             status = child.get_status()](std::optional<model::WorkflowDef> def)
+            {
                 if (def && def->get_workflow_status_listener_enabled()) {
                     publish_event(
                         "conductor:workflow_status",
@@ -210,7 +219,8 @@ public:
             return;
         }
         m_ctx.get().get_connector().find_all<model::TaskInstance>(
-            [this, child = std::move(child)](std::vector<model::TaskInstance> instances) mutable {
+            [this, child = std::move(child)](std::vector<model::TaskInstance> instances) mutable
+            {
                 for (auto& instance: instances) {
                     if (instance.get_sub_workflow_exec_id() != child.get_exec_id()) {
                         continue;
@@ -223,7 +233,8 @@ public:
                     instance.set_output_data(child.get_variables());
                     auto to_terminal = instance;
                     m_ctx.get().get_connector().update<model::TaskInstance>(
-                        instance, log_on_failure("on_execution_terminal parent instance update")
+                        instance,
+                        log_on_failure("on_execution_terminal parent instance update")
                     );
                     on_task_terminal(std::move(to_terminal));
                     return;
@@ -238,15 +249,18 @@ public:
         m_ctx.get().get_connector().find<model::WorkflowExecution>(
             exec_key,
             [this,
-             instance = std::move(instance)](std::optional<model::WorkflowExecution> exec) mutable {
+             instance = std::move(instance)](std::optional<model::WorkflowExecution> exec) mutable
+            {
                 // no such execution, or it's already done — nothing left to advance into.
                 if (!exec || model::is_terminal(exec->get_status())) {
                     return;
                 }
                 m_ctx.get().get_connector().find<model::WorkflowDef>(
                     exec->get_def_name(),
-                    [this, instance = std::move(instance),
-                     exec = std::move(*exec)](std::optional<model::WorkflowDef> def) mutable {
+                    [this,
+                     instance = std::move(instance),
+                     exec = std::move(*exec)](std::optional<model::WorkflowDef> def) mutable
+                    {
                         if (!def) {
                             return;
                         }
@@ -268,22 +282,27 @@ public:
     void sweep_advance()
     {
         m_ctx.get().get_connector().find_all<model::WorkflowExecution>(
-            [this](std::vector<model::WorkflowExecution> execs) {
+            [this](std::vector<model::WorkflowExecution> execs)
+            {
                 for (auto& exec: execs) {
                     if (exec.get_status() != model::WorkflowStatus::RUNNING) {
                         continue;
                     }
                     m_ctx.get().get_connector().find<model::WorkflowDef>(
                         exec.get_def_name(),
-                        [this, exec](std::optional<model::WorkflowDef> def) mutable {
+                        [this, exec](std::optional<model::WorkflowDef> def) mutable
+                        {
                             if (!def) {
                                 return;
                             }
                             advance(
-                                std::move(exec), std::move(*def),
-                                [this](model::WorkflowExecution advanced) {
+                                std::move(exec),
+                                std::move(*def),
+                                [this](model::WorkflowExecution advanced)
+                                {
                                     m_ctx.get().get_connector().update<model::WorkflowExecution>(
-                                        std::move(advanced), log_on_failure("sweep_advance update")
+                                        std::move(advanced),
+                                        log_on_failure("sweep_advance update")
                                     );
                                 }
                             );
@@ -304,7 +323,8 @@ public:
     {
         auto now = std::chrono::system_clock::now();
         m_ctx.get().get_connector().find_all<model::TaskInstance>(
-            [this, now](std::vector<model::TaskInstance> instances) {
+            [this, now](std::vector<model::TaskInstance> instances)
+            {
                 for (auto& instance: instances) {
                     if (instance.get_status() != model::TaskStatus::IN_PROGRESS) {
                         continue;
@@ -329,7 +349,8 @@ public:
     {
         auto now = std::chrono::system_clock::now();
         m_ctx.get().get_connector().find_all<model::TaskInstance>(
-            [this, now](std::vector<model::TaskInstance> instances) {
+            [this, now](std::vector<model::TaskInstance> instances)
+            {
                 for (auto& instance: instances) {
                     auto next_retry = instance.get_next_retry_at();
                     if (!next_retry || *next_retry > now) {
@@ -344,7 +365,8 @@ public:
                     instance.set_next_retry_at(std::nullopt);
                     instance.set_output_data({});
                     m_ctx.get().get_connector().update<model::TaskInstance>(
-                        instance, log_on_failure("sweep_retries update")
+                        instance,
+                        log_on_failure("sweep_retries update")
                     );
                 }
             }
@@ -364,14 +386,17 @@ public:
         m_ctx.get().get_connector().find<model::WorkflowExecution>(
             exec_id,
             [this,
-             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable {
+             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable
+            {
                 if (!exec || exec->get_status() != model::WorkflowStatus::RUNNING) {
                     callback(false);
                     return;
                 }
                 exec->set_status(model::WorkflowStatus::PAUSED);
                 m_ctx.get().get_connector().update<model::WorkflowExecution>(
-                    std::move(*exec), [callback = std::move(callback)](bool oke) mutable {
+                    std::move(*exec),
+                    [callback = std::move(callback)](bool oke) mutable
+                    {
                         callback(oke);
                     }
                 );
@@ -390,7 +415,8 @@ public:
         m_ctx.get().get_connector().find<model::WorkflowExecution>(
             exec_id,
             [this,
-             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable {
+             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable
+            {
                 if (!exec || exec->get_status() != model::WorkflowStatus::PAUSED) {
                     callback(false);
                     return;
@@ -398,26 +424,31 @@ public:
                 exec->set_status(model::WorkflowStatus::RUNNING);
                 m_ctx.get().get_connector().find<model::WorkflowDef>(
                     exec->get_def_name(),
-                    [this, exec = std::move(*exec),
-                     callback =
-                         std::move(callback)](std::optional<model::WorkflowDef> def) mutable {
+                    [this,
+                     exec = std::move(*exec),
+                     callback = std::move(callback)](std::optional<model::WorkflowDef> def) mutable
+                    {
                         if (!def) {
                             m_ctx.get().get_connector().update<model::WorkflowExecution>(
                                 std::move(exec),
-                                [callback = std::move(callback)](bool oke) mutable {
+                                [callback = std::move(callback)](bool oke) mutable
+                                {
                                     callback(oke);
                                 }
                             );
                             return;
                         }
                         advance(
-                            std::move(exec), std::move(*def),
+                            std::move(exec),
+                            std::move(*def),
                             [this,
                              callback =
-                                 std::move(callback)](model::WorkflowExecution advanced) mutable {
+                                 std::move(callback)](model::WorkflowExecution advanced) mutable
+                            {
                                 m_ctx.get().get_connector().update<model::WorkflowExecution>(
                                     std::move(advanced),
-                                    [callback = std::move(callback)](bool oke) mutable {
+                                    [callback = std::move(callback)](bool oke) mutable
+                                    {
                                         callback(oke);
                                     }
                                 );
@@ -442,16 +473,18 @@ public:
         m_ctx.get().get_connector().find<model::WorkflowExecution>(
             exec_id,
             [this,
-             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable {
+             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable
+            {
                 if (!exec || exec->get_status() != model::WorkflowStatus::FAILED) {
                     callback(false);
                     return;
                 }
                 m_ctx.get().get_connector().find<model::WorkflowDef>(
                     exec->get_def_name(),
-                    [this, exec = std::move(*exec),
-                     callback =
-                         std::move(callback)](std::optional<model::WorkflowDef> def) mutable {
+                    [this,
+                     exec = std::move(*exec),
+                     callback = std::move(callback)](std::optional<model::WorkflowDef> def) mutable
+                    {
                         if (!def || !def->get_restartable()) {
                             callback(false);
                             return;
@@ -465,20 +498,24 @@ public:
                                 instance.set_next_retry_at(std::nullopt);
                                 instance.set_output_data({});
                                 m_ctx.get().get_connector().update<model::TaskInstance>(
-                                    instance, log_on_failure("retry instance update")
+                                    instance,
+                                    log_on_failure("retry instance update")
                                 );
                             }
                         }
                         exec.set_task_instances(std::move(instances));
                         exec.set_status(model::WorkflowStatus::RUNNING);
                         advance(
-                            std::move(exec), std::move(*def),
+                            std::move(exec),
+                            std::move(*def),
                             [this,
                              callback =
-                                 std::move(callback)](model::WorkflowExecution advanced) mutable {
+                                 std::move(callback)](model::WorkflowExecution advanced) mutable
+                            {
                                 m_ctx.get().get_connector().update<model::WorkflowExecution>(
                                     std::move(advanced),
-                                    [callback = std::move(callback)](bool oke) mutable {
+                                    [callback = std::move(callback)](bool oke) mutable
+                                    {
                                         callback(oke);
                                     }
                                 );
@@ -503,16 +540,18 @@ public:
         m_ctx.get().get_connector().find<model::WorkflowExecution>(
             exec_id,
             [this,
-             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable {
+             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable
+            {
                 if (!exec || !model::is_terminal(exec->get_status())) {
                     callback(false);
                     return;
                 }
                 m_ctx.get().get_connector().find<model::WorkflowDef>(
                     exec->get_def_name(),
-                    [this, exec = std::move(*exec),
-                     callback =
-                         std::move(callback)](std::optional<model::WorkflowDef> def) mutable {
+                    [this,
+                     exec = std::move(*exec),
+                     callback = std::move(callback)](std::optional<model::WorkflowDef> def) mutable
+                    {
                         if (!def || !def->get_restartable()) {
                             callback(false);
                             return;
@@ -524,13 +563,16 @@ public:
                         timings.set_started_at(std::chrono::system_clock::now());
                         exec.set_timings(timings);
                         advance(
-                            std::move(exec), std::move(*def),
+                            std::move(exec),
+                            std::move(*def),
                             [this,
                              callback =
-                                 std::move(callback)](model::WorkflowExecution advanced) mutable {
+                                 std::move(callback)](model::WorkflowExecution advanced) mutable
+                            {
                                 m_ctx.get().get_connector().update<model::WorkflowExecution>(
                                     std::move(advanced),
-                                    [callback = std::move(callback)](bool oke) mutable {
+                                    [callback = std::move(callback)](bool oke) mutable
+                                    {
                                         callback(oke);
                                     }
                                 );
@@ -566,18 +608,23 @@ public:
     {
         m_ctx.get().get_connector().find<model::WorkflowExecution>(
             exec_id,
-            [this, node_ref = std::move(node_ref), input = std::move(input),
-             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable {
+            [this,
+             node_ref = std::move(node_ref),
+             input = std::move(input),
+             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable
+            {
                 if (!exec) {
                     callback(false);
                     return;
                 }
                 m_ctx.get().get_connector().find<model::WorkflowDef>(
                     exec->get_def_name(),
-                    [this, exec = std::move(*exec), node_ref = std::move(node_ref),
+                    [this,
+                     exec = std::move(*exec),
+                     node_ref = std::move(node_ref),
                      input = std::move(input),
-                     callback =
-                         std::move(callback)](std::optional<model::WorkflowDef> def) mutable {
+                     callback = std::move(callback)](std::optional<model::WorkflowDef> def) mutable
+                    {
                         if (!def || !def->get_restartable()) {
                             callback(false);
                             return;
@@ -592,7 +639,8 @@ public:
                                 instance.set_retry_count(0);
                                 instance.set_next_retry_at(std::nullopt);
                                 m_ctx.get().get_connector().update<model::TaskInstance>(
-                                    instance, log_on_failure("rerun instance update")
+                                    instance,
+                                    log_on_failure("rerun instance update")
                                 );
                                 found = true;
                                 break;
@@ -605,13 +653,16 @@ public:
                         exec.set_task_instances(std::move(instances));
                         exec.set_status(model::WorkflowStatus::RUNNING);
                         advance(
-                            std::move(exec), std::move(*def),
+                            std::move(exec),
+                            std::move(*def),
                             [this,
                              callback =
-                                 std::move(callback)](model::WorkflowExecution advanced) mutable {
+                                 std::move(callback)](model::WorkflowExecution advanced) mutable
+                            {
                                 m_ctx.get().get_connector().update<model::WorkflowExecution>(
                                     std::move(advanced),
-                                    [callback = std::move(callback)](bool oke) mutable {
+                                    [callback = std::move(callback)](bool oke) mutable
+                                    {
                                         callback(oke);
                                     }
                                 );
@@ -644,8 +695,11 @@ public:
     {
         m_ctx.get().get_connector().find<model::WorkflowExecution>(
             exec_id,
-            [this, node_ref = std::move(node_ref), payload = std::move(payload),
-             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable {
+            [this,
+             node_ref = std::move(node_ref),
+             payload = std::move(payload),
+             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable
+            {
                 if (!exec) {
                     callback(false);
                     return;
@@ -668,7 +722,8 @@ public:
                     instance.add_output_data("signal_payload", *payload);
                 }
                 m_ctx.get().get_connector().update<model::TaskInstance>(
-                    instance, log_on_failure("signal instance update")
+                    instance,
+                    log_on_failure("signal instance update")
                 );
                 on_task_terminal(std::move(instance));
                 callback(true);
@@ -695,7 +750,10 @@ public:
     )
     {
         complete_instance_by_ref(
-            std::move(exec_id), std::move(node_ref), status, std::move(output_data)
+            std::move(exec_id),
+            std::move(node_ref),
+            status,
+            std::move(output_data)
         );
     }
 
@@ -712,7 +770,8 @@ public:
         m_ctx.get().get_connector().find<model::WorkflowExecution>(
             exec_id,
             [this,
-             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable {
+             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable
+            {
                 if (!exec || model::is_terminal(exec->get_status())) {
                     callback(false);
                     return;
@@ -723,8 +782,11 @@ public:
                 exec->set_timings(timings);
                 auto to_finish = *exec;
                 m_ctx.get().get_connector().update<model::WorkflowExecution>(
-                    std::move(*exec), [this, to_finish = std::move(to_finish),
-                                       callback = std::move(callback)](bool oke) mutable {
+                    std::move(*exec),
+                    [this,
+                     to_finish = std::move(to_finish),
+                     callback = std::move(callback)](bool oke) mutable
+                    {
                         if (oke) {
                             on_execution_terminal(to_finish);
                         }
@@ -752,28 +814,33 @@ public:
         m_ctx.get().get_connector().find<model::WorkflowExecution>(
             exec_id,
             [this,
-             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable {
+             callback = std::move(callback)](std::optional<model::WorkflowExecution> exec) mutable
+            {
                 if (!exec) {
                     callback(false);
                     return;
                 }
                 m_ctx.get().get_connector().find<model::WorkflowDef>(
                     exec->get_def_name(),
-                    [this, exec = std::move(*exec),
-                     callback =
-                         std::move(callback)](std::optional<model::WorkflowDef> def) mutable {
+                    [this,
+                     exec = std::move(*exec),
+                     callback = std::move(callback)](std::optional<model::WorkflowDef> def) mutable
+                    {
                         if (!def) {
                             callback(false);
                             return;
                         }
                         advance(
-                            std::move(exec), std::move(*def),
+                            std::move(exec),
+                            std::move(*def),
                             [this,
                              callback =
-                                 std::move(callback)](model::WorkflowExecution advanced) mutable {
+                                 std::move(callback)](model::WorkflowExecution advanced) mutable
+                            {
                                 m_ctx.get().get_connector().update<model::WorkflowExecution>(
                                     std::move(advanced),
-                                    [callback = std::move(callback)](bool oke) mutable {
+                                    [callback = std::move(callback)](bool oke) mutable
+                                    {
                                         callback(oke);
                                     }
                                 );
@@ -790,7 +857,8 @@ private:
 
     static std::move_only_function<void(bool)> log_on_failure(std::string what)
     {
-        return [what = std::move(what)](bool oke) {
+        return [what = std::move(what)](bool oke)
+        {
             if (!oke) {
                 core::logger::error("engine", "orchestrator: {} failed", what);
             }
@@ -830,7 +898,8 @@ private:
     }
 
     static const model::TaskInstance* find_instance(
-        const std::vector<model::TaskInstance>& instances, std::string_view node_ref
+        const std::vector<model::TaskInstance>& instances,
+        std::string_view node_ref
     ) noexcept
     {
         for (const auto& instance: instances) {
@@ -879,7 +948,8 @@ private:
             bindings[key] = value;
         }
         return LuaEval{m_ctx.get().get_lua_bridge()}.eval_condition(
-            *edge.get_condition(), to_value_input(bindings)
+            *edge.get_condition(),
+            to_value_input(bindings)
         );
     }
 
@@ -898,16 +968,17 @@ private:
     {
         core::events::publish(event_name, payload);
         m_ctx.get().get_connector().find_all<model::EventHandler>(
-            [this, event_name = std::move(event_name),
-             payload = std::move(payload)](std::vector<model::EventHandler> handlers) {
+            [this,
+             event_name = std::move(event_name),
+             payload = std::move(payload)](std::vector<model::EventHandler> handlers)
+            {
                 for (const auto& handler: handlers) {
                     if (!handler.get_active() || handler.get_event() != event_name) {
                         continue;
                     }
                     if (handler.get_condition() &&
-                        !LuaEval{m_ctx.get().get_lua_bridge()}.eval_condition(
-                            *handler.get_condition(), to_value_input(payload)
-                        )) {
+                        !LuaEval{m_ctx.get().get_lua_bridge()}
+                             .eval_condition(*handler.get_condition(), to_value_input(payload))) {
                         continue;
                     }
                     for (const auto& action: handler.get_actions()) {
@@ -937,7 +1008,9 @@ private:
                     auto variables = payload;
                     variables.erase("workflow_name");
                     start(
-                        workflow_name_it->second, std::move(variables), std::nullopt,
+                        workflow_name_it->second,
+                        std::move(variables),
+                        std::nullopt,
                         [](std::optional<model::WorkflowExecution>) {}
                     );
                     return;
@@ -967,7 +1040,8 @@ private:
                     auto exec_it = payload.find("exec_id");
                     if (exec_it == payload.end()) {
                         core::logger::warning(
-                            "engine", "EventAction TERMINATE_WORKFLOW missing 'exec_id'"
+                            "engine",
+                            "EventAction TERMINATE_WORKFLOW missing 'exec_id'"
                         );
                         return;
                     }
@@ -983,7 +1057,8 @@ private:
                     }
                     m_ctx.get().get_connector().find<model::WorkflowExecution>(
                         exec_it->second,
-                        [this, status](std::optional<model::WorkflowExecution> exec) mutable {
+                        [this, status](std::optional<model::WorkflowExecution> exec) mutable
+                        {
                             if (!exec || model::is_terminal(exec->get_status())) {
                                 return;
                             }
@@ -992,7 +1067,8 @@ private:
                             timings.set_completed_at(std::chrono::system_clock::now());
                             exec->set_timings(timings);
                             m_ctx.get().get_connector().update<model::WorkflowExecution>(
-                                *exec, log_on_failure("event terminate_workflow update")
+                                *exec,
+                                log_on_failure("event terminate_workflow update")
                             );
                             on_execution_terminal(*exec);
                         }
@@ -1005,16 +1081,19 @@ private:
                     auto exec_it = payload.find("exec_id");
                     if (exec_it == payload.end()) {
                         core::logger::warning(
-                            "engine", "EventAction UPDATE_WORKFLOW_VARIABLES missing 'exec_id'"
+                            "engine",
+                            "EventAction UPDATE_WORKFLOW_VARIABLES missing 'exec_id'"
                         );
                         return;
                     }
                     auto updates = payload;
                     updates.erase("exec_id");
                     m_ctx.get().get_connector().find<model::WorkflowExecution>(
-                        exec_it->second, [this, updates = std::move(updates)](
-                                             std::optional<model::WorkflowExecution> exec
-                                         ) mutable {
+                        exec_it->second,
+                        [this, updates = std::move(updates)](
+                            std::optional<model::WorkflowExecution> exec
+                        ) mutable
+                        {
                             if (!exec) {
                                 return;
                             }
@@ -1024,7 +1103,8 @@ private:
                             }
                             exec->set_variables(std::move(variables));
                             m_ctx.get().get_connector().update<model::WorkflowExecution>(
-                                std::move(*exec), log_on_failure("event update_variables")
+                                std::move(*exec),
+                                log_on_failure("event update_variables")
                             );
                         }
                     );
@@ -1045,8 +1125,10 @@ private:
     {
         m_ctx.get().get_connector().find<model::WorkflowExecution>(
             exec_id,
-            [this, node_ref = std::move(node_ref), status,
-             output = std::move(output)](std::optional<model::WorkflowExecution> exec) mutable {
+            [this, node_ref = std::move(node_ref), status, output = std::move(output)](
+                std::optional<model::WorkflowExecution> exec
+            ) mutable
+            {
                 if (!exec) {
                     return;
                 }
@@ -1066,7 +1148,8 @@ private:
                 output.erase("task_ref");
                 instance.set_output_data(std::move(output));
                 m_ctx.get().get_connector().update<model::TaskInstance>(
-                    instance, log_on_failure("complete_instance_by_ref update")
+                    instance,
+                    log_on_failure("complete_instance_by_ref update")
                 );
                 on_task_terminal(std::move(instance));
             }
@@ -1130,19 +1213,25 @@ private:
                     node.get_join_type() == model::JoinType::ALL
                         ? std::ranges::all_of(
                               node.get_join_on(),
-                              [&](const std::string& ref) {
+                              [&](const std::string& ref)
+                              {
                                   const auto* instance =
                                       find_instance(exec.get_task_instances(), ref);
                                   return instance != nullptr &&
                                          model::is_terminal(instance->get_status());
                               }
                           )
-                        : std::ranges::any_of(node.get_join_on(), [&](const std::string& ref) {
-                              const auto* instance = find_instance(exec.get_task_instances(), ref);
-                              return instance != nullptr &&
-                                     (instance->get_status() == model::TaskStatus::COMPLETED ||
-                                      instance->get_status() == model::TaskStatus::SKIPPED);
-                          });
+                        : std::ranges::any_of(
+                              node.get_join_on(),
+                              [&](const std::string& ref)
+                              {
+                                  const auto* instance =
+                                      find_instance(exec.get_task_instances(), ref);
+                                  return instance != nullptr &&
+                                         (instance->get_status() == model::TaskStatus::COMPLETED ||
+                                          instance->get_status() == model::TaskStatus::SKIPPED);
+                              }
+                          );
                 if (ready) {
                     eligible_refs.push_back(node.get_ref_name());
                 }
@@ -1204,7 +1293,8 @@ private:
             instance.set_status(model::TaskStatus::SKIPPED);
             exec.add_task_instance(instance);
             m_ctx.get().get_connector().insert<model::TaskInstance>(
-                instance, log_on_failure(std::format("skip instance for node '{}'", ref_name))
+                instance,
+                log_on_failure(std::format("skip instance for node '{}'", ref_name))
             );
         }
 
@@ -1243,7 +1333,10 @@ private:
             // Shouldn't happen — def doesn't change mid-pass — but don't crash if it somehow
             // does.
             spawn_next(
-                std::move(exec), std::move(def), std::move(eligible_refs), index + 1,
+                std::move(exec),
+                std::move(def),
+                std::move(eligible_refs),
+                index + 1,
                 std::move(done)
             );
             return;
@@ -1277,10 +1370,17 @@ private:
         auto def_name = node->get_def_name();
         auto ref_name = node->get_ref_name();
         m_ctx.get().get_connector().find<model::TaskDef>(
-            def_name, [this, exec = std::move(exec), def = std::move(def),
-                       eligible_refs = std::move(eligible_refs), index, input = std::move(input),
-                       ref_name = std::move(ref_name), def_name = std::move(def_name),
-                       done = std::move(done)](std::optional<model::TaskDef> task_def) mutable {
+            def_name,
+            [this,
+             exec = std::move(exec),
+             def = std::move(def),
+             eligible_refs = std::move(eligible_refs),
+             index,
+             input = std::move(input),
+             ref_name = std::move(ref_name),
+             def_name = std::move(def_name),
+             done = std::move(done)](std::optional<model::TaskDef> task_def) mutable
+            {
                 // DYNAMIC — resolve the *actual* TaskDef to run from the named input key, then
                 // spawn against that instead of the node's own nominal def_name.
                 if (task_def && task_def->get_type() == model::TaskType::DYNAMIC &&
@@ -1289,16 +1389,26 @@ private:
                     if (found != input.end()) {
                         m_ctx.get().get_connector().find<model::TaskDef>(
                             found->second,
-                            [this, exec = std::move(exec), def = std::move(def),
-                             eligible_refs = std::move(eligible_refs), index,
-                             input = std::move(input), ref_name = std::move(ref_name),
+                            [this,
+                             exec = std::move(exec),
+                             def = std::move(def),
+                             eligible_refs = std::move(eligible_refs),
+                             index,
+                             input = std::move(input),
+                             ref_name = std::move(ref_name),
                              def_name = std::move(def_name),
-                             done =
-                                 std::move(done)](std::optional<model::TaskDef> resolved) mutable {
+                             done = std::move(done)](std::optional<model::TaskDef> resolved) mutable
+                            {
                                 spawn_with_def(
-                                    std::move(exec), std::move(def), std::move(eligible_refs),
-                                    index, std::move(input), std::move(ref_name),
-                                    std::move(def_name), std::move(resolved), std::move(done)
+                                    std::move(exec),
+                                    std::move(def),
+                                    std::move(eligible_refs),
+                                    index,
+                                    std::move(input),
+                                    std::move(ref_name),
+                                    std::move(def_name),
+                                    std::move(resolved),
+                                    std::move(done)
                                 );
                             }
                         );
@@ -1306,8 +1416,14 @@ private:
                     }
                 }
                 spawn_with_def(
-                    std::move(exec), std::move(def), std::move(eligible_refs), index,
-                    std::move(input), std::move(ref_name), std::move(def_name), std::move(task_def),
+                    std::move(exec),
+                    std::move(def),
+                    std::move(eligible_refs),
+                    index,
+                    std::move(input),
+                    std::move(ref_name),
+                    std::move(def_name),
+                    std::move(task_def),
                     std::move(done)
                 );
             }
@@ -1356,7 +1472,10 @@ private:
                 log_on_failure(std::format("spawn HUMAN instance for node '{}'", ref_name))
             );
             spawn_next(
-                std::move(exec), std::move(def), std::move(eligible_refs), index + 1,
+                std::move(exec),
+                std::move(def),
+                std::move(eligible_refs),
+                index + 1,
                 std::move(done)
             );
             return;
@@ -1385,10 +1504,14 @@ private:
             }
             exec.add_task_instance(instance);
             m_ctx.get().get_connector().insert<model::TaskInstance>(
-                instance, log_on_failure(std::format("spawn WAIT instance for node '{}'", ref_name))
+                instance,
+                log_on_failure(std::format("spawn WAIT instance for node '{}'", ref_name))
             );
             spawn_next(
-                std::move(exec), std::move(def), std::move(eligible_refs), index + 1,
+                std::move(exec),
+                std::move(def),
+                std::move(eligible_refs),
+                index + 1,
                 std::move(done)
             );
             return;
@@ -1401,10 +1524,15 @@ private:
             auto workflow_name_it = input.find("workflow_name");
             if (workflow_name_it == input.end()) {
                 core::logger::warning(
-                    "engine", "START_WORKFLOW node '{}' has no 'workflow_name' input key", ref_name
+                    "engine",
+                    "START_WORKFLOW node '{}' has no 'workflow_name' input key",
+                    ref_name
                 );
                 spawn_next(
-                    std::move(exec), std::move(def), std::move(eligible_refs), index + 1,
+                    std::move(exec),
+                    std::move(def),
+                    std::move(eligible_refs),
+                    index + 1,
                     std::move(done)
                 );
                 return;
@@ -1412,11 +1540,18 @@ private:
             auto variables = input;
             variables.erase("workflow_name");
             start(
-                workflow_name_it->second, std::move(variables), std::nullopt,
-                [this, exec = std::move(exec), def = std::move(def),
-                 eligible_refs = std::move(eligible_refs), index, ref_name = std::move(ref_name),
+                workflow_name_it->second,
+                std::move(variables),
+                std::nullopt,
+                [this,
+                 exec = std::move(exec),
+                 def = std::move(def),
+                 eligible_refs = std::move(eligible_refs),
+                 index,
+                 ref_name = std::move(ref_name),
                  resolved_def_name,
-                 done = std::move(done)](std::optional<model::WorkflowExecution> child) mutable {
+                 done = std::move(done)](std::optional<model::WorkflowExecution> child) mutable
+                {
                     auto now = std::chrono::system_clock::now();
                     model::TaskInstance instance;
                     instance.set_task_id(model::generate_id());
@@ -1428,7 +1563,8 @@ private:
                     );
                     if (child) {
                         instance.add_output_data(
-                            "exec_id", std::format("{}", child->get_exec_id())
+                            "exec_id",
+                            std::format("{}", child->get_exec_id())
                         );
                     }
                     model::ExecutionTimings timings;
@@ -1456,10 +1592,15 @@ private:
             auto workflow_name_it = input.find("workflow_name");
             if (workflow_name_it == input.end()) {
                 core::logger::warning(
-                    "engine", "SUB_WORKFLOW node '{}' has no 'workflow_name' input key", ref_name
+                    "engine",
+                    "SUB_WORKFLOW node '{}' has no 'workflow_name' input key",
+                    ref_name
                 );
                 spawn_next(
-                    std::move(exec), std::move(def), std::move(eligible_refs), index + 1,
+                    std::move(exec),
+                    std::move(def),
+                    std::move(eligible_refs),
+                    index + 1,
                     std::move(done)
                 );
                 return;
@@ -1467,11 +1608,18 @@ private:
             auto variables = input;
             variables.erase("workflow_name");
             start(
-                workflow_name_it->second, std::move(variables), exec.get_exec_id(),
-                [this, exec = std::move(exec), def = std::move(def),
-                 eligible_refs = std::move(eligible_refs), index, ref_name = std::move(ref_name),
+                workflow_name_it->second,
+                std::move(variables),
+                exec.get_exec_id(),
+                [this,
+                 exec = std::move(exec),
+                 def = std::move(def),
+                 eligible_refs = std::move(eligible_refs),
+                 index,
+                 ref_name = std::move(ref_name),
                  resolved_def_name,
-                 done = std::move(done)](std::optional<model::WorkflowExecution> child) mutable {
+                 done = std::move(done)](std::optional<model::WorkflowExecution> child) mutable
+                {
                     if (!child) {
                         // Named workflow doesn't exist — fail this instance, and (forcing
                         // immediate retry exhaustion via a 1-attempt policy) the owning
@@ -1483,7 +1631,9 @@ private:
                         instance.set_node_ref(ref_name);
                         instance.set_status(model::TaskStatus::FAILED);
                         handle_failure(
-                            std::move(instance), std::move(exec), std::move(def),
+                            std::move(instance),
+                            std::move(exec),
+                            std::move(def),
                             model::RetryPolicy{1, model::RetryBackoff::FIXED, 1}
                         );
                         return;
@@ -1507,7 +1657,10 @@ private:
                         )
                     );
                     spawn_next(
-                        std::move(exec), std::move(def), std::move(eligible_refs), index + 1,
+                        std::move(exec),
+                        std::move(def),
+                        std::move(eligible_refs),
+                        index + 1,
                         std::move(done)
                     );
                 }
@@ -1527,7 +1680,9 @@ private:
                 publish_event(event_it->second, payload);
             } else {
                 core::logger::warning(
-                    "engine", "EVENT node '{}' has no 'event' input key", ref_name
+                    "engine",
+                    "EVENT node '{}' has no 'event' input key",
+                    ref_name
                 );
             }
             auto now = std::chrono::system_clock::now();
@@ -1553,9 +1708,8 @@ private:
         }
 
         if (task_def && SystemTaskExecutor::is_system_task(task_def->get_type())) {
-            auto outcome = SystemTaskExecutor{m_ctx.get().get_lua_bridge()}.execute(
-                task_def->get_type(), input, exec.get_variables()
-            );
+            auto outcome = SystemTaskExecutor{m_ctx.get().get_lua_bridge()}
+                               .execute(task_def->get_type(), input, exec.get_variables());
 
             if (task_def->get_type() == model::TaskType::SET_VARIABLE) {
                 auto variables = exec.get_variables();
@@ -1611,7 +1765,10 @@ private:
                     SchemaValidator::validate(*task_def->get_input_schema(), to_value_input(input));
                 !check) {
                 core::logger::warning(
-                    "engine", "node '{}' input schema check failed: {}", ref_name, check.error()
+                    "engine",
+                    "node '{}' input schema check failed: {}",
+                    ref_name,
+                    check.error()
                 );
                 core::events::publish(
                     "engine.task.schema_validation_failed",
@@ -1626,7 +1783,8 @@ private:
                 instance.set_status(model::TaskStatus::FAILED);
                 instance.set_input_data(to_value_input(input));
                 instance.add_output_data(
-                    "error", std::format("input schema validation failed: {}", check.error())
+                    "error",
+                    std::format("input schema validation failed: {}", check.error())
                 );
                 model::ExecutionTimings timings;
                 timings.set_scheduled_at(now);
@@ -1640,7 +1798,10 @@ private:
                     )
                 );
                 handle_failure(
-                    std::move(instance), std::move(exec), std::move(def), task_def->get_retry()
+                    std::move(instance),
+                    std::move(exec),
+                    std::move(def),
+                    task_def->get_retry()
                 );
                 return;
             }
@@ -1673,7 +1834,8 @@ private:
             instance.set_timings(timings);
             exec.add_task_instance(instance);
             m_ctx.get().get_connector().insert<model::TaskInstance>(
-                instance, log_on_failure(std::format("spawn instance for node '{}'", ref_name))
+                instance,
+                log_on_failure(std::format("spawn instance for node '{}'", ref_name))
             );
         } else {
             core::logger::info(
@@ -1689,7 +1851,11 @@ private:
         }
 
         spawn_next(
-            std::move(exec), std::move(def), std::move(eligible_refs), index + 1, std::move(done)
+            std::move(exec),
+            std::move(def),
+            std::move(eligible_refs),
+            index + 1,
+            std::move(done)
         );
     }
 
@@ -1709,11 +1875,14 @@ private:
         if (exec.get_task_instances().size() < def.get_nodes().size()) {
             return;
         }
-        bool all_done =
-            std::ranges::all_of(exec.get_task_instances(), [](const model::TaskInstance& instance) {
+        bool all_done = std::ranges::all_of(
+            exec.get_task_instances(),
+            [](const model::TaskInstance& instance)
+            {
                 return instance.get_status() == model::TaskStatus::COMPLETED ||
                        instance.get_status() == model::TaskStatus::SKIPPED;
-            });
+            }
+        );
         if (!all_done) {
             return;
         }
@@ -1744,7 +1913,9 @@ private:
      * CANCELED just persists the sync — nothing advances from a canceled node.
      */
     void process_terminal(
-        model::TaskInstance instance, model::WorkflowExecution exec, model::WorkflowDef def
+        model::TaskInstance instance,
+        model::WorkflowExecution exec,
+        model::WorkflowDef def
     )
     {
         sync_instance(exec, instance);
@@ -1755,10 +1926,15 @@ private:
         if (failed) {
             m_ctx.get().get_connector().find<model::TaskDef>(
                 instance.get_def_name(),
-                [this, instance = std::move(instance), exec = std::move(exec),
-                 def = std::move(def)](std::optional<model::TaskDef> task_def) mutable {
+                [this,
+                 instance = std::move(instance),
+                 exec = std::move(exec),
+                 def = std::move(def)](std::optional<model::TaskDef> task_def) mutable
+                {
                     handle_failure(
-                        std::move(instance), std::move(exec), std::move(def),
+                        std::move(instance),
+                        std::move(exec),
+                        std::move(def),
                         task_def ? task_def->get_retry() : model::RetryPolicy{}
                     );
                 }
@@ -1770,16 +1946,23 @@ private:
                         instance.get_status() == model::TaskStatus::SKIPPED;
         if (!cascades) {
             m_ctx.get().get_connector().update<model::WorkflowExecution>(
-                std::move(exec), log_on_failure("process_terminal sync (canceled)")
+                std::move(exec),
+                log_on_failure("process_terminal sync (canceled)")
             );
             return;
         }
 
-        advance(std::move(exec), std::move(def), [this](model::WorkflowExecution advanced) {
-            m_ctx.get().get_connector().update<model::WorkflowExecution>(
-                std::move(advanced), log_on_failure("process_terminal advance")
-            );
-        });
+        advance(
+            std::move(exec),
+            std::move(def),
+            [this](model::WorkflowExecution advanced)
+            {
+                m_ctx.get().get_connector().update<model::WorkflowExecution>(
+                    std::move(advanced),
+                    log_on_failure("process_terminal advance")
+                );
+            }
+        );
     }
 
     /// @brief Arms a retry (increments retry_count, stamps next_retry_at per backoff) if
@@ -1801,8 +1984,11 @@ private:
                 compute_backoff(retry, instance.get_retry_count())
             );
             core::logger::info(
-                "engine", "task '{}' retry {}/{} armed", instance.get_def_name(),
-                instance.get_retry_count(), retry.get_max_attempts()
+                "engine",
+                "task '{}' retry {}/{} armed",
+                instance.get_def_name(),
+                instance.get_retry_count(),
+                retry.get_max_attempts()
             );
             core::events::publish(
                 "engine.task.retry_armed",
@@ -1812,21 +1998,26 @@ private:
             );
             sync_instance(exec, instance);
             m_ctx.get().get_connector().update<model::TaskInstance>(
-                instance, log_on_failure("handle_failure instance update")
+                instance,
+                log_on_failure("handle_failure instance update")
             );
             m_ctx.get().get_connector().update<model::WorkflowExecution>(
-                std::move(exec), log_on_failure("handle_failure exec update")
+                std::move(exec),
+                log_on_failure("handle_failure exec update")
             );
             return;
         }
 
         core::logger::warning(
-            "engine", "task '{}' exhausted retries, failing exec '{}'", instance.get_def_name(),
+            "engine",
+            "task '{}' exhausted retries, failing exec '{}'",
+            instance.get_def_name(),
             exec.get_exec_id()
         );
         core::events::publish(
-            "engine.task.retries_exhausted", {{"task_def_name", instance.get_def_name()},
-                                              {"exec_id", std::format("{}", exec.get_exec_id())}}
+            "engine.task.retries_exhausted",
+            {{"task_def_name", instance.get_def_name()},
+             {"exec_id", std::format("{}", exec.get_exec_id())}}
         );
         exec.set_status(model::WorkflowStatus::FAILED);
         auto timings = exec.get_timings();
@@ -1834,15 +2025,19 @@ private:
         exec.set_timings(timings);
         sync_instance(exec, instance);
         m_ctx.get().get_connector().update<model::TaskInstance>(
-            instance, log_on_failure("handle_failure instance update")
+            instance,
+            log_on_failure("handle_failure instance update")
         );
         m_ctx.get().get_connector().update<model::WorkflowExecution>(
-            exec, log_on_failure("handle_failure exec update")
+            exec,
+            log_on_failure("handle_failure exec update")
         );
         on_execution_terminal(exec);
         if (def.get_failure_workflow()) {
             start(
-                *def.get_failure_workflow(), exec.get_variables(), std::nullopt,
+                *def.get_failure_workflow(),
+                exec.get_variables(),
+                std::nullopt,
                 [](std::optional<model::WorkflowExecution>) {}
             );
         }
@@ -1871,7 +2066,8 @@ private:
     {
         m_ctx.get().get_connector().find<model::TaskDef>(
             instance.get_def_name(),
-            [this, instance = std::move(instance)](std::optional<model::TaskDef> task_def) mutable {
+            [this, instance = std::move(instance)](std::optional<model::TaskDef> task_def) mutable
+            {
                 if (task_def && task_def->get_type() == model::TaskType::WAIT) {
                     instance.set_status(model::TaskStatus::COMPLETED);
                     on_task_terminal(instance);
@@ -1882,7 +2078,8 @@ private:
                                        : model::TimeoutAction::FAIL_WORKFLOW;
                 if (action == model::TimeoutAction::ALERT_ONLY) {
                     core::logger::warning(
-                        "engine", "task '{}' timed out (alert only, still running)",
+                        "engine",
+                        "task '{}' timed out (alert only, still running)",
                         instance.get_def_name()
                     );
                     return;
@@ -1894,22 +2091,32 @@ private:
                 bool retry_action = action == model::TimeoutAction::RETRY;
 
                 m_ctx.get().get_connector().find<model::WorkflowExecution>(
-                    exec_key, [this, instance = std::move(instance), retry,
-                               retry_action](std::optional<model::WorkflowExecution> exec) mutable {
+                    exec_key,
+                    [this, instance = std::move(instance), retry, retry_action](
+                        std::optional<model::WorkflowExecution> exec
+                    ) mutable
+                    {
                         if (!exec || model::is_terminal(exec->get_status())) {
                             m_ctx.get().get_connector().update<model::TaskInstance>(
-                                instance, log_on_failure("timeout instance update")
+                                instance,
+                                log_on_failure("timeout instance update")
                             );
                             return;
                         }
                         m_ctx.get().get_connector().find<model::WorkflowDef>(
                             exec->get_def_name(),
-                            [this, instance = std::move(instance), exec = std::move(*exec), retry,
-                             retry_action](std::optional<model::WorkflowDef> def) mutable {
+                            [this,
+                             instance = std::move(instance),
+                             exec = std::move(*exec),
+                             retry,
+                             retry_action](std::optional<model::WorkflowDef> def) mutable
+                            {
                                 if (retry_action) {
                                     handle_failure(
-                                        std::move(instance), std::move(exec),
-                                        def ? std::move(*def) : model::WorkflowDef{}, retry
+                                        std::move(instance),
+                                        std::move(exec),
+                                        def ? std::move(*def) : model::WorkflowDef{},
+                                        retry
                                     );
                                     return;
                                 }
@@ -1922,16 +2129,20 @@ private:
                                 exec.set_timings(timings);
                                 sync_instance(exec, instance);
                                 m_ctx.get().get_connector().update<model::TaskInstance>(
-                                    instance, log_on_failure("timeout instance update")
+                                    instance,
+                                    log_on_failure("timeout instance update")
                                 );
                                 m_ctx.get().get_connector().update<model::WorkflowExecution>(
-                                    exec, log_on_failure("timeout exec update")
+                                    exec,
+                                    log_on_failure("timeout exec update")
                                 );
                                 on_execution_terminal(exec);
                                 if (def && def->get_failure_workflow()) {
                                     start(
-                                        *def->get_failure_workflow(), exec.get_variables(),
-                                        std::nullopt, [](std::optional<model::WorkflowExecution>) {}
+                                        *def->get_failure_workflow(),
+                                        exec.get_variables(),
+                                        std::nullopt,
+                                        [](std::optional<model::WorkflowExecution>) {}
                                     );
                                 }
                             }

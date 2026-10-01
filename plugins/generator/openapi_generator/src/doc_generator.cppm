@@ -120,7 +120,8 @@ public:
     {
         auto encoded = serde::Ser::serialize("application/json", document);
         std::string text(
-            reinterpret_cast<const char*>(encoded.data()), encoded.size()
+            reinterpret_cast<const char*>(encoded.data()),
+            encoded.size()
         ); // NOLINT(cppcoreguidelines-pro-type-reinterpret-cast) — byte-vector-to-string is the
            // standard shape Ser::serialize's callers use to get text back out
         return core::generator::Generator::write(m_output_path, text);
@@ -145,23 +146,26 @@ public:
     [[nodiscard]] core::router::Route<> serve() const
     {
         Info info = m_info;
-        return core::router::Route<>{m_serve_path}.get([info](
-                                                           interfaces::io::IRequest& /*req*/,
-                                                           interfaces::io::IResponse& res,
-                                                           std::function<void()> send
-                                                       ) {
-            // Rebuild the document fresh off the captured info and serialize it to
-            // JSON bytes — regenerated on every hit, see generate()'s doc comment for
-            // why that's a non-issue perf-wise.
-            Generator generator;
-            generator.m_info = info;
-            auto bytes = serde::Ser::serialize("application/json", generator.generate());
-            // Then write the response: content type, body, status, in that order.
-            res.add_content_type("application/json");
-            res.add_body(bytes);
-            res.add_status(interfaces::io::types::Status::OK);
-            send();
-        });
+        return core::router::Route<>{m_serve_path}.get(
+            [info](
+                interfaces::io::IRequest& /*req*/,
+                interfaces::io::IResponse& res,
+                std::function<void()> send
+            )
+            {
+                // Rebuild the document fresh off the captured info and serialize it to
+                // JSON bytes — regenerated on every hit, see generate()'s doc comment for
+                // why that's a non-issue perf-wise.
+                Generator generator;
+                generator.m_info = info;
+                auto bytes = serde::Ser::serialize("application/json", generator.generate());
+                // Then write the response: content type, body, status, in that order.
+                res.add_content_type("application/json");
+                res.add_body(bytes);
+                res.add_status(interfaces::io::types::Status::OK);
+                send();
+            }
+        );
     }
 
 private:
@@ -174,9 +178,14 @@ private:
     [[nodiscard]] static std::string to_lower(std::string_view value)
     {
         std::string result{value};
-        std::ranges::transform(result, result.begin(), [](unsigned char character) {
-            return static_cast<char>(std::tolower(character));
-        });
+        std::ranges::transform(
+            result,
+            result.begin(),
+            [](unsigned char character)
+            {
+                return static_cast<char>(std::tolower(character));
+            }
+        );
         return result;
     }
 
@@ -198,8 +207,9 @@ private:
             // Peel off the next '/'-delimited part, whatever's left after search_start.
             auto slash_pos = segment.find('/', search_start);
             auto path_segment = segment.substr(
-                search_start, slash_pos == std::string_view::npos ? std::string_view::npos
-                                                                  : slash_pos - search_start
+                search_start,
+                slash_pos == std::string_view::npos ? std::string_view::npos
+                                                    : slash_pos - search_start
             );
             // Rejoin with '/' as we go — skip it on the very first part so there's no
             // stray leading slash.
@@ -250,9 +260,13 @@ private:
         // forever.
         std::size_t base_router_number = route.get_base_router();
         while (base_router_number != 0) {
-            auto route_iter = std::ranges::find_if(all_routes, [&](const auto& candidate) {
-                return candidate.get_router_number() == base_router_number;
-            });
+            auto route_iter = std::ranges::find_if(
+                all_routes,
+                [&](const auto& candidate)
+                {
+                    return candidate.get_router_number() == base_router_number;
+                }
+            );
             if (route_iter == all_routes.end()) {
                 break;
             }
@@ -297,8 +311,10 @@ using utils::openapi::RouteMeta;
 using utils::openapi::SchemaObject;
 using utils::openapi::SchemaRegistry;
 
-suite<"utils::openapi::Generator"> doc_generator_suite = [] {
-    "generate(): a route with zero registered operations is skipped entirely"_test = [] {
+suite<"utils::openapi::Generator"> doc_generator_suite = []
+{
+    "generate(): a route with zero registered operations is skipped entirely"_test = []
+    {
         RouteMeta meta;
         meta.set_path("docgen_test_no_ops");
         meta.set_router_number(910'001);
@@ -311,7 +327,8 @@ suite<"utils::openapi::Generator"> doc_generator_suite = [] {
     };
 
     "generate(): a root route (no ancestors) resolves its own path, ':param' segments become "
-    "'{param}', and an embedded '/' inside one segment stays part of that segment"_test = [] {
+    "'{param}', and an embedded '/' inside one segment stays part of that segment"_test = []
+    {
         RouteMeta meta;
         meta.set_path(":taskId/enqueue");
         meta.set_router_number(910'002);
@@ -319,7 +336,8 @@ suite<"utils::openapi::Generator"> doc_generator_suite = [] {
         Operation operation;
         operation.set_summary("docgen_test_enqueue");
         meta.add_operation(
-            static_cast<std::uint8_t>(interfaces::io::types::Method::GET), std::move(operation)
+            static_cast<std::uint8_t>(interfaces::io::types::Method::GET),
+            std::move(operation)
         );
         utils::openapi::Registry::add_route(meta);
 
@@ -334,114 +352,118 @@ suite<"utils::openapi::Generator"> doc_generator_suite = [] {
     };
 
     "generate(): walks the base_router parent chain, stitching ancestor segments root-to-child"_test =
-        [] {
-            RouteMeta root;
-            root.set_path("docgen_test_tasks");
-            root.set_router_number(910'010);
-            root.set_base_router(0);
-            utils::openapi::Registry::add_route(root);
+        []
+    {
+        RouteMeta root;
+        root.set_path("docgen_test_tasks");
+        root.set_router_number(910'010);
+        root.set_base_router(0);
+        utils::openapi::Registry::add_route(root);
 
-            RouteMeta child;
-            child.set_path(":id");
-            child.set_router_number(910'011);
-            child.set_base_router(910'010);
-            utils::openapi::Registry::add_route(child);
+        RouteMeta child;
+        child.set_path(":id");
+        child.set_router_number(910'011);
+        child.set_base_router(910'010);
+        utils::openapi::Registry::add_route(child);
 
-            RouteMeta leaf;
-            leaf.set_path("comments");
-            leaf.set_router_number(910'012);
-            leaf.set_base_router(910'011);
-            Operation operation;
-            operation.set_summary("docgen_test_comments");
-            leaf.add_operation(
-                static_cast<std::uint8_t>(interfaces::io::types::Method::POST), std::move(operation)
-            );
-            utils::openapi::Registry::add_route(leaf);
+        RouteMeta leaf;
+        leaf.set_path("comments");
+        leaf.set_router_number(910'012);
+        leaf.set_base_router(910'011);
+        Operation operation;
+        operation.set_summary("docgen_test_comments");
+        leaf.add_operation(
+            static_cast<std::uint8_t>(interfaces::io::types::Method::POST),
+            std::move(operation)
+        );
+        utils::openapi::Registry::add_route(leaf);
 
-            auto document = Generator{}.generate();
+        auto document = Generator{}.generate();
 
-            auto path = "/docgen_test_tasks/{id}/comments";
-            expect(document.get_paths().contains(path)) << fatal;
-            expect(document.get_paths().at(path).contains("post")) << fatal;
-            expect(
-                document.get_paths().at(path).at("post").get_summary() == "docgen_test_comments"
-            );
-        };
+        auto path = "/docgen_test_tasks/{id}/comments";
+        expect(document.get_paths().contains(path)) << fatal;
+        expect(document.get_paths().at(path).contains("post")) << fatal;
+        expect(document.get_paths().at(path).at("post").get_summary() == "docgen_test_comments");
+    };
 
     "generate(): a route resolving to no segments anywhere falls back to the bare '/' path"_test =
-        [] {
-            RouteMeta meta;
-            // No set_path() call -- own segment stays empty -- and no ancestors either.
-            meta.set_router_number(910'020);
-            meta.set_base_router(0);
-            Operation operation;
-            operation.set_summary("docgen_test_root_fallback");
-            meta.add_operation(
-                static_cast<std::uint8_t>(interfaces::io::types::Method::PATCH),
-                std::move(operation)
-            );
-            utils::openapi::Registry::add_route(meta);
+        []
+    {
+        RouteMeta meta;
+        // No set_path() call -- own segment stays empty -- and no ancestors either.
+        meta.set_router_number(910'020);
+        meta.set_base_router(0);
+        Operation operation;
+        operation.set_summary("docgen_test_root_fallback");
+        meta.add_operation(
+            static_cast<std::uint8_t>(interfaces::io::types::Method::PATCH),
+            std::move(operation)
+        );
+        utils::openapi::Registry::add_route(meta);
 
-            auto document = Generator{}.generate();
+        auto document = Generator{}.generate();
 
-            expect(document.get_paths().contains("/")) << fatal;
-            expect(document.get_paths().at("/").contains("patch")) << fatal;
-            expect(
-                document.get_paths().at("/").at("patch").get_summary() ==
-                "docgen_test_root_fallback"
-            );
-        };
+        expect(document.get_paths().contains("/")) << fatal;
+        expect(document.get_paths().at("/").contains("patch")) << fatal;
+        expect(
+            document.get_paths().at("/").at("patch").get_summary() == "docgen_test_root_fallback"
+        );
+    };
 
     "generate(): every registered method on a route lowercases into its own paths[...][method] key"_test =
-        [] {
-            RouteMeta meta;
-            meta.set_path("docgen_test_multi");
-            meta.set_router_number(910'030);
-            meta.set_base_router(0);
-            Operation list_op;
-            list_op.set_summary("docgen_test_list");
-            meta.add_operation(
-                static_cast<std::uint8_t>(interfaces::io::types::Method::GET), std::move(list_op)
-            );
-            Operation create_op;
-            create_op.set_summary("docgen_test_create");
-            meta.add_operation(
-                static_cast<std::uint8_t>(interfaces::io::types::Method::POST), std::move(create_op)
-            );
-            utils::openapi::Registry::add_route(meta);
+        []
+    {
+        RouteMeta meta;
+        meta.set_path("docgen_test_multi");
+        meta.set_router_number(910'030);
+        meta.set_base_router(0);
+        Operation list_op;
+        list_op.set_summary("docgen_test_list");
+        meta.add_operation(
+            static_cast<std::uint8_t>(interfaces::io::types::Method::GET),
+            std::move(list_op)
+        );
+        Operation create_op;
+        create_op.set_summary("docgen_test_create");
+        meta.add_operation(
+            static_cast<std::uint8_t>(interfaces::io::types::Method::POST),
+            std::move(create_op)
+        );
+        utils::openapi::Registry::add_route(meta);
 
-            auto document = Generator{}.generate();
+        auto document = Generator{}.generate();
 
-            auto path = "/docgen_test_multi";
-            expect(document.get_paths().contains(path)) << fatal;
-            expect(document.get_paths().at(path).at("get").get_summary() == "docgen_test_list");
-            expect(document.get_paths().at(path).at("post").get_summary() == "docgen_test_create");
-        };
+        auto path = "/docgen_test_multi";
+        expect(document.get_paths().contains(path)) << fatal;
+        expect(document.get_paths().at(path).at("get").get_summary() == "docgen_test_list");
+        expect(document.get_paths().at(path).at("post").get_summary() == "docgen_test_create");
+    };
 
-    "generate(): every schema registered in SchemaRegistry flows into components.schemas"_test =
-        [] {
-            SchemaObject schema;
-            schema.set_type("string");
-            SchemaRegistry::addSchema("DocGenTestSchema", schema);
+    "generate(): every schema registered in SchemaRegistry flows into components.schemas"_test = []
+    {
+        SchemaObject schema;
+        schema.set_type("string");
+        SchemaRegistry::addSchema("DocGenTestSchema", schema);
 
-            auto document = Generator{}.generate();
+        auto document = Generator{}.generate();
 
-            expect(document.get_components().get_schemas().contains("DocGenTestSchema")) << fatal;
-            expect(
-                document.get_components().get_schemas().at("DocGenTestSchema").get_type() ==
-                "string"
-            );
-        };
+        expect(document.get_components().get_schemas().contains("DocGenTestSchema")) << fatal;
+        expect(
+            document.get_components().get_schemas().at("DocGenTestSchema").get_type() == "string"
+        );
+    };
 
     "generate(): title()/version() flow from the builder chain into the generated document's info"_test =
-        [] {
-            auto document = Generator{}.title("Docgen Test API").version("9.9.9").generate();
+        []
+    {
+        auto document = Generator{}.title("Docgen Test API").version("9.9.9").generate();
 
-            expect(document.get_info().get_title() == "Docgen Test API");
-            expect(document.get_info().get_version() == "9.9.9");
-        };
+        expect(document.get_info().get_title() == "Docgen Test API");
+        expect(document.get_info().get_version() == "9.9.9");
+    };
 
-    "write(): serializes the document and writes it out at output_path()"_test = [] {
+    "write(): serializes the document and writes it out at output_path()"_test = []
+    {
         auto path =
             std::filesystem::temp_directory_path() / "congelado_doc_generator_test_write.json";
         auto generator = Generator{}.output_path(path);
@@ -460,7 +482,8 @@ suite<"utils::openapi::Generator"> doc_generator_suite = [] {
         std::filesystem::remove(path);
     };
 
-    "write(): fails cleanly when output_path()'s directory doesn't exist"_test = [] {
+    "write(): fails cleanly when output_path()'s directory doesn't exist"_test = []
+    {
         auto generator = Generator{}.output_path("/nonexistent_dir_xyz_doc_gen/out.json");
 
         auto result = generator.write(Document{});
@@ -469,7 +492,8 @@ suite<"utils::openapi::Generator"> doc_generator_suite = [] {
         expect(result.error().contains("failed to write"));
     };
 
-    "serve(): builds a Route with a GET handler registered at the configured serve_path"_test = [] {
+    "serve(): builds a Route with a GET handler registered at the configured serve_path"_test = []
+    {
         auto route = Generator{}.serve_path("/docgen_test_serve").title("X").version("1").serve();
 
         expect(route.get_path() == "docgen_test_serve");
@@ -477,7 +501,8 @@ suite<"utils::openapi::Generator"> doc_generator_suite = [] {
         expect(route.get_handlers().find(interfaces::io::types::Method::POST) == nullptr);
     };
 
-    "serve(): defaults to the '/openapi' serve path when serve_path() is never called"_test = [] {
+    "serve(): defaults to the '/openapi' serve path when serve_path() is never called"_test = []
+    {
         auto route = Generator{}.serve();
 
         expect(route.get_path() == "openapi");

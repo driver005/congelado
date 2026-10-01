@@ -56,7 +56,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         class AttrSlice;
@@ -116,44 +115,66 @@ export {
         void AddNodeAttr(absl::string_view name, bool value, NodeDef* node_def);
         void AddNodeAttr(absl::string_view name, DataType value, NodeDef* node_def);
         void AddNodeAttr(
-            absl::string_view name, const PartialTensorShape& value, NodeDef* node_def
+            absl::string_view name,
+            const PartialTensorShape& value,
+            NodeDef* node_def
         );
         void AddNodeAttr(absl::string_view name, const Tensor& value, NodeDef* node_def);
         void AddNodeAttr(absl::string_view name, const TensorProto& value, NodeDef* node_def);
         void AddNodeAttr(absl::string_view name, const NameAttrList& value, NodeDef* node_def);
         void AddNodeAttr(
-            absl::string_view name, absl::Span<const absl::string_view> value, NodeDef* node_def
+            absl::string_view name,
+            absl::Span<const absl::string_view> value,
+            NodeDef* node_def
         );
         void AddNodeAttr(
-            absl::string_view name, absl::Span<const char* const> value, NodeDef* node_def
+            absl::string_view name,
+            absl::Span<const char* const> value,
+            NodeDef* node_def
         );
         void AddNodeAttr(
-            absl::string_view name, absl::Span<const std::string> value, NodeDef* node_def
+            absl::string_view name,
+            absl::Span<const std::string> value,
+            NodeDef* node_def
         );
         void AddNodeAttr(
-            absl::string_view name, absl::Span<const int32_t> value, NodeDef* node_def
+            absl::string_view name,
+            absl::Span<const int32_t> value,
+            NodeDef* node_def
         );
         void AddNodeAttr(
-            absl::string_view name, absl::Span<const int64_t> value, NodeDef* node_def
+            absl::string_view name,
+            absl::Span<const int64_t> value,
+            NodeDef* node_def
         );
         void AddNodeAttr(absl::string_view name, absl::Span<const float> value, NodeDef* node_def);
         void AddNodeAttr(absl::string_view name, absl::Span<const bool> value, NodeDef* node_def);
         void AddNodeAttr(absl::string_view name, const std::vector<bool>& value, NodeDef* node_def);
         void AddNodeAttr(
-            absl::string_view name, absl::Span<const DataType> value, NodeDef* node_def
+            absl::string_view name,
+            absl::Span<const DataType> value,
+            NodeDef* node_def
         );
         void AddNodeAttr(
-            absl::string_view name, absl::Span<const TensorShape> value, NodeDef* node_def
+            absl::string_view name,
+            absl::Span<const TensorShape> value,
+            NodeDef* node_def
         );
         void AddNodeAttr(
-            absl::string_view name, absl::Span<const PartialTensorShape> value, NodeDef* node_def
+            absl::string_view name,
+            absl::Span<const PartialTensorShape> value,
+            NodeDef* node_def
         );
         void AddNodeAttr(
-            absl::string_view name, absl::Span<const TensorShapeProto> value, NodeDef* node_def
+            absl::string_view name,
+            absl::Span<const TensorShapeProto> value,
+            NodeDef* node_def
         );
         void AddNodeAttr(absl::string_view name, absl::Span<const Tensor> value, NodeDef* node_def);
         void AddNodeAttr(
-            absl::string_view name, absl::Span<const NameAttrList> value, NodeDef* node_def
+            absl::string_view name,
+            absl::Span<const NameAttrList> value,
+            NodeDef* node_def
         );
 
         // Version to workaround C++'s "perfect" forwarding not being able to
@@ -515,7 +536,10 @@ export {
         // Computes the input type for a specific node input.
         // REQUIRES: ValidateOpDef(op_def).ok()
         absl::Status InputTypeForNode(
-            const NodeDef& node_def, const OpDef& op_def, int input_port, DataType* input_type
+            const NodeDef& node_def,
+            const OpDef& op_def,
+            int input_port,
+            DataType* input_type
         );
         // Computes the input types for a specific node.
         // REQUIRES: ValidateOpDef(op_def).ok()
@@ -524,7 +548,10 @@ export {
         // Computes the output type for a specific node output.
         // REQUIRES: ValidateOpDef(op_def).ok()
         absl::Status OutputTypeForNode(
-            const NodeDef& node_def, const OpDef& op_def, int output_port, DataType* output_type
+            const NodeDef& node_def,
+            const OpDef& op_def,
+            int output_port,
+            DataType* output_type
         );
         // Computes the output types for a specific node.
         // REQUIRES: ValidateOpDef(op_def).ok()
@@ -554,7 +581,9 @@ export {
         //
         // We return -1 for any invalid port_id (i.e., no corresponding arg_id).
         int OpPortIdToArgId(
-            const NodeDef& node, const protobuf::RepeatedPtrField<OpDef::ArgDef>& args, int port_id
+            const NodeDef& node,
+            const protobuf::RepeatedPtrField<OpDef::ArgDef>& args,
+            int port_id
         );
 
         // Validates that the NodeDef:
@@ -575,7 +604,10 @@ export {
         typedef gtl::FlatMap<absl::string_view, std::pair<int, int>, hash<absl::string_view>>
             NameRangeMap;
         absl::Status NameRangesForNode(
-            const AttrSlice& attrs, const OpDef& op_def, NameRangeMap* inputs, NameRangeMap* outputs
+            const AttrSlice& attrs,
+            const OpDef& op_def,
+            NameRangeMap* inputs,
+            NameRangeMap* outputs
         );
         // Adds default values to *node_def for unspecified attrs from op_def.
         void AddDefaultsToNodeDef(const OpDef& op_def, NodeDef* node_def);
@@ -627,7 +659,8 @@ export {
         // Updates the colocation constraint name with the one provided in the map (if
         // it exists in the map) for node_def.
         absl::Status MaybeUpdateColocationConstraintsWithMap(
-            const std::map<absl::string_view, absl::string_view>& node_name_map, NodeDef* node_def
+            const std::map<absl::string_view, absl::string_view>& node_name_map,
+            NodeDef* node_def
         );
 
         // For replacing a existing node with a NoOp, change the op and clear full type
@@ -726,7 +759,10 @@ export {
         std::string SummarizeNodeDef(const NodeDef& node_def, int max_inputs_in_summary)
         {
             std::string ret = absl::StrCat(
-                errors::FormatNodeNameForError(node_def.name()), " = ", node_def.op(), "["
+                errors::FormatNodeNameForError(node_def.name()),
+                " = ",
+                node_def.op(),
+                "["
             );
             absl::StrAppend(&ret, SummarizeAttrsHelper(node_def, node_def.device()));
             absl::StrAppend(&ret, "](");
@@ -771,7 +807,8 @@ export {
         std::string FormatNodeDefForError(const NodeDef& node_def)
         {
             return FormatNodeDefForError(
-                node_def.name(), node_def.has_experimental_debug_info(),
+                node_def.name(),
+                node_def.has_experimental_debug_info(),
                 node_def.experimental_debug_info()
             );
         }
@@ -999,7 +1036,10 @@ export {
             Tensor, tensor, "tensor", emplace_back, t, Tensor t; if (!t.FromProto(v)) {
                 return absl::InvalidArgumentError(
                     absl::StrCat(
-                        "Attr ", attr_name, " has value ", v.ShortDebugString(),
+                        "Attr ",
+                        attr_name,
+                        " has value ",
+                        v.ShortDebugString(),
                         " that can't be converted to a Tensor"
                     )
                 );
@@ -1093,7 +1133,9 @@ export {
         }
 
         bool TryGetNodeAttr(
-            const AttrSlice& attrs, absl::string_view attr_name, const TensorProto** value
+            const AttrSlice& attrs,
+            absl::string_view attr_name,
+            const TensorProto** value
         )
         {
             const AttrValue* attr_value = attrs.Find(attr_name);
@@ -1119,7 +1161,9 @@ export {
         }
 
         bool TryGetNodeAttr(
-            const AttrSlice& attrs, absl::string_view attr_name, const NameAttrList** value
+            const AttrSlice& attrs,
+            absl::string_view attr_name,
+            const NameAttrList** value
         )
         {
             const AttrValue* attr_value = attrs.Find(attr_name);
@@ -1181,7 +1225,8 @@ export {
                     } else {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                "Missing type or type_attr field in ", arg_def.ShortDebugString()
+                                "Missing type or type_attr field in ",
+                                arg_def.ShortDebugString()
                             )
                         );
                     }
@@ -1226,7 +1271,10 @@ export {
         } // namespace
 
         absl::Status InputTypeForNode(
-            const NodeDef& node_def, const OpDef& op_def, int input_port, DataType* input_type
+            const NodeDef& node_def,
+            const OpDef& op_def,
+            int input_port,
+            DataType* input_type
         )
         {
             DataTypeVector input_types;
@@ -1254,7 +1302,10 @@ export {
         }
 
         absl::Status OutputTypeForNode(
-            const NodeDef& node_def, const OpDef& op_def, int output_port, DataType* output_type
+            const NodeDef& node_def,
+            const OpDef& op_def,
+            int output_port,
+            DataType* output_type
         )
         {
             DataTypeVector output_types;
@@ -1311,7 +1362,9 @@ export {
         }
 
         int OpPortIdToArgId(
-            const NodeDef& node, const protobuf::RepeatedPtrField<OpDef::ArgDef>& args, int port_id
+            const NodeDef& node,
+            const protobuf::RepeatedPtrField<OpDef::ArgDef>& args,
+            int port_id
         )
         {
             for (int arg_id = 0; arg_id < args.size(); ++arg_id) {
@@ -1349,8 +1402,12 @@ export {
             if (node_def.op() != op_def.name()) {
                 return absl::InvalidArgumentError(
                     absl::StrCat(
-                        "NodeDef op '", node_def.op(), "' does not match ", SummarizeOpDef(op_def),
-                        "; NodeDef: ", FormatNodeDefForError(node_def)
+                        "NodeDef op '",
+                        node_def.op(),
+                        "' does not match ",
+                        SummarizeOpDef(op_def),
+                        "; NodeDef: ",
+                        FormatNodeDefForError(node_def)
                     )
                 );
             }
@@ -1364,16 +1421,20 @@ export {
                     if (input.find(':') != std::string::npos) {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
-                                "Control input '", input,
-                                "' must not have ':' in NodeDef: ", FormatNodeDefForError(node_def)
+                                "Control input '",
+                                input,
+                                "' must not have ':' in NodeDef: ",
+                                FormatNodeDefForError(node_def)
                             )
                         );
                     }
                 } else if (seen_control) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Non-control input '", input,
-                            "' after control input in NodeDef: ", FormatNodeDefForError(node_def)
+                            "Non-control input '",
+                            input,
+                            "' after control input in NodeDef: ",
+                            FormatNodeDefForError(node_def)
                         )
                     );
                 } else {
@@ -1386,8 +1447,10 @@ export {
                 if (!gtl::InsertIfNotPresent(&op_attrs, attr.name(), &attr)) {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "OpDef has duplicate attr name '", attr.name(),
-                            "': ", SummarizeOpDef(op_def)
+                            "OpDef has duplicate attr name '",
+                            attr.name(),
+                            "': ",
+                            SummarizeOpDef(op_def)
                         )
                     );
                 }
@@ -1412,7 +1475,10 @@ export {
                 if (attr.second.placeholder().empty()) {
                     TF_RETURN_WITH_CONTEXT_IF_ERROR(
                         ValidateAttrValue(attr.second, *iter->second),
-                        "; NodeDef: ", FormatNodeDefForError(node_def), "; ", SummarizeOpDef(op_def)
+                        "; NodeDef: ",
+                        FormatNodeDefForError(node_def),
+                        "; ",
+                        SummarizeOpDef(op_def)
                     );
                 }
 
@@ -1431,9 +1497,13 @@ export {
                 }
                 return absl::InvalidArgumentError(
                     absl::StrCat(
-                        "NodeDef missing attr", op_attrs.size() == 1 ? " '" : "s '", attrs,
-                        "' from ", SummarizeOpDef(op_def),
-                        "; NodeDef: ", FormatNodeDefForError(node_def)
+                        "NodeDef missing attr",
+                        op_attrs.size() == 1 ? " '" : "s '",
+                        attrs,
+                        "' from ",
+                        SummarizeOpDef(op_def),
+                        "; NodeDef: ",
+                        FormatNodeDefForError(node_def)
                     )
                 );
             }
@@ -1445,9 +1515,14 @@ export {
             if (num_inputs != inputs.size()) {
                 return absl::InvalidArgumentError(
                     absl::StrCat(
-                        "NodeDef expected inputs '", DataTypeVectorString(inputs),
-                        "' do not match ", num_inputs, " inputs specified; ",
-                        SummarizeOpDef(op_def), "; NodeDef: ", FormatNodeDefForError(node_def)
+                        "NodeDef expected inputs '",
+                        DataTypeVectorString(inputs),
+                        "' do not match ",
+                        num_inputs,
+                        " inputs specified; ",
+                        SummarizeOpDef(op_def),
+                        "; NodeDef: ",
+                        FormatNodeDefForError(node_def)
                     )
                 );
             }
@@ -1458,7 +1533,10 @@ export {
         namespace { // Helpers for NameRangesForNode()
 
             absl::Status ComputeArgRange(
-                const AttrSlice& attrs, const OpDef::ArgDef& arg_def, const OpDef& op_def, int* num
+                const AttrSlice& attrs,
+                const OpDef::ArgDef& arg_def,
+                const OpDef& op_def,
+                int* num
             )
             {
                 if (!arg_def.number_attr().empty()) {
@@ -1473,8 +1551,10 @@ export {
                 } else {
                     return absl::InvalidArgumentError(
                         absl::StrCat(
-                            "Argument '", arg_def.name(),
-                            "' incorrectly specified in op definition: ", SummarizeOpDef(op_def)
+                            "Argument '",
+                            arg_def.name(),
+                            "' incorrectly specified in op definition: ",
+                            SummarizeOpDef(op_def)
                         )
                     );
                 }
@@ -1501,7 +1581,10 @@ export {
         } // namespace
 
         absl::Status NameRangesForNode(
-            const AttrSlice& attrs, const OpDef& op_def, NameRangeMap* inputs, NameRangeMap* outputs
+            const AttrSlice& attrs,
+            const OpDef& op_def,
+            NameRangeMap* inputs,
+            NameRangeMap* outputs
         )
         {
             if (inputs != nullptr) {
@@ -1679,7 +1762,9 @@ export {
         }
 
         absl::Status AttachDef(
-            const absl::Status& status, const NodeDef& node_def, bool allow_multiple_formatted_node
+            const absl::Status& status,
+            const NodeDef& node_def,
+            bool allow_multiple_formatted_node
         )
         {
             std::string node_error;
@@ -1689,7 +1774,8 @@ export {
                 node_error = FormatNodeDefForError(node_def);
             }
             return errors::CreateWithUpdatedMessage(
-                status, strings::StrCat(status.message(), "\n\t", " [[", node_error, "]]")
+                status,
+                strings::StrCat(status.message(), "\n\t", " [[", node_error, "]]")
             );
         }
 
@@ -1800,7 +1886,8 @@ export {
         }
 
         absl::Status MaybeUpdateColocationConstraintsWithMap(
-            const std::map<absl::string_view, absl::string_view>& node_name_map, NodeDef* node_def
+            const std::map<absl::string_view, absl::string_view>& node_name_map,
+            NodeDef* node_def
         )
         {
             auto attr = node_def->mutable_attr()->find(kColocationAttrName);

@@ -39,7 +39,8 @@ public:
      * @param encoding_table the dynamic table to use for encoding outbound headers, moved in.
      */
     explicit QPack(
-        std::shared_ptr<QPackTable> decoding_table, std::shared_ptr<QPackTable> encoding_table
+        std::shared_ptr<QPackTable> decoding_table,
+        std::shared_ptr<QPackTable> encoding_table
     ) :
         m_decoding_table(std::move(decoding_table)),
         m_encoding_table(std::move(encoding_table)),
@@ -91,12 +92,19 @@ public:
             // goes literal-with-indexed-name, no match goes full fresh literal.
             if (result.is_full_match()) {
                 encode_indexed_field(
-                    static_cast<UInt>(result.index()), result.is_static(), base, out
+                    static_cast<UInt>(result.index()),
+                    result.is_static(),
+                    base,
+                    out
                 );
             } else if (result.found()) {
                 encode_indexed_name(
-                    static_cast<UInt>(result.index()), field->get_value(), result.is_static(),
-                    false, base, out
+                    static_cast<UInt>(result.index()),
+                    field->get_value(),
+                    result.is_static(),
+                    false,
+                    base,
+                    out
                 );
             } else {
                 encode_new_field(field->get_name(), field->get_value(), false, out);
@@ -183,7 +191,10 @@ public:
                 encode_duplicate(static_cast<UInt>(result.index()), result.is_static(), 0, out);
             } else if (result.found()) {
                 encode_insert_with_indexed_name(
-                    static_cast<UInt>(result.index()), result.is_static(), field->get_value(), out
+                    static_cast<UInt>(result.index()),
+                    result.is_static(),
+                    field->get_value(),
+                    out
                 );
             } else {
                 encode_insert_with_literal_name(field->get_name(), field->get_value(), out);
@@ -374,7 +385,8 @@ private:
 
         // Resolve the name behind `idx`, on whichever side (decoder/encoder) this
         // instantiation is wired for.
-        auto field = [&] {
+        auto field = [&]
+        {
             if constexpr (IsDecoder) {
                 return m_decoding_table->at<IsIndexPostBase>(idx, is_static, base);
             } else {
@@ -383,17 +395,20 @@ private:
         }();
 
         std::visit(
-            [&](auto&& field_ptr) {
+            [&](auto&& field_ptr)
+            {
                 if constexpr (IsIndexable) {
                     // Encoder-stream-instruction path — cache the resolved pair into
                     // the dynamic table instead of appending it to `m_table`.
                     if constexpr (IsDecoder) {
                         m_decoding_table->insert(
-                            std::string{field_ptr->get_name()}, std::string{value}
+                            std::string{field_ptr->get_name()},
+                            std::string{value}
                         );
                     } else {
                         m_encoding_table->insert(
-                            std::string{field_ptr->get_name()}, std::string{value}
+                            std::string{field_ptr->get_name()},
+                            std::string{value}
                         );
                     }
                 } else {
@@ -408,7 +423,8 @@ private:
                             );
                         } else {
                             auto cookie_field = std::make_shared<interfaces::io::HeaderField<>>(
-                                NAME, std::string{value}
+                                NAME,
+                                std::string{value}
                             );
                             m_table.push_back(cookie_field);
                             m_cookie_index = cookie_field;
@@ -416,7 +432,8 @@ private:
                     } else {
                         m_table.push_back(
                             std::make_shared<interfaces::io::HeaderField<>>(
-                                NAME, std::string{value}
+                                NAME,
+                                std::string{value}
                             )
                         );
                     }
@@ -465,7 +482,8 @@ private:
                     );
                 } else {
                     auto field = std::make_shared<interfaces::io::HeaderField<>>(
-                        std::string{name}, std::string{value}
+                        std::string{name},
+                        std::string{value}
                     );
                     m_table.push_back(field);
                     m_cookie_index = field;
@@ -473,7 +491,8 @@ private:
             } else {
                 m_table.push_back(
                     std::make_shared<interfaces::io::HeaderField<>>(
-                        std::string{name}, std::string{value}
+                        std::string{name},
+                        std::string{value}
                     )
                 );
             }
@@ -627,7 +646,10 @@ private:
     {
         // We use a 5-bit prefix length because bits 3-7 are used for the integer value.
         shared_codec::raw::Atom<UInt, Width>::encode_int(
-            idx, 5U, shared_codec::PrefixHelper::QPACK_DUPLICATE, out
+            idx,
+            5U,
+            shared_codec::PrefixHelper::QPACK_DUPLICATE,
+            out
         );
 
         // Re-insert the referenced entry at the front — refreshes its age against
@@ -652,7 +674,10 @@ private:
         m_encoding_table->set_max_size(size);
 
         shared_codec::raw::Atom<UInt, Width>::encode_int(
-            size, 5U, shared_codec::PrefixHelper::QPACK_DYNAMIC_TABLE_SIZE_UPDATE, out
+            size,
+            5U,
+            shared_codec::PrefixHelper::QPACK_DYNAMIC_TABLE_SIZE_UPDATE,
+            out
         );
     }
 
@@ -754,7 +779,10 @@ private:
     {
         // We use a 7-bit prefix length because the first bit is used for the prefix.
         shared_codec::raw::Atom<UInt, Width>::encode_int(
-            size, 7U, shared_codec::PrefixHelper::QPACK_DEC_ACK, out
+            size,
+            7U,
+            shared_codec::PrefixHelper::QPACK_DEC_ACK,
+            out
         );
     }
 
@@ -772,7 +800,10 @@ private:
     {
         // We use a 6-bit prefix length because the first bit is used for the prefix.
         shared_codec::raw::Atom<UInt, Width>::encode_int(
-            size, 6U, shared_codec::PrefixHelper::QPACK_DEC_STREAM_CANCELLATION, out
+            size,
+            6U,
+            shared_codec::PrefixHelper::QPACK_DEC_STREAM_CANCELLATION,
+            out
         );
     }
 
@@ -790,7 +821,10 @@ private:
     {
         // We use a 6-bit prefix length because the first bit is used for the prefix.
         shared_codec::raw::Atom<UInt, Width>::encode_int(
-            size, 6U, shared_codec::PrefixHelper::QPACK_DEC_INSERT_COUNT_INCREMENT, out
+            size,
+            6U,
+            shared_codec::PrefixHelper::QPACK_DEC_INSERT_COUNT_INCREMENT,
+            out
         );
     }
 
@@ -944,7 +978,10 @@ private:
     {
         // We use a 4-bit prefix length because bits 4-7 are used for the integer value.
         shared_codec::raw::Atom<UInt, Width>::encode_int(
-            idx, 4U, shared_codec::PrefixHelper::QPACK_POST_BASE_INDEXED_FIELD, out
+            idx,
+            4U,
+            shared_codec::PrefixHelper::QPACK_POST_BASE_INDEXED_FIELD,
+            out
         );
 
         // Resolve using post-base interpretation and add to the outgoing field list.
@@ -971,7 +1008,11 @@ private:
      */
     template<std::output_iterator<std::uint8_t> Out>
     void encode_indexed_name(
-        UInt idx, std::string_view value, bool is_static, bool is_never_indexed, Out out
+        UInt idx,
+        std::string_view value,
+        bool is_static,
+        bool is_never_indexed,
+        Out out
     )
     {
         // Prefix is 1 (0x40), and N is the 6th bit (0x20), and T is the 5th bit (0x10)
@@ -1010,7 +1051,10 @@ private:
      */
     template<std::output_iterator<std::uint8_t> Out>
     void encode_post_base_indexed_name(
-        UInt idx, std::string_view value, bool is_never_indexed, Out out
+        UInt idx,
+        std::string_view value,
+        bool is_never_indexed,
+        Out out
     )
     {
         // Prefix is 4 bits (0x00), and N is the 4th bit (0x08)
@@ -1045,7 +1089,10 @@ private:
      */
     template<std::output_iterator<std::uint8_t> Out>
     void encode_new_field(
-        std::string_view name, std::string_view value, bool is_never_indexed, Out out
+        std::string_view name,
+        std::string_view value,
+        bool is_never_indexed,
+        Out out
     )
     {
         // Prefix is 1 (0x20), and N is the 5th bit (0x10)
@@ -1075,7 +1122,9 @@ private:
      * @throws error::http::InvalidIndexError if the decoded index is 0.
      */
     void decode_indexed_field(
-        std::span<const std::uint8_t> data, std::size_t& pos, std::size_t base
+        std::span<const std::uint8_t> data,
+        std::size_t& pos,
+        std::size_t base
     )
     {
         // Decode the index (T-bit carried on IDX) and reject the never-valid 0.
@@ -1099,7 +1148,9 @@ private:
      * @throws error::http::InvalidIndexError if the decoded index is 0.
      */
     void decode_post_base_indexed_field(
-        std::span<const std::uint8_t> data, std::size_t& pos, std::size_t base
+        std::span<const std::uint8_t> data,
+        std::size_t& pos,
+        std::size_t base
     )
     {
         // Decode the post-base index and reject the never-valid 0.
@@ -1145,7 +1196,9 @@ private:
      * @param base the field section's Base value that the post-base name index is counted from.
      */
     void decode_post_base_indexed_name(
-        std::span<const std::uint8_t> data, std::size_t& pos, std::size_t base
+        std::span<const std::uint8_t> data,
+        std::size_t& pos,
+        std::size_t base
     )
     {
         // Post-base-indexed name, literal value right after it.

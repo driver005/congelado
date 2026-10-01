@@ -616,7 +616,8 @@ public:
      * @param value the header value.
      */
     void add_header(
-        std::variant<std::string_view, types::Token> name_or_token, std::string_view value
+        std::variant<std::string_view, types::Token> name_or_token,
+        std::string_view value
     ) & noexcept
     {
         set_header(name_or_token, value);
@@ -637,7 +638,8 @@ public:
      * @param value the new value.
      */
     void replace_header(
-        std::variant<std::string_view, types::Token> name, std::string_view value
+        std::variant<std::string_view, types::Token> name,
+        std::string_view value
     ) & noexcept
     {
         remove_header(name);
@@ -923,21 +925,25 @@ using namespace boost::ut;
 // header/body accessor is a mandatory-override hook that aborts by default (see the class
 // warnings above), so exercising those here would require a fake subclass, not a test of this
 // file's own logic.
-suite<"IRequest"> request_suite = [] {
-    "ctor stores the given stream id and starts with a zero timeout"_test = [] {
+suite<"IRequest"> request_suite = []
+{
+    "ctor stores the given stream id and starts with a zero timeout"_test = []
+    {
         IRequest request{3};
 
         expect(request.get_stream_id() == 3);
         expect(request.get_timeout() == std::chrono::milliseconds::zero());
     };
 
-    "default ctor starts at stream id 0"_test = [] {
+    "default ctor starts at stream id 0"_test = []
+    {
         IRequest request;
 
         expect(request.get_stream_id() == 0);
     };
 
-    "set_stream_id/set_timeout overwrite the stored values"_test = [] {
+    "set_stream_id/set_timeout overwrite the stored values"_test = []
+    {
         IRequest request{1};
         request.set_stream_id(9);
         request.set_timeout(std::chrono::milliseconds{500});

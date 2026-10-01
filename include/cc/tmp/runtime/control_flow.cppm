@@ -25,7 +25,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         const uint64_t kIllegalFrameId = ~0uLL;

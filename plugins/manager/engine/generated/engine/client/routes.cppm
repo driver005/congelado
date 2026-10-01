@@ -36,7 +36,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -44,7 +45,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::AdminConfig>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -65,13 +67,15 @@ public:
             throw std::runtime_error("Please call setRuntime() first");
         }
         auto request = core::client::Client::custom(
-                           "POST", std::format("/api/v1/admin/consistency/{}", exec_id)
+                           "POST",
+                           std::format("/api/v1/admin/consistency/{}", exec_id)
         )
                            .build(m_register.runtime());
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -94,7 +98,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -102,7 +107,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<std::vector<congelado_api_dto::EventHandler>>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -129,7 +135,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -137,7 +144,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::EventHandler>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -163,7 +171,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -191,7 +200,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -199,7 +209,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::EventHandler>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -225,7 +236,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -233,7 +245,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::EventHandler>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -257,7 +270,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -280,7 +294,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -288,7 +303,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<std::vector<congelado_api_dto::TaskDef>>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -312,7 +328,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -320,7 +337,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<std::vector<congelado_api_dto::WorkflowDef>>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -344,7 +362,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -370,7 +389,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -390,13 +410,15 @@ public:
             throw std::runtime_error("Please call setRuntime() first");
         }
         auto request = core::client::Client::custom(
-                           "GET", std::format("/api/v1/schedules/{}/next_few_runs", name)
+                           "GET",
+                           std::format("/api/v1/schedules/{}/next_few_runs", name)
         )
                            .build(m_register.runtime());
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -405,7 +427,8 @@ public:
                 }
                 auto result =
                     serde::Ser::deserialize<std::vector<congelado_api_dto::ScheduleNextRun>>(
-                        response.get_content_type(), body
+                        response.get_content_type(),
+                        body
                     );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -431,7 +454,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -456,7 +480,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -479,7 +504,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -488,7 +514,8 @@ public:
                 }
                 auto result =
                     serde::Ser::deserialize<std::vector<congelado_api_dto::WorkflowSchedule>>(
-                        response.get_content_type(), body
+                        response.get_content_type(),
+                        body
                     );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -515,7 +542,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -523,7 +551,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::WorkflowSchedule>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -549,7 +578,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -577,7 +607,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -585,7 +616,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::WorkflowSchedule>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -611,7 +643,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -619,7 +652,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::WorkflowSchedule>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -643,7 +677,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -651,7 +686,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<std::vector<congelado_api_dto::PollData>>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -675,7 +711,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -700,7 +737,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -708,7 +746,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::TaskInstance>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -735,7 +774,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -756,13 +796,15 @@ public:
             throw std::runtime_error("Please call setRuntime() first");
         }
         auto request = core::client::Client::custom(
-                           "GET", std::format("/api/v1/tasks/queue/{}/domain/{}", type, domain)
+                           "GET",
+                           std::format("/api/v1/tasks/queue/{}/domain/{}", type, domain)
         )
                            .build(m_register.runtime());
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -770,7 +812,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::TaskInstance>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -796,7 +839,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -804,7 +848,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::TaskInstance>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -829,7 +874,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -856,7 +902,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -864,7 +911,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::TaskDef>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -889,7 +937,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -897,7 +946,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::TaskDef>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -926,7 +976,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -934,7 +985,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::TaskInstance>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -961,7 +1013,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -969,7 +1022,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::TaskDef>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -995,7 +1049,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -1003,7 +1058,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::TaskInstance>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -1024,13 +1080,15 @@ public:
             throw std::runtime_error("Please call setRuntime() first");
         }
         auto request = core::client::Client::custom(
-                           "POST", std::format("/api/v1/tasks/queue_requeue/{}", type)
+                           "POST",
+                           std::format("/api/v1/tasks/queue_requeue/{}", type)
         )
                            .build(m_register.runtime());
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -1056,7 +1114,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -1081,7 +1140,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -1109,7 +1169,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -1117,7 +1178,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::WorkflowDef>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -1143,7 +1205,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -1151,7 +1214,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::WorkflowDef>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -1178,7 +1242,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -1186,7 +1251,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::WorkflowDef>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -1213,7 +1279,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -1221,7 +1288,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<std::vector<congelado_api_dto::BulkResult>>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -1247,7 +1315,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -1272,7 +1341,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -1297,7 +1367,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -1305,7 +1376,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::WorkflowExecution>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -1332,7 +1404,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -1340,7 +1413,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<std::vector<congelado_api_dto::BulkResult>>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -1366,7 +1440,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -1386,13 +1461,15 @@ public:
             throw std::runtime_error("Please call setRuntime() first");
         }
         auto request = core::client::Client::custom(
-                           "POST", std::format("/api/v1/workflows/exec/{}/restart", id)
+                           "POST",
+                           std::format("/api/v1/workflows/exec/{}/restart", id)
         )
                            .build(m_register.runtime());
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -1420,7 +1497,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -1441,7 +1519,8 @@ public:
             throw std::runtime_error("Please call setRuntime() first");
         }
         auto request = core::client::Client::custom(
-                           "POST", std::format("/api/v1/workflows/exec/{}/signal", id)
+                           "POST",
+                           std::format("/api/v1/workflows/exec/{}/signal", id)
         )
                            .build(m_register.runtime());
         std::move(*request).with_content_type("application/json");
@@ -1449,7 +1528,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -1475,7 +1555,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -1483,7 +1564,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<std::vector<congelado_api_dto::BulkResult>>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -1510,7 +1592,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -1518,7 +1601,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<std::vector<congelado_api_dto::BulkResult>>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -1545,7 +1629,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -1553,7 +1638,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<std::vector<congelado_api_dto::BulkResult>>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -1574,13 +1660,15 @@ public:
             throw std::runtime_error("Please call setRuntime() first");
         }
         auto request = core::client::Client::custom(
-                           "POST", std::format("/api/v1/workflows/exec/{}/resume", id)
+                           "POST",
+                           std::format("/api/v1/workflows/exec/{}/resume", id)
         )
                            .build(m_register.runtime());
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 if (response.is_success()) {
                     on_response();
                 } else {
@@ -1606,7 +1694,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -1614,7 +1703,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<std::vector<congelado_api_dto::BulkResult>>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));
@@ -1640,7 +1730,8 @@ public:
         m_register.send(
             std::move(request),
             [on_response = std::move(onResponse),
-             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable {
+             on_error = std::move(onError)](interfaces::io::IResponse& response) mutable
+            {
                 auto& body_view = response.get_body();
                 std::string body;
                 body.reserve(body_view.size());
@@ -1648,7 +1739,8 @@ public:
                     body.push_back(static_cast<char>(byte));
                 }
                 auto result = serde::Ser::deserialize<congelado_api_dto::WorkflowExecution>(
-                    response.get_content_type(), body
+                    response.get_content_type(),
+                    body
                 );
                 if (result.has_value()) {
                     on_response(std::move(*result));

@@ -29,7 +29,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // The session state remembers the tensors we choose to keep across

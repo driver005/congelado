@@ -25,7 +25,6 @@ import std;
 import cc_abi;
 
 export {
-
     // This file is used by cuda code and must remain compilable by nvcc.
 
     typedef Eigen::ThreadPoolDevice CPUDevice;

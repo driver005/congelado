@@ -37,7 +37,6 @@ import std;
 import cc_abi;
 
 export {
-
     namespace tensorflow {
 
         // A tensor slice represents a slice of a given tensor. It is represented by a
@@ -307,7 +306,11 @@ export {
                         return absl::InvalidArgumentError(
                             absl::StrCat(
                                 "Expected non-negative start and positive length but got start = ",
-                                e.start(), ", length = ", l, ": extent = ", e.ShortDebugString()
+                                e.start(),
+                                ", length = ",
+                                l,
+                                ": extent = ",
+                                e.ShortDebugString()
                             )
                         );
                     }
@@ -348,7 +351,9 @@ export {
                             absl::StrCat(
                                 "Expected a pair of numbers or '-' "
                                 "but got '",
-                                x, "': string = ", str
+                                x,
+                                "': string = ",
+                                str
                             )
                         );
                     }
@@ -357,7 +362,11 @@ export {
                             absl::StrCat(
                                 "Expected non-negative start and "
                                 "positive length but got start = ",
-                                s, ", length = ", l, ": string = ", str
+                                s,
+                                ", length = ",
+                                l,
+                                ": string = ",
+                                str
                             )
                         );
                     }
@@ -549,8 +558,10 @@ export {
             if (shape.dims() != dims()) {
                 return absl::InternalError(
                     absl::StrCat(
-                        "Mismatching ranks: shape = ", shape.DebugString(),
-                        ", slice = ", DebugString()
+                        "Mismatching ranks: shape = ",
+                        shape.DebugString(),
+                        ", slice = ",
+                        DebugString()
                     )
                 );
             }
@@ -569,8 +580,12 @@ export {
                         result_shape->Clear();
                         return absl::InternalError(
                             absl::StrCat(
-                                "Extent in dimension ", d, " out of bounds: shape = ",
-                                shape.DebugString(), ", slice = ", DebugString()
+                                "Extent in dimension ",
+                                d,
+                                " out of bounds: shape = ",
+                                shape.DebugString(),
+                                ", slice = ",
+                                DebugString()
                             )
                         );
                     }
