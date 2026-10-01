@@ -90,9 +90,9 @@ public:
 
         return Model{
             std::move(struct_name),
-            std::move(m_naming.struct_size_macro(struct_name)),
+            m_naming.struct_size_macro(struct_name),
             std::move(domain_name),
-            std::move(m_naming.class_name(struct_name)),
+            m_naming.class_name(struct_name),
             std::string{header_path},
             std::move(slots)
         };

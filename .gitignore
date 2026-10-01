@@ -19,3 +19,7 @@ __pycache__/
 
 # CI reports (make ci-*)
 reports/
+
+# Dev TLS material generated at runtime by include/io/flow/socket/sync.cppm
+server.key
+server.crt

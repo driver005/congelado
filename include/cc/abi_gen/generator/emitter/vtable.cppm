@@ -25,9 +25,9 @@ public:
         std::string&& base_folder,
         std::string&& name_space
     ) :
-        m_registry{registry},
+        m_namespace_name{std::move(name_space)},
         m_base_folder{std::move(base_folder)},
-        m_namespace_name{std::move(name_space)}
+        m_registry{registry}
     {
     }
 
@@ -324,7 +324,8 @@ public:
             m_scratch_imports.clear();
             m_scratch_dependencies.clear();
             m_scratch_dependencies.insert(c_headers_label(anchor->get()));
-            auto added = add_import(*runtime_dir, std::string{RuntimeEmitter::k_runtime_partition}, *target);
+            auto added =
+                add_import(*runtime_dir, std::string{RuntimeEmitter::k_runtime_partition}, *target);
             if (!added) {
                 return added;
             }
@@ -902,10 +903,12 @@ private:
     {
         auto anchor = m_registry.get().find(std::string{RuntimeEmitter::k_string_struct});
         if (!anchor.has_value()) {
-            return std::unexpected(std::format(
-                "Runtime anchor '{}' is not part of the parsed headers",
-                RuntimeEmitter::k_string_struct
-            ));
+            return std::unexpected(
+                std::format(
+                    "Runtime anchor '{}' is not part of the parsed headers",
+                    RuntimeEmitter::k_string_struct
+                )
+            );
         }
 
         return module_directory(base_path, anchor->get(), Mode::Sonic);
@@ -960,10 +963,9 @@ private:
     {
         auto model = m_registry.get().find(std::string{struct_name});
         if (!model.has_value()) {
-            return std::unexpected(std::format(
-                "Runtime anchor '{}' is not part of the parsed headers",
-                struct_name
-            ));
+            return std::unexpected(
+                std::format("Runtime anchor '{}' is not part of the parsed headers", struct_name)
+            );
         }
 
         return model->get().to_sonic_type(m_namespace_name);
@@ -990,10 +992,9 @@ private:
         for (const auto& [struct_name, member]: unique) {
             auto handle_name = c_handle_name(*member);
             if (handle_name.empty()) {
-                return std::unexpected(std::format(
-                    "No C handle struct found for '{}'",
-                    member->get_struct_name()
-                ));
+                return std::unexpected(
+                    std::format("No C handle struct found for '{}'", member->get_struct_name())
+                );
             }
 
             infos.emplace_back(
@@ -1075,10 +1076,12 @@ private:
 
         auto string_model = m_registry.get().find(std::string{RuntimeEmitter::k_string_struct});
         if (!string_model.has_value()) {
-            return std::unexpected(std::format(
-                "Runtime anchor '{}' is not part of the parsed headers",
-                RuntimeEmitter::k_string_struct
-            ));
+            return std::unexpected(
+                std::format(
+                    "Runtime anchor '{}' is not part of the parsed headers",
+                    RuntimeEmitter::k_string_struct
+                )
+            );
         }
 
         auto string_import =
@@ -1116,17 +1119,17 @@ private:
         return {};
     }
 
-    std::expected<std::filesystem::path, std::string> runtime_target(
-        const std::filesystem::path& base_path,
-        const RuntimeSpec& spec
-    ) const
+    std::expected<std::filesystem::path, std::string>
+    runtime_target(const std::filesystem::path& base_path, const RuntimeSpec& spec) const
     {
         auto anchor = m_registry.get().find(std::string{spec.get_anchor_struct()});
         if (!anchor.has_value()) {
-            return std::unexpected(std::format(
-                "Runtime anchor '{}' is not part of the parsed headers",
-                spec.get_anchor_struct()
-            ));
+            return std::unexpected(
+                std::format(
+                    "Runtime anchor '{}' is not part of the parsed headers",
+                    spec.get_anchor_struct()
+                )
+            );
         }
 
         return module_directory(base_path, anchor->get(), Mode::Sonic);

@@ -23,14 +23,7 @@ test:
 
 
 format:
-	find . \
-		-not \( -path './build' -prune \) \
-		-not \( -path './.xmake' -prune \) \
-		-not \( -path './bazel-*' -prune \) \
-		-not \( -path './.bzluser' -prune \) \
-		-not \( -path './c' -prune \) \
-		\( -name '*.cpp' -o -name '*.cppm' -o -name '*.h' -o -name '*.hpp' \) \
-		| xargs -P $(shell nproc) clang-format -i
+	$(SOURCE_FILES) | xargs -P $(shell nproc) clang-format -i
 
 canary:
 	bazel build //include/core/ffi:core_ffi //bazel/probes:gmf_probe
@@ -232,7 +225,7 @@ ci-build:
 	bazel build --config=ci //...
 
 ci-test:
-	bazel test --config=ci //... ; status=$$?; REPORT_DIR=$(REPORT_DIR) scripts/ci/collect_reports.sh test --config=ci; exit $$status
+	bazel test --config=ci //... ; status=$$?; test $$status -ne 4 || { echo 'no test targets found (Bazel exit 4); build succeeded'; status=0; }; REPORT_DIR=$(REPORT_DIR) scripts/ci/collect_reports.sh test --config=ci || status=1; exit $$status
 
 ci-warnings:
 	bazel build --config=ci --config=warnings //...
@@ -242,7 +235,7 @@ ci-asan ci-ubsan ci-tsan: ci-%:
 		--test_env=ASAN_OPTIONS=detect_leaks=1:detect_stack_use_after_return=1:strict_init_order=1:halt_on_error=1 \
 		--test_env=UBSAN_OPTIONS=print_stacktrace=1:halt_on_error=1 \
 		--test_env=TSAN_OPTIONS=halt_on_error=1:second_deadlock_stack=1 \
-		//... ; status=$$?; REPORT_DIR=$(REPORT_DIR) scripts/ci/collect_reports.sh $* --config=ci --config=$* || status=1; exit $$status
+		//... ; status=$$?; test $$status -ne 4 || { echo 'no test targets found (Bazel exit 4); sanitizer build succeeded'; status=0; }; REPORT_DIR=$(REPORT_DIR) scripts/ci/collect_reports.sh $* --config=ci --config=$* || status=1; exit $$status
 
 ci-fuzz:
 	REPORT_DIR=$(REPORT_DIR) FUZZ_SECONDS=$(FUZZ_SECONDS) scripts/ci/run_fuzzers.sh

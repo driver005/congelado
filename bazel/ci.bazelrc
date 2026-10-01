@@ -1,6 +1,5 @@
 # CI and sanitizer configurations; see `make ci-*` targets in the makefile.
 
-build:ci --symlink_prefix=/
 build:ci --keep_going
 build:ci --show_timestamps
 build:ci --color=no
@@ -12,6 +11,7 @@ build:sanitizer --strip=never
 build:sanitizer --copt=-g
 build:sanitizer --copt=-O1
 build:sanitizer --copt=-fno-omit-frame-pointer
+build:sanitizer --copt=-fno-sanitize-ignorelist
 build:sanitizer --copt=-fno-optimize-sibling-calls
 build:sanitizer --linkopt=-fuse-ld=lld
 
