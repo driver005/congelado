@@ -1,0 +1,96 @@
+name: autofix
+
+# Runs the linter fixes and the formatter. On a pull request from this repo the result is committed to the
+# PR branch. On master it goes to one shared pull request (branch autofix/master).
+#
+# Pushes made with GITHUB_TOKEN do not trigger other workflows, so the required checks would never run on the
+# autofix pull request. Add a personal access token (or app token) with contents + pull-requests write as the
+# AUTOFIX_TOKEN secret; the workflow falls back to GITHUB_TOKEN without it. Repository setting needed:
+# Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests".
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    types: [opened, synchronize, reopened]
+  workflow_dispatch:
+
+concurrency:
+  group: autofix-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  packages: read
+  pull-requests: write
+
+env:
+  AUTOFIX_BRANCH: autofix/master
+
+jobs:
+  autofix:
+    # Forks cannot be pushed to; the autofix pull request itself is not fixed again.
+    if: github.event_name != 'pull_request' || (github.event.pull_request.head.repo.full_name == github.repository && github.head_ref != 'autofix/master')
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+          token: ${{ secrets.AUTOFIX_TOKEN || secrets.GITHUB_TOKEN }}
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: ./.github/actions/ci-run
+        with:
+          target: ci-autofix
+          cache-key: autofix
+          report-name: reports-autofix
+
+      - name: Detect changes
+        id: changes
+        run: |
+          sudo chown -R "$(id -u):$(id -g)" .
+          if git diff --quiet; then
+            echo "dirty=false" >> "$GITHUB_OUTPUT"
+            echo "Formatter and linter changed nothing." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "dirty=true" >> "$GITHUB_OUTPUT"
+            git diff --stat >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Commit to the pull request branch
+        if: steps.changes.outputs.dirty == 'true' && github.event_name == 'pull_request'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -am "style: apply formatter and linter fixes"
+          git push origin "HEAD:${{ github.head_ref }}"
+
+      - name: Open or update the autofix pull request
+        if: steps.changes.outputs.dirty == 'true' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.AUTOFIX_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch -C "${AUTOFIX_BRANCH}"
+          git commit -am "style: apply formatter and linter fixes"
+          git push --force origin "${AUTOFIX_BRANCH}"
+          if [[ -z "$(gh pr list --head "${AUTOFIX_BRANCH}" --state open --json number --jq '.[0].number')" ]]; then
+            gh pr create --base "${{ github.ref_name }}" --head "${AUTOFIX_BRANCH}" \
+              --title "style: apply formatter and linter fixes" \
+              --body "Automatic formatter (clang-format) and linter (clang-tidy fix-its) changes for ${GITHUB_SHA::7}. Updated on every push to ${{ github.ref_name }}; Closed automatically when there is nothing left to fix."
+          fi
+
+      - name: Close the autofix pull request when nothing is left
+        if: steps.changes.outputs.dirty == 'false' && github.event_name != 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.AUTOFIX_TOKEN || secrets.GITHUB_TOKEN }}
+        run: |
+          number="$(gh pr list --head "${AUTOFIX_BRANCH}" --state open --json number --jq '.[0].number')"
+          if [[ -n "${number}" ]]; then
+            gh pr close "${number}" --delete-branch --comment "Nothing left to fix on ${GITHUB_SHA::7}."
+          fi

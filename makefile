@@ -200,7 +200,7 @@ SOURCE_FILES = find . \
 		-not \( -path './third_party' -prune \) \
 		\( -name '*.cpp' -o -name '*.cc' -o -name '*.cppm' -o -name '*.h' -o -name '*.hpp' \)
 
-.PHONY: ci ci-image ci-shell ci-all ci-format ci-abi ci-build ci-test ci-warnings ci-asan ci-ubsan ci-tsan ci-fuzz ci-tidy ci-secrets ci-deps ci-security ci-rulesets rulesets
+.PHONY: ci ci-image ci-shell ci-all ci-format ci-abi ci-build ci-test ci-warnings ci-asan ci-ubsan ci-tsan ci-fuzz ci-tidy ci-secrets ci-deps ci-security ci-rulesets rulesets ci-fix-tidy ci-autofix
 
 ci-image:
 	$(CONTAINER) build -f docker/Dockerfile.ci -t $(CI_IMAGE) docker
@@ -262,3 +262,10 @@ ci-rulesets:
 RULESET_ENFORCEMENT ?= active
 rulesets:
 	scripts/ci/create_rulesets.sh --enforcement $(RULESET_ENFORCEMENT)
+
+# Applies clang-tidy fix-its in place (only checks that have fix-its change anything).
+ci-fix-tidy:
+	FIX=1 REPORT_DIR=$(REPORT_DIR) scripts/ci/clang_tidy.sh
+
+# Linter fixes first, then the formatter, so the result is formatted; used by .github/workflows/autofix.yml.
+ci-autofix: ci-fix-tidy format

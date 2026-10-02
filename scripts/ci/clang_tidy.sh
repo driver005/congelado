@@ -11,8 +11,15 @@ if [[ ! -f compile_commands.json ]]; then
     bazel run --config=ci @hedron_compile_commands//:refresh_all || exit 1
 fi
 
+# FIX=1 applies the checks' fix-its in place instead of exporting them (the two options exclude each other).
+if [[ "${FIX:-0}" == "1" ]]; then
+    fix_flags=(-fix)
+else
+    fix_flags=(-export-fixes "${report_dir}/fixes.yaml")
+fi
+
 run-clang-tidy -quiet -p . -checks="${checks}" -j "$(nproc)" \
-    -export-fixes "${report_dir}/fixes.yaml" \
+    "${fix_flags[@]}" \
     '^(?!.*(external|bazel-|third_party|/build/)).*\.(cc|cpp|cppm)$' \
     > "${report_dir}/clang-tidy.txt" 2>&1
 
