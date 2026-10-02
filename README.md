@@ -242,6 +242,7 @@ make ui-build-web
 
 `make ci-all` runs the same checks as GitHub (format, ABI drift, build, tests, warnings, sanitizers, fuzz, clang-tidy, gitleaks, osv) inside the CI image; `make ci CI_TARGET=ci-asan` runs one.
 
+- `AUTOFIX_TOKEN=<pat> make github-setup` runs the three one-time GitHub steps below in order (`autofix-token`, `repo-settings`, `rulesets`).
 - `make rulesets` creates or updates the `master protection` ruleset (pull request plus the CI checks as required status checks, admins can bypass). It needs `gh` logged in with admin rights. `make ci-rulesets` only prints the JSON; `make rulesets RULESET_ENFORCEMENT=evaluate` tries it without blocking.
 - `.github/workflows/autofix.yml` runs the clang-tidy fix-its and clang-format: on a same-repo pull request it commits the result to the PR branch, on `master` it opens or updates one `autofix/master` pull request (closed again when nothing is left). Run `make repo-settings` once (lets workflows create pull requests) and `AUTOFIX_TOKEN=<pat> make autofix-token` (PAT with contents + pull-requests write, so CI runs on that PR).
 - A failed `ci`, `security` or `release` run on `master` opens one `ci-broken` issue per workflow (`.github/workflows/ci-failure-issue.yml`); the next green run closes it.
