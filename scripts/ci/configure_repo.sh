@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Repo settings the CI workflows need. Needs `gh` logged in with repo admin rights. Run locally, never from CI.
 #   scripts/ci/configure_repo.sh [--repo owner/name] [--dry-run]
-# The AUTOFIX_TOKEN secret is set separately: AUTOFIX_TOKEN=<pat> make autofix-token
 set -euo pipefail
 
 repo=""
