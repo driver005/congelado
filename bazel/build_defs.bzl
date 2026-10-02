@@ -74,14 +74,22 @@ def congelado_module_library(
         alwayslink = alwayslink,
     )
 
-def congelado_cc_test(name, srcs, deps = [], **kwargs):
-    """Wraps cc_test per apply_test_target() in xmake/common.lua — recompiles srcs fresh, never deps on the production target."""
+def congelado_cc_test(
+        name,
+        srcs,
+        deps = [],
+        copts = congelado_cxx26_copts(),
+        features = ["cpp_modules"],
+        **kwargs):
+    """Own cc_test (`<name>_test`); plain `int main`, exit code 0 = pass. Same module defaults as congelado_cc_binary."""
+    linkopts = kwargs.pop("linkopts", [])
     cc_test(
         name = name + "_test",
         srcs = srcs,
-        copts = congelado_copts(),
-        defines = ["CONGELADO_TEST"],
-        deps = deps + ["//bazel/third_party:boost_ut"],
+        copts = copts,
+        features = features,
+        linkopts = congelado_linkopts() + linkopts,
+        deps = deps + ["@system_libstdcxx//:std"],
         **kwargs
     )
 
