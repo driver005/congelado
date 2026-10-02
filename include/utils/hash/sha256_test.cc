@@ -1,8 +1,7 @@
 import std;
 import utils_hash;
 
-namespace
-{
+namespace {
 
 class Check
 {
