@@ -22,6 +22,7 @@ fleet that executes tasks straight off the wire. No cap, no legacy header soup.*
 - [The GCC module bug you WILL hit](#the-gcc-module-bug-you-will-hit)
 - [Getting started](#getting-started)
 - [UI](#ui)
+- [CI](#ci)
 - [Docker](#docker)
 - [License](#license)
 
@@ -236,6 +237,13 @@ make ui-catalogue
 # Build for web
 make ui-build-web
 ```
+
+## CI
+
+`make ci-all` runs the same checks as GitHub (format, ABI drift, build, tests, warnings, sanitizers, fuzz, clang-tidy, gitleaks, osv) inside the CI image; `make ci CI_TARGET=ci-asan` runs one.
+
+- `make rulesets` creates or updates the `master protection` ruleset (pull request plus the CI checks as required status checks, admins can bypass). It needs `gh` logged in with admin rights. `make ci-rulesets` only prints the JSON; `make rulesets RULESET_ENFORCEMENT=evaluate` tries it without blocking.
+- A failed `ci`, `security` or `release` run on `master` opens one `ci-broken` issue per workflow (`.github/workflows/ci-failure-issue.yml`); the next green run closes it.
 
 ## Docker
 

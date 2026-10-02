@@ -200,7 +200,7 @@ SOURCE_FILES = find . \
 		-not \( -path './third_party' -prune \) \
 		\( -name '*.cpp' -o -name '*.cc' -o -name '*.cppm' -o -name '*.h' -o -name '*.hpp' \)
 
-.PHONY: ci ci-image ci-shell ci-all ci-format ci-abi ci-build ci-test ci-warnings ci-asan ci-ubsan ci-tsan ci-fuzz ci-tidy ci-secrets ci-deps ci-security
+.PHONY: ci ci-image ci-shell ci-all ci-format ci-abi ci-build ci-test ci-warnings ci-asan ci-ubsan ci-tsan ci-fuzz ci-tidy ci-secrets ci-deps ci-security ci-rulesets rulesets
 
 ci-image:
 	$(CONTAINER) build -f docker/Dockerfile.ci -t $(CI_IMAGE) docker
@@ -253,3 +253,12 @@ ci-deps:
 		osv-scanner scan source --recursive --format markdown --output $(REPORT_DIR)/security/osv.md . ; true
 
 ci-security: ci-secrets ci-deps
+
+# Prints the master ruleset JSON without calling GitHub.
+ci-rulesets:
+	scripts/ci/create_rulesets.sh --dry-run
+
+# Creates/updates the master ruleset (needs `gh` with repo admin rights). RULESET_ENFORCEMENT=evaluate to try it first.
+RULESET_ENFORCEMENT ?= active
+rulesets:
+	scripts/ci/create_rulesets.sh --enforcement $(RULESET_ENFORCEMENT)
