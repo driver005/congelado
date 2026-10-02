@@ -200,7 +200,7 @@ SOURCE_FILES = find . \
 		-not \( -path './third_party' -prune \) \
 		\( -name '*.cpp' -o -name '*.cc' -o -name '*.cppm' -o -name '*.h' -o -name '*.hpp' \)
 
-.PHONY: ci ci-image ci-shell ci-all ci-format ci-abi ci-build ci-test ci-warnings ci-asan ci-ubsan ci-tsan ci-fuzz ci-tidy ci-secrets ci-deps ci-security ci-rulesets rulesets ci-fix-tidy ci-autofix
+.PHONY: ci ci-image ci-shell ci-all ci-format ci-abi ci-build ci-test ci-warnings ci-asan ci-ubsan ci-tsan ci-fuzz ci-tidy ci-secrets ci-deps ci-security ci-rulesets rulesets ci-fix-tidy ci-autofix repo-settings autofix-token
 
 ci-image:
 	$(CONTAINER) build -f docker/Dockerfile.ci -t $(CI_IMAGE) docker
@@ -269,3 +269,12 @@ ci-fix-tidy:
 
 # Linter fixes first, then the formatter, so the result is formatted; used by .github/workflows/autofix.yml.
 ci-autofix: ci-fix-tidy format
+
+# Lets workflows open pull requests (needs `gh` with repo admin rights).
+repo-settings:
+	scripts/ci/configure_repo.sh
+
+# Stores a personal access token (contents + pull-requests write) as the AUTOFIX_TOKEN secret: AUTOFIX_TOKEN=<pat> make autofix-token
+autofix-token:
+	@test -n "$$AUTOFIX_TOKEN" || { echo 'set AUTOFIX_TOKEN=<pat>'; exit 1; }
+	@printf '%s' "$$AUTOFIX_TOKEN" | gh secret set AUTOFIX_TOKEN

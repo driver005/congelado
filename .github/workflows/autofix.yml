@@ -6,7 +6,7 @@ name: autofix
 # Pushes made with GITHUB_TOKEN do not trigger other workflows, so the required checks would never run on the
 # autofix pull request. Add a personal access token (or app token) with contents + pull-requests write as the
 # AUTOFIX_TOKEN secret; the workflow falls back to GITHUB_TOKEN without it. Repository setting needed:
-# Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests".
+# Settings > Actions > General > "Allow GitHub Actions to create and approve pull requests" (make repo-settings).
 
 on:
   push:
