@@ -6,6 +6,10 @@ build:ci --color=no
 build:ci --curses=no
 test:ci --test_output=errors
 test:ci --test_summary=detailed
+# Persisted between CI runs (.github/actions/ci-run); the output/install bases are rebuilt every run on purpose.
+common:ci --repository_cache=/root/.cache/bazel-repo
+common:ci --experimental_repository_downloader_retries=10
+build:ci --disk_cache=/root/.cache/bazel-disk
 
 build:sanitizer --strip=never
 build:sanitizer --copt=-g

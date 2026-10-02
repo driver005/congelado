@@ -22,7 +22,13 @@ runs:
     - name: Restore build cache
       uses: actions/cache@v5
       with:
-        path: ~/.cache/congelado-ci
+        # Only download/object caches; Bazel's install and output bases are not restored (a restored copy failed
+        # with "mkdir('/root/.cache/bazel/_bazel_root'): Permission denied" inside the container).
+        path: |
+          ~/.cache/congelado-ci/bazel-repo
+          ~/.cache/congelado-ci/bazel-disk
+          ~/.cache/congelado-ci/bazelisk
+          ~/.cache/congelado-ci/ccache
         key: ci-${{ inputs.cache-key }}-${{ hashFiles('MODULE.bazel.lock', '.bazelrc', 'bazel/ci.bazelrc', 'docker/Dockerfile.ci') }}-${{ github.sha }}
         restore-keys: |
           ci-${{ inputs.cache-key }}-${{ hashFiles('MODULE.bazel.lock', '.bazelrc', 'bazel/ci.bazelrc', 'docker/Dockerfile.ci') }}-
