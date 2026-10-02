@@ -140,23 +140,6 @@ services:
     networks:
       - congelado
 
-  # ── UI (Flutter shell) ────────────────────────────────────────────────────
-  # Static web build of app/ (docker/Dockerfile.ui), served over nginx — deliberately
-  # decoupled from the builder/server/worker chain: no shared build_output volume, no
-  # depends_on. The running shell talks to the engine's API straight from the browser (see
-  # plugins/*/ui/lib/api_client.dart's base URL), not container-to-container, so it doesn't
-  # need `server` up to start successfully — only later, when actually used.
-  ui:
-    image: localhost/congelado-ui:local
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.ui
-    container_name: congelado-ui
-    ports:
-      - "8081:80"
-    networks:
-      - congelado
-
   # ── Prometheus ────────────────────────────────────────────────────────────
   # Receives metrics pushed directly from server/worker's otel_otlp_plugin via Prometheus's
   # own native OTLP receiver (--web.enable-otlp-receiver) — no separate OpenTelemetry

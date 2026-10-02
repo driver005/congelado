@@ -237,14 +237,6 @@ make ui-catalogue
 make ui-build-web
 ```
 
-Don't have the Flutter SDK on your host? `docker/Dockerfile.ui` builds the web target inside a
-container that has it and serves it over nginx — wired up as the `ui` service in
-`docker/docker-compose.yml`, available at http://localhost:8081 once it's up:
-
-```bash
-podman compose -f docker/docker-compose.yml up -d ui
-```
-
 ## Docker
 
 Don't want to touch your host toolchain at all? `docker/docker-compose.yml` wires up all

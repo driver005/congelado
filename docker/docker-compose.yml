@@ -243,22 +243,6 @@ services:
     networks:
       - congelado
 
-  # ── UI (Flutter app) ──────────────────────────────────────────────────────
-  # Static web build of flutter/ui/ (docker/Dockerfile.ui), served over nginx
-  # — deliberately decoupled from the builder/server/worker chain: no shared
-  # build_output volume, no depends_on. flutter/ui's Widgetbook catalogue is
-  # pure Flutter — no engine needed to run it.
-  ui:
-    image: localhost/congelado-ui:local
-    build:
-      context: ..
-      dockerfile: docker/Dockerfile.ui
-    container_name: congelado-ui
-    ports:
-      - "8081:80"
-    networks:
-      - congelado
-
   # ── Prometheus ────────────────────────────────────────────────────────────
   # Receives metrics pushed directly from server/worker's otel_otlp_plugin via Prometheus's
   # own native OTLP receiver (--web.enable-otlp-receiver) — no separate OpenTelemetry
