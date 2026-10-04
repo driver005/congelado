@@ -1,186 +1,79 @@
-# ATen XPU — SYCL ice::builder Backend
+# aten_xpu: SYCL backend on the ice layer
 
-> **Status:** Reference implementation — `docs/` only, not compiled by Bazel.
-> **Replaces:** Old ATen/c10-dependent async_support layer.
+Reference SYCL/oneDNN plugin that implements the generated `ice::builder::TF_*Ops` interfaces.
+It lives under `docs/` and Bazel does not build it.
 
-This directory holds a reference extraction of PyTorch's XPU/SYCL backend
-**plus** a fully rewritten `async_support/` sub-layer that implements the
-Congelado **ice** layer interfaces using pure [AdaptiveCpp SYCL](https://github.com/AdaptiveCpp/AdaptiveCpp).
+## Layout
 
-Zero PyTorch / ATen / c10 dependencies in `async_support/`.
-
----
-
-## Directory Structure
+The tree mirrors `include/cc/ice`. Each directory is one C++ module, and each file is one partition holding one class.
 
 ```
-aten_xpu/
-├── core/                    # ATen/xpu/ — reference: Core tensor context
-├── mkldnn/                  # ATen/native/mkldnn/xpu/ — reference: oneDNN kernels
-├── transformers/            # ATen/native/transformers/xpu/ — reference: attention
-├── c10/                     # c10/xpu/ — reference: c10 XPU primitives
-├── torch_csrc/              # torch/csrc/xpu/ — reference: Python bindings
-├── async_support/           # ← REWRITTEN: ice::builder SYCL backend
-│   ├── xpu_async_tensor.cppm   # ice::builder::TF_TensorOps via SYCL USM
-│   ├── xpu_async_buffer.cppm   # Async USM buffer (alloc/copy/memset)
-│   ├── xpu_async_kernels.cppm  # ice::builder::TF_ExecutorOps via sycl::queue
-│   └── xpu_async.cppm          # Unified re-export facade
-└── xpu_dispatch_keys.txt    # 1178 XPU dispatch entries from native_functions.yaml
+docs/aten_xpu/
+├── base.cppm                 aten_xpu (re-exports intern + extern)
+├── plugin.cc                 C entry points only (create_plugin, create_*/destroy_*)
+├── intern/                   aten_xpu_intern
+│   ops_table, handle, status, tensor, tensor_factory
+├── extern/                   aten_xpu_extern
+│   ├── stream_executor/      platform, device, device_guard, peer_access, level_zero,
+│   │                         executor, stream, stream_pool, event, timer, memory, mem_pool,
+│   │                         stream_executor, allocator/{allocator, block, block_pool,
+│   │                         expandable_segment, stats, trace, snapshot, ipc_memory,
+│   │                         host_cache, pluggable_allocator}
+│   ├── random_generator/     random_generator, philox_state, philox_codec
+│   ├── grappler/             grappler, device_graph, capture_status, optimizer
+│   ├── kernel/               kernel (SyclKernel<Derived> : TF_KernelOps), registrar,
+│   │                         context/, onednn/, matmul/, linear/, convolution/,
+│   │                         quantized/, scaled/, attention/, recurrent/
+│   └── registration/         SyclPluginRegistry (vtables, host ops, kernel registration)
+└── test/                     gtest suites on the ice::sonic wrappers (fixture.cppm)
 ```
 
----
+## Lifecycle
 
-## ice Layer Mapping
+- The host calls a vtable's `create` slot. The plugin allocates the concrete `Sycl*` object and `SyclHandle::attach` stores it in `plugin_data`. `destroy` deletes the object.
+- `create_*_internal(parent, handle)` binds an object that already exists (for example `SyclStream::bind`). Generated wrappers copy the `{plugin_data}` handle, so `SyclHandle::resolve<T>` finds the same object.
+- Pool and current-stream slots (`get_stream_from_pool`, `get_current_stream`, `get_default_random_generator`) bind the caller's handle to shared state, such as a shared queue or a shared Philox state. They never swap `plugin_data`.
+- `SyclOpsTable` holds two kinds of ops tables: host tables (status, string, buffer, kernel context/construction, grappler item) and the plugin's own vtables. `SyclPluginRegistry::initialize` fills it.
 
-| SYCL primitive | ice::builder interface |
+## Legacy mapping
+
+| Legacy | Now |
 |---|---|
-| `sycl::malloc_device` | `TF_ExecutorOps::allocate` |
-| `sycl::malloc_host` | `TF_ExecutorOps::host_memory_allocate` |
-| `sycl::malloc_shared` | `TF_ExecutorOps::unified_memory_allocate` |
-| `sycl::free` | `TF_ExecutorOps::deallocate` / `host_memory_deallocate` |
-| `sycl::queue` (in-order) | `TF_Stream` (`plugin_data = sycl::queue*`) |
-| `sycl::queue::memcpy` | `TF_ExecutorOps::memcpy_dtoh/htod/dtod` |
-| `sycl::queue::memset` | `TF_ExecutorOps::mem_zero` / `memset` |
-| `sycl::queue::parallel_for` | `TF_ExecutorOps::memset32` |
-| `sycl::queue::host_task` | `TF_ExecutorOps::host_callback` |
-| `sycl::queue::ext_oneapi_submit_barrier` | `TF_ExecutorOps::record_event` |
-| `sycl::event` | `TF_Event` (`plugin_data = sycl::event*`) |
-| `sycl::device::global_mem_size` | `TF_ExecutorOps::device_memory_usage` |
-| `SyclTensorImpl` (USM + shape + dtype) | `TF_TensorOps` vtable |
+| `c10/XPUStream.*`, `torch_csrc/Stream.*` | `stream`, `stream_pool`, executor current stream |
+| `c10/XPUEvent.h`, `torch_csrc/Event.*` | `event` (timing and IPC) |
+| `c10/XPUFunctions.*`, `c10/PeerToPeerAccess.*`, `core/XPUDevice.h` | `platform`, `peer_access` |
+| `c10/XPUDeviceProp.h`, `core/XPUContext.*` | `device` |
+| `c10/impl/XPUGuardImpl.*` | `device_guard` |
+| `core/detail/LazyLevelZero.*` | `level_zero` |
+| `c10/XPUCachingAllocator.*`, `torch_csrc/memory_snapshot.*` | `allocator/` |
+| `core/CachingHostAllocator.*` | `allocator/host_cache` (`TF_MEMORY_SPACE_HOST_PINNED`) |
+| `torch_csrc/XPUPluggableAllocator.*` | `allocator/pluggable_allocator` |
+| `core/MemPool.*` | `mem_pool` |
+| `core/XPUGeneratorImpl.*`, `PhiloxXpuState.h` | `random_generator/` |
+| `core/XPUGraph.*`, graph utils | `grappler/device_graph`, `capture_status` |
+| `mkldnn/**`, `transformers/**`, `core/XPUScaledBlas.*` | `kernel/**` |
+| `core/detail/XPUHooks.*`, `torch_csrc/Module.*` | `registration`, `plugin.cc` |
+| `c10/test/**` | `test/` |
 
----
+The Python bindings and CMake glue were dropped. Every behavior they exposed is now reachable through the ice slots.
 
-## Module Names
+## Kernels
 
-| Old (ATen-based) | New (ice/SYCL) |
+| Op | Class |
 |---|---|
-| `cc_ice_builder_intern:xpu_async_tensor` | `cc_ice_sycl_backend:tensor` |
-| `cc_ice_builder_intern:xpu_async_buffer` | `cc_ice_sycl_backend:buffer` |
-| `cc_ice_builder_intern:xpu_async_kernels` | `cc_ice_sycl_backend:executor` |
-| `cc_ice_builder_intern:xpu_async` | `cc_ice_sycl_backend` |
+| Addmm, BatchMatMul, Baddbmm, Addmv | `matmul/*` |
+| Linear (unary/binary fusion) | `linear/linear` |
+| Conv2D (N-d, groups), ConvolutionBackward, transposed conv | `convolution/*` |
+| QuantizedMatMul and QuantizedLinear (`weight_transposed`), QuantizedConv2D | `quantized/int8_*` |
+| WeightOnlyQuantizedMatMul (u4, grouped) | `quantized/woq_matmul` |
+| ScaledMatMul (tensor-wise, row-wise, block-wise recipes) | `scaled/*` |
+| ScaledDotProductAttention, its backward | `attention/*` (oneDNN graph fused path plus math path) |
+| LSTM (multi-layer, bidirectional, inference) | `recurrent/lstm` |
 
----
+## Known gaps
 
-## async_support/ File Guide
-
-### `xpu_async_tensor.cppm` — `cc_ice_sycl_backend:tensor`
-
-Implements `ice::builder::TF_TensorOps` using:
-- `SyclTensorImpl`: owns `sycl::malloc_device` USM pointer + `std::vector<int64_t>` dims + `TFDataTypeEnum` dtype.
-- `XPU_AsyncTensorOps`: abstract class impl; all virtual methods delegate to `SyclTensorImpl`.
-- `XPU_AsyncEvent`: SYCL event wrapper for cross-op synchronization.
-- `AsyncResult`: `{ sycl::event, std::expected<void, ice::Status> }`.
-
-```cpp
-import cc_ice_sycl_backend:tensor;
-
-sycl::queue q(sycl::gpu_selector_v);
-auto* t = ice::builder::XPU_AsyncTensorOps::make(q);
-
-int64_t dims[] = {4, 32, 32};
-t->set_dtype(TF_FLOAT);
-t->set_dims(dims, 3);   // allocates 4×32×32×4 bytes on GPU
-
-auto r = t->copy_from_host_async(host_ptr, t->impl_.nbytes());
-r.wait();               // blocks until DMA complete
-```
-
-### `xpu_async_buffer.cppm` — `cc_ice_sycl_backend:buffer`
-
-Raw USM buffer with async copy/memset:
-- `XPU_AsyncBuffer` — single allocation, same async API shape as old `XPU_AsyncBuffer` but backed by `sycl::malloc_device` / `sycl::free` instead of `c10::DataPtr`.
-- `XPU_PooledAsyncBuffer` — same API, delegates to inner `XPU_AsyncBuffer` (SYCL has no native pool concept; pooling lives at plugin level).
-
-### `xpu_async_kernels.cppm` — `cc_ice_sycl_backend:executor`
-
-Implements the full `ice::builder::TF_ExecutorOps` abstract interface as `SyclExecutorImpl`:
-
-```cpp
-import cc_ice_sycl_backend:executor;
-
-// GPU executor (falls back to CPU if no GPU)
-auto* exec = ice::builder::make_gpu_executor();
-
-// Use default queue directly
-sycl::queue& q = exec->default_queue();
-
-// Or go through ice C-ABI
-TF_Stream stream;
-exec->create_stream_internal(device_ops, &stream);
-exec->memcpy_htod(device_ops, &stream, &mem, host_ptr, 1024);
-exec->block_host_until_done(device_ops, &stream);
-exec->destroy_stream_internal(device_ops, &stream);
-
-delete exec;
-```
-
-### `xpu_async.cppm` — `cc_ice_sycl_backend`
-
-Unified re-export facade. `import cc_ice_sycl_backend;` gives access to all
-three partitions plus convenience aliases:
-
-```cpp
-using SyclTensor      = ice::builder::XPU_AsyncTensorOps;
-using SyclBuffer      = ice::builder::XPU_AsyncBuffer;
-using SyclPooledBuffer= ice::builder::XPU_PooledAsyncBuffer;
-using SyclExecutor    = ice::builder::SyclExecutorImpl;
-using SyclAsyncEvent  = ice::builder::XPU_AsyncEvent;
-using SyclAsyncResult = ice::builder::AsyncResult;
-```
-
----
-
-## Building with Bazel (Approach A — per-plugin explicit deps)
-
-In `include/yoshi/omah_lay/` (production plugin location):
-
-```python
-cc_binary(
-    name = "sycl_plugin.so",
-    srcs = [
-        "sycl_executor_plugin.cc",   # your plugin entry-point
-    ],
-    deps = [
-        "//include/yoshi/omah_lay:plugin_c_abi_base",
-        "//include/yoshi/omah_lay:gpu_plugin_deps",   # @adaptive_cpp//:sycl
-        "//include/cc/ice/extern/stream_executor:builder_executor",
-        "//include/cc/ice/intern:builder_tensor",
-        "//include/cc/ice/intern:builder_status",
-    ],
-    # docs/aten_xpu/async_support/*.cppm are NOT in Bazel — reference only.
-    # Copy the implementation to yoshi/omah_lay/ before wiring into Bazel.
-)
-```
-
-> [!NOTE]
-> `docs/aten_xpu/async_support/` is **never** compiled by Bazel directly.
-> It serves as the reference/design doc for the real plugin in `include/yoshi/omah_lay/`.
-
----
-
-## TF_Stream / TF_Event Plugin Data Convention
-
-```
-TF_Stream::plugin_data  →  heap sycl::queue*   (owned; destroyed by destroy_stream_internal)
-TF_Event::plugin_data   →  heap sycl::event*   (owned; destroyed by destroy_event_internal)
-TF_Timer::plugin_data   →  heap std::pair<sycl::event,sycl::event>*  (start, stop)
-TF_DeviceMemoryBase::opaque → raw USM device ptr (sycl::malloc_device output)
-```
-
----
-
-## SYCL Requirements
-
-- **AdaptiveCpp** (≥ v25.10.0) — `@adaptive_cpp//:sycl` in Bazel
-- CPU target: `sycl::cpu_selector_v` — always available
-- GPU target: `sycl::gpu_selector_v` — requires Intel GPU + Level Zero, or ROCm/CUDA via AdaptiveCpp
-- `<sycl/sycl.hpp>` must be included in the **global module fragment** (`module;` block), never inside `export module` — SYCL cannot be a C++ module interface
-
----
-
-## Reference Files (ATen — not used by ice layer)
-
-The remaining subdirectories (`core/`, `mkldnn/`, `transformers/`, `c10/`, `torch_csrc/`) are read-only reference material extracted from PyTorch for architectural study. They depend on ATen/c10 and are **not** integrated.
-
-- Extracted from: `pytorch/pytorch@main` (shallow clone, 2026-09-18)
-- `xpu_dispatch_keys.txt` — 1178 operators with `XPU:` dispatch key
+- LSTM runs forward inference only; no training workspace.
+- SDPA has no dropout. The fused path covers non-causal attention; causal attention uses the math path.
+- The math path supports grouped-query attention, except with an explicit mask or in backward.
+- `create_kernel` is not exported; kernels register through `SyclKernelRegistrar`.
+- Not compiled anywhere yet. This needs a SYCL compiler (icpx/AdaptiveCpp), oneDNN, and Level Zero headers.
