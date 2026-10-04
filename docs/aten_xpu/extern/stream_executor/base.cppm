@@ -1,0 +1,25 @@
+export module aten_xpu_extern_stream_executor;
+
+export import :peer_access;
+export import :level_zero;
+export import :device;
+export import :stream;
+export import :stream_pool;
+export import :event;
+export import :timer;
+export import :allocator_block;
+export import :allocator_block_pool;
+export import :allocator_expandable_segment;
+export import :allocator_stats;
+export import :allocator_trace;
+export import :allocator_snapshot;
+export import :allocator_ipc_memory;
+export import :allocator_host_cache;
+export import :allocator_pluggable;
+export import :mem_pool;
+export import :allocator;
+export import :memory;
+export import :executor;
+export import :platform;
+export import :device_guard;
+export import :stream_executor;
