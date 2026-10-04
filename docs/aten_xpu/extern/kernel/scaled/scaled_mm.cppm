@@ -1,203 +1,99 @@
-// SYCL reference plugin — tensor-wise scaled matmul (out = (A @ B) * scale_a * scale_b [+ bias])
-// via oneDNN.
-//
-// Not built by Bazel (docs/ only). Replaces mkldnn/ScaledBlas.cpp's _scaled_gemm /
-// _scaled_mm_xpu for ScalingType::TensorWise only — RowWise and the four BlockWise (fp8
-// microscaling) recipes core/XPUScaledBlas.cpp's recipe-compatibility table allows are not
-// ported; A/B are read as s8 here (a real port would take the dtype from the tensor and support
-// f8_e4m3/f8_e5m2 too).
-
 module;
 
-#include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
-#include "include/c/extern/kernel/builder.h"
+#include "include/c/intern/datatype.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
-#include <oneapi/dnnl/dnnl_sycl.hpp>
+#include <sycl/sycl.hpp>
 
-export module sycl_backend:kernels_scaled_mm;
+export module aten_xpu_extern_kernel:scaled_scaled_mm;
 
 import std;
-import :tensor;
-import :stream;
-import :engine_cache;
+import aten_xpu_intern;
+import :kernel;
+import :context;
+import :construction;
+import :onednn_memory_layout;
+import :onednn_primitive_executor;
+import :scaled_scaling_recipe;
 
-export namespace sycl_backend::kernels {
+export namespace aten_xpu {
 
-class ScaledMmKernel
+class SyclScaledMatmulKernel : public SyclKernel<SyclScaledMatmulKernel>
 {
 public:
-    ScaledMmKernel() = delete;
+    static constexpr std::string_view k_name = "ScaledMatMul";
 
-    // Inputs 0/1: A [M,K], B [K,N] (both s8). Inputs 2/3: per-tensor scale_a, scale_b (f32
-    // scalar). Input 4 (optional): bias [N] (f32). Output 0: [M,N], f32.
-    static void compute(void* plugin_data, TF_OpKernelContext* raw_context) noexcept
+    SyclScaledMatmulKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
+        SyclKernel<SyclScaledMatmulKernel>{ops},
+        m_output_type{construction.getType("output_dtype", TF_BFLOAT16)},
+        m_use_fast_accumulation{construction.getBool("use_fast_accum", false)}
     {
-        (void)plugin_data;
+    }
 
-        KernelContextView ctx{raw_context};
-        TF_Status status{};
+    void compute(SyclKernelContext& context)
+    {
 
-        auto* a_handle = ctx.get_input(0, &status);
-        auto* b_handle = ctx.get_input(1, &status);
-        auto* scale_a_handle = ctx.get_input(2, &status);
-        auto* scale_b_handle = ctx.get_input(3, &status);
-        if (a_handle == nullptr || b_handle == nullptr || scale_a_handle == nullptr ||
-            scale_b_handle == nullptr) {
-            ctx.fail(&status);
+        auto left = context.getInput(0);
+        auto right = context.getInput(1);
+        auto left_scale = context.getInput(2);
+        auto right_scale = context.getInput(3);
+        auto queue = context.getQueue();
+        if (!left || !right || !left_scale || !right_scale || !queue) {
+            context.propagate();
+            return;
+        }
+        auto bias = context.getInputCount() > 4 ? context.getInput(4) : std::nullopt;
+
+        const int64_t rows = left->get().getDims()[0];
+        const int64_t inner = left->get().getDims()[1];
+        const int64_t columns = right->get().getDims()[1];
+        const auto left_kind = SyclScalingRecipe::detect(left_scale->get(), rows, inner, true);
+        const auto right_kind = SyclScalingRecipe::detect(right_scale->get(), inner, columns, false);
+        if (!SyclScalingRecipe::compatible(left_kind, right_kind)) {
+            context.fail(TF_INVALID_ARGUMENT, "unsupported scaled_mm scaling recipe combination");
             return;
         }
 
-        auto* a = static_cast<SyclTensor*>(a_handle->plugin_data);
-        auto* b = static_cast<SyclTensor*>(b_handle->plugin_data);
-        const std::vector<int64_t> a_dims = shape_of(*a);
-        const std::vector<int64_t> b_dims = shape_of(*b);
-        const int64_t m = a_dims[0];
-        const int64_t k = a_dims[1];
-        const int64_t n = b_dims[1];
-
-        const std::vector<int64_t> dst_dims{m, n};
-        auto* output_handle = ctx.allocate_output(
-            0,
-            TF_FLOAT,
-            dst_dims.data(),
-            static_cast<int>(dst_dims.size()),
-            static_cast<std::size_t>(m * n) * SyclTensor::element_size(TF_FLOAT),
-            &status
-        );
-        if (output_handle == nullptr) {
-            ctx.fail(&status);
+        m_scratch_dims.assign({rows, columns});
+        auto output = context.allocateOutput(0, m_output_type, m_scratch_dims);
+        if (!output) {
+            context.propagate();
             return;
         }
 
-        auto* stream_handle = ctx.get_stream(&status);
-        if (stream_handle == nullptr) {
-            ctx.fail(&status);
-            return;
-        }
-        auto* stream = static_cast<SyclStream*>(stream_handle->plugin_data);
+        const auto left_desc = SyclOnednnLayout::desc(left->get());
+        const auto right_desc = SyclOnednnLayout::desc(right->get());
+        const auto output_desc = SyclOnednnLayout::desc(output->get());
+        const auto bias_desc = bias ? dnnl::memory::desc{{1, columns}, SyclOnednnLayout::data_type(bias->get().getDtype()).value(), dnnl::memory::format_tag::ab}
+                                    : dnnl::memory::desc{};
 
-        void* bias_data = nullptr;
-        if (ctx.num_inputs() > 4) {
-            auto* bias_handle = ctx.get_input(4, &status);
-            if (bias_handle != nullptr) {
-                bias_data = raw_data(*static_cast<SyclTensor*>(bias_handle->plugin_data));
-            }
+        auto attributes = SyclPrimitiveExecutor::user_scratchpad_attributes();
+        SyclScalingRecipe::apply(attributes, DNNL_ARG_SRC, left_kind, true);
+        SyclScalingRecipe::apply(attributes, DNNL_ARG_WEIGHTS, right_kind, false);
+        if (m_use_fast_accumulation) {
+            attributes.set_accumulation_mode(dnnl::accumulation_mode::relaxed);
         }
 
-        run_scaled_matmul(
-            *stream,
-            m,
-            k,
-            n,
-            raw_data(*a),
-            raw_data(*b),
-            raw_data(*static_cast<SyclTensor*>(scale_a_handle->plugin_data)),
-            raw_data(*static_cast<SyclTensor*>(scale_b_handle->plugin_data)),
-            bias_data,
-            raw_data(*static_cast<SyclTensor*>(output_handle->plugin_data))
-        );
+        SyclPrimitiveExecutor executor{queue->get()};
+        const auto primitive_desc =
+            bias ? dnnl::matmul::primitive_desc{executor.getEngine(), left_desc, right_desc, bias_desc, output_desc, attributes}
+                 : dnnl::matmul::primitive_desc{executor.getEngine(), left_desc, right_desc, output_desc, attributes};
+        executor.addArgument(DNNL_ARG_SRC, left_desc, left->get().getData());
+        executor.addArgument(DNNL_ARG_WEIGHTS, right_desc, right->get().getData());
+        executor.addArgument(DNNL_ARG_DST, output_desc, output->get().getData());
+        executor.addArgument(DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC, SyclOnednnLayout::desc(left_scale->get()), left_scale->get().getData());
+        executor.addArgument(DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, SyclOnednnLayout::desc(right_scale->get()), right_scale->get().getData());
+        if (bias) {
+            executor.addArgument(DNNL_ARG_BIAS, bias_desc, bias->get().getData());
+        }
+        executor.execute(dnnl::matmul{primitive_desc}, primitive_desc);
+
     }
 
 private:
-    static std::vector<int64_t> shape_of(SyclTensor& tensor)
-    {
-        int rank = 0;
-        tensor.num_dims(&rank);
-
-        std::vector<int64_t> dims(static_cast<std::size_t>(rank));
-        for (int index = 0; index < rank; ++index) {
-            tensor.dim(index, &dims[static_cast<std::size_t>(index)]);
-        }
-        return dims;
-    }
-
-    static void* raw_data(SyclTensor& tensor)
-    {
-        void* data = nullptr;
-        tensor.tensor_data(&data);
-        return data;
-    }
-
-    static void run_scaled_matmul(
-        SyclStream& stream,
-        int64_t m,
-        int64_t k,
-        int64_t n,
-        void* a_data,
-        void* b_data,
-        void* scale_a_data,
-        void* scale_b_data,
-        void* bias_data,
-        void* output_data
-    )
-    {
-        sycl::queue& queue = stream.get_native_queue();
-        dnnl::engine& engine =
-            EngineCache::instance().get_engine(queue.get_device(), queue.get_context());
-        dnnl::stream& dnnl_stream = EngineCache::instance().get_stream(engine, queue);
-
-        dnnl::memory::desc a_md{{m, k}, dnnl::memory::data_type::s8, dnnl::memory::format_tag::ab};
-        dnnl::memory::desc b_md{{k, n}, dnnl::memory::data_type::s8, dnnl::memory::format_tag::ab};
-        dnnl::memory::desc dst_md{
-            {m, n},
-            dnnl::memory::data_type::f32,
-            dnnl::memory::format_tag::ab
-        };
-        dnnl::memory::desc bias_md =
-            bias_data != nullptr
-                ? dnnl::memory::desc{{n}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::x}
-                : dnnl::memory::desc{};
-        dnnl::memory::desc scalar_md{
-            {1},
-            dnnl::memory::data_type::f32,
-            dnnl::memory::format_tag::x
-        };
-
-        dnnl::primitive_attr attributes;
-        attributes.set_scratchpad_mode(dnnl::scratchpad_mode::user);
-        attributes.set_scales_mask(DNNL_ARG_SRC, 0);
-        attributes.set_scales_mask(DNNL_ARG_WEIGHTS, 0);
-
-        dnnl::matmul::primitive_desc primitive_desc =
-            bias_data != nullptr
-                ? dnnl::matmul::primitive_desc{engine, a_md, b_md, bias_md, dst_md, attributes}
-                : dnnl::matmul::primitive_desc{engine, a_md, b_md, dst_md, attributes};
-        dnnl::matmul matmul{primitive_desc};
-
-        std::unordered_map<int, dnnl::memory> arguments;
-        arguments.emplace(DNNL_ARG_SRC, dnnl::memory{a_md, engine, a_data});
-        arguments.emplace(DNNL_ARG_WEIGHTS, dnnl::memory{b_md, engine, b_data});
-        arguments.emplace(DNNL_ARG_DST, dnnl::memory{dst_md, engine, output_data});
-        arguments.emplace(
-            DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC,
-            dnnl::memory{scalar_md, engine, scale_a_data}
-        );
-        arguments.emplace(
-            DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS,
-            dnnl::memory{scalar_md, engine, scale_b_data}
-        );
-        if (bias_data != nullptr) {
-            arguments.emplace(DNNL_ARG_BIAS, dnnl::memory{bias_md, engine, bias_data});
-        }
-
-        const std::size_t scratchpad_size = primitive_desc.scratchpad_desc().get_size();
-        void* scratchpad_data =
-            scratchpad_size == 0 ? nullptr : sycl::malloc_device(scratchpad_size, queue);
-        if (scratchpad_data != nullptr) {
-            arguments.emplace(
-                DNNL_ARG_SCRATCHPAD,
-                dnnl::memory{primitive_desc.scratchpad_desc(), engine, scratchpad_data}
-            );
-        }
-
-        dnnl::sycl_interop::execute(matmul, dnnl_stream, arguments);
-
-        if (scratchpad_data != nullptr) {
-            queue.wait();
-            sycl::free(scratchpad_data, queue);
-        }
-    }
+    TFDataTypeEnum m_output_type;
+    bool m_use_fast_accumulation;
+    std::vector<int64_t> m_scratch_dims;
 };
 
-} // namespace sycl_backend::kernels
+} // namespace aten_xpu

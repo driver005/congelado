@@ -5,12 +5,37 @@ module;
 export module aten_xpu_extern_kernel:onednn_convolution_geometry;
 
 import std;
+import :construction;
 
 export namespace aten_xpu {
 
 class SyclConvolutionGeometry
 {
 public:
+    static constexpr std::size_t k_max_spatial_rank = 3;
+
+    static SyclConvolutionGeometry from_construction(SyclKernelConstruction& construction)
+    {
+
+        SyclConvolutionGeometry geometry;
+        std::array<int64_t, k_max_spatial_rank> values{};
+        if (const auto count = construction.getInt64List("stride", values); count > 0) {
+            geometry.setStride(std::span<const int64_t>{values}.first(count));
+        }
+        if (const auto count = construction.getInt64List("padding", values); count > 0) {
+            geometry.setPadding(std::span<const int64_t>{values}.first(count));
+        }
+        if (const auto count = construction.getInt64List("output_padding", values); count > 0) {
+            geometry.setOutputPadding(std::span<const int64_t>{values}.first(count));
+        }
+        if (const auto count = construction.getInt64List("dilation", values); count > 0) {
+            geometry.setDilation(std::span<const int64_t>{values}.first(count));
+        }
+        geometry.setGroups(construction.getInt64("groups", 1));
+        return geometry;
+
+    }
+
     void setStride(std::span<const int64_t> stride) { m_stride.assign(stride.begin(), stride.end()); }
 
     void setPadding(std::span<const int64_t> padding)

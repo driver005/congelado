@@ -1,275 +1,250 @@
-// SYCL reference plugin — single-layer, single-direction LSTM forward (inference) via oneDNN.
-//
-// Not built by Bazel (docs/ only). Replaces mkldnn/RNN.cpp's lstm_onednn_xpu for the
-// single-layer, unidirectional case: no per-layer loop, no bidirectional concat, no PyTorch
-// flat-params-list unpacking (at::cat'ing w_ih_l0/w_ih_l0_reverse/... into oneDNN's ldgoi
-// layout) — the caller is expected to hand in weights already shaped [1, 1, 4, hidden, input]
-// (w_ih) / [1, 1, 4, hidden, hidden] (w_hh) / [1, 1, 4, hidden] (bias), the same per-layer shape
-// RNN.cpp builds before calling oneDNN. Multi-layer support is a loop over this kernel with
-// each layer's output tensor as the next layer's input, same as RNN.cpp does — not implemented
-// as one kernel.
-
 module;
 
-#include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
-#include "include/c/extern/kernel/builder.h"
+#include "include/c/intern/datatype.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
-#include <oneapi/dnnl/dnnl_sycl.hpp>
+#include <sycl/sycl.hpp>
 
-export module sycl_backend:kernels_rnn_lstm;
+export module aten_xpu_extern_kernel:recurrent_lstm;
 
 import std;
-import :tensor;
-import :stream;
-import :engine_cache;
+import aten_xpu_intern;
+import :kernel;
+import :context;
+import :construction;
+import :onednn_memory_layout;
+import :onednn_engine_cache;
+import :onednn_primitive_executor;
 
-export namespace sycl_backend::kernels {
+export namespace aten_xpu {
 
-class RnnLstmKernel
+class SyclLstmKernel : public SyclKernel<SyclLstmKernel>
 {
 public:
-    RnnLstmKernel() = delete;
+    static constexpr std::string_view k_name = "LSTM";
+    static constexpr int k_tensors_per_direction = 3;
+    static constexpr int k_first_weight = 3;
 
-    // Input 0: input [seq, batch, input_size]. Inputs 1/2: initial hidden/cell state
-    // [1, 1, batch, hidden]. Inputs 3/4/5: w_ih [1,1,4,hidden,input], w_hh
-    // [1,1,4,hidden,hidden], bias [1,1,4,hidden]. Output 0: layer output
-    // [seq, batch, hidden]. Outputs 1/2: final hidden/cell state.
-    static void compute(void* plugin_data, TF_OpKernelContext* raw_context) noexcept
+    SyclLstmKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
+        SyclKernel<SyclLstmKernel>{ops},
+        m_layers{construction.getInt64("num_layers", 1)},
+        m_directions{construction.getBool("bidirectional", false) ? 2 : 1}
     {
-        (void)plugin_data;
+    }
 
-        KernelContextView ctx{raw_context};
-        TF_Status status{};
+    void compute(SyclKernelContext& context)
+    {
 
-        auto* input_handle = ctx.get_input(0, &status);
-        auto* h0_handle = ctx.get_input(1, &status);
-        auto* c0_handle = ctx.get_input(2, &status);
-        auto* w_ih_handle = ctx.get_input(3, &status);
-        auto* w_hh_handle = ctx.get_input(4, &status);
-        auto* bias_handle = ctx.get_input(5, &status);
-        if (input_handle == nullptr || h0_handle == nullptr || c0_handle == nullptr ||
-            w_ih_handle == nullptr || w_hh_handle == nullptr || bias_handle == nullptr) {
-            ctx.fail(&status);
+        auto input = context.getInput(0);
+        auto initial_hidden = context.getInput(1);
+        auto initial_cell = context.getInput(2);
+        auto queue = context.getQueue();
+        if (!input || !initial_hidden || !initial_cell || !queue) {
+            context.propagate();
+            return;
+        }
+        const int expected_inputs = k_first_weight + static_cast<int>(m_layers * m_directions) * k_tensors_per_direction;
+        if (context.getInputCount() < expected_inputs) {
+            context.fail(TF_INVALID_ARGUMENT, "LSTM expects w_ih, w_hh and bias per layer and direction");
             return;
         }
 
-        auto* input = static_cast<SyclTensor*>(input_handle->plugin_data);
-        const std::vector<int64_t> input_dims = shape_of(*input);
-        const int64_t seq_length = input_dims[0];
+        const auto& input_dims = input->get().getDims();
+        const int64_t length = input_dims[0];
         const int64_t batch = input_dims[1];
-        const int64_t input_size = input_dims[2];
+        const int64_t hidden = initial_hidden->get().getDims()[2];
+        const auto dtype = input->get().getDtype();
 
-        auto* h0 = static_cast<SyclTensor*>(h0_handle->plugin_data);
-        const int64_t hidden_size = shape_of(*h0).back();
-
-        const std::vector<int64_t> output_dims{seq_length, batch, hidden_size};
-        auto* output_handle = ctx.allocate_output(
-            0,
-            TF_FLOAT,
-            output_dims.data(),
-            static_cast<int>(output_dims.size()),
-            static_cast<std::size_t>(seq_length * batch * hidden_size) *
-                SyclTensor::element_size(TF_FLOAT),
-            &status
-        );
-
-        const std::vector<int64_t> state_dims{1, 1, batch, hidden_size};
-        auto* hy_handle = ctx.allocate_output(
-            1,
-            TF_FLOAT,
-            state_dims.data(),
-            static_cast<int>(state_dims.size()),
-            static_cast<std::size_t>(batch * hidden_size) * SyclTensor::element_size(TF_FLOAT),
-            &status
-        );
-        auto* cy_handle = ctx.allocate_output(
-            2,
-            TF_FLOAT,
-            state_dims.data(),
-            static_cast<int>(state_dims.size()),
-            static_cast<std::size_t>(batch * hidden_size) * SyclTensor::element_size(TF_FLOAT),
-            &status
-        );
-
-        if (output_handle == nullptr || hy_handle == nullptr || cy_handle == nullptr) {
-            ctx.fail(&status);
+        m_scratch_dims.assign({length, batch, m_directions * hidden});
+        auto output = context.allocateOutput(0, dtype, m_scratch_dims);
+        auto final_hidden = context.allocateOutput(1, dtype, initial_hidden->get().getDims());
+        auto final_cell = context.allocateOutput(2, dtype, initial_cell->get().getDims());
+        if (!output || !final_hidden || !final_cell) {
+            context.propagate();
             return;
         }
 
-        auto* stream_handle = ctx.get_stream(&status);
-        if (stream_handle == nullptr) {
-            ctx.fail(&status);
-            return;
-        }
-        auto* stream = static_cast<SyclStream*>(stream_handle->plugin_data);
+        const auto* layer_input = input->get().getData();
+        int64_t layer_input_size = input_dims[2];
+        std::array<std::optional<std::reference_wrapper<SyclTensor>>, 2> buffers;
+        for (int64_t layer = 0; layer < m_layers; ++layer) {
+            void* layer_output = output->get().getData();
+            if (layer + 1 < m_layers) {
+                auto& slot = buffers[layer % 2];
+                if (!slot) {
+                    slot = context.allocateTemp(dtype, m_scratch_dims);
+                    if (!slot) {
+                        context.propagate();
+                        return;
+                    }
+                }
+                layer_output = slot->get().getData();
+            }
 
-        run_lstm(
-            *stream,
-            seq_length,
-            batch,
-            input_size,
-            hidden_size,
-            raw_data(*input),
-            raw_data(*h0),
-            raw_data(*c0),
-            raw_data(*static_cast<SyclTensor*>(w_ih_handle->plugin_data)),
-            raw_data(*static_cast<SyclTensor*>(w_hh_handle->plugin_data)),
-            raw_data(*static_cast<SyclTensor*>(bias_handle->plugin_data)),
-            raw_data(*static_cast<SyclTensor*>(output_handle->plugin_data)),
-            raw_data(*static_cast<SyclTensor*>(hy_handle->plugin_data)),
-            raw_data(*static_cast<SyclTensor*>(cy_handle->plugin_data))
-        );
+            auto weights = pack_weights(context, queue->get(), layer, layer_input_size, hidden, dtype);
+            if (!weights) {
+                context.propagate();
+                return;
+            }
+            run_layer(
+                queue->get(),
+                layer,
+                length,
+                batch,
+                layer_input_size,
+                hidden,
+                dtype,
+                layer_input,
+                initial_hidden->get(),
+                initial_cell->get(),
+                *weights,
+                layer_output,
+                final_hidden->get(),
+                final_cell->get()
+            );
+
+            layer_input = layer_output;
+            layer_input_size = m_directions * hidden;
+        }
+
     }
 
 private:
-    static std::vector<int64_t> shape_of(SyclTensor& tensor)
-    {
-        int rank = 0;
-        tensor.num_dims(&rank);
+    using PackedWeights = std::array<std::reference_wrapper<SyclTensor>, 3>;
 
-        std::vector<int64_t> dims(static_cast<std::size_t>(rank));
-        for (int index = 0; index < rank; ++index) {
-            tensor.dim(index, &dims[static_cast<std::size_t>(index)]);
-        }
-        return dims;
-    }
-
-    static void* raw_data(SyclTensor& tensor)
-    {
-        void* data = nullptr;
-        tensor.tensor_data(&data);
-        return data;
-    }
-
-    static void run_lstm(
-        SyclStream& stream,
-        int64_t seq_length,
-        int64_t batch,
+    std::optional<PackedWeights> pack_weights(
+        SyclKernelContext& context,
+        sycl::queue& queue,
+        int64_t layer,
         int64_t input_size,
-        int64_t hidden_size,
-        void* input_data,
-        void* h0_data,
-        void* c0_data,
-        void* w_ih_data,
-        void* w_hh_data,
-        void* bias_data,
-        void* output_data,
-        void* hy_data,
-        void* cy_data
+        int64_t hidden,
+        TFDataTypeEnum dtype
     )
     {
-        using tag = dnnl::memory::format_tag;
-        auto data_type = dnnl::memory::data_type::f32;
 
-        sycl::queue& queue = stream.get_native_queue();
-        dnnl::engine& engine =
-            EngineCache::instance().get_engine(queue.get_device(), queue.get_context());
-        dnnl::stream& dnnl_stream = EngineCache::instance().get_stream(engine, queue);
-
-        dnnl::memory::desc src_layer_md{{seq_length, batch, input_size}, data_type, tag::tnc};
-        dnnl::memory::desc src_iter_md{{1, 1, batch, hidden_size}, data_type, tag::ldnc};
-        dnnl::memory::desc src_iter_c_md{{1, 1, batch, hidden_size}, data_type, tag::ldnc};
-        dnnl::memory::desc weights_layer_md{
-            {1, 1, input_size, 4, hidden_size},
-            data_type,
-            tag::ldgoi
-        };
-        dnnl::memory::desc weights_iter_md{
-            {1, 1, hidden_size, 4, hidden_size},
-            data_type,
-            tag::ldgoi
-        };
-        dnnl::memory::desc bias_md{{1, 1, 4, hidden_size}, data_type, tag::ldgo};
-        dnnl::memory::desc dst_layer_md{{seq_length, batch, hidden_size}, data_type, tag::tnc};
-        dnnl::memory::desc dst_iter_md{{1, 1, batch, hidden_size}, data_type, tag::ldnc};
-        dnnl::memory::desc dst_iter_c_md{{1, 1, batch, hidden_size}, data_type, tag::ldnc};
-
-        dnnl::primitive_attr attributes;
-        attributes.set_scratchpad_mode(dnnl::scratchpad_mode::user);
-
-        auto primitive_desc = dnnl::lstm_forward::primitive_desc{
-            engine,
-            dnnl::prop_kind::forward_inference,
-            dnnl::rnn_direction::unidirectional_left2right,
-            src_layer_md,
-            src_iter_md,
-            src_iter_c_md,
-            weights_layer_md,
-            weights_iter_md,
-            bias_md,
-            dst_layer_md,
-            dst_iter_md,
-            dst_iter_c_md,
-            attributes
-        };
-        dnnl::lstm_forward lstm{primitive_desc};
-
-        std::unordered_map<int, dnnl::memory> arguments;
-        arguments.emplace(DNNL_ARG_SRC_LAYER, dnnl::memory{src_layer_md, engine, input_data});
-        arguments.emplace(DNNL_ARG_SRC_ITER, dnnl::memory{src_iter_md, engine, h0_data});
-        arguments.emplace(DNNL_ARG_SRC_ITER_C, dnnl::memory{src_iter_c_md, engine, c0_data});
-        arguments.emplace(DNNL_ARG_BIAS, dnnl::memory{bias_md, engine, bias_data});
-        arguments.emplace(DNNL_ARG_DST_LAYER, dnnl::memory{dst_layer_md, engine, output_data});
-        arguments.emplace(DNNL_ARG_DST_ITER, dnnl::memory{dst_iter_md, engine, hy_data});
-        arguments.emplace(DNNL_ARG_DST_ITER_C, dnnl::memory{dst_iter_c_md, engine, cy_data});
-
-        // oneDNN may want the RNN weights in a packed layout it chooses internally; reorder into
-        // scratch USM if what was handed in does not already match, same as RNN.cpp does.
-        void* weights_layer_scratch = nullptr;
-        void* weights_iter_scratch = nullptr;
-
-        const dnnl::memory::desc expected_layer_md = primitive_desc.weights_layer_desc();
-        if (expected_layer_md != weights_layer_md) {
-            weights_layer_scratch = sycl::malloc_device(expected_layer_md.get_size(), queue);
-            dnnl::memory source{weights_layer_md, engine, w_ih_data};
-            dnnl::memory target{expected_layer_md, engine, weights_layer_scratch};
-            dnnl::reorder{source, target}.execute(dnnl_stream, source, target);
-            arguments.emplace(DNNL_ARG_WEIGHTS_LAYER, target);
-        } else {
-            arguments.emplace(
-                DNNL_ARG_WEIGHTS_LAYER,
-                dnnl::memory{weights_layer_md, engine, w_ih_data}
-            );
+        const std::array<int64_t, 2> layer_dims{m_directions, 4 * hidden * input_size};
+        const std::array<int64_t, 2> iter_dims{m_directions, 4 * hidden * hidden};
+        const std::array<int64_t, 2> bias_dims{m_directions, 4 * hidden};
+        auto weights_layer = context.allocateTemp(dtype, layer_dims);
+        auto weights_iter = context.allocateTemp(dtype, iter_dims);
+        auto bias = context.allocateTemp(dtype, bias_dims);
+        if (!weights_layer || !weights_iter || !bias) {
+            return std::nullopt;
         }
 
-        const dnnl::memory::desc expected_iter_md = primitive_desc.weights_iter_desc();
-        if (expected_iter_md != weights_iter_md) {
-            weights_iter_scratch = sycl::malloc_device(expected_iter_md.get_size(), queue);
-            dnnl::memory source{weights_iter_md, engine, w_hh_data};
-            dnnl::memory target{expected_iter_md, engine, weights_iter_scratch};
-            dnnl::reorder{source, target}.execute(dnnl_stream, source, target);
-            arguments.emplace(DNNL_ARG_WEIGHTS_ITER, target);
-        } else {
-            arguments.emplace(
-                DNNL_ARG_WEIGHTS_ITER,
-                dnnl::memory{weights_iter_md, engine, w_hh_data}
-            );
+        const auto item = SyclTensor::element_size(dtype);
+        for (int64_t direction = 0; direction < m_directions; ++direction) {
+            const int base = k_first_weight + static_cast<int>((layer * m_directions + direction) * k_tensors_per_direction);
+            auto input_weight = context.getInput(base);
+            auto hidden_weight = context.getInput(base + 1);
+            auto direction_bias = context.getInput(base + 2);
+            if (!input_weight || !hidden_weight || !direction_bias) {
+                return std::nullopt;
+            }
+            copy_slice(queue, weights_layer->get(), direction, input_weight->get(), item);
+            copy_slice(queue, weights_iter->get(), direction, hidden_weight->get(), item);
+            copy_slice(queue, bias->get(), direction, direction_bias->get(), item);
         }
+        return PackedWeights{weights_layer->get(), weights_iter->get(), bias->get()};
 
-        const std::size_t scratchpad_size = primitive_desc.scratchpad_desc().get_size();
-        void* scratchpad_data =
-            scratchpad_size == 0 ? nullptr : sycl::malloc_device(scratchpad_size, queue);
-        if (scratchpad_data != nullptr) {
-            arguments.emplace(
-                DNNL_ARG_SCRATCHPAD,
-                dnnl::memory{primitive_desc.scratchpad_desc(), engine, scratchpad_data}
-            );
-        }
-
-        dnnl::sycl_interop::execute(lstm, dnnl_stream, arguments);
-        queue.wait();
-
-        if (scratchpad_data != nullptr) {
-            sycl::free(scratchpad_data, queue);
-        }
-        if (weights_layer_scratch != nullptr) {
-            sycl::free(weights_layer_scratch, queue);
-        }
-        if (weights_iter_scratch != nullptr) {
-            sycl::free(weights_iter_scratch, queue);
-        }
     }
+
+    static void copy_slice(sycl::queue& queue, SyclTensor& destination, int64_t slot, const SyclTensor& source, std::size_t item)
+    {
+
+        const auto bytes = static_cast<std::size_t>(source.element_count()) * item;
+        queue.memcpy(static_cast<std::byte*>(destination.getData()) + static_cast<std::size_t>(slot) * bytes, source.getData(), bytes);
+
+    }
+
+    void run_layer(
+        sycl::queue& queue,
+        int64_t layer,
+        int64_t length,
+        int64_t batch,
+        int64_t input_size,
+        int64_t hidden,
+        TFDataTypeEnum dtype,
+        const void* layer_input,
+        const SyclTensor& initial_hidden,
+        const SyclTensor& initial_cell,
+        const PackedWeights& weights,
+        void* layer_output,
+        SyclTensor& final_hidden,
+        SyclTensor& final_cell
+    )
+    {
+
+        using tag = dnnl::memory::format_tag;
+        const auto type = SyclOnednnLayout::data_type(dtype).value();
+        const auto direction = m_directions == 2 ? dnnl::rnn_direction::bidirectional_concat
+                                                 : dnnl::rnn_direction::unidirectional_left2right;
+
+        const dnnl::memory::desc source_layer{{length, batch, input_size}, type, tag::tnc};
+        const dnnl::memory::desc state{{1, m_directions, batch, hidden}, type, tag::ldnc};
+        const dnnl::memory::desc weights_layer{{1, m_directions, input_size, 4, hidden}, type, tag::ldgoi};
+        const dnnl::memory::desc weights_iter{{1, m_directions, hidden, 4, hidden}, type, tag::ldgoi};
+        const dnnl::memory::desc bias{{1, m_directions, 4, hidden}, type, tag::ldgo};
+        const dnnl::memory::desc destination_layer{{length, batch, m_directions * hidden}, type, tag::tnc};
+
+        SyclPrimitiveExecutor executor{queue};
+        const auto weights_layer_any = SyclOnednnLayout::any_desc(weights_layer);
+        const auto weights_iter_any = SyclOnednnLayout::any_desc(weights_iter);
+        const dnnl::lstm_forward::primitive_desc primitive_desc{
+            executor.getEngine(),
+            dnnl::prop_kind::forward_inference,
+            direction,
+            source_layer,
+            state,
+            state,
+            weights_layer_any,
+            weights_iter_any,
+            bias,
+            destination_layer,
+            state,
+            state,
+            SyclPrimitiveExecutor::user_scratchpad_attributes()
+        };
+
+        const auto state_offset = static_cast<std::size_t>(layer * m_directions * batch * hidden) * SyclTensor::element_size(dtype);
+        executor.addArgument(DNNL_ARG_SRC_LAYER, source_layer, layer_input);
+        executor.addArgument(DNNL_ARG_SRC_ITER, state, static_cast<const std::byte*>(initial_hidden.getData()) + state_offset);
+        executor.addArgument(DNNL_ARG_SRC_ITER_C, state, static_cast<const std::byte*>(initial_cell.getData()) + state_offset);
+        executor.addArgument(DNNL_ARG_BIAS, bias, weights[2].get().getData());
+        executor.addArgument(DNNL_ARG_DST_LAYER, destination_layer, layer_output);
+        executor.addArgument(DNNL_ARG_DST_ITER, state, static_cast<std::byte*>(final_hidden.getData()) + state_offset);
+        executor.addArgument(DNNL_ARG_DST_ITER_C, state, static_cast<std::byte*>(final_cell.getData()) + state_offset);
+        add_reordered(executor, queue, DNNL_ARG_WEIGHTS_LAYER, weights_layer, primitive_desc.weights_layer_desc(), weights[0].get());
+        add_reordered(executor, queue, DNNL_ARG_WEIGHTS_ITER, weights_iter, primitive_desc.weights_iter_desc(), weights[1].get());
+        executor.execute(dnnl::lstm_forward{primitive_desc}, primitive_desc);
+
+    }
+
+    void add_reordered(
+        SyclPrimitiveExecutor& executor,
+        sycl::queue& queue,
+        int argument,
+        const dnnl::memory::desc& plain,
+        const dnnl::memory::desc& expected,
+        SyclTensor& weights
+    )
+    {
+
+        if (plain == expected) {
+            executor.addArgument(argument, plain, weights.getData());
+            return;
+        }
+        auto& stream = SyclEngineCache::getInstance().getStream(queue);
+        dnnl::memory source{plain, executor.getEngine(), weights.getData()};
+        dnnl::memory target{expected, executor.getEngine()};
+        dnnl::reorder{source, target}.execute(stream, source, target);
+        executor.getArguments().insert_or_assign(argument, target);
+
+    }
+
+    int64_t m_layers;
+    int64_t m_directions;
+    std::vector<int64_t> m_scratch_dims;
 };
 
-} // namespace sycl_backend::kernels
+} // namespace aten_xpu

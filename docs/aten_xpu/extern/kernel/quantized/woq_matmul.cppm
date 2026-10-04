@@ -1,230 +1,100 @@
-// SYCL reference plugin — weight-only int4 quantized matmul via oneDNN.
-//
-// Not built by Bazel (docs/ only). Replaces mkldnn/detail/WoQMatmul.cpp's woq_matmul_int4_impl:
-// activation stays f32 (real ATen supports f16/bf16; this reference tensor type only tracks
-// TF_FLOAT-sized elements cleanly, so f32 is what this port uses), weight is packed 2 values per
-// byte (u4), one (scale, zero_point) pair per group of `group_size` K-elements per output
-// column — the standard GPTQ-style layout. No DnnlExt primitive cache (LRUCache.h) — this port
-// goes through EngineCache only, so a new dnnl::matmul::primitive_desc is built per call.
-
 module;
 
-#include "docs/aten_xpu/sycl_backend/kernels/kernel_construction_view.h"
-#include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
-#include "include/c/extern/kernel/builder.h"
+#include "include/c/intern/datatype.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
-#include <oneapi/dnnl/dnnl_sycl.hpp>
+#include <sycl/sycl.hpp>
 
-export module sycl_backend:kernels_woq_matmul;
+export module aten_xpu_extern_kernel:quantized_woq_matmul;
 
 import std;
-import :tensor;
-import :stream;
-import :engine_cache;
+import aten_xpu_intern;
+import :kernel;
+import :context;
+import :construction;
+import :onednn_memory_layout;
+import :onednn_primitive_executor;
 
-export namespace sycl_backend::kernels {
+export namespace aten_xpu {
 
-class WoqMatmulAttrs
+class SyclWeightOnlyMatmulKernel : public SyclKernel<SyclWeightOnlyMatmulKernel>
 {
 public:
-    int64_t group_size{128};
-};
+    static constexpr std::string_view k_name = "WeightOnlyQuantizedMatMul";
 
-class WoqMatmulKernel
-{
-public:
-    WoqMatmulKernel() = delete;
-
-    static void create(TF_OpKernelConstruction* raw_construction, void** out_plugin_data) noexcept
+    SyclWeightOnlyMatmulKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
+        SyclKernel<SyclWeightOnlyMatmulKernel>{ops},
+        m_group_size{construction.getInt64("group_size", 128)},
+        m_symmetric{construction.getBool("symmetric", false)}
     {
-        KernelConstructionView construction{raw_construction};
-        TF_Status status{};
-
-        auto* attrs = new WoqMatmulAttrs{};
-        attrs->group_size = construction.get_attr_int64("group_size", 128, &status);
-
-        *out_plugin_data = attrs;
     }
 
-    static void destroy(void* plugin_data) noexcept
+    void compute(SyclKernelContext& context)
     {
-        delete static_cast<WoqMatmulAttrs*>(plugin_data);
-    }
 
-    // Input 0: activation [M, K] (f32). Input 1: packed weight, two u4 values per byte, stored
-    // as [K/2, N] row-major (matches WoQMatmul.cpp's m2_usr_dims = {compressed_k, n}). Input 2:
-    // per-group scale [K/group_size, N] (f32). Input 3: per-group zero point [K/group_size, N]
-    // (s8, one byte per group/column — not packed). Output 0: [M, N].
-    static void compute(void* plugin_data, TF_OpKernelContext* raw_context) noexcept
-    {
-        const auto& attrs = *static_cast<WoqMatmulAttrs*>(plugin_data);
-        KernelContextView ctx{raw_context};
-        TF_Status status{};
+        auto activation = context.getInput(0);
+        auto packed_weight = context.getInput(1);
+        auto scale = context.getInput(2);
+        auto queue = context.getQueue();
+        if (!activation || !packed_weight || !scale || !queue) {
+            context.propagate();
+            return;
+        }
+        auto zero_point = m_symmetric || context.getInputCount() <= 3 ? std::nullopt : context.getInput(3);
+        auto bias = context.getInputCount() > 4 ? context.getInput(4) : std::nullopt;
 
-        auto* activation_handle = ctx.get_input(0, &status);
-        auto* weight_handle = ctx.get_input(1, &status);
-        auto* scale_handle = ctx.get_input(2, &status);
-        auto* zero_point_handle = ctx.get_input(3, &status);
-        if (activation_handle == nullptr || weight_handle == nullptr || scale_handle == nullptr ||
-            zero_point_handle == nullptr) {
-            ctx.fail(&status);
+        const auto& activation_dims = activation->get().getDims();
+        const int64_t inner = activation_dims.back();
+        const int64_t rows = activation->get().element_count() / std::max<int64_t>(inner, 1);
+        const int64_t columns = scale->get().getDims().back();
+        const int64_t groups = (inner + m_group_size - 1) / m_group_size;
+
+        m_scratch_dims.assign(activation_dims.begin(), activation_dims.end());
+        m_scratch_dims.back() = columns;
+        auto output = context.allocateOutput(0, activation->get().getDtype(), m_scratch_dims);
+        if (!output) {
+            context.propagate();
             return;
         }
 
-        auto* activation = static_cast<SyclTensor*>(activation_handle->plugin_data);
-        auto* weight = static_cast<SyclTensor*>(weight_handle->plugin_data);
-        auto* scale = static_cast<SyclTensor*>(scale_handle->plugin_data);
-        auto* zero_point = static_cast<SyclTensor*>(zero_point_handle->plugin_data);
+        const auto activation_type = SyclOnednnLayout::data_type(activation->get().getDtype()).value();
+        const dnnl::memory::desc activation_desc{{rows, inner}, activation_type, dnnl::memory::format_tag::ab};
+        const dnnl::memory::desc weight_desc{{inner, columns}, dnnl::memory::data_type::u4, dnnl::memory::format_tag::ab};
+        const dnnl::memory::desc output_desc{{rows, columns}, activation_type, dnnl::memory::format_tag::ab};
+        const dnnl::memory::desc scale_desc{{groups, columns}, activation_type, dnnl::memory::format_tag::ab};
+        const dnnl::memory::desc zero_point_desc{{groups, columns}, dnnl::memory::data_type::s8, dnnl::memory::format_tag::ab};
+        const auto bias_desc = bias ? dnnl::memory::desc{{1, columns}, activation_type, dnnl::memory::format_tag::ab}
+                                    : dnnl::memory::desc{};
 
-        const std::vector<int64_t> activation_dims = shape_of(*activation);
-        const int64_t m = activation_dims[0];
-        const int64_t k = activation_dims[1];
-        const std::vector<int64_t> weight_dims = shape_of(*weight);
-        const int64_t n = weight_dims[1];
-
-        const std::vector<int64_t> dst_dims{m, n};
-        auto* output_handle = ctx.allocate_output(
-            0,
-            TF_FLOAT,
-            dst_dims.data(),
-            static_cast<int>(dst_dims.size()),
-            static_cast<std::size_t>(m * n) * SyclTensor::element_size(TF_FLOAT),
-            &status
-        );
-        if (output_handle == nullptr) {
-            ctx.fail(&status);
-            return;
+        auto attributes = SyclPrimitiveExecutor::user_scratchpad_attributes();
+        attributes.set_scales(DNNL_ARG_WEIGHTS, 0b11, {m_group_size, 1}, activation_type);
+        if (zero_point) {
+            attributes.set_zero_points(DNNL_ARG_WEIGHTS, 0b11, {m_group_size, 1}, dnnl::memory::data_type::s8);
         }
-        auto* output = static_cast<SyclTensor*>(output_handle->plugin_data);
+        attributes.set_fpmath_mode(dnnl::fpmath_mode::any, true);
 
-        auto* stream_handle = ctx.get_stream(&status);
-        if (stream_handle == nullptr) {
-            ctx.fail(&status);
-            return;
+        SyclPrimitiveExecutor executor{queue->get()};
+        const auto primitive_desc =
+            bias ? dnnl::matmul::primitive_desc{executor.getEngine(), activation_desc, weight_desc, bias_desc, output_desc, attributes}
+                 : dnnl::matmul::primitive_desc{executor.getEngine(), activation_desc, weight_desc, output_desc, attributes};
+        executor.addArgument(DNNL_ARG_SRC, activation_desc, activation->get().getData());
+        executor.addArgument(DNNL_ARG_WEIGHTS, weight_desc, packed_weight->get().getData());
+        executor.addArgument(DNNL_ARG_DST, output_desc, output->get().getData());
+        executor.addArgument(DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS, scale_desc, scale->get().getData());
+        if (zero_point) {
+            executor.addArgument(DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS, zero_point_desc, zero_point->get().getData());
         }
-        auto* stream = static_cast<SyclStream*>(stream_handle->plugin_data);
+        if (bias) {
+            executor.addArgument(DNNL_ARG_BIAS, bias_desc, bias->get().getData());
+        }
+        executor.execute(dnnl::matmul{primitive_desc}, primitive_desc);
 
-        run_woq_matmul(
-            *stream,
-            m,
-            k,
-            n,
-            attrs.group_size,
-            raw_data(*activation),
-            raw_data(*weight),
-            raw_data(*scale),
-            raw_data(*zero_point),
-            raw_data(*output)
-        );
     }
 
 private:
-    static std::vector<int64_t> shape_of(SyclTensor& tensor)
-    {
-        int rank = 0;
-        tensor.num_dims(&rank);
-
-        std::vector<int64_t> dims(static_cast<std::size_t>(rank));
-        for (int index = 0; index < rank; ++index) {
-            tensor.dim(index, &dims[static_cast<std::size_t>(index)]);
-        }
-        return dims;
-    }
-
-    static void* raw_data(SyclTensor& tensor)
-    {
-        void* data = nullptr;
-        tensor.tensor_data(&data);
-        return data;
-    }
-
-    static void run_woq_matmul(
-        SyclStream& stream,
-        int64_t m,
-        int64_t k,
-        int64_t n,
-        int64_t group_size,
-        void* activation_data,
-        void* packed_weight_data,
-        void* scale_data,
-        void* zero_point_data,
-        void* output_data
-    )
-    {
-        sycl::queue& queue = stream.get_native_queue();
-        dnnl::engine& engine =
-            EngineCache::instance().get_engine(queue.get_device(), queue.get_context());
-        dnnl::stream& dnnl_stream = EngineCache::instance().get_stream(engine, queue);
-
-        auto activation_type = dnnl::memory::data_type::f32;
-        dnnl::memory::desc activation_md{{m, k}, activation_type, dnnl::memory::format_tag::ab};
-        dnnl::memory::desc dst_md{{m, n}, activation_type, dnnl::memory::format_tag::ab};
-
-        // The packed weight is reinterpreted as u4 directly at its real address — same trick
-        // WoQMatmul.cpp uses (m2_u4_m wraps m2_usr_m's data_handle), rather than an extra copy.
-        dnnl::memory::desc weight_md{
-            {k, n},
-            dnnl::memory::data_type::u4,
-            dnnl::memory::format_tag::ab
-        };
-        dnnl::memory weight_memory{weight_md, engine, packed_weight_data};
-
-        dnnl::primitive_attr attributes;
-        attributes.set_scratchpad_mode(dnnl::scratchpad_mode::user);
-        // Per-group scale/zero-point along both the K (mask bit 0) and N (mask bit 1) axes —
-        // matches WoQMatmul.cpp's set_scales/set_zero_points mask (1<<0)+(1<<1).
-        attributes
-            .set_scales(DNNL_ARG_WEIGHTS, (1 << 0) + (1 << 1), {group_size, 1}, activation_type);
-        attributes.set_zero_points(
-            DNNL_ARG_WEIGHTS,
-            (1 << 0) + (1 << 1),
-            {group_size, 1},
-            dnnl::memory::data_type::s8
-        );
-
-        dnnl::matmul::primitive_desc
-            primitive_desc{engine, activation_md, weight_md, dst_md, attributes};
-        dnnl::matmul matmul{primitive_desc};
-
-        const int64_t num_groups = k / group_size;
-        dnnl::memory::desc scale_md{{num_groups, n}, activation_type, dnnl::memory::format_tag::ab};
-        dnnl::memory::desc zero_point_md{
-            {num_groups, n},
-            dnnl::memory::data_type::s8,
-            dnnl::memory::format_tag::ab
-        };
-
-        std::unordered_map<int, dnnl::memory> arguments;
-        arguments.emplace(DNNL_ARG_SRC, dnnl::memory{activation_md, engine, activation_data});
-        arguments.emplace(DNNL_ARG_WEIGHTS, weight_memory);
-        arguments.emplace(DNNL_ARG_DST, dnnl::memory{dst_md, engine, output_data});
-        arguments.emplace(
-            DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS,
-            dnnl::memory{scale_md, engine, scale_data}
-        );
-        arguments.emplace(
-            DNNL_ARG_ATTR_ZERO_POINTS | DNNL_ARG_WEIGHTS,
-            dnnl::memory{zero_point_md, engine, zero_point_data}
-        );
-
-        const std::size_t scratchpad_size = primitive_desc.scratchpad_desc().get_size();
-        void* scratchpad_data =
-            scratchpad_size == 0 ? nullptr : sycl::malloc_device(scratchpad_size, queue);
-        if (scratchpad_data != nullptr) {
-            arguments.emplace(
-                DNNL_ARG_SCRATCHPAD,
-                dnnl::memory{primitive_desc.scratchpad_desc(), engine, scratchpad_data}
-            );
-        }
-
-        dnnl::sycl_interop::execute(matmul, dnnl_stream, arguments);
-
-        if (scratchpad_data != nullptr) {
-            queue.wait();
-            sycl::free(scratchpad_data, queue);
-        }
-    }
+    int64_t m_group_size;
+    bool m_symmetric;
+    std::vector<int64_t> m_scratch_dims;
 };
 
-} // namespace sycl_backend::kernels
+} // namespace aten_xpu

@@ -1,189 +1,144 @@
-// SYCL reference plugin — linear (y = x @ weight^T + bias) via oneDNN matmul.
-//
-// Not built by Bazel (docs/ only). Replaces mkldnn/Linear.cpp's linear_pointwise for the plain
-// (no post-op fusion) 2D case. weight is stored [out_features, in_features] row-major, same as
-// nn.Linear.weight; matmul.cppm's matmul wants a [in_features, out_features] operand. Rather
-// than materialize a transposed copy, this builds the oneDNN memory::desc for weight with dims
-// swapped and strides {1, in_features} — the same "read transposed via strides" trick
-// mkldnn/Linear.cpp gets from at::native::onednn::matmul's m2_trans handling.
-
 module;
 
-#include "docs/aten_xpu/sycl_backend/kernels/kernel_context.h"
-#include "include/c/extern/kernel/builder.h"
+#include "include/c/intern/datatype.h"
+#include "include/c/intern/tensor.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
-#include <oneapi/dnnl/dnnl_sycl.hpp>
 
-export module sycl_backend:kernels_linear;
+export module aten_xpu_extern_kernel:linear;
 
 import std;
-import :tensor;
-import :stream;
-import :engine_cache;
+import aten_xpu_intern;
+import :kernel;
+import :context;
+import :construction;
+import :onednn_post_op_attributes;
+import :onednn_fusion;
+import :onednn_matmul_primitive;
 
-export namespace sycl_backend::kernels {
+export namespace aten_xpu {
 
-class LinearKernel
+class SyclLinearKernel : public SyclKernel<SyclLinearKernel>
 {
 public:
-    LinearKernel() = delete;
+    static constexpr std::string_view k_name = "Linear";
+    static constexpr std::size_t k_max_scalars = 4;
 
-    // Input 0: x [..., in_features] (only the 2D [M, in_features] case is handled). Input 1:
-    // weight [out_features, in_features]. Input 2 (optional): bias [out_features]. Output 0:
-    // [M, out_features].
-    static void compute(void* plugin_data, TF_OpKernelContext* raw_context) noexcept
+    SyclLinearKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
+        SyclKernel<SyclLinearKernel>{ops},
+        m_unary{construction.getString("unary", "none")},
+        m_algorithm{construction.getString("algorithm", "none")},
+        m_binary{construction.getString("binary", "none")}
     {
-        (void)plugin_data;
 
-        KernelContextView ctx{raw_context};
-        TF_Status status{};
+        m_scalar_count = construction.getFloatList("scalars", m_scalars);
+        if (m_unary == "none") {
+            m_unary = SyclFusion::activation_name(construction.getInt64("activation", 0));
+        }
 
-        auto* input_handle = ctx.get_input(0, &status);
-        auto* weight_handle = ctx.get_input(1, &status);
-        if (input_handle == nullptr || weight_handle == nullptr) {
-            ctx.fail(&status);
+    }
+
+    void compute(SyclKernelContext& context)
+    {
+
+        auto input = context.getInput(0);
+        auto weight = context.getInput(1);
+        auto queue = context.getQueue();
+        if (!input || !weight || !queue) {
+            context.propagate();
+            return;
+        }
+        auto bias = context.getInputCount() > 2 ? context.getInput(2) : std::nullopt;
+        auto other = context.getInputCount() > 3 ? context.getInput(3) : std::nullopt;
+
+        const auto& input_dims = input->get().getDims();
+        const int64_t in_features = input_dims.back();
+        const int64_t rows = input->get().element_count() / std::max<int64_t>(in_features, 1);
+        const int64_t out_features = weight->get().getDims()[0];
+
+        m_scratch_dims.assign(input_dims.begin(), input_dims.end());
+        m_scratch_dims.back() = out_features;
+        auto output = context.allocateOutput(0, input->get().getDtype(), m_scratch_dims);
+        if (!output) {
+            context.propagate();
             return;
         }
 
-        auto* input = static_cast<SyclTensor*>(input_handle->plugin_data);
-        auto* weight = static_cast<SyclTensor*>(weight_handle->plugin_data);
-
-        const std::vector<int64_t> input_dims = shape_of(*input);
-        const std::vector<int64_t> weight_dims = shape_of(*weight);
-        const int64_t rows = input_dims[0];
-        const int64_t in_features = input_dims[1];
-        const int64_t out_features = weight_dims[0];
-
-        const std::vector<int64_t> dst_dims{rows, out_features};
-        auto* output_handle = ctx.allocate_output(
-            0,
-            TF_FLOAT,
-            dst_dims.data(),
-            static_cast<int>(dst_dims.size()),
-            static_cast<std::size_t>(rows * out_features) * SyclTensor::element_size(TF_FLOAT),
-            &status
-        );
-        if (output_handle == nullptr) {
-            ctx.fail(&status);
-            return;
-        }
-        auto* output = static_cast<SyclTensor*>(output_handle->plugin_data);
-
-        auto* stream_handle = ctx.get_stream(&status);
-        if (stream_handle == nullptr) {
-            ctx.fail(&status);
-            return;
-        }
-        auto* stream = static_cast<SyclStream*>(stream_handle->plugin_data);
-
-        void* bias_data = nullptr;
-        if (ctx.num_inputs() > 2) {
-            auto* bias_handle = ctx.get_input(2, &status);
-            if (bias_handle != nullptr) {
-                bias_data = raw_data(*static_cast<SyclTensor*>(bias_handle->plugin_data));
-            }
+        auto& input_matrix = as_matrix(input->get(), rows, in_features, context);
+        auto& output_matrix = as_matrix(output->get(), rows, out_features, context);
+        std::optional<std::reference_wrapper<SyclTensor>> other_matrix;
+        if (other) {
+            other_matrix = as_matrix(other->get(), rows, out_features, context);
         }
 
-        run_linear(
-            *stream,
-            rows,
-            in_features,
-            out_features,
-            raw_data(*input),
-            raw_data(*weight),
-            raw_data(*output),
-            bias_data
-        );
-    }
-
-private:
-    static std::vector<int64_t> shape_of(SyclTensor& tensor)
-    {
-        int rank = 0;
-        tensor.num_dims(&rank);
-
-        std::vector<int64_t> dims(static_cast<std::size_t>(rank));
-        for (int index = 0; index < rank; ++index) {
-            tensor.dim(index, &dims[static_cast<std::size_t>(index)]);
-        }
-        return dims;
-    }
-
-    static void* raw_data(SyclTensor& tensor)
-    {
-        void* data = nullptr;
-        tensor.tensor_data(&data);
-        return data;
-    }
-
-    static void run_linear(
-        SyclStream& stream,
-        int64_t rows,
-        int64_t in_features,
-        int64_t out_features,
-        void* input_data,
-        void* weight_data,
-        void* output_data,
-        void* bias_data
-    )
-    {
-        sycl::queue& queue = stream.get_native_queue();
-        dnnl::engine& engine =
-            EngineCache::instance().get_engine(queue.get_device(), queue.get_context());
-        dnnl::stream& dnnl_stream = EngineCache::instance().get_stream(engine, queue);
-
-        auto data_type = dnnl::memory::data_type::f32;
-        dnnl::memory::desc input_md{{rows, in_features}, data_type, dnnl::memory::format_tag::ab};
-        // weight is physically [out_features, in_features] row-major; read as [in_features,
-        // out_features] via strides {1, in_features} — see the file-level note.
-        dnnl::memory::desc weight_md{
-            {in_features, out_features},
-            data_type,
-            dnnl::memory::dims{1, in_features}
-        };
-        dnnl::memory::desc dst_md{{rows, out_features}, data_type, dnnl::memory::format_tag::ab};
-        dnnl::memory::desc bias_md =
-            bias_data != nullptr
-                ? dnnl::memory::desc{{out_features}, data_type, dnnl::memory::format_tag::x}
-                : dnnl::memory::desc{};
-
-        dnnl::primitive_attr attributes;
-        attributes.set_scratchpad_mode(dnnl::scratchpad_mode::user);
-
-        dnnl::matmul::primitive_desc primitive_desc =
-            bias_data != nullptr
-                ? dnnl::matmul::
-                      primitive_desc{engine, input_md, weight_md, bias_md, dst_md, attributes}
-                : dnnl::matmul::primitive_desc{engine, input_md, weight_md, dst_md, attributes};
-
-        dnnl::matmul matmul{primitive_desc};
-
-        std::unordered_map<int, dnnl::memory> arguments;
-        arguments.emplace(DNNL_ARG_SRC, dnnl::memory{input_md, engine, input_data});
-        arguments.emplace(DNNL_ARG_WEIGHTS, dnnl::memory{weight_md, engine, weight_data});
-        arguments.emplace(DNNL_ARG_DST, dnnl::memory{dst_md, engine, output_data});
-        if (bias_data != nullptr) {
-            arguments.emplace(DNNL_ARG_BIAS, dnnl::memory{bias_md, engine, bias_data});
-        }
-
-        const std::size_t scratchpad_size = primitive_desc.scratchpad_desc().get_size();
-        void* scratchpad_data =
-            scratchpad_size == 0 ? nullptr : sycl::malloc_device(scratchpad_size, queue);
-        if (scratchpad_data != nullptr) {
-            arguments.emplace(
-                DNNL_ARG_SCRATCHPAD,
-                dnnl::memory{primitive_desc.scratchpad_desc(), engine, scratchpad_data}
+        SyclPostOpAttributes attributes;
+        const auto scalars = std::span<const float>{m_scalars}.first(m_scalar_count);
+        const bool built = m_binary == "none"
+                               ? SyclFusion::add_unary(attributes, m_unary, scalars, m_algorithm)
+                               : add_binary(attributes, other_matrix);
+        if (!built) {
+            context.fail(TF_INVALID_ARGUMENT, "unsupported linear post op");
+        } else {
+            SyclMatmulPrimitive::run(
+                queue->get(),
+                input_matrix,
+                weight->get(),
+                bias ? std::optional<std::reference_wrapper<const SyclTensor>>{bias->get()} : std::nullopt,
+                output_matrix,
+                attributes,
+                true
             );
         }
 
-        dnnl::sycl_interop::execute(matmul, dnnl_stream, arguments);
-
-        if (scratchpad_data != nullptr) {
-            queue.wait();
-            sycl::free(scratchpad_data, queue);
+        if (other_matrix) {
+            other_matrix->get().destroy();
         }
+        output_matrix.destroy();
+        input_matrix.destroy();
+
     }
+
+private:
+    bool add_binary(SyclPostOpAttributes& attributes, std::optional<std::reference_wrapper<SyclTensor>> other) const
+    {
+
+        if (!other) {
+            return false;
+        }
+        static constexpr std::array<std::pair<std::string_view, dnnl::algorithm>, 6> k_binary{{
+            {"add", dnnl::algorithm::binary_add},
+            {"sum", dnnl::algorithm::binary_add},
+            {"mul", dnnl::algorithm::binary_mul},
+            {"sub", dnnl::algorithm::binary_sub},
+            {"div", dnnl::algorithm::binary_div},
+            {"max", dnnl::algorithm::binary_max},
+        }};
+        const auto found = std::ranges::find(k_binary, std::string_view{m_binary}, &std::pair<std::string_view, dnnl::algorithm>::first);
+        if (found == k_binary.end()) {
+            return false;
+        }
+        attributes.addBinary(found->second, other->get(), true);
+        return true;
+
+    }
+
+    static SyclTensor& as_matrix(SyclTensor& tensor, int64_t rows, int64_t columns, SyclKernelContext& context)
+    {
+
+        const std::array<int64_t, 2> dims{rows, columns};
+        const std::array<int64_t, 2> strides{columns, 1};
+        ::TF_Tensor* handle = nullptr;
+        tensor.tensor_view(dims.data(), 2, strides.data(), tensor.getStorageOffset(), &handle, context.getStatus());
+        return SyclHandle::resolve_raw<SyclTensor>(handle);
+
+    }
+
+    std::string m_unary;
+    std::string m_algorithm;
+    std::string m_binary;
+    std::array<float, k_max_scalars> m_scalars{};
+    std::size_t m_scalar_count{0};
+    std::vector<int64_t> m_scratch_dims;
 };
 
-} // namespace sycl_backend::kernels
+} // namespace aten_xpu
