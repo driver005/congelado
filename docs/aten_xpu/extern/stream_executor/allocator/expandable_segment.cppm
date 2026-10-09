@@ -20,7 +20,6 @@ public:
         m_device{device},
         m_segment_size{segment_size}
     {
-
         namespace experimental = sycl::ext::oneapi::experimental;
 
         const auto granularity = experimental::get_mem_granularity(
@@ -38,12 +37,10 @@ public:
         if (m_base == 0 || m_base % granularity != 0) {
             throw std::runtime_error{"failed to reserve aligned virtual memory"};
         }
-
     }
 
     ~SyclExpandableSegment()
     {
-
         for (std::size_t index = 0; index < m_handles.size(); ++index) {
             if (m_handles[index]) {
                 unmap_handle(index);
@@ -54,7 +51,6 @@ public:
             m_segment_size * m_max_handles,
             m_context
         );
-
     }
 
     SyclExpandableSegment(const SyclExpandableSegment&) = delete;
@@ -62,13 +58,18 @@ public:
     SyclExpandableSegment(SyclExpandableSegment&&) = delete;
     SyclExpandableSegment& operator=(SyclExpandableSegment&&) = delete;
 
-    std::byte* getPointer() const noexcept { return reinterpret_cast<std::byte*>(m_base); }
+    std::byte* getPointer() const noexcept
+    {
+        return reinterpret_cast<std::byte*>(m_base);
+    }
 
-    std::size_t getSize() const noexcept { return m_max_handles * m_segment_size; }
+    std::size_t getSize() const noexcept
+    {
+        return m_max_handles * m_segment_size;
+    }
 
     std::span<std::byte> map(std::span<std::byte> range)
     {
-
         namespace experimental = sycl::ext::oneapi::experimental;
 
         const auto begin = segment_left(range.data());
@@ -98,12 +99,10 @@ public:
             }
         }
         return range_of(begin, end);
-
     }
 
     std::span<std::byte> unmap(std::span<std::byte> range)
     {
-
         const auto begin = segment_right(range.data());
         const auto end = segment_left(range.data() + range.size());
         if (begin >= end) {
@@ -114,57 +113,44 @@ public:
         }
         trim_handles();
         return range_of(begin, end);
-
     }
 
 private:
     void unmap_handle(std::size_t index)
     {
-
         sycl::ext::oneapi::experimental::unmap(
             reinterpret_cast<void*>(m_base + m_segment_size * index),
             m_segment_size,
             m_context
         );
         m_handles[index].reset();
-
     }
 
     void trim_handles()
     {
-
         while (!m_handles.empty() && !m_handles.back()) {
             m_handles.pop_back();
         }
-
     }
 
     std::size_t segment_count(std::size_t size) const noexcept
     {
-
         return (size + m_segment_size - 1) / m_segment_size;
-
     }
 
     std::size_t segment_left(const std::byte* pointer) const noexcept
     {
-
         return static_cast<std::size_t>(pointer - getPointer()) / m_segment_size;
-
     }
 
     std::size_t segment_right(const std::byte* pointer) const noexcept
     {
-
         return segment_count(static_cast<std::size_t>(pointer - getPointer()));
-
     }
 
     std::span<std::byte> range_of(std::size_t begin, std::size_t end) const noexcept
     {
-
         return {getPointer() + m_segment_size * begin, m_segment_size * (end - begin)};
-
     }
 
     sycl::context m_context;

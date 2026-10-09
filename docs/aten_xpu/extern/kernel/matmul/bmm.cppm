@@ -30,7 +30,6 @@ public:
 
     void compute(SyclKernelContext& context)
     {
-
         auto first = context.getInput(0);
         auto second = context.getInput(1);
         auto queue = context.getQueue();
@@ -55,7 +54,6 @@ public:
             output->get(),
             SyclScaledAdd::build(m_alpha, m_beta, std::nullopt, m_activation)
         );
-
     }
 
 private:

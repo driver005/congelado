@@ -28,19 +28,18 @@ public:
 
     static void create(::TF_StreamExecutor* handle)
     {
-
         auto* stream_executor = new SyclStreamExecutor{SyclOpsTable::getInstance()};
         SyclHandle::attach(handle, *stream_executor);
-
     }
 
-    void destroy() noexcept override { delete this; }
+    void destroy() noexcept override
+    {
+        delete this;
+    }
 
     void get_name(const ice::sonic::String& out_name) noexcept override
     {
-
         m_status.copy_into(out_name, "XPU");
-
     }
 
 private:

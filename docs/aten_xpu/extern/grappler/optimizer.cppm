@@ -1,9 +1,9 @@
 module;
 
-#include "include/c/extern/grappler/optimizer.h"
 #include "cc/proto/attr_value.pb.h"
 #include "cc/proto/graph.pb.h"
 #include "cc/proto/node_def.pb.h"
+#include "include/c/extern/grappler/optimizer.h"
 
 export module aten_xpu_extern_grappler:optimizer;
 
@@ -18,7 +18,11 @@ class SyclGrapplerOptimizer : public ice::builder::TFGrapplerOptimizerOps
 {
 public:
     explicit SyclGrapplerOptimizer(const SyclOpsTable& ops) noexcept :
-        ice::builder::TFGrapplerOptimizerOps{ops.getGrapplerItemOps(), ops.getBufferOps(), ops.getStatusOps()},
+        ice::builder::TFGrapplerOptimizerOps{
+            ops.getGrapplerItemOps(),
+            ops.getBufferOps(),
+            ops.getStatusOps()
+        },
         m_status{ops}
     {
     }
@@ -31,13 +35,14 @@ public:
 
     static void create(::TFGrapplerOptimizer* handle)
     {
-
         auto* optimizer = new SyclGrapplerOptimizer{SyclOpsTable::getInstance()};
         SyclHandle::attach(handle, *optimizer);
-
     }
 
-    void destroy() noexcept override { delete this; }
+    void destroy() noexcept override
+    {
+        delete this;
+    }
 
     void optimize(
         const ice::sonic::TF_BufferOps& graph_buf,
@@ -46,7 +51,6 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-
         TFBufferData input{};
         graph_buf.get_buffer(&input);
 
@@ -66,13 +70,15 @@ public:
             return;
         }
         out_optimized_graph_buf.assign_from_string(m_scratch_bytes.data(), m_scratch_bytes.size());
-
     }
 
 private:
-    void collect_protected(const ice::sonic::TFGrapplerItemOps& item, const ice::sonic::Status& status, bool fetch_nodes)
+    void collect_protected(
+        const ice::sonic::TFGrapplerItemOps& item,
+        const ice::sonic::Status& status,
+        bool fetch_nodes
+    )
     {
-
         int count = 0;
         std::size_t storage_size = 0;
         if (fetch_nodes) {
@@ -110,75 +116,64 @@ private:
         for (std::size_t index = 0; index < m_scratch_values.size(); ++index) {
             m_protected.emplace(m_scratch_values[index], m_scratch_lengths[index]);
         }
-
     }
 
     static bool is_fusable_producer(const std::string& op) noexcept
     {
-
         return op == "Conv2D" || op == "Addmm" || op == "Bmm" || op == "MatMul";
-
     }
 
     static int count_consumers(const tensorflow::GraphDef& graph, const std::string& output)
     {
-
         int count = 0;
         for (const auto& node: graph.node()) {
             count += static_cast<int>(std::ranges::count(node.input(), output));
         }
         return count;
-
     }
 
-    static const tensorflow::NodeDef* find_node(const tensorflow::GraphDef& graph, const std::string& name)
+    static const tensorflow::NodeDef*
+    find_node(const tensorflow::GraphDef& graph, const std::string& name)
     {
-
         const auto found = std::ranges::find_if(
             graph.node(),
             [&name](const tensorflow::NodeDef& node)
             {
-
                 return node.name() == name;
-
             }
         );
         return found == graph.node().end() ? nullptr : &*found;
-
     }
 
-    static const tensorflow::NodeDef* find_relu_consumer(const tensorflow::GraphDef& graph, const std::string& output)
+    static const tensorflow::NodeDef*
+    find_relu_consumer(const tensorflow::GraphDef& graph, const std::string& output)
     {
-
         const auto found = std::ranges::find_if(
             graph.node(),
             [&output](const tensorflow::NodeDef& node)
             {
-
                 return node.op() == "Relu" && node.input_size() == 1 && node.input(0) == output;
-
             }
         );
         return found == graph.node().end() ? nullptr : &*found;
-
     }
 
     tensorflow::GraphDef fuse_bias_and_activation(const tensorflow::GraphDef& input)
     {
-
         m_scratch_absorbed.clear();
         m_scratch_replacements.clear();
 
         for (const auto& node: input.node()) {
-            if (node.op() != "BiasAdd" || node.input_size() == 0 || m_protected.contains(node.name())) {
+            if (node.op() != "BiasAdd" || node.input_size() == 0 ||
+                m_protected.contains(node.name())) {
                 continue;
             }
 
             const auto* producer = find_node(input, node.input(0));
             if (producer == nullptr || !is_fusable_producer(producer->op()) ||
-                m_protected.contains(producer->name()) || m_scratch_absorbed.contains(producer->name()) ||
-                count_consumers(input, producer->name()) != 1)
-            {
+                m_protected.contains(producer->name()) ||
+                m_scratch_absorbed.contains(producer->name()) ||
+                count_consumers(input, producer->name()) != 1) {
                 continue;
             }
 
@@ -189,8 +184,9 @@ private:
             fused.set_name(node.name());
             m_scratch_absorbed.insert(producer->name());
 
-            const auto* relu =
-                count_consumers(input, node.name()) == 1 ? find_relu_consumer(input, node.name()) : nullptr;
+            const auto* relu = count_consumers(input, node.name()) == 1
+                                   ? find_relu_consumer(input, node.name())
+                                   : nullptr;
             if (relu != nullptr && !m_protected.contains(relu->name())) {
                 (*fused.mutable_attr())["activation"].set_i(1);
                 fused.set_name(relu->name());
@@ -209,10 +205,10 @@ private:
                 continue;
             }
             const auto replacement = m_scratch_replacements.find(node.name());
-            *output.add_node() = replacement == m_scratch_replacements.end() ? node : replacement->second;
+            *output.add_node() =
+                replacement == m_scratch_replacements.end() ? node : replacement->second;
         }
         return output;
-
     }
 
     SyclStatus m_status;

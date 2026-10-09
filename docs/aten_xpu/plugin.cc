@@ -19,7 +19,11 @@ import std;
 import aten_xpu;
 
 #define ATEN_XPU_EXPORT_OPS(name, ops_type, accessor)                                              \
-    TF_CAPI_EXPORT void create_##name(ops_type** ops, void** plugin_context, TF_Status* out_status) \
+    TF_CAPI_EXPORT void create_##name(                                                             \
+        ops_type** ops,                                                                            \
+        void** plugin_context,                                                                     \
+        TF_Status* out_status                                                                      \
+    )                                                                                              \
     {                                                                                              \
         static_cast<void>(out_status);                                                             \
         auto& registry = aten_xpu::SyclPluginRegistry::getInstance();                              \
@@ -52,9 +56,17 @@ extern "C"
     ATEN_XPU_EXPORT_OPS(mem_pool, TF_MemPoolOps, registry.getOps().getMemPoolOps())
     ATEN_XPU_EXPORT_OPS(memory, TF_MemoryOps, &registry.getMemoryOps())
     ATEN_XPU_EXPORT_OPS(stream_executor, TF_StreamExecutorOps, &registry.getStreamExecutorOps())
-    ATEN_XPU_EXPORT_OPS(random_generator, TF_RandomGeneratorOps, registry.getOps().getRandomGeneratorOps())
+    ATEN_XPU_EXPORT_OPS(
+        random_generator,
+        TF_RandomGeneratorOps,
+        registry.getOps().getRandomGeneratorOps()
+    )
     ATEN_XPU_EXPORT_OPS(tensor, TF_TensorOps, registry.getOps().getTensorOps())
-    ATEN_XPU_EXPORT_OPS(grappler_device_graph, TFGrapplerDeviceGraphOps, registry.getOps().getDeviceGraphOps())
+    ATEN_XPU_EXPORT_OPS(
+        grappler_device_graph,
+        TFGrapplerDeviceGraphOps,
+        registry.getOps().getDeviceGraphOps()
+    )
     ATEN_XPU_EXPORT_OPS(grappler, TF_GrapplerOps, &registry.getGrapplerOps())
     ATEN_XPU_EXPORT_OPS(grappler_optimizer, TFGrapplerOptimizerOps, &registry.getOptimizerOps())
 }

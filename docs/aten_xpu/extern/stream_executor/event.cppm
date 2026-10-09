@@ -30,21 +30,17 @@ public:
 
     static void create(::TF_Event* handle)
     {
-
         auto* event = new SyclEvent{SyclOpsTable::getInstance()};
         SyclHandle::attach(handle, *event);
-
     }
 
     void bind(const TF_EventOptions& options, int device_index) noexcept
     {
-
         m_enable_timing = options.enable_timing;
         m_enable_ipc = options.enable_ipc;
         m_reusable = options.reusable || options.enable_ipc;
         m_device_index = device_index;
         m_event.reset();
-
     }
 
     void bind_from_ipc(
@@ -54,7 +50,6 @@ public:
         int device_index
     )
     {
-
         namespace ipc = sycl::ext::oneapi::experimental::ipc;
 
         if (!device.has(sycl::aspect::ext_oneapi_ipc_event)) {
@@ -68,20 +63,23 @@ public:
         m_reusable = true;
         m_imported = true;
         m_device_index = device_index;
-
     }
 
-    void record(sycl::queue& queue) { m_event = queue.ext_oneapi_submit_barrier(); }
+    void record(sycl::queue& queue)
+    {
+        m_event = queue.ext_oneapi_submit_barrier();
+    }
 
     bool is_complete() const
     {
-
         return !m_event || m_event->get_info<sycl::info::event::command_execution_status>() ==
                                sycl::info::event_command_status::complete;
-
     }
 
-    void destroy() noexcept override { delete this; }
+    void destroy() noexcept override
+    {
+        delete this;
+    }
 
     void elapsed_time(
         const ice::sonic::TF_EventOps& end,
@@ -89,7 +87,6 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-
         auto& end_event = SyclHandle::resolve<SyclEvent>(end);
         if (!m_enable_timing || !end_event.m_enable_timing) {
             m_status.fail(out_status, TF_FAILED_PRECONDITION, "both events need enable_timing");
@@ -111,13 +108,13 @@ public:
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
         }
-
     }
 
-    void export_ipc(TF_IpcEventHandle* out_handle, const ice::sonic::Status& out_status)
-        noexcept override
+    void export_ipc(
+        TF_IpcEventHandle* out_handle,
+        const ice::sonic::Status& out_status
+    ) noexcept override
     {
-
         namespace ipc = sycl::ext::oneapi::experimental::ipc;
 
         if (!m_enable_ipc || m_imported) {
@@ -141,19 +138,22 @@ public:
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
         }
-
     }
 
     void get_native_handle(void** out_handle) noexcept override
     {
-
         *out_handle = m_event ? &*m_event : nullptr;
-
     }
 
-    const std::optional<sycl::event>& getNativeEvent() const noexcept { return m_event; }
+    const std::optional<sycl::event>& getNativeEvent() const noexcept
+    {
+        return m_event;
+    }
 
-    int getDeviceIndex() const noexcept { return m_device_index; }
+    int getDeviceIndex() const noexcept
+    {
+        return m_device_index;
+    }
 
 private:
     SyclStatus m_status;

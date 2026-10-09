@@ -16,7 +16,6 @@ class SyclEventTest : public SyclTestFixture
 protected:
     ice::sonic::TF_EventOps make_event(bool enable_timing, bool enable_ipc)
     {
-
         ice::sonic::TF_EventOps event{SyclOpsTable::getInstance().getEventOps()};
         event.create();
         const TF_EventOptions options{
@@ -27,13 +26,11 @@ protected:
         };
         getExecutor().create_event_with_options_internal(getDevice(), &options, event, getStatus());
         return event;
-
     }
 };
 
 TEST_F(SyclEventTest, RecordAndQuery)
 {
-
     auto stream = make_stream();
     auto event = make_event(false, false);
     getExecutor().record_event(getDevice(), stream, event, getStatus());
@@ -46,12 +43,10 @@ TEST_F(SyclEventTest, RecordAndQuery)
 
     event.destroy();
     release_stream(stream);
-
 }
 
 TEST_F(SyclEventTest, ElapsedTimeNeedsTiming)
 {
-
     auto stream = make_stream();
     auto start = make_event(true, false);
     auto stop = make_event(true, false);
@@ -66,12 +61,10 @@ TEST_F(SyclEventTest, ElapsedTimeNeedsTiming)
     stop.destroy();
     start.destroy();
     release_stream(stream);
-
 }
 
 TEST_F(SyclEventTest, IpcRoundTrip)
 {
-
     void* native = nullptr;
     getDevice().get_native_handle(&native);
     if (!static_cast<sycl::device*>(native)->has(sycl::aspect::ext_oneapi_ipc_event)) {
@@ -93,7 +86,6 @@ TEST_F(SyclEventTest, IpcRoundTrip)
     imported.destroy();
     event.destroy();
     release_stream(stream);
-
 }
 
 } // namespace aten_xpu

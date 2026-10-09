@@ -18,17 +18,14 @@ class SyclAllocatorSnapshot
 public:
     void begin(int device_index)
     {
-
         m_scratch_text.clear();
         m_scratch_text += std::format("{{\"device\":{},\"segments\":[", device_index);
         m_first_segment = true;
         m_total_active = 0;
-
     }
 
     void add_segment(const SyclBlock& head)
     {
-
         if (head.getPrevious() != nullptr && head.getPrevious()->getMapped()) {
             return;
         }
@@ -53,8 +50,7 @@ public:
         std::size_t active_size = 0;
         std::size_t requested_size = 0;
         for (const auto* block = &head; block != nullptr && block->getMapped();
-             block = block->getNext())
-        {
+             block = block->getNext()) {
             const bool active = !block->is_free();
             m_scratch_text += first_block ? "" : ",";
             first_block = false;
@@ -79,23 +75,21 @@ public:
             requested_size
         );
         m_total_active += active_size;
-
     }
 
     std::string_view finish(const SyclAllocatorTrace& trace)
     {
-
         m_scratch_text += "],\"trace\":[";
         bool first_entry = true;
         trace.for_each(
             [this, &first_entry](const SyclAllocatorTrace::Entry& entry)
             {
-
                 const auto& [action, address, size, queue, pool] = entry;
                 m_scratch_text += first_entry ? "" : ",";
                 first_entry = false;
                 m_scratch_text += std::format(
-                    "{{\"action\":\"{}\",\"address\":{},\"size\":{},\"stream\":{},\"pool\":[{},{}]}}",
+                    "{{\"action\":\"{}\",\"address\":{},\"size\":{},\"stream\":{},\"pool\":[{},{}]}"
+                    "}",
                     SyclAllocatorTrace::action_name(action),
                     address,
                     size,
@@ -103,15 +97,16 @@ public:
                     pool.first,
                     pool.second
                 );
-
             }
         );
         m_scratch_text += "]}";
         return m_scratch_text;
-
     }
 
-    std::size_t getTotalActive() const noexcept { return m_total_active; }
+    std::size_t getTotalActive() const noexcept
+    {
+        return m_total_active;
+    }
 
 private:
     std::string m_scratch_text;

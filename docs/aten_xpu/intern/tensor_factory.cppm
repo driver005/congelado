@@ -23,7 +23,6 @@ public:
         TF_MemorySpace memory_space
     )
     {
-
         auto* handle = SyclTensor::create_handle();
         auto& tensor = SyclHandle::resolve_raw<SyclTensor>(handle);
         tensor.set_device_index(device_index);
@@ -31,7 +30,6 @@ public:
         tensor.set_dtype(dtype);
         tensor.set_dims(dims.data(), static_cast<int>(dims.size()));
         return handle;
-
     }
 
     static ::TF_Tensor* empty_strided(
@@ -42,7 +40,6 @@ public:
         TF_MemorySpace memory_space
     )
     {
-
         auto* handle = SyclTensor::create_handle();
         auto& tensor = SyclHandle::resolve_raw<SyclTensor>(handle);
         tensor.set_device_index(device_index);
@@ -52,7 +49,6 @@ public:
         tensor.set_byte_size(storage_bytes(dims, strides, SyclTensor::element_size(dtype)));
         tensor.set_strides(strides.data(), static_cast<int>(strides.size()));
         return handle;
-
     }
 
     static std::size_t storage_bytes(
@@ -61,7 +57,6 @@ public:
         std::size_t item_size
     ) noexcept
     {
-
         int64_t last_element = 0;
         for (std::size_t index = 0; index < dims.size(); ++index) {
             if (dims[index] == 0) {
@@ -70,7 +65,6 @@ public:
             last_element += (dims[index] - 1) * strides[index];
         }
         return static_cast<std::size_t>(last_element + 1) * item_size;
-
     }
 };
 

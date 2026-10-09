@@ -25,17 +25,17 @@ public:
 
     static void create(::TF_Timer* handle)
     {
-
         auto* timer = new SyclTimer{};
         SyclHandle::attach(handle, *timer);
-
     }
 
-    void destroy() noexcept override { delete this; }
+    void destroy() noexcept override
+    {
+        delete this;
+    }
 
     void nanoseconds(uint64_t* out_nanoseconds) noexcept override
     {
-
         if (!m_start || !m_stop) {
             *out_nanoseconds = 0;
             return;
@@ -48,12 +48,17 @@ public:
             m_stop->get_profiling_info<sycl::info::event_profiling::command_end>();
         *out_nanoseconds =
             stop_nanoseconds > start_nanoseconds ? stop_nanoseconds - start_nanoseconds : 0;
-
     }
 
-    void setStartEvent(sycl::event event) noexcept { m_start = std::move(event); }
+    void setStartEvent(sycl::event event) noexcept
+    {
+        m_start = std::move(event);
+    }
 
-    void setStopEvent(sycl::event event) noexcept { m_stop = std::move(event); }
+    void setStopEvent(sycl::event event) noexcept
+    {
+        m_stop = std::move(event);
+    }
 
 private:
     std::optional<sycl::event> m_start;

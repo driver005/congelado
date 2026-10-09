@@ -65,7 +65,6 @@ import cc_abi;
 export {
     // TODO(b/114492873): Move this include into core/platform.
 
-
     namespace tensorflow {
         namespace data {
             namespace model {

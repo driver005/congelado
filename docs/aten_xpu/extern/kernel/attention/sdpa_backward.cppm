@@ -30,7 +30,6 @@ public:
 
     void compute(SyclKernelContext& context)
     {
-
         auto gradient_output = context.getInput(0);
         auto query = context.getInput(1);
         auto key = context.getInput(2);
@@ -41,30 +40,48 @@ public:
             return;
         }
         if (!SyclSdpaSelector::valid_shapes(query->get(), key->get(), value->get())) {
-            context.fail(TF_INVALID_ARGUMENT, "attention expects [batch, heads, length, head_dim] inputs");
+            context.fail(
+                TF_INVALID_ARGUMENT,
+                "attention expects [batch, heads, length, head_dim] inputs"
+            );
             return;
         }
         auto mask_input = context.getInputCount() > 5 ? context.getInput(5) : std::nullopt;
-        const auto mask = mask_input ? std::optional<std::reference_wrapper<const SyclTensor>>{mask_input->get()} : std::nullopt;
+        const auto mask =
+            mask_input ? std::optional<std::reference_wrapper<const SyclTensor>>{mask_input->get()}
+                       : std::nullopt;
 
-        auto gradient_query = context.allocateOutput(0, query->get().getDtype(), query->get().getDims());
+        auto gradient_query =
+            context.allocateOutput(0, query->get().getDtype(), query->get().getDims());
         auto gradient_key = context.allocateOutput(1, key->get().getDtype(), key->get().getDims());
-        auto gradient_value = context.allocateOutput(2, value->get().getDtype(), value->get().getDims());
+        auto gradient_value =
+            context.allocateOutput(2, value->get().getDtype(), value->get().getDims());
         if (!gradient_query || !gradient_key || !gradient_value) {
             context.propagate();
             return;
         }
 
-        const float scale = m_scale > 0.0F ? m_scale : 1.0F / std::sqrt(static_cast<float>(query->get().getDims()[3]));
+        const float scale = m_scale > 0.0F
+                                ? m_scale
+                                : 1.0F / std::sqrt(static_cast<float>(query->get().getDims()[3]));
         SyclSdpaMath math{context, queue->get()};
         auto saved = context.getInputCount() > 4 ? context.getInput(4) : std::nullopt;
         if (!saved || saved->get().getByteSize() == 0) {
-            auto recomputed_output = context.allocateTemp(query->get().getDtype(), gradient_output->get().getDims());
+            auto recomputed_output =
+                context.allocateTemp(query->get().getDtype(), gradient_output->get().getDims());
             if (!recomputed_output) {
                 context.propagate();
                 return;
             }
-            saved = math.forward(query->get(), key->get(), value->get(), mask, recomputed_output->get(), scale, m_is_causal);
+            saved = math.forward(
+                query->get(),
+                key->get(),
+                value->get(),
+                mask,
+                recomputed_output->get(),
+                scale,
+                m_is_causal
+            );
             if (!saved) {
                 context.propagate();
                 return;
@@ -82,7 +99,6 @@ public:
             scale
         );
         context.propagate();
-
     }
 
 private:

@@ -36,19 +36,18 @@ public:
 
     static void create(::TF_Grappler* handle)
     {
-
         auto* grappler = new SyclGrappler{SyclOpsTable::getInstance()};
         SyclHandle::attach(handle, *grappler);
-
     }
 
-    void destroy() noexcept override { delete this; }
+    void destroy() noexcept override
+    {
+        delete this;
+    }
 
     void get_name(const ice::sonic::String& out_name) noexcept override
     {
-
         m_status.copy_into(out_name, "xpu_grappler");
-
     }
 
     void create_device_graph_internal(
@@ -58,7 +57,6 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-
         static_cast<void>(out_status);
         auto& sycl_device = SyclHandle::resolve<SyclDevice>(device);
         auto& sycl_executor = SyclHandle::resolve<SyclExecutor>(executor);
@@ -67,17 +65,15 @@ public:
             sycl_device.getNativeDevice(),
             sycl_device.getDeviceIndex()
         );
-
     }
 
-    void destroy_device_graph_internal(const ice::sonic::TFGrapplerDeviceGraphOps& graph)
-        noexcept override
+    void destroy_device_graph_internal(
+        const ice::sonic::TFGrapplerDeviceGraphOps& graph
+    ) noexcept override
     {
-
         auto& device_graph = SyclHandle::resolve<SyclDeviceGraph>(graph);
         ice::sonic::Status ignored{m_status.getOps().getStatusOps()};
         device_graph.reset(ignored);
-
     }
 
 private:

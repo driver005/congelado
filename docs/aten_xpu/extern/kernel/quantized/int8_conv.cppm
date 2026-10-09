@@ -46,14 +46,11 @@ public:
         m_accumulator_scale{construction.getFloat("accumulator_scale", 1.0F)},
         m_accumulator_zero_point{construction.getInt64("accumulator_zero_point", 0)}
     {
-
         m_scalar_count = construction.getFloatList("scalars", m_scalars);
-
     }
 
     void compute(SyclKernelContext& context)
     {
-
         auto source = context.getInput(k_source);
         auto weight = context.getInput(k_weight);
         auto source_scale = context.getInput(k_source_scale);
@@ -78,7 +75,11 @@ public:
             return;
         }
         if (accumulator && m_binary == "sum") {
-            queue->get().memcpy(output->get().getData(), accumulator->get().getData(), accumulator->get().getByteSize());
+            queue->get().memcpy(
+                output->get().getData(),
+                accumulator->get().getData(),
+                accumulator->get().getByteSize()
+            );
         }
 
         SyclPostOpAttributes post_ops;
@@ -88,12 +89,13 @@ public:
                 m_binary,
                 m_accumulator_scale,
                 m_accumulator_zero_point,
-                accumulator ? std::optional<std::reference_wrapper<const SyclTensor>>{accumulator->get()} : std::nullopt,
+                accumulator
+                    ? std::optional<std::reference_wrapper<const SyclTensor>>{accumulator->get()}
+                    : std::nullopt,
                 m_unary,
                 scalars,
                 m_algorithm
-            ))
-        {
+            )) {
             context.fail(TF_INVALID_ARGUMENT, "unsupported quantized convolution post op");
             return;
         }
@@ -111,10 +113,16 @@ public:
 
         SyclPrimitiveExecutor executor{queue->get()};
         const auto source_desc = SyclOnednnLayout::desc(source->get());
-        const auto weight_desc = SyclConvolutionPrimitive::convolution_weight_desc(weight->get(), m_geometry.getGroups());
+        const auto weight_desc = SyclConvolutionPrimitive::convolution_weight_desc(
+            weight->get(),
+            m_geometry.getGroups()
+        );
         const auto output_desc = SyclOnednnLayout::desc(output->get());
-        const auto bias_desc = bias ? dnnl::memory::desc{{bias->get().element_count()}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::x}
-                                    : dnnl::memory::desc{};
+        const auto bias_desc =
+            bias
+                ? dnnl::memory::
+                      desc{{bias->get().element_count()}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::x}
+                : dnnl::memory::desc{};
 
         auto attributes = SyclPrimitiveExecutor::user_scratchpad_attributes();
         quantization.apply(attributes);
@@ -143,15 +151,13 @@ public:
         quantization.add_arguments(executor);
         post_ops.add_binary_arguments(executor.getEngine(), executor.getArguments());
         executor.execute(dnnl::convolution_forward{primitive_desc}, primitive_desc);
-
     }
 
 private:
-    static std::optional<std::reference_wrapper<SyclTensor>> optional_input(SyclKernelContext& context, int index)
+    static std::optional<std::reference_wrapper<SyclTensor>>
+    optional_input(SyclKernelContext& context, int index)
     {
-
         return context.getInputCount() > index ? context.getInput(index) : std::nullopt;
-
     }
 
     SyclConvolutionGeometry m_geometry;

@@ -32,7 +32,6 @@ export {
     // clang-format off
     // clang-format on
 
-
     namespace tensorflow {
 
         // Single precision complex.

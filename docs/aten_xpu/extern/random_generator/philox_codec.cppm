@@ -15,7 +15,6 @@ public:
 
     static std::pair<uint64_t, uint64_t> unpack(const TF_PhiloxState& state) noexcept
     {
-
         if (state.captured) {
             return {
                 static_cast<uint64_t>(*state.seed_ptr),
@@ -23,7 +22,6 @@ public:
             };
         }
         return {state.seed, state.offset};
-
     }
 };
 

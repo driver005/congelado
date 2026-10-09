@@ -19,27 +19,22 @@ public:
 
     static bool is_recording(const sycl::queue& queue)
     {
-
-        return queue.ext_oneapi_get_state() == sycl::ext::oneapi::experimental::queue_state::recording;
-
+        return queue.ext_oneapi_get_state() ==
+               sycl::ext::oneapi::experimental::queue_state::recording;
     }
 
     static void assert_not_capturing(const sycl::queue& queue, std::string_view attempt)
     {
-
         if (is_recording(queue)) {
             throw std::logic_error{std::format("{} during XPU graph capture", attempt)};
         }
-
     }
 
     static void filter_capture_stream(void* filter_data, ::TF_Stream* stream, _Bool* out_match)
     {
-
         const auto* capture_queue = static_cast<const sycl::queue*>(filter_data);
         auto& candidate = SyclHandle::resolve_raw<SyclStream>(stream).getNativeQueue();
         *out_match = is_recording(candidate) && candidate == *capture_queue;
-
     }
 };
 

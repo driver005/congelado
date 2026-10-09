@@ -32,38 +32,37 @@ public:
 
     static void create(::TF_MemPool* handle)
     {
-
         auto* pool = new SyclMemPool{SyclOpsTable::getInstance()};
         SyclHandle::attach(handle, *pool);
-
     }
 
-    void setNoSplit(bool no_split) noexcept { m_no_split = no_split; }
+    void setNoSplit(bool no_split) noexcept
+    {
+        m_no_split = no_split;
+    }
 
     void setRawAllocator(RawAllocate allocate, RawDeallocate deallocate)
     {
-
         m_raw_allocate = std::move(allocate);
         m_raw_deallocate = std::move(deallocate);
-
     }
 
     void bind(TF_PoolId pool_id, bool is_user_created)
     {
-
         m_pool_id = pool_id;
         m_is_user_created = is_user_created;
         m_use_count = 1;
         m_small_blocks = std::make_unique<SyclBlockPool>(true, pool_id);
         m_large_blocks = std::make_unique<SyclBlockPool>(false, pool_id);
-
     }
 
-    void increment_use() noexcept { ++m_use_count; }
+    void increment_use() noexcept
+    {
+        ++m_use_count;
+    }
 
     bool matches(::TF_Stream* stream) const
     {
-
         if (!m_allocating) {
             return false;
         }
@@ -73,22 +72,28 @@ public:
         _Bool matched = false;
         m_stream_filter(m_filter_data, stream, &matched);
         return matched;
-
     }
 
     bool is_freeable() const noexcept
     {
-
         return m_use_count == 0 && m_small_blocks->getAllocationCount() == 0 &&
                m_large_blocks->getAllocationCount() == 0;
-
     }
 
-    void destroy() noexcept override { delete this; }
+    void destroy() noexcept override
+    {
+        delete this;
+    }
 
-    void get_id(TF_PoolId* out_pool_id) noexcept override { *out_pool_id = m_pool_id; }
+    void get_id(TF_PoolId* out_pool_id) noexcept override
+    {
+        *out_pool_id = m_pool_id;
+    }
 
-    void use_count(int* out_count) noexcept override { *out_count = m_use_count; }
+    void use_count(int* out_count) noexcept override
+    {
+        *out_count = m_use_count;
+    }
 
     void begin_allocate_to_pool(
         TF_StreamFilterFn stream_filter,
@@ -96,7 +101,6 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-
         if (m_allocating) {
             m_status.fail(out_status, TF_FAILED_PRECONDITION, "pool is already capturing");
             return;
@@ -104,55 +108,75 @@ public:
         m_stream_filter = stream_filter;
         m_filter_data = filter_data;
         m_allocating = true;
-
     }
 
     void end_allocate_to_pool(const ice::sonic::Status& out_status) noexcept override
     {
-
         static_cast<void>(out_status);
         m_allocating = false;
         m_stream_filter = nullptr;
         m_filter_data = nullptr;
-
     }
 
     void release(const ice::sonic::Status& out_status) noexcept override
     {
-
         if (m_use_count <= 0) {
             m_status.fail(out_status, TF_FAILED_PRECONDITION, "pool released more than acquired");
             return;
         }
         --m_use_count;
-
     }
 
     void set_use_on_oom(_Bool use_on_oom, const ice::sonic::Status& out_status) noexcept override
     {
-
         static_cast<void>(out_status);
         m_use_on_oom = use_on_oom;
-
     }
 
-    const TF_PoolId& getPoolId() const noexcept { return m_pool_id; }
+    const TF_PoolId& getPoolId() const noexcept
+    {
+        return m_pool_id;
+    }
 
-    bool getIsUserCreated() const noexcept { return m_is_user_created; }
+    bool getIsUserCreated() const noexcept
+    {
+        return m_is_user_created;
+    }
 
-    bool getUseOnOom() const noexcept { return m_use_on_oom; }
+    bool getUseOnOom() const noexcept
+    {
+        return m_use_on_oom;
+    }
 
-    bool getNoSplit() const noexcept { return m_no_split; }
+    bool getNoSplit() const noexcept
+    {
+        return m_no_split;
+    }
 
-    int getUseCount() const noexcept { return m_use_count; }
+    int getUseCount() const noexcept
+    {
+        return m_use_count;
+    }
 
-    SyclBlockPool& getSmallBlocks() noexcept { return *m_small_blocks; }
+    SyclBlockPool& getSmallBlocks() noexcept
+    {
+        return *m_small_blocks;
+    }
 
-    SyclBlockPool& getLargeBlocks() noexcept { return *m_large_blocks; }
+    SyclBlockPool& getLargeBlocks() noexcept
+    {
+        return *m_large_blocks;
+    }
 
-    const RawAllocate& getRawAllocate() const noexcept { return m_raw_allocate; }
+    const RawAllocate& getRawAllocate() const noexcept
+    {
+        return m_raw_allocate;
+    }
 
-    const RawDeallocate& getRawDeallocate() const noexcept { return m_raw_deallocate; }
+    const RawDeallocate& getRawDeallocate() const noexcept
+    {
+        return m_raw_deallocate;
+    }
 
 private:
     SyclStatus m_status;

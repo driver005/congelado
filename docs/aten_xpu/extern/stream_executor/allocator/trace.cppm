@@ -29,20 +29,27 @@ public:
     using Entry = std::tuple<Action, std::uintptr_t, std::size_t, sycl::queue*, TF_PoolId>;
     using Tracker = std::function<void(const Entry&)>;
 
-    void addTracker(Tracker tracker) { m_trackers.push_back(std::move(tracker)); }
+    void addTracker(Tracker tracker)
+    {
+        m_trackers.push_back(std::move(tracker));
+    }
 
     void setMaxEntries(std::size_t max_entries)
     {
-
         m_max_entries = max_entries;
         m_entries.clear();
         m_next = 0;
-
     }
 
-    void setEnabled(bool enabled) noexcept { m_enabled = enabled; }
+    void setEnabled(bool enabled) noexcept
+    {
+        m_enabled = enabled;
+    }
 
-    bool getEnabled() const noexcept { return m_enabled; }
+    bool getEnabled() const noexcept
+    {
+        return m_enabled;
+    }
 
     void record(
         Action action,
@@ -52,7 +59,6 @@ public:
         TF_PoolId pool
     )
     {
-
         const Entry entry{action, reinterpret_cast<std::uintptr_t>(address), size, queue, pool};
         for (const auto& tracker: m_trackers) {
             tracker(entry);
@@ -66,22 +72,18 @@ public:
         }
         m_entries[m_next] = entry;
         m_next = (m_next + 1) % m_max_entries;
-
     }
 
     template<typename Visitor>
     void for_each(Visitor&& visitor) const
     {
-
         for (std::size_t offset = 0; offset < m_entries.size(); ++offset) {
             visitor(m_entries[(m_next + offset) % m_entries.size()]);
         }
-
     }
 
     static std::string_view action_name(Action action) noexcept
     {
-
         switch (action) {
             case Action::alloc:
                 return "alloc";
@@ -103,7 +105,6 @@ public:
                 return "oom";
         }
         return "unknown";
-
     }
 
 private:

@@ -20,15 +20,12 @@ public:
 
     static SyclEngineCache& getInstance()
     {
-
         static SyclEngineCache cache;
         return cache;
-
     }
 
     dnnl::engine& getEngine(const sycl::queue& queue)
     {
-
         const std::scoped_lock lock{m_mutex};
         const auto device = queue.get_device();
         for (auto& [candidate, engine]: m_engines) {
@@ -36,13 +33,13 @@ public:
                 return engine;
             }
         }
-        return m_engines.emplace_back(device, dnnl::sycl_interop::make_engine(device, queue.get_context())).second;
-
+        return m_engines
+            .emplace_back(device, dnnl::sycl_interop::make_engine(device, queue.get_context()))
+            .second;
     }
 
     dnnl::stream& getStream(sycl::queue& queue)
     {
-
         auto& engine = getEngine(queue);
         const std::scoped_lock lock{m_mutex};
         auto found = m_streams.find(&queue);
@@ -50,7 +47,6 @@ public:
             found = m_streams.emplace(&queue, dnnl::sycl_interop::make_stream(engine, queue)).first;
         }
         return found->second;
-
     }
 
 private:

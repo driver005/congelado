@@ -43,23 +43,26 @@ public:
 
     static void create(::TFGrapplerDeviceGraph* handle)
     {
-
         auto* graph = new SyclDeviceGraph{SyclOpsTable::getInstance()};
         SyclHandle::attach(handle, *graph);
-
     }
 
-    void bind(std::shared_ptr<SyclPhiloxState> default_generator, const sycl::device& device, int device_index)
+    void bind(
+        std::shared_ptr<SyclPhiloxState> default_generator,
+        const sycl::device& device,
+        int device_index
+    )
     {
-
         m_default_generator = std::move(default_generator);
         m_device = device;
         m_device_index = device_index;
         m_pool_id = TF_PoolId{.first = static_cast<int64_t>(++s_graph_pool_sequence), .second = 0};
-
     }
 
-    void destroy() noexcept override { delete this; }
+    void destroy() noexcept override
+    {
+        delete this;
+    }
 
     void capture_begin(
         const ice::sonic::TF_StreamOps& capture_stream,
@@ -68,10 +71,10 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-
         static_cast<void>(mode);
         if (m_graph_exec) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, "graph instance already owns a capture");
+            m_status
+                .fail(out_status, TF_FAILED_PRECONDITION, "graph instance already owns a capture");
             return;
         }
 
@@ -97,12 +100,10 @@ public:
         } catch (const std::exception& error) {
             m_status.fail(out_status, TF_INTERNAL, error.what());
         }
-
     }
 
     void capture_end(const ice::sonic::Status& out_status) noexcept override
     {
-
         if (!m_graph || !m_capture_stream) {
             m_status.fail(out_status, TF_FAILED_PRECONDITION, "capture_end without capture_begin");
             return;
@@ -124,12 +125,10 @@ public:
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
         }
-
     }
 
     void instantiate(const ice::sonic::Status& out_status) noexcept override
     {
-
         if (!m_capture_ended || !m_graph) {
             m_status.fail(out_status, TF_FAILED_PRECONDITION, "instantiate before capture_end");
             return;
@@ -140,12 +139,10 @@ public:
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
         }
-
     }
 
     void replay(const ice::sonic::Status& out_status) noexcept override
     {
-
         if (!m_capture_ended) {
             m_status.fail(out_status, TF_FAILED_PRECONDITION, "replay without a capture");
             return;
@@ -165,12 +162,10 @@ public:
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
         }
-
     }
 
     void reset(const ice::sonic::Status& out_status) noexcept override
     {
-
         static_cast<void>(out_status);
         for (auto& [state, increment]: m_generator_states) {
             try {
@@ -182,25 +177,26 @@ public:
         m_graph_exec.reset();
         m_graph.reset();
         m_capture_ended = false;
-
     }
 
-    void get_pool(TF_PoolId* out_pool_id) noexcept override { *out_pool_id = m_pool_id; }
+    void get_pool(TF_PoolId* out_pool_id) noexcept override
+    {
+        *out_pool_id = m_pool_id;
+    }
 
     void register_random_generator(
         const ice::sonic::TF_RandomGeneratorOps& generator,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-
         try {
-            const auto& state = SyclHandle::resolve<SyclRandomGenerator>(generator).getSharedState();
+            const auto& state =
+                SyclHandle::resolve<SyclRandomGenerator>(generator).getSharedState();
             state->register_graph(this);
             m_generator_states.try_emplace(state, 0);
         } catch (const std::logic_error& error) {
             m_status.fail(out_status, TF_FAILED_PRECONDITION, error.what());
         }
-
     }
 
     void unregister_random_generator(
@@ -208,22 +204,26 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-
         try {
-            const auto& state = SyclHandle::resolve<SyclRandomGenerator>(generator).getSharedState();
+            const auto& state =
+                SyclHandle::resolve<SyclRandomGenerator>(generator).getSharedState();
             state->unregister_graph(this);
             m_generator_states.erase(state);
         } catch (const std::logic_error& error) {
             m_status.fail(out_status, TF_FAILED_PRECONDITION, error.what());
         }
-
     }
 
-    void enable_debug_mode() noexcept override { s_debug_mode = true; }
-
-    void debug_dump(const ice::sonic::String& path, const ice::sonic::Status& out_status) noexcept override
+    void enable_debug_mode() noexcept override
     {
+        s_debug_mode = true;
+    }
 
+    void debug_dump(
+        const ice::sonic::String& path,
+        const ice::sonic::Status& out_status
+    ) noexcept override
+    {
         const char* data = nullptr;
         std::size_t size = 0;
         path.get_data_pointer(&data);
@@ -243,25 +243,24 @@ public:
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
         }
-
     }
 
-    sycl::queue* getCaptureQueue() const noexcept { return m_capture_stream.get(); }
+    sycl::queue* getCaptureQueue() const noexcept
+    {
+        return m_capture_stream.get();
+    }
 
 private:
     sycl::property_list recording_properties() const
     {
-
         namespace experimental = sycl::ext::oneapi::experimental;
 
         const auto architecture = m_device.get_info<experimental::info::device::architecture>();
         if (architecture == experimental::architecture::intel_gpu_pvc ||
-            architecture == experimental::architecture::intel_gpu_pvc_vg)
-        {
+            architecture == experimental::architecture::intel_gpu_pvc_vg) {
             return {};
         }
         return {experimental::property::graph::enable_native_recording{}};
-
     }
 
     SyclStatus m_status;

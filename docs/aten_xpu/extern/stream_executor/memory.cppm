@@ -28,19 +28,18 @@ public:
 
     static void create(::TF_Memory* handle)
     {
-
         auto* memory = new SyclMemory{SyclOpsTable::getInstance()};
         SyclHandle::attach(handle, *memory);
-
     }
 
-    void destroy() noexcept override { delete this; }
+    void destroy() noexcept override
+    {
+        delete this;
+    }
 
     void get_name(const ice::sonic::String& out_name) noexcept override
     {
-
         m_status.copy_into(out_name, "xpu_caching_allocator");
-
     }
 
 private:

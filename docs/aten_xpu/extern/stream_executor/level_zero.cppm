@@ -14,13 +14,12 @@ class SyclLevelZero
 {
 public:
     SyclLevelZero() = default;
+
     ~SyclLevelZero()
     {
-
         if (m_library != nullptr) {
             dlclose(m_library);
         }
-
     }
 
     SyclLevelZero(const SyclLevelZero&) = delete;
@@ -30,16 +29,13 @@ public:
 
     static SyclLevelZero& getInstance()
     {
-
         static SyclLevelZero instance;
         return instance;
-
     }
 
     std::optional<ze_device_handle_t>
     query_allocation_device(const sycl::context& context, const void* pointer)
     {
-
         if (!load()) {
             return std::nullopt;
         }
@@ -50,17 +46,14 @@ public:
         };
         ze_device_handle_t device = nullptr;
         if (m_mem_get_alloc_properties(native_context, pointer, &properties, &device) !=
-            ZE_RESULT_SUCCESS)
-        {
+            ZE_RESULT_SUCCESS) {
             return std::nullopt;
         }
         return device;
-
     }
 
     std::optional<ze_kernel_properties_t> query_kernel_properties(ze_kernel_handle_t kernel)
     {
-
         if (!load()) {
             return std::nullopt;
         }
@@ -70,7 +63,6 @@ public:
             return std::nullopt;
         }
         return properties;
-
     }
 
     std::expected<ze_kernel_handle_t, std::string> create_kernel(
@@ -80,7 +72,6 @@ public:
         const char* kernel_name
     )
     {
-
         if (!load()) {
             return std::unexpected{std::string{"libze_loader.so not available"}};
         }
@@ -94,8 +85,7 @@ public:
         ze_module_handle_t module_handle = nullptr;
         ze_module_build_log_handle_t build_log = nullptr;
         if (m_module_create(context, device, &module_description, &module_handle, &build_log) !=
-            ZE_RESULT_SUCCESS)
-        {
+            ZE_RESULT_SUCCESS) {
             return std::unexpected{read_build_log(build_log)};
         }
         m_module_build_log_destroy(build_log);
@@ -109,13 +99,11 @@ public:
             return std::unexpected{std::string{"zeKernelCreate failed"}};
         }
         return kernel;
-
     }
 
 private:
     bool load()
     {
-
         if (m_library != nullptr) {
             return true;
         }
@@ -132,27 +120,22 @@ private:
         resolve(m_module_build_log_get_string, "zeModuleBuildLogGetString");
         resolve(m_module_build_log_destroy, "zeModuleBuildLogDestroy");
         return true;
-
     }
 
     template<typename Function>
     void resolve(Function& target, const char* symbol)
     {
-
         target = reinterpret_cast<Function>(dlsym(m_library, symbol));
-
     }
 
     std::string read_build_log(ze_module_build_log_handle_t build_log)
     {
-
         std::size_t size = 0;
         m_module_build_log_get_string(build_log, &size, nullptr);
         m_scratch_log.resize(size);
         m_module_build_log_get_string(build_log, &size, m_scratch_log.data());
         m_module_build_log_destroy(build_log);
         return m_scratch_log;
-
     }
 
     void* m_library{nullptr};

@@ -30,17 +30,14 @@ public:
         m_algorithm{construction.getString("algorithm", "none")},
         m_binary{construction.getString("binary", "none")}
     {
-
         m_scalar_count = construction.getFloatList("scalars", m_scalars);
         if (m_unary == "none") {
             m_unary = SyclFusion::activation_name(construction.getInt64("activation", 0));
         }
-
     }
 
     void compute(SyclKernelContext& context)
     {
-
         auto input = context.getInput(0);
         auto weight = context.getInput(1);
         auto queue = context.getQueue();
@@ -83,7 +80,8 @@ public:
                 queue->get(),
                 input_matrix,
                 weight->get(),
-                bias ? std::optional<std::reference_wrapper<const SyclTensor>>{bias->get()} : std::nullopt,
+                bias ? std::optional<std::reference_wrapper<const SyclTensor>>{bias->get()}
+                     : std::nullopt,
                 output_matrix,
                 attributes,
                 true
@@ -95,13 +93,14 @@ public:
         }
         output_matrix.destroy();
         input_matrix.destroy();
-
     }
 
 private:
-    bool add_binary(SyclPostOpAttributes& attributes, std::optional<std::reference_wrapper<SyclTensor>> other) const
+    bool add_binary(
+        SyclPostOpAttributes& attributes,
+        std::optional<std::reference_wrapper<SyclTensor>> other
+    ) const
     {
-
         if (!other) {
             return false;
         }
@@ -113,24 +112,33 @@ private:
             {"div", dnnl::algorithm::binary_div},
             {"max", dnnl::algorithm::binary_max},
         }};
-        const auto found = std::ranges::find(k_binary, std::string_view{m_binary}, &std::pair<std::string_view, dnnl::algorithm>::first);
+        const auto found = std::ranges::find(
+            k_binary,
+            std::string_view{m_binary},
+            &std::pair<std::string_view, dnnl::algorithm>::first
+        );
         if (found == k_binary.end()) {
             return false;
         }
         attributes.addBinary(found->second, other->get(), true);
         return true;
-
     }
 
-    static SyclTensor& as_matrix(SyclTensor& tensor, int64_t rows, int64_t columns, SyclKernelContext& context)
+    static SyclTensor&
+    as_matrix(SyclTensor& tensor, int64_t rows, int64_t columns, SyclKernelContext& context)
     {
-
         const std::array<int64_t, 2> dims{rows, columns};
         const std::array<int64_t, 2> strides{columns, 1};
         ::TF_Tensor* handle = nullptr;
-        tensor.tensor_view(dims.data(), 2, strides.data(), tensor.getStorageOffset(), &handle, context.getStatus());
+        tensor.tensor_view(
+            dims.data(),
+            2,
+            strides.data(),
+            tensor.getStorageOffset(),
+            &handle,
+            context.getStatus()
+        );
         return SyclHandle::resolve_raw<SyclTensor>(handle);
-
     }
 
     std::string m_unary;
