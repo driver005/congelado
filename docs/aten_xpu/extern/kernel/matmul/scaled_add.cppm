@@ -23,7 +23,6 @@ public:
         int64_t activation
     )
     {
-
         SyclPostOpAttributes attributes;
         const bool with_addend = addend.has_value() && beta != 0.0F;
         if (!with_addend) {
@@ -41,7 +40,6 @@ public:
         }
         SyclFusion::add_unary(attributes, SyclFusion::activation_name(activation), {}, "none");
         return attributes;
-
     }
 };
 

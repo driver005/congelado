@@ -3,11 +3,11 @@ module;
 #include "include/c/extern/grappler/grappler.h"
 #include "include/c/extern/grappler/item.h"
 #include "include/c/extern/grappler/optimizer.h"
+#include "include/c/extern/kernel/construction.h"
+#include "include/c/extern/kernel/context.h"
 #include "include/c/extern/stream_executor/memory.h"
 #include "include/c/extern/stream_executor/platform.h"
 #include "include/c/extern/stream_executor/stream_executor.h"
-#include "include/c/extern/kernel/construction.h"
-#include "include/c/extern/kernel/context.h"
 #include "include/c/intern/buffer.h"
 #include "include/c/intern/datatype.h"
 #include "include/c/intern/status.h"
@@ -37,15 +37,12 @@ public:
 
     static SyclPluginRegistry& getInstance()
     {
-
         static SyclPluginRegistry registry;
         return registry;
-
     }
 
     void initialize()
     {
-
         if (m_initialized) {
             return;
         }
@@ -53,27 +50,42 @@ public:
         load_host_ops();
         load_plugin_ops();
         register_kernels();
-
     }
 
-    SyclOpsTable& getOps() noexcept { return m_ops; }
+    SyclOpsTable& getOps() noexcept
+    {
+        return m_ops;
+    }
 
-    const ::TF_PlatformOps& getPlatformOps() const noexcept { return m_platform.get_vtable(); }
+    const ::TF_PlatformOps& getPlatformOps() const noexcept
+    {
+        return m_platform.get_vtable();
+    }
 
-    const ::TF_MemoryOps& getMemoryOps() const noexcept { return m_memory.get_vtable(); }
+    const ::TF_MemoryOps& getMemoryOps() const noexcept
+    {
+        return m_memory.get_vtable();
+    }
 
     const ::TF_StreamExecutorOps& getStreamExecutorOps() const noexcept
     {
-
         return m_stream_executor.get_vtable();
-
     }
 
-    const ::TF_GrapplerOps& getGrapplerOps() const noexcept { return m_grappler.get_vtable(); }
+    const ::TF_GrapplerOps& getGrapplerOps() const noexcept
+    {
+        return m_grappler.get_vtable();
+    }
 
-    const ::TFGrapplerOptimizerOps& getOptimizerOps() const noexcept { return m_optimizer.get_vtable(); }
+    const ::TFGrapplerOptimizerOps& getOptimizerOps() const noexcept
+    {
+        return m_optimizer.get_vtable();
+    }
 
-    std::size_t getKernelCount() const noexcept { return m_kernel_count; }
+    std::size_t getKernelCount() const noexcept
+    {
+        return m_kernel_count;
+    }
 
 private:
     SyclPluginRegistry() :
@@ -99,7 +111,6 @@ private:
 
     void load_host_ops()
     {
-
         ::TF_StatusOps* status_ops = nullptr;
         ::TF_StringOps* string_ops = nullptr;
         ::TF_BufferOps* buffer_ops = nullptr;
@@ -119,12 +130,10 @@ private:
         m_ops.setKernelContextOps(context_ops);
         m_ops.setKernelConstructionOps(construction_ops);
         m_ops.setGrapplerItemOps(item_ops);
-
     }
 
     void load_plugin_ops()
     {
-
         m_platform.get_generic_vtable(&SyclPlatform::create);
         m_device.get_generic_vtable(&SyclDevice::create);
         m_executor.get_generic_vtable(&SyclExecutor::create);
@@ -155,12 +164,10 @@ private:
         if (m_platform.getDeviceCount() > 0) {
             SyclTensor::setPlacement(m_platform.getContext(), m_platform.getNativeDevice(0), 0);
         }
-
     }
 
     void register_kernels()
     {
-
         SyclKernelRegistrar registrar{m_ops};
         for (const auto type: {TF_FLOAT, TF_HALF, TF_BFLOAT16}) {
             registrar.add<SyclAddmmKernel>(SyclAddmmKernel::k_name, type);
@@ -169,7 +176,10 @@ private:
             registrar.add<SyclAddmvKernel>(SyclAddmvKernel::k_name, type);
             registrar.add<SyclLinearKernel>(SyclLinearKernel::k_name, type);
             registrar.add<SyclConvolutionKernel>(SyclConvolutionKernel::k_name, type);
-            registrar.add<SyclConvolutionBackwardKernel>(SyclConvolutionBackwardKernel::k_name, type);
+            registrar.add<SyclConvolutionBackwardKernel>(
+                SyclConvolutionBackwardKernel::k_name,
+                type
+            );
             registrar.add<SyclDeconvolutionKernel>(SyclDeconvolutionKernel::k_name, type);
             registrar.add<SyclWeightOnlyMatmulKernel>(SyclWeightOnlyMatmulKernel::k_name, type);
             registrar.add<SyclSdpaKernel>(SyclSdpaKernel::k_name, type);
@@ -185,7 +195,6 @@ private:
             registrar.add<SyclScaledMatmulKernel>(SyclScaledMatmulKernel::k_name, type);
         }
         m_kernel_count = registrar.getRegisteredCount();
-
     }
 
     SyclOpsTable& m_ops;

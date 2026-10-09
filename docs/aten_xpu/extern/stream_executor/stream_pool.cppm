@@ -23,25 +23,18 @@ public:
         int32_t priority
     )
     {
-
         const auto slot = slot_index(device_index, priority);
         ensure_filled(slot, context, device, priority);
 
         auto& counter = m_counters[slot];
         const auto position = counter % k_streams_per_priority;
         ++counter;
-        stream.bind(
-            m_queues[slot][position],
-            m_async_errors[slot][position],
-            device_index,
-            priority
-        );
-
+        stream
+            .bind(m_queues[slot][position], m_async_errors[slot][position], device_index, priority);
     }
 
     void synchronize(int device_index)
     {
-
         for (std::size_t level = 0; level < k_priority_count; ++level) {
             const auto slot = static_cast<std::size_t>(device_index) * k_priority_count + level;
             if (slot >= m_queues.size()) {
@@ -51,12 +44,10 @@ public:
                 queue->wait_and_throw();
             }
         }
-
     }
 
     static std::size_t priority_level(int32_t priority) noexcept
     {
-
         if (priority < 0) {
             return 2;
         }
@@ -64,13 +55,11 @@ public:
             return 0;
         }
         return 1;
-
     }
 
 private:
     std::size_t slot_index(int device_index, int32_t priority)
     {
-
         const auto slot =
             static_cast<std::size_t>(device_index) * k_priority_count + priority_level(priority);
         if (slot >= m_queues.size()) {
@@ -79,7 +68,6 @@ private:
             m_counters.resize(slot + 1, 0);
         }
         return slot;
-
     }
 
     void ensure_filled(
@@ -89,7 +77,6 @@ private:
         int32_t priority
     )
     {
-
         if (!m_queues[slot].empty()) {
             return;
         }
@@ -101,7 +88,6 @@ private:
             m_queues[slot].push_back(SyclStream::create_queue(context, device, priority, sink));
             m_async_errors[slot].push_back(std::move(sink));
         }
-
     }
 
     std::vector<std::vector<std::shared_ptr<sycl::queue>>> m_queues;

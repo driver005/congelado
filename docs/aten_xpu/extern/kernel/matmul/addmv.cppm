@@ -30,7 +30,6 @@ public:
 
     void compute(SyclKernelContext& context)
     {
-
         auto addend = context.getInput(0);
         auto matrix = context.getInput(1);
         auto vector = context.getInput(2);
@@ -59,19 +58,26 @@ public:
         addend_column.destroy();
         column.destroy();
         context.propagate();
-
     }
 
 private:
     static SyclTensor& as_column(SyclTensor& vector, SyclKernelContext& context)
     {
-
         const std::array<int64_t, 2> dims{vector.element_count(), 1};
-        const std::array<int64_t, 2> strides{vector.getStrides().empty() ? 0 : vector.getStrides()[0], 1};
+        const std::array<int64_t, 2> strides{
+            vector.getStrides().empty() ? 0 : vector.getStrides()[0],
+            1
+        };
         ::TF_Tensor* handle = nullptr;
-        vector.tensor_view(dims.data(), 2, strides.data(), vector.getStorageOffset(), &handle, context.getStatus());
+        vector.tensor_view(
+            dims.data(),
+            2,
+            strides.data(),
+            vector.getStorageOffset(),
+            &handle,
+            context.getStatus()
+        );
         return SyclHandle::resolve_raw<SyclTensor>(handle);
-
     }
 
     float m_alpha;

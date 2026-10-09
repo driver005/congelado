@@ -32,7 +32,6 @@ public:
 
     void compute(SyclKernelContext& context)
     {
-
         auto gradient_output = context.getInput(0);
         auto source = context.getInput(1);
         auto weight = context.getInput(2);
@@ -44,7 +43,8 @@ public:
         m_geometry.setSpatialRank(source->get().getDims().size() - 2);
 
         if (m_input_gradient) {
-            auto gradient_input = context.allocateOutput(0, source->get().getDtype(), source->get().getDims());
+            auto gradient_input =
+                context.allocateOutput(0, source->get().getDtype(), source->get().getDims());
             if (!gradient_input) {
                 context.propagate();
                 return;
@@ -59,7 +59,8 @@ public:
         }
 
         if (m_weight_gradient) {
-            auto gradient_weight = context.allocateOutput(1, weight->get().getDtype(), weight->get().getDims());
+            auto gradient_weight =
+                context.allocateOutput(1, weight->get().getDtype(), weight->get().getDims());
             if (!gradient_weight) {
                 context.propagate();
                 return;
@@ -82,7 +83,6 @@ public:
                 m_geometry
             );
         }
-
     }
 
 private:

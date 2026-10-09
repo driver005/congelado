@@ -10,12 +10,10 @@ import aten_xpu_test;
 namespace aten_xpu {
 
 class SyclStreamTest : public SyclTestFixture
-{
-};
+{};
 
 TEST_F(SyclStreamTest, PriorityIsKept)
 {
-
     for (const int32_t priority: {-1, 0, 1}) {
         auto stream = make_stream(priority);
         int32_t reported = 2;
@@ -23,12 +21,10 @@ TEST_F(SyclStreamTest, PriorityIsKept)
         EXPECT_EQ(reported, priority);
         release_stream(stream);
     }
-
 }
 
 TEST_F(SyclStreamTest, QueryAndSynchronize)
 {
-
     auto stream = make_stream();
     stream.synchronize(getStatus());
     _Bool idle = false;
@@ -36,12 +32,10 @@ TEST_F(SyclStreamTest, QueryAndSynchronize)
     EXPECT_TRUE(ok());
     EXPECT_TRUE(idle);
     release_stream(stream);
-
 }
 
 TEST_F(SyclStreamTest, StreamPoolRoundRobin)
 {
-
     constexpr std::size_t k_rounds = SyclStreamPool::k_streams_per_priority + 1;
     std::set<void*> handles;
     void* first = nullptr;
@@ -61,12 +55,10 @@ TEST_F(SyclStreamTest, StreamPoolRoundRobin)
         stream.destroy();
     }
     EXPECT_EQ(handles.size(), SyclStreamPool::k_streams_per_priority);
-
 }
 
 TEST_F(SyclStreamTest, CurrentStreamIsPerThread)
 {
-
     auto stream = make_stream();
     getExecutor().set_current_stream(getDevice(), stream, getStatus());
 
@@ -80,25 +72,25 @@ TEST_F(SyclStreamTest, CurrentStreamIsPerThread)
     EXPECT_EQ(expected, actual);
 
     void* other_thread = nullptr;
-    std::thread worker{[&]()
-                       {
-                           ice::sonic::TF_StreamOps worker_stream{SyclOpsTable::getInstance().getStreamOps()};
-                           worker_stream.create();
-                           getExecutor().get_current_stream(getDevice(), worker_stream, getStatus());
-                           worker_stream.get_native_handle(&other_thread);
-                           worker_stream.destroy();
-                       }};
+    std::thread worker{
+        [&]()
+        {
+            ice::sonic::TF_StreamOps worker_stream{SyclOpsTable::getInstance().getStreamOps()};
+            worker_stream.create();
+            getExecutor().get_current_stream(getDevice(), worker_stream, getStatus());
+            worker_stream.get_native_handle(&other_thread);
+            worker_stream.destroy();
+        }
+    };
     worker.join();
     EXPECT_NE(other_thread, expected);
 
     current.destroy();
     release_stream(stream);
-
 }
 
 TEST_F(SyclStreamTest, ExternalQueue)
 {
-
     auto stream = make_stream();
     void* native = nullptr;
     stream.get_native_handle(&native);
@@ -111,7 +103,6 @@ TEST_F(SyclStreamTest, ExternalQueue)
     EXPECT_TRUE(ok());
     external.destroy();
     release_stream(stream);
-
 }
 
 } // namespace aten_xpu

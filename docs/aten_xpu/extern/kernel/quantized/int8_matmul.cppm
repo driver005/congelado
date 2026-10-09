@@ -45,14 +45,11 @@ public:
         m_other_scale{construction.getFloat("other_scale", 1.0F)},
         m_other_zero_point{construction.getInt64("other_zero_point", 0)}
     {
-
         m_scalar_count = construction.getFloatList("scalars", m_scalars);
-
     }
 
     void compute(SyclKernelContext& context)
     {
-
         auto source = context.getInput(k_source);
         auto weight = context.getInput(k_weight);
         auto source_scale = context.getInput(k_source_scale);
@@ -89,12 +86,12 @@ public:
                 m_binary,
                 m_other_scale,
                 m_other_zero_point,
-                other ? std::optional<std::reference_wrapper<const SyclTensor>>{other->get()} : std::nullopt,
+                other ? std::optional<std::reference_wrapper<const SyclTensor>>{other->get()}
+                      : std::nullopt,
                 m_unary,
                 scalars,
                 m_algorithm
-            ))
-        {
+            )) {
             context.fail(TF_INVALID_ARGUMENT, "unsupported quantized matmul post op");
             return;
         }
@@ -110,14 +107,26 @@ public:
             quantization.setDestinationZeroPoint(output_zero_point->get());
         }
 
-        const dnnl::memory::desc source_desc{{rows, inner}, SyclOnednnLayout::data_type(source->get().getDtype()).value(), dnnl::memory::format_tag::ab};
+        const dnnl::memory::desc source_desc{
+            {rows, inner},
+            SyclOnednnLayout::data_type(source->get().getDtype()).value(),
+            dnnl::memory::format_tag::ab
+        };
         const auto weight_type = SyclOnednnLayout::data_type(weight->get().getDtype()).value();
-        const dnnl::memory::desc weight_desc = m_weight_transposed
-                                                   ? dnnl::memory::desc{{inner, columns}, weight_type, dnnl::memory::format_tag::ba}
-                                                   : dnnl::memory::desc{{inner, columns}, weight_type, dnnl::memory::format_tag::ab};
-        const dnnl::memory::desc output_desc{{rows, columns}, SyclOnednnLayout::data_type(m_output_type).value(), dnnl::memory::format_tag::ab};
-        const auto bias_desc = bias ? dnnl::memory::desc{{1, columns}, SyclOnednnLayout::data_type(bias->get().getDtype()).value(), dnnl::memory::format_tag::ab}
-                                    : dnnl::memory::desc{};
+        const dnnl::memory::desc weight_desc =
+            m_weight_transposed
+                ? dnnl::memory::desc{{inner, columns}, weight_type, dnnl::memory::format_tag::ba}
+                : dnnl::memory::desc{{inner, columns}, weight_type, dnnl::memory::format_tag::ab};
+        const dnnl::memory::desc output_desc{
+            {rows, columns},
+            SyclOnednnLayout::data_type(m_output_type).value(),
+            dnnl::memory::format_tag::ab
+        };
+        const auto bias_desc =
+            bias
+                ? dnnl::memory::
+                      desc{{1, columns}, SyclOnednnLayout::data_type(bias->get().getDtype()).value(), dnnl::memory::format_tag::ab}
+                : dnnl::memory::desc{};
 
         auto attributes = SyclPrimitiveExecutor::user_scratchpad_attributes();
         quantization.apply(attributes);
@@ -125,8 +134,16 @@ public:
 
         SyclPrimitiveExecutor executor{queue->get()};
         const auto primitive_desc =
-            bias ? dnnl::matmul::primitive_desc{executor.getEngine(), source_desc, weight_desc, bias_desc, output_desc, attributes}
-                 : dnnl::matmul::primitive_desc{executor.getEngine(), source_desc, weight_desc, output_desc, attributes};
+            bias
+                ? dnnl::matmul::
+                      primitive_desc{executor.getEngine(), source_desc, weight_desc, bias_desc, output_desc, attributes}
+                : dnnl::matmul::primitive_desc{
+                      executor.getEngine(),
+                      source_desc,
+                      weight_desc,
+                      output_desc,
+                      attributes
+                  };
         executor.addArgument(DNNL_ARG_SRC, source_desc, source->get().getData());
         executor.addArgument(DNNL_ARG_WEIGHTS, weight_desc, weight->get().getData());
         executor.addArgument(DNNL_ARG_DST, output_desc, output->get().getData());
@@ -136,15 +153,13 @@ public:
         quantization.add_arguments(executor);
         post_ops.add_binary_arguments(executor.getEngine(), executor.getArguments());
         executor.execute(dnnl::matmul{primitive_desc}, primitive_desc);
-
     }
 
 private:
-    static std::optional<std::reference_wrapper<SyclTensor>> optional_input(SyclKernelContext& context, int index)
+    static std::optional<std::reference_wrapper<SyclTensor>>
+    optional_input(SyclKernelContext& context, int index)
     {
-
         return context.getInputCount() > index ? context.getInput(index) : std::nullopt;
-
     }
 
     TFDataTypeEnum m_output_type;

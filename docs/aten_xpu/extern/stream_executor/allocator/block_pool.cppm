@@ -28,42 +28,58 @@ public:
 
     ~SyclBlockPool()
     {
-
         for (auto* block: m_blocks) {
             delete block;
         }
         for (auto* block: m_unmapped) {
             delete block;
         }
-
     }
 
-    void addAllocation() noexcept { ++m_allocation_count; }
+    void addAllocation() noexcept
+    {
+        ++m_allocation_count;
+    }
 
-    bool getIsSmall() const noexcept { return m_is_small; }
+    bool getIsSmall() const noexcept
+    {
+        return m_is_small;
+    }
 
-    const TF_PoolId& getOwner() const noexcept { return m_owner; }
+    const TF_PoolId& getOwner() const noexcept
+    {
+        return m_owner;
+    }
 
-    int getAllocationCount() const noexcept { return m_allocation_count; }
+    int getAllocationCount() const noexcept
+    {
+        return m_allocation_count;
+    }
 
-    SizeOrderedSet& getBlocks() noexcept { return m_blocks; }
+    SizeOrderedSet& getBlocks() noexcept
+    {
+        return m_blocks;
+    }
 
-    AddressOrderedSet& getUnmapped() noexcept { return m_unmapped; }
+    AddressOrderedSet& getUnmapped() noexcept
+    {
+        return m_unmapped;
+    }
 
     void remove_allocation() noexcept
     {
-
         if (m_allocation_count > 0) {
             --m_allocation_count;
         }
-
     }
 
-    bool is_default() const noexcept { return m_owner.first == 0 && m_owner.second == 0; }
+    bool is_default() const noexcept
+    {
+        return m_owner.first == 0 && m_owner.second == 0;
+    }
 
     SyclBlock* take_best_fit(sycl::queue* queue, std::size_t size, bool use_expandable)
     {
-
         SyclBlock key{queue, size};
         auto found = m_blocks.lower_bound(&key);
         if (found == m_blocks.end() || (*found)->getQueue() != queue) {
@@ -83,7 +99,6 @@ public:
         auto* block = *found;
         m_blocks.erase(found);
         return block;
-
     }
 
 private:

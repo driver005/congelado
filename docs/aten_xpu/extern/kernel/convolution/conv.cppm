@@ -28,17 +28,14 @@ public:
         m_algorithm{construction.getString("algorithm", "none")},
         m_binary{construction.getString("binary", "none")}
     {
-
         m_scalar_count = construction.getFloatList("scalars", m_scalars);
         if (m_unary == "none") {
             m_unary = SyclFusion::activation_name(construction.getInt64("activation", 0));
         }
-
     }
 
     void compute(SyclKernelContext& context)
     {
-
         auto source = context.getInput(0);
         auto weight = context.getInput(1);
         auto queue = context.getQueue();
@@ -67,12 +64,12 @@ public:
             queue->get(),
             source->get(),
             weight->get(),
-            bias ? std::optional<std::reference_wrapper<const SyclTensor>>{bias->get()} : std::nullopt,
+            bias ? std::optional<std::reference_wrapper<const SyclTensor>>{bias->get()}
+                 : std::nullopt,
             output->get(),
             m_geometry,
             attributes
         );
-
     }
 
 private:
@@ -81,7 +78,6 @@ private:
         std::optional<std::reference_wrapper<SyclTensor>> other
     ) const
     {
-
         const auto scalars = std::span<const float>{m_scalars}.first(m_scalar_count);
         if (m_binary == "none") {
             return SyclFusion::add_unary(attributes, m_unary, scalars, m_algorithm);
@@ -91,12 +87,12 @@ private:
             m_binary == "add" ? "add" : "sum",
             1.0F,
             0,
-            other ? std::optional<std::reference_wrapper<const SyclTensor>>{other->get()} : std::nullopt,
+            other ? std::optional<std::reference_wrapper<const SyclTensor>>{other->get()}
+                  : std::nullopt,
             m_unary,
             scalars,
             m_algorithm
         );
-
     }
 
     SyclConvolutionGeometry m_geometry;

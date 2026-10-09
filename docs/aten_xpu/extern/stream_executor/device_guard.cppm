@@ -16,16 +16,25 @@ public:
     {
     }
 
-    ~SyclDeviceGuard() { m_platform.exchange_device(m_original_index); }
+    ~SyclDeviceGuard()
+    {
+        m_platform.exchange_device(m_original_index);
+    }
 
     SyclDeviceGuard(const SyclDeviceGuard&) = delete;
     SyclDeviceGuard& operator=(const SyclDeviceGuard&) = delete;
     SyclDeviceGuard(SyclDeviceGuard&&) = delete;
     SyclDeviceGuard& operator=(SyclDeviceGuard&&) = delete;
 
-    void reset_device(int device_index) { m_platform.exchange_device(device_index); }
+    void reset_device(int device_index)
+    {
+        m_platform.exchange_device(device_index);
+    }
 
-    int getOriginalIndex() const noexcept { return m_original_index; }
+    int getOriginalIndex() const noexcept
+    {
+        return m_original_index;
+    }
 
 private:
     SyclPlatform& m_platform;

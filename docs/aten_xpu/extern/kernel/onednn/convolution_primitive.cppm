@@ -29,7 +29,6 @@ public:
         const SyclPostOpAttributes& post_ops
     )
     {
-
         SyclPrimitiveExecutor executor{queue};
         const auto source_desc = SyclOnednnLayout::desc(source);
         const auto weight_desc = convolution_weight_desc(weight, geometry.getGroups());
@@ -61,7 +60,6 @@ public:
         }
         post_ops.add_binary_arguments(executor.getEngine(), executor.getArguments());
         return executor.execute(dnnl::convolution_forward{primitive_desc}, primitive_desc);
-
     }
 
     static sycl::event backward_data(
@@ -72,7 +70,6 @@ public:
         const SyclConvolutionGeometry& geometry
     )
     {
-
         SyclPrimitiveExecutor executor{queue};
         const auto gradient_input_desc = SyclOnednnLayout::desc(gradient_input);
         const auto weight_desc = convolution_weight_desc(weight, geometry.getGroups());
@@ -108,7 +105,6 @@ public:
         executor.addArgument(DNNL_ARG_WEIGHTS, weight_desc, weight.getData());
         executor.addArgument(DNNL_ARG_DIFF_SRC, gradient_input_desc, gradient_input.getData());
         return executor.execute(dnnl::convolution_backward_data{primitive_desc}, primitive_desc);
-
     }
 
     static sycl::event backward_weights(
@@ -120,12 +116,13 @@ public:
         const SyclConvolutionGeometry& geometry
     )
     {
-
         SyclPrimitiveExecutor executor{queue};
         const auto source_desc = SyclOnednnLayout::desc(source);
-        const auto gradient_weight_desc = convolution_weight_desc(gradient_weight, geometry.getGroups());
+        const auto gradient_weight_desc =
+            convolution_weight_desc(gradient_weight, geometry.getGroups());
         const auto gradient_output_desc = SyclOnednnLayout::desc(gradient_output);
-        const auto gradient_bias_desc = gradient_bias ? vector_desc(gradient_bias->get()) : dnnl::memory::desc{};
+        const auto gradient_bias_desc =
+            gradient_bias ? vector_desc(gradient_bias->get()) : dnnl::memory::desc{};
 
         const dnnl::convolution_forward::primitive_desc hint{
             executor.getEngine(),
@@ -157,12 +154,16 @@ public:
 
         executor.addArgument(DNNL_ARG_SRC, source_desc, source.getData());
         executor.addArgument(DNNL_ARG_DIFF_DST, gradient_output_desc, gradient_output.getData());
-        executor.addArgument(DNNL_ARG_DIFF_WEIGHTS, gradient_weight_desc, gradient_weight.getData());
+        executor
+            .addArgument(DNNL_ARG_DIFF_WEIGHTS, gradient_weight_desc, gradient_weight.getData());
         if (gradient_bias) {
-            executor.addArgument(DNNL_ARG_DIFF_BIAS, gradient_bias_desc, gradient_bias->get().getData());
+            executor.addArgument(
+                DNNL_ARG_DIFF_BIAS,
+                gradient_bias_desc,
+                gradient_bias->get().getData()
+            );
         }
         return executor.execute(dnnl::convolution_backward_weights{primitive_desc}, primitive_desc);
-
     }
 
     static sycl::event deconvolution(
@@ -175,7 +176,6 @@ public:
         const SyclPostOpAttributes& post_ops
     )
     {
-
         SyclPrimitiveExecutor executor{queue};
         const auto source_desc = SyclOnednnLayout::desc(source);
         const auto weight_desc = deconvolution_weight_desc(weight, geometry.getGroups());
@@ -207,13 +207,12 @@ public:
         }
         post_ops.add_binary_arguments(executor.getEngine(), executor.getArguments());
         return executor.execute(dnnl::deconvolution_forward{primitive_desc}, primitive_desc);
-
     }
 
     static dnnl::memory::desc convolution_weight_desc(const SyclTensor& weight, int64_t groups)
     {
-
-        const auto type = SyclOnednnLayout::data_type(weight.getDtype()).value_or(dnnl::memory::data_type::f32);
+        const auto type =
+            SyclOnednnLayout::data_type(weight.getDtype()).value_or(dnnl::memory::data_type::f32);
         const auto& dims = weight.getDims();
         const auto& strides = weight.getStrides();
         if (groups == 1) {
@@ -225,13 +224,12 @@ public:
         grouped_dims.insert(grouped_dims.end(), dims.begin() + 1, dims.end());
         grouped_strides.insert(grouped_strides.end(), strides.begin() + 1, strides.end());
         return dnnl::memory::desc{grouped_dims, type, grouped_strides};
-
     }
 
     static dnnl::memory::desc deconvolution_weight_desc(const SyclTensor& weight, int64_t groups)
     {
-
-        const auto type = SyclOnednnLayout::data_type(weight.getDtype()).value_or(dnnl::memory::data_type::f32);
+        const auto type =
+            SyclOnednnLayout::data_type(weight.getDtype()).value_or(dnnl::memory::data_type::f32);
         const auto& dims = weight.getDims();
         const auto& strides = weight.getStrides();
         const auto input_per_group = dims[0] / groups;
@@ -249,16 +247,14 @@ public:
         result_dims.insert(result_dims.end(), dims.begin() + 2, dims.end());
         result_strides.insert(result_strides.end(), strides.begin() + 2, strides.end());
         return dnnl::memory::desc{result_dims, type, result_strides};
-
     }
 
 private:
     static dnnl::memory::desc vector_desc(const SyclTensor& tensor)
     {
-
-        const auto type = SyclOnednnLayout::data_type(tensor.getDtype()).value_or(dnnl::memory::data_type::f32);
+        const auto type =
+            SyclOnednnLayout::data_type(tensor.getDtype()).value_or(dnnl::memory::data_type::f32);
         return dnnl::memory::desc{{tensor.element_count()}, type, dnnl::memory::format_tag::x};
-
     }
 };
 

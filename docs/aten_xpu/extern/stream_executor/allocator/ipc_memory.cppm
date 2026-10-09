@@ -23,7 +23,10 @@ public:
     {
     }
 
-    ~SyclIpcMemory() { close_all(); }
+    ~SyclIpcMemory()
+    {
+        close_all();
+    }
 
     SyclIpcMemory(const SyclIpcMemory&) = delete;
     SyclIpcMemory& operator=(const SyclIpcMemory&) = delete;
@@ -37,7 +40,6 @@ public:
         TF_IpcMemoryHandle& out_handle
     ) const
     {
-
         namespace ipc_memory = sycl::ext::oneapi::experimental::ipc_memory;
 
         const auto handle_data = ipc_memory::get(segment_base, m_context).data();
@@ -53,12 +55,10 @@ public:
         std::memcpy(out_handle.data + k_header_size, handle_data.data(), handle_data.size());
         out_handle.data_size = k_header_size + handle_data.size();
         out_handle.allocation_size = allocation_size;
-
     }
 
     void* open(const TF_IpcMemoryHandle& handle)
     {
-
         namespace ipc_memory = sycl::ext::oneapi::experimental::ipc_memory;
 
         if (handle.data[0] > k_handle_version || handle.data[1] != k_handle_type_device_malloc) {
@@ -84,12 +84,10 @@ public:
         auto* pointer = static_cast<std::byte*>(found->second.first) + offset;
         m_pointer_keys.emplace(pointer, key);
         return pointer;
-
     }
 
     bool close(void* pointer)
     {
-
         const auto key_entry = m_pointer_keys.find(pointer);
         if (key_entry == m_pointer_keys.end()) {
             return false;
@@ -102,13 +100,11 @@ public:
             m_opened.erase(found);
         }
         return true;
-
     }
 
 private:
     void close_all() noexcept
     {
-
         for (auto& [key, entry]: m_opened) {
             try {
                 sycl::ext::oneapi::experimental::ipc_memory::close(entry.first, m_context);
@@ -117,7 +113,6 @@ private:
         }
         m_opened.clear();
         m_pointer_keys.clear();
-
     }
 
     sycl::context m_context;

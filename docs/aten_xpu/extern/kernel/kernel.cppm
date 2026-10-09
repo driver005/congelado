@@ -31,7 +31,6 @@ public:
 
     static void create_kernel(::TF_OpKernelConstruction* raw_construction, void** out_plugin_data)
     {
-
         SyclKernelConstruction construction{raw_construction};
         auto* kernel = new Derived{SyclOpsTable::getInstance(), construction};
         if (!construction.ok()) {
@@ -40,12 +39,10 @@ public:
             return;
         }
         *out_plugin_data = kernel;
-
     }
 
     static void compute_kernel(void* plugin_data, ::TF_OpKernelContext* raw_context)
     {
-
         SyclKernelContext context{raw_context};
         if (plugin_data == nullptr) {
             context.fail(TF_FAILED_PRECONDITION, "kernel construction failed");
@@ -56,18 +53,21 @@ public:
         } catch (const std::exception& error) {
             context.fail_from(error);
         }
-
     }
 
-    static void delete_kernel(void* plugin_data) { delete static_cast<Derived*>(plugin_data); }
+    static void delete_kernel(void* plugin_data)
+    {
+        delete static_cast<Derived*>(plugin_data);
+    }
 
-    void destroy() noexcept override { delete this; }
+    void destroy() noexcept override
+    {
+        delete this;
+    }
 
     void get_name(const ice::sonic::String& out_name) noexcept override
     {
-
         m_status.copy_into(out_name, Derived::k_name);
-
     }
 
 private:

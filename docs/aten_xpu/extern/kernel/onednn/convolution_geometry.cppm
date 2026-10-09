@@ -16,7 +16,6 @@ public:
 
     static SyclConvolutionGeometry from_construction(SyclKernelConstruction& construction)
     {
-
         SyclConvolutionGeometry geometry;
         std::array<int64_t, k_max_spatial_rank> values{};
         if (const auto count = construction.getInt64List("stride", values); count > 0) {
@@ -33,83 +32,94 @@ public:
         }
         geometry.setGroups(construction.getInt64("groups", 1));
         return geometry;
-
     }
 
-    void setStride(std::span<const int64_t> stride) { m_stride.assign(stride.begin(), stride.end()); }
+    void setStride(std::span<const int64_t> stride)
+    {
+        m_stride.assign(stride.begin(), stride.end());
+    }
 
     void setPadding(std::span<const int64_t> padding)
     {
-
         m_padding_left.assign(padding.begin(), padding.end());
         m_padding_right.assign(padding.begin(), padding.end());
-
     }
 
     void setOutputPadding(std::span<const int64_t> output_padding)
     {
-
         m_output_padding.assign(output_padding.begin(), output_padding.end());
-
     }
 
     void setDilation(std::span<const int64_t> dilation)
     {
-
         m_dilation.assign(dilation.begin(), dilation.end());
-
     }
 
-    void setGroups(int64_t groups) noexcept { m_groups = groups; }
+    void setGroups(int64_t groups) noexcept
+    {
+        m_groups = groups;
+    }
 
     void setSpatialRank(std::size_t rank)
     {
-
         m_stride.resize(rank, m_stride.empty() ? 1 : m_stride.back());
         m_padding_left.resize(rank, m_padding_left.empty() ? 0 : m_padding_left.back());
         m_padding_right.resize(rank, m_padding_right.empty() ? 0 : m_padding_right.back());
         m_output_padding.resize(rank, 0);
         m_dilation.resize(rank, m_dilation.empty() ? 1 : m_dilation.back());
-
     }
 
-    const dnnl::memory::dims& getStride() const noexcept { return m_stride; }
+    const dnnl::memory::dims& getStride() const noexcept
+    {
+        return m_stride;
+    }
 
-    const dnnl::memory::dims& getPaddingLeft() const noexcept { return m_padding_left; }
+    const dnnl::memory::dims& getPaddingLeft() const noexcept
+    {
+        return m_padding_left;
+    }
 
-    const dnnl::memory::dims& getPaddingRight() const noexcept { return m_padding_right; }
+    const dnnl::memory::dims& getPaddingRight() const noexcept
+    {
+        return m_padding_right;
+    }
 
-    const dnnl::memory::dims& getOutputPadding() const noexcept { return m_output_padding; }
+    const dnnl::memory::dims& getOutputPadding() const noexcept
+    {
+        return m_output_padding;
+    }
 
-    const dnnl::memory::dims& getDilation() const noexcept { return m_dilation; }
+    const dnnl::memory::dims& getDilation() const noexcept
+    {
+        return m_dilation;
+    }
 
-    int64_t getGroups() const noexcept { return m_groups; }
+    int64_t getGroups() const noexcept
+    {
+        return m_groups;
+    }
 
     dnnl::memory::dims onednn_dilation() const
     {
-
         dnnl::memory::dims result = m_dilation;
         for (auto& value: result) {
             value -= 1;
         }
         return result;
-
     }
 
     dnnl::memory::dims transposed_padding_right() const
     {
-
         dnnl::memory::dims result = m_padding_right;
         for (std::size_t index = 0; index < result.size(); ++index) {
             result[index] -= m_output_padding[index];
         }
         return result;
-
     }
 
-    dnnl::memory::dims output_dims(std::span<const int64_t> source, std::span<const int64_t> weight) const
+    dnnl::memory::dims
+    output_dims(std::span<const int64_t> source, std::span<const int64_t> weight) const
     {
-
         dnnl::memory::dims result(source.size());
         result[0] = source[0];
         result[1] = weight[0];
@@ -122,12 +132,11 @@ public:
                 1;
         }
         return result;
-
     }
 
-    dnnl::memory::dims transposed_output_dims(std::span<const int64_t> source, std::span<const int64_t> weight) const
+    dnnl::memory::dims
+    transposed_output_dims(std::span<const int64_t> source, std::span<const int64_t> weight) const
     {
-
         dnnl::memory::dims result(source.size());
         result[0] = source[0];
         result[1] = weight[1] * m_groups;
@@ -138,7 +147,6 @@ public:
                             m_output_padding[spatial] + 1;
         }
         return result;
-
     }
 
 private:

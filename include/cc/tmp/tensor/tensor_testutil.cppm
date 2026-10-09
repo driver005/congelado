@@ -116,7 +116,7 @@ export {
                 kNone,
                 kDefault,
             };
-            void ExpectEqual(const Tensor& x, const Tensor& y, Tolerance t = Tolerance ::kDefault);
+            void ExpectEqual(const Tensor& x, const Tensor& y, Tolerance t = Tolerance::kDefault);
 
             // Expects "x" and "y" are tensors of the same (floating point) type,
             // same shape and element-wise difference between x and y is no more

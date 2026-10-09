@@ -17,21 +17,20 @@ export namespace aten_xpu {
 class SyclOnednnSdpa
 {
 public:
-    using Entry = std::pair<dnnl::graph::compiled_partition, std::vector<dnnl::graph::logical_tensor>>;
+    using Entry =
+        std::pair<dnnl::graph::compiled_partition, std::vector<dnnl::graph::logical_tensor>>;
 
     SyclOnednnSdpa() = delete;
 
-    static sycl::event run(
-        sycl::queue& queue,
+    static sycl::event
+    run(sycl::queue& queue,
         const SyclTensor& query,
         const SyclTensor& key,
         const SyclTensor& value,
         std::optional<std::reference_wrapper<const SyclTensor>> mask,
         SyclTensor& output,
-        float scale
-    )
+        float scale)
     {
-
         auto& engine = SyclEngineCache::getInstance().getEngine(queue);
         auto& stream = SyclEngineCache::getInstance().getStream(queue);
         const auto type = to_graph_type(query.getDtype());
@@ -39,7 +38,9 @@ public:
 
         auto found = s_cache.find(key_text);
         if (found == s_cache.end()) {
-            found = s_cache.emplace(key_text, compile(engine, query, key, value, mask, output, type)).first;
+            found =
+                s_cache.emplace(key_text, compile(engine, query, key, value, mask, output, type))
+                    .first;
         }
         auto& [partition, inputs] = found->second;
 
@@ -51,12 +52,21 @@ public:
         input_tensors.emplace_back(inputs[2], engine, const_cast<float*>(&scale_value));
         std::size_t next = 3;
         if (mask) {
-            input_tensors.emplace_back(inputs[next++], engine, const_cast<void*>(mask->get().getData()));
+            input_tensors
+                .emplace_back(inputs[next++], engine, const_cast<void*>(mask->get().getData()));
         }
         input_tensors.emplace_back(inputs[next], engine, const_cast<void*>(value.getData()));
-        const dnnl::graph::tensor output_tensor{partition.query_logical_tensor(k_output_id), engine, output.getData()};
-        return dnnl::graph::sycl_interop::execute(partition, stream, input_tensors, {output_tensor});
-
+        const dnnl::graph::tensor output_tensor{
+            partition.query_logical_tensor(k_output_id),
+            engine,
+            output.getData()
+        };
+        return dnnl::graph::sycl_interop::execute(
+            partition,
+            stream,
+            input_tensors,
+            {output_tensor}
+        );
     }
 
 private:
@@ -73,7 +83,6 @@ private:
 
     static dnnl::graph::logical_tensor::data_type to_graph_type(TFDataTypeEnum dtype) noexcept
     {
-
         using data_type = dnnl::graph::logical_tensor::data_type;
         switch (dtype) {
             case TF_HALF:
@@ -83,15 +92,20 @@ private:
             default:
                 return data_type::f32;
         }
-
     }
 
-    static dnnl::graph::logical_tensor
-    tensor_of(std::size_t identifier, const std::vector<int64_t>& dims, dnnl::graph::logical_tensor::data_type type)
+    static dnnl::graph::logical_tensor tensor_of(
+        std::size_t identifier,
+        const std::vector<int64_t>& dims,
+        dnnl::graph::logical_tensor::data_type type
+    )
     {
-
-        return dnnl::graph::logical_tensor{identifier, type, dims, dnnl::graph::logical_tensor::layout_type::strided};
-
+        return dnnl::graph::logical_tensor{
+            identifier,
+            type,
+            dims,
+            dnnl::graph::logical_tensor::layout_type::strided
+        };
     }
 
     static Entry compile(
@@ -104,7 +118,6 @@ private:
         dnnl::graph::logical_tensor::data_type type
     )
     {
-
         using graph_op = dnnl::graph::op;
         using float_type = dnnl::graph::logical_tensor::data_type;
 
@@ -119,9 +132,21 @@ private:
         const auto value_tensor = tensor_of(k_value_id, value.getDims(), type);
         const auto output_tensor = tensor_of(k_output_id, output.getDims(), type);
 
-        graph_op first_matmul{0, graph_op::kind::MatMul, {query_tensor, key_tensor}, {scores_tensor}, "query_key"};
+        graph_op first_matmul{
+            0,
+            graph_op::kind::MatMul,
+            {query_tensor, key_tensor},
+            {scores_tensor},
+            "query_key"
+        };
         first_matmul.set_attr<bool>(dnnl::graph::op::attr::transpose_b, true);
-        graph_op scale_op{1, graph_op::kind::Multiply, {scores_tensor, scale_tensor}, {scaled_tensor}, "scale"};
+        graph_op scale_op{
+            1,
+            graph_op::kind::Multiply,
+            {scores_tensor, scale_tensor},
+            {scaled_tensor},
+            "scale"
+        };
 
         dnnl::graph::graph graph{engine.get_kind()};
         graph.add_op(first_matmul);
@@ -130,16 +155,32 @@ private:
         auto softmax_input = scaled_tensor;
         std::vector<dnnl::graph::logical_tensor> inputs{query_tensor, key_tensor, scale_tensor};
         if (mask) {
-            const auto mask_tensor = tensor_of(k_mask_id, mask->get().getDims(), to_graph_type(mask->get().getDtype()));
+            const auto mask_tensor =
+                tensor_of(k_mask_id, mask->get().getDims(), to_graph_type(mask->get().getDtype()));
             const auto masked_tensor = tensor_of(k_masked_id, scores_dims, float_type::f32);
-            graph.add_op(graph_op{2, graph_op::kind::Add, {scaled_tensor, mask_tensor}, {masked_tensor}, "mask"});
+            graph.add_op(
+                graph_op{
+                    2,
+                    graph_op::kind::Add,
+                    {scaled_tensor, mask_tensor},
+                    {masked_tensor},
+                    "mask"
+                }
+            );
             inputs.push_back(mask_tensor);
             softmax_input = masked_tensor;
         }
 
-        graph_op softmax{3, graph_op::kind::SoftMax, {softmax_input}, {probabilities_tensor}, "softmax"};
+        graph_op
+            softmax{3, graph_op::kind::SoftMax, {softmax_input}, {probabilities_tensor}, "softmax"};
         softmax.set_attr<int64_t>(dnnl::graph::op::attr::axis, -1);
-        graph_op second_matmul{4, graph_op::kind::MatMul, {probabilities_tensor, value_tensor}, {output_tensor}, "probabilities_value"};
+        graph_op second_matmul{
+            4,
+            graph_op::kind::MatMul,
+            {probabilities_tensor, value_tensor},
+            {output_tensor},
+            "probabilities_value"
+        };
         graph.add_op(softmax);
         graph.add_op(second_matmul);
         graph.finalize();
@@ -154,7 +195,6 @@ private:
             input = compiled.query_logical_tensor(input.get_id());
         }
         return Entry{std::move(compiled), std::move(inputs)};
-
     }
 
     static std::string cache_key(
@@ -164,7 +204,6 @@ private:
         dnnl::graph::logical_tensor::data_type type
     )
     {
-
         std::string text = std::format("t{}", static_cast<int>(type));
         for (const auto* dims: {&query.getDims(), &key.getDims()}) {
             for (const auto value: *dims) {
@@ -177,7 +216,6 @@ private:
             }
         }
         return text;
-
     }
 
     static inline std::map<std::string, Entry> s_cache;

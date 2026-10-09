@@ -18,7 +18,10 @@ public:
     {
     }
 
-    ~SyclHostCache() { release_all(); }
+    ~SyclHostCache()
+    {
+        release_all();
+    }
 
     SyclHostCache(const SyclHostCache&) = delete;
     SyclHostCache& operator=(const SyclHostCache&) = delete;
@@ -27,7 +30,6 @@ public:
 
     void* allocate(std::size_t size)
     {
-
         process_events();
 
         const auto rounded = std::bit_ceil(std::max(size, k_host_alignment));
@@ -49,21 +51,17 @@ public:
             m_reserved_bytes += rounded;
         }
         return pointer;
-
     }
 
     void record_stream(void* pointer, sycl::queue& queue)
     {
-
         if (m_sizes.contains(pointer)) {
             m_pending_streams[pointer].insert(&queue);
         }
-
     }
 
     bool deallocate(void* pointer)
     {
-
         const auto found = m_sizes.find(pointer);
         if (found == m_sizes.end()) {
             return false;
@@ -80,19 +78,15 @@ public:
         }
         m_outstanding[pointer] = static_cast<int>(streams.mapped().size());
         return true;
-
     }
 
     bool owns(const void* pointer) const
     {
-
         return m_sizes.contains(const_cast<void*>(pointer));
-
     }
 
     void empty_cache()
     {
-
         process_events();
         for (auto& [size, bucket]: m_free) {
             for (void* pointer: bucket) {
@@ -102,23 +96,22 @@ public:
             }
             bucket.clear();
         }
-
     }
 
-    std::size_t getReservedBytes() const noexcept { return m_reserved_bytes; }
+    std::size_t getReservedBytes() const noexcept
+    {
+        return m_reserved_bytes;
+    }
 
 private:
     void process_events()
     {
-
         std::erase_if(
             m_events,
             [this](const std::pair<sycl::event, void*>& entry)
             {
-
                 if (entry.first.get_info<sycl::info::event::command_execution_status>() !=
-                    sycl::info::event_command_status::complete)
-                {
+                    sycl::info::event_command_status::complete) {
                     return false;
                 }
                 if (--m_outstanding[entry.second] == 0) {
@@ -126,21 +119,17 @@ private:
                     m_free[m_sizes.at(entry.second)].push_back(entry.second);
                 }
                 return true;
-
             }
         );
-
     }
 
     void release_all() noexcept
     {
-
         for (const auto& [pointer, size]: m_sizes) {
             sycl::free(pointer, m_context);
         }
         m_sizes.clear();
         m_free.clear();
-
     }
 
     sycl::context m_context;

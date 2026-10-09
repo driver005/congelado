@@ -22,7 +22,6 @@ public:
         std::string_view algorithm
     )
     {
-
         if (unary == "none" || unary.empty()) {
             return true;
         }
@@ -54,7 +53,6 @@ public:
             return false;
         }
         return true;
-
     }
 
     static bool add_binary_then_unary(
@@ -68,7 +66,6 @@ public:
         std::string_view algorithm
     )
     {
-
         const bool unary_only = binary == "none";
         const bool valid_binary =
             (binary == "add" || binary == "sum") && (unary == "none" || unary == "relu");
@@ -99,12 +96,10 @@ public:
             attributes.addEltwise(1.0F, 0.0F, 0.0F, dnnl::algorithm::eltwise_relu);
         }
         return true;
-
     }
 
     static std::string_view activation_name(int64_t activation) noexcept
     {
-
         switch (activation) {
             case 1:
                 return "relu";
@@ -121,7 +116,6 @@ public:
             default:
                 return "none";
         }
-
     }
 };
 

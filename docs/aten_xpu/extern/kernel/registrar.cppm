@@ -21,20 +21,16 @@ public:
         m_scratch_first{ops.getStringOps()},
         m_scratch_second{ops.getStringOps()}
     {
-
         m_status.create();
         m_scratch_first.create();
         m_scratch_second.create();
-
     }
 
     ~SyclKernelRegistrar()
     {
-
         m_scratch_second.destroy();
         m_scratch_first.destroy();
         m_status.destroy();
-
     }
 
     SyclKernelRegistrar(const SyclKernelRegistrar&) = delete;
@@ -43,9 +39,11 @@ public:
     SyclKernelRegistrar& operator=(SyclKernelRegistrar&&) = delete;
 
     template<typename Kernel>
-    bool add(std::string_view op_name, std::span<const std::pair<std::string_view, TFDataTypeEnum>> constraints)
+    bool add(
+        std::string_view op_name,
+        std::span<const std::pair<std::string_view, TFDataTypeEnum>> constraints
+    )
     {
-
         ::TF_KernelBuilderOps* builder_ops = nullptr;
         ::TF_KernelBuilder handle{};
         assign(m_scratch_first, op_name);
@@ -74,39 +72,38 @@ public:
         destroy_kernel_builder(handle.plugin_data);
         ++m_registered;
         return ok();
-
     }
 
     template<typename Kernel>
     bool add(std::string_view op_name, TFDataTypeEnum type)
     {
-
         const std::array<std::pair<std::string_view, TFDataTypeEnum>, 1> constraints{{{"T", type}}};
         return add<Kernel>(op_name, constraints);
-
     }
 
     bool ok() const noexcept
     {
-
         TF_Code code = TF_OK;
         m_status.get_code(&code);
         return code == TF_OK;
-
     }
 
-    std::size_t getRegisteredCount() const noexcept { return m_registered; }
+    std::size_t getRegisteredCount() const noexcept
+    {
+        return m_registered;
+    }
 
-    const ice::sonic::Status& getStatus() const noexcept { return m_status; }
+    const ice::sonic::Status& getStatus() const noexcept
+    {
+        return m_status;
+    }
 
 private:
     static constexpr std::string_view k_device_type = "XPU";
 
     static void assign(const ice::sonic::String& target, std::string_view value)
     {
-
         target.copy(value.data(), value.size());
-
     }
 
     const SyclOpsTable& m_ops;

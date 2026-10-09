@@ -37,7 +37,6 @@ import cc_abi;
 export {
     // This file contains utilities for various operations.
 
-
     namespace tensorflow {
 
         // Calculates broadcast starting index and size.  For SAME padding, addition

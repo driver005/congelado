@@ -30,7 +30,6 @@ public:
 
     void compute(SyclKernelContext& context)
     {
-
         auto addend = context.getInput(0);
         auto first = context.getInput(1);
         auto second = context.getInput(2);
@@ -54,7 +53,6 @@ public:
             output->get(),
             SyclScaledAdd::build(m_alpha, m_beta, addend->get(), m_activation)
         );
-
     }
 
 private:

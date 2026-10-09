@@ -11,26 +11,22 @@ import aten_xpu_test;
 namespace aten_xpu {
 
 class SyclAllocatorTraceTest : public SyclTestFixture
-{
-};
+{};
 
 TEST_F(SyclAllocatorTraceTest, TrackAllocateAndFree)
 {
-
     auto stream = make_stream();
     auto allocator = make_allocator();
     std::map<SyclAllocatorTrace::Action, int> seen;
     SyclHandle::resolve<SyclAllocator>(allocator).getTrace().addTracker(
         [&seen](const SyclAllocatorTrace::Entry& entry)
         {
-
             ++seen[std::get<0>(entry)];
-
         }
     );
 
     TF_DeviceMemoryBase memory{};
-    allocator.allocate(1024, TF_MEMORY_SPACE_DEVICE, stream, &memory, getStatus());
+    allocator.allocate(1'024, TF_MEMORY_SPACE_DEVICE, stream, &memory, getStatus());
     allocator.deallocate(&memory);
     EXPECT_EQ(seen[SyclAllocatorTrace::Action::segment_alloc], 1);
     EXPECT_EQ(seen[SyclAllocatorTrace::Action::alloc], 1);
@@ -39,7 +35,6 @@ TEST_F(SyclAllocatorTraceTest, TrackAllocateAndFree)
 
     release_allocator(allocator);
     release_stream(stream);
-
 }
 
 } // namespace aten_xpu

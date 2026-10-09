@@ -29,16 +29,13 @@ public:
         m_is_causal{construction.getBool("is_causal", false)},
         m_return_probabilities{construction.getBool("return_probabilities", false)}
     {
-
         if (m_dropout > 0.0F) {
             construction.fail(TF_UNIMPLEMENTED, "attention dropout is not supported");
         }
-
     }
 
     void compute(SyclKernelContext& context)
     {
-
         auto query = context.getInput(0);
         auto key = context.getInput(1);
         auto value = context.getInput(2);
@@ -48,11 +45,23 @@ public:
             return;
         }
         auto mask_input = context.getInputCount() > 3 ? context.getInput(3) : std::nullopt;
-        const auto mask = mask_input ? std::optional<std::reference_wrapper<const SyclTensor>>{mask_input->get()} : std::nullopt;
+        const auto mask =
+            mask_input ? std::optional<std::reference_wrapper<const SyclTensor>>{mask_input->get()}
+                       : std::nullopt;
 
-        auto backend = SyclSdpaSelector::choose(query->get(), key->get(), value->get(), mask, m_dropout, m_is_causal);
+        auto backend = SyclSdpaSelector::choose(
+            query->get(),
+            key->get(),
+            value->get(),
+            mask,
+            m_dropout,
+            m_is_causal
+        );
         if (backend == SyclSdpaSelector::Backend::invalid) {
-            context.fail(TF_INVALID_ARGUMENT, "attention expects [batch, heads, length, head_dim] inputs");
+            context.fail(
+                TF_INVALID_ARGUMENT,
+                "attention expects [batch, heads, length, head_dim] inputs"
+            );
             return;
         }
         if (m_return_probabilities) {
@@ -67,14 +76,32 @@ public:
             return;
         }
 
-        const float scale = m_scale > 0.0F ? m_scale : 1.0F / std::sqrt(static_cast<float>(query->get().getDims()[3]));
+        const float scale = m_scale > 0.0F
+                                ? m_scale
+                                : 1.0F / std::sqrt(static_cast<float>(query->get().getDims()[3]));
         if (backend == SyclSdpaSelector::Backend::fused) {
-            SyclOnednnSdpa::run(queue->get(), query->get(), key->get(), value->get(), mask, output->get(), scale);
+            SyclOnednnSdpa::run(
+                queue->get(),
+                query->get(),
+                key->get(),
+                value->get(),
+                mask,
+                output->get(),
+                scale
+            );
             return;
         }
 
         SyclSdpaMath math{context, queue->get()};
-        auto probabilities = math.forward(query->get(), key->get(), value->get(), mask, output->get(), scale, m_is_causal);
+        auto probabilities = math.forward(
+            query->get(),
+            key->get(),
+            value->get(),
+            mask,
+            output->get(),
+            scale,
+            m_is_causal
+        );
         if (!probabilities) {
             context.propagate();
             return;
@@ -82,10 +109,13 @@ public:
         if (m_return_probabilities) {
             auto saved = context.allocateOutput(1, TF_FLOAT, probabilities->get().getDims());
             if (saved) {
-                queue->get().memcpy(saved->get().getData(), probabilities->get().getData(), probabilities->get().getByteSize());
+                queue->get().memcpy(
+                    saved->get().getData(),
+                    probabilities->get().getData(),
+                    probabilities->get().getByteSize()
+                );
             }
         }
-
     }
 
 private:
