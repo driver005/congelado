@@ -34,8 +34,8 @@ cc_feature(
     tags = ["manual"],
 )
 
-# System clang-22 resolves headers to real absolute paths (/usr/include,
-# /usr/include/c++/16, /usr/lib/clang/22/include, ...) rather than paths
+# System clang resolves headers to real absolute paths (/usr/include,
+# /usr/include/c++/16, /usr/lib/clang/<version>/include, ...) rather than paths
 # relative to a Bazel-tracked toolchain input, since it's the real host
 # install, not a relocated hermetic one. Allowlist them so Bazel's absolute-
 # path-inclusion check doesn't reject every external target that includes
@@ -46,7 +46,7 @@ cc_args(
     allowlist_absolute_include_directories = [
         "/usr/include",
         "/usr/local/include",
-        "/usr/lib/clang/22/include",
+        "/usr/lib/clang",
     ],
     tags = ["manual"],
 )
