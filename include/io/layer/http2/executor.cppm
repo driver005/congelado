@@ -99,12 +99,11 @@ public:
                 {
                     std::string hex;
                     std::size_t n = 0;
-                    for (auto b: reader | std::views::take(48)) {
+                    for (auto it = reader.begin(); it != reader.end() && n < 48; ++it, ++n) {
                         hex += std::format(
                             "{:02x} ",
-                            static_cast<unsigned>(std::to_integer<std::uint8_t>(b))
+                            static_cast<unsigned>(std::to_integer<std::uint8_t>(*it))
                         );
-                        ++n;
                     }
                     core::logger::warning(
                         "WIREDUMP",
