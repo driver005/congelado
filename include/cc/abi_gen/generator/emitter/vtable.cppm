@@ -1130,7 +1130,9 @@ private:
         auto string_model = m_registry.get().find(std::string{RuntimeEmitter::k_string_struct});
         auto registry_model = m_registry.get().find(std::string{RuntimeEmitter::k_registry_struct});
         if (!string_model.has_value() || !registry_model.has_value()) {
-            return std::unexpected("Runtime String or registry anchor is not part of the parsed headers");
+            return std::unexpected(
+                "Runtime String or registry anchor is not part of the parsed headers"
+            );
         }
 
         m_runtime_emitter.add_value("namespace_name", std::string{m_namespace_name})
