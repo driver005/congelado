@@ -5,6 +5,7 @@
 
 module;
 
+#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/datatype.h"
 
 export module cc_ice_intern_sonic:datatype;
@@ -18,24 +19,24 @@ export namespace ice::sonic {
 class TF_DataTypeOps : public ice::sonic::Runtime<::TF_DataTypeOps, ::TF_DataType>
 {
 public:
-    template<typename Registry>
     TF_DataTypeOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, type, provider)
+        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
     {
     }
 
-    template<typename Registry>
     TF_DataTypeOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         ::TF_DataType* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, handle, type, provider)
+        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
     {
     }
 

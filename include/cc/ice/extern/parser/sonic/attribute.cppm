@@ -6,6 +6,7 @@
 module;
 
 #include "include/c/extern/parser/attribute.h"
+#include "include/c/extern/registration/registration.h"
 
 export module cc_ice_extern_parser_sonic:attribute;
 
@@ -17,24 +18,24 @@ export namespace ice::sonic {
 class TFParserAttributeOps : public ice::sonic::Runtime<::TFParserAttributeOps, ::TFParserAttribute>
 {
 public:
-    template<typename Registry>
     TFParserAttributeOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, type, provider)
+        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
     {
     }
 
-    template<typename Registry>
     TFParserAttributeOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         ::TFParserAttribute* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, handle, type, provider)
+        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
     {
     }
 

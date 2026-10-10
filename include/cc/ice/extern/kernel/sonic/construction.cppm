@@ -6,6 +6,7 @@
 module;
 
 #include "include/c/extern/kernel/construction.h"
+#include "include/c/extern/registration/registration.h"
 
 export module cc_ice_extern_kernel_sonic:construction;
 
@@ -18,24 +19,24 @@ class TF_OpKernelConstructionOps :
     public ice::sonic::Runtime<::TF_OpKernelConstructionOps, ::TF_OpKernelConstruction>
 {
 public:
-    template<typename Registry>
     TF_OpKernelConstructionOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, type, provider)
+        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
     {
     }
 
-    template<typename Registry>
     TF_OpKernelConstructionOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         ::TF_OpKernelConstruction* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, handle, type, provider)
+        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
     {
     }
 

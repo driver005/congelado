@@ -6,6 +6,7 @@
 module;
 
 #include "include/c/extern/ops/shape_inference_context.h"
+#include "include/c/extern/registration/registration.h"
 
 export module cc_ice_extern_ops_sonic:shape_inference_context;
 
@@ -20,24 +21,24 @@ class TF_ShapeInferenceContextOps :
     public ice::sonic::Runtime<::TF_ShapeInferenceContextOps, ::TF_ShapeInferenceContext>
 {
 public:
-    template<typename Registry>
     TF_ShapeInferenceContextOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, type, provider)
+        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
     {
     }
 
-    template<typename Registry>
     TF_ShapeInferenceContextOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         ::TF_ShapeInferenceContext* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, handle, type, provider)
+        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
     {
     }
 

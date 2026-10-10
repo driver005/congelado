@@ -6,6 +6,7 @@
 module;
 
 #include "include/c/extern/generator/parameter.h"
+#include "include/c/extern/registration/registration.h"
 
 export module cc_ice_extern_generator_sonic:parameter;
 
@@ -19,24 +20,24 @@ class TFGeneratorParameterOps :
     public ice::sonic::Runtime<::TFGeneratorParameterOps, ::TFGeneratorParameter>
 {
 public:
-    template<typename Registry>
     TFGeneratorParameterOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, type, provider)
+        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
     {
     }
 
-    template<typename Registry>
     TFGeneratorParameterOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         ::TFGeneratorParameter* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, handle, type, provider)
+        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
     {
     }
 

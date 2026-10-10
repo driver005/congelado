@@ -6,6 +6,7 @@
 module;
 
 #include "include/c/extern/filesystem/filesystem.h"
+#include "include/c/extern/registration/registration.h"
 
 export module cc_ice_extern_filesystem_sonic:filesystem;
 
@@ -17,24 +18,24 @@ export namespace ice::sonic {
 class TF_FilesystemOps : public ice::sonic::Runtime<::TF_FilesystemOps, ::TF_Filesystem>
 {
 public:
-    template<typename Registry>
     TF_FilesystemOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, type, provider)
+        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
     {
     }
 
-    template<typename Registry>
     TF_FilesystemOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         ::TF_Filesystem* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, handle, type, provider)
+        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
     {
     }
 

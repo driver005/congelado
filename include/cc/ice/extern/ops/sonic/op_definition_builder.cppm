@@ -6,6 +6,7 @@
 module;
 
 #include "include/c/extern/ops/op_definition_builder.h"
+#include "include/c/extern/registration/registration.h"
 
 export module cc_ice_extern_ops_sonic:op_definition_builder;
 
@@ -18,24 +19,24 @@ class TF_OpDefinitionBuilderOps :
     public ice::sonic::Runtime<::TF_OpDefinitionBuilderOps, ::TF_OpDefinitionBuilder>
 {
 public:
-    template<typename Registry>
     TF_OpDefinitionBuilderOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, type, provider)
+        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
     {
     }
 
-    template<typename Registry>
     TF_OpDefinitionBuilderOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         ::TF_OpDefinitionBuilder* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, handle, type, provider)
+        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
     {
     }
 

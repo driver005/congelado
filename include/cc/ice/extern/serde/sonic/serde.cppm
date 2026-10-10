@@ -5,6 +5,7 @@
 
 module;
 
+#include "include/c/extern/registration/registration.h"
 #include "include/c/extern/serde/serde.h"
 
 export module cc_ice_extern_serde_sonic:serde;
@@ -17,24 +18,24 @@ export namespace ice::sonic {
 class TF_SerdeOps : public ice::sonic::Runtime<::TF_SerdeOps, ::TF_Serde>
 {
 public:
-    template<typename Registry>
     TF_SerdeOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, type, provider)
+        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
     {
     }
 
-    template<typename Registry>
     TF_SerdeOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         ::TF_Serde* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, handle, type, provider)
+        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
     {
     }
 

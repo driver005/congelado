@@ -508,6 +508,11 @@ private:
             return std::unexpected(std::move(string_type.error()));
         }
 
+        auto registry_model = m_registry.get().find(std::string{RuntimeEmitter::k_registry_struct});
+        if (!registry_model.has_value()) {
+            return std::unexpected("Runtime registry anchor is not part of the parsed headers");
+        }
+
         auto includes = dependency_includes(model, *members);
         if (!includes) {
             return std::unexpected(std::move(includes.error()));
@@ -528,7 +533,9 @@ private:
             imports,
             *members,
             *string_type,
-            *includes
+            *includes,
+            RuntimeEmitter::k_registry_struct,
+            c_handle_name(registry_model->get())
         );
         if (!header_result) {
             return std::unexpected(header_result.error());
@@ -561,7 +568,10 @@ private:
             model.get_struct_name(),
             handle_name,
             *members,
-            root
+            root,
+            *string_type,
+            RuntimeEmitter::k_registry_struct,
+            c_handle_name(registry_model->get())
         );
         if (!footer_result) {
             return std::unexpected(footer_result.error());
@@ -949,6 +959,10 @@ private:
         for (const helper::DependencyInfo& member: members) {
             m_scratch_includes.insert(member.get_header_path());
         }
+        if (auto registry_model =
+                m_registry.get().find(std::string{RuntimeEmitter::k_registry_struct})) {
+            m_scratch_includes.insert(std::string{registry_model->get().get_header_path()});
+        }
         m_scratch_includes.erase(std::string{model.get_header_path()});
 
         std::string joined;
@@ -1113,8 +1127,18 @@ private:
             return std::unexpected(std::move(runtime_module.error()));
         }
 
+        auto string_model = m_registry.get().find(std::string{RuntimeEmitter::k_string_struct});
+        auto registry_model = m_registry.get().find(std::string{RuntimeEmitter::k_registry_struct});
+        if (!string_model.has_value() || !registry_model.has_value()) {
+            return std::unexpected("Runtime String or registry anchor is not part of the parsed headers");
+        }
+
         m_runtime_emitter.add_value("namespace_name", std::string{m_namespace_name})
-            .add_value("runtime_module", std::move(*runtime_module));
+            .add_value("runtime_module", std::move(*runtime_module))
+            .add_value("string_handle", c_handle_name(string_model->get()))
+            .add_value("registry_header", std::string{registry_model->get().get_header_path()})
+            .add_value("registry_struct", std::string{registry_model->get().get_struct_name()})
+            .add_value("registry_handle", c_handle_name(registry_model->get()));
 
         return {};
     }

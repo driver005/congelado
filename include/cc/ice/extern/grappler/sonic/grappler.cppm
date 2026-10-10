@@ -6,6 +6,7 @@
 module;
 
 #include "include/c/extern/grappler/grappler.h"
+#include "include/c/extern/registration/registration.h"
 
 export module cc_ice_extern_grappler_sonic:grappler;
 
@@ -19,24 +20,24 @@ export namespace ice::sonic {
 class TF_GrapplerOps : public ice::sonic::Runtime<::TF_GrapplerOps, ::TF_Grappler>
 {
 public:
-    template<typename Registry>
     TF_GrapplerOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, type, provider)
+        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
     {
     }
 
-    template<typename Registry>
     TF_GrapplerOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         ::TF_Grappler* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, handle, type, provider)
+        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
     {
     }
 

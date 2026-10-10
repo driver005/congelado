@@ -5,6 +5,7 @@
 
 module;
 
+#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/list/list.h"
 
 export module cc_ice_intern_list_sonic:list;
@@ -17,24 +18,24 @@ export namespace ice::sonic {
 class TF_ListOps : public ice::sonic::Runtime<::TF_ListOps, ::TF_List>
 {
 public:
-    template<typename Registry>
     TF_ListOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, type, provider)
+        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
     {
     }
 
-    template<typename Registry>
     TF_ListOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         ::TF_List* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, handle, type, provider)
+        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
     {
     }
 

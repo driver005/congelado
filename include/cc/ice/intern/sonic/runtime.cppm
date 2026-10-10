@@ -4,6 +4,8 @@
 
 module;
 
+#include "include/c/extern/registration/registration.h"
+
 export module cc_ice_intern_sonic:runtime;
 
 import std;
@@ -43,24 +45,28 @@ protected:
         }
     }
 
-    template<typename Registry, typename StringType>
-    Runtime(Registry& registry, const StringType& type, const StringType& provider) noexcept
-    {
-        void* ops = nullptr;
-        registry.get(type, provider, &ops);
-        m_ops = static_cast<const OpsStruct*>(ops);
-    }
-
-    template<typename Registry, typename StringType>
     Runtime(
-        Registry& registry,
-        HandleStruct* handle,
-        const StringType& type,
-        const StringType& provider
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
+        const ::TF_String* type,
+        const ::TF_String* provider
     ) noexcept
     {
         void* ops = nullptr;
-        registry.get(type, provider, &ops);
+        registry_ops.get(registry_handle, type, provider, &ops);
+        m_ops = static_cast<const OpsStruct*>(ops);
+    }
+
+    Runtime(
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
+        HandleStruct* handle,
+        const ::TF_String* type,
+        const ::TF_String* provider
+    ) noexcept
+    {
+        void* ops = nullptr;
+        registry_ops.get(registry_handle, type, provider, &ops);
         m_ops = static_cast<const OpsStruct*>(ops);
         if (handle != nullptr) {
             m_handle = *handle;

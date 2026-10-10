@@ -5,6 +5,7 @@
 
 module;
 
+#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/set.h"
 #include "include/c/intern/status.h"
 
@@ -134,14 +135,19 @@ public:
         return m_handle;
     }
 
-    template<typename Registry, typename StringType>
     void register_ops(
-        Registry& registry,
-        const StringType& type,
-        const StringType& provider
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
+        const ice::sonic::String& type,
+        const ice::sonic::String& provider
     ) const noexcept
     {
-        registry.register_op(type, provider, const_cast<::TF_SetOps*>(&m_vtable));
+        registry_ops.register_op(
+            registry_handle,
+            type.get_handle(),
+            provider.get_handle(),
+            const_cast<::TF_SetOps*>(&m_vtable)
+        );
     }
 
 private:

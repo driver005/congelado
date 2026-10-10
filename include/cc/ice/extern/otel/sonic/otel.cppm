@@ -6,6 +6,7 @@
 module;
 
 #include "include/c/extern/otel/otel.h"
+#include "include/c/extern/registration/registration.h"
 
 export module cc_ice_extern_otel_sonic:otel;
 
@@ -17,24 +18,24 @@ export namespace ice::sonic {
 class TF_OtelOps : public ice::sonic::Runtime<::TF_OtelOps, ::TF_Otel>
 {
 public:
-    template<typename Registry>
     TF_OtelOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, type, provider)
+        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
     {
     }
 
-    template<typename Registry>
     TF_OtelOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         ::TF_Otel* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, handle, type, provider)
+        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
     {
     }
 

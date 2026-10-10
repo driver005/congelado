@@ -5,6 +5,7 @@
 
 module;
 
+#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/deque.h"
 
 export module cc_ice_intern_sonic:deque;
@@ -19,24 +20,24 @@ export namespace ice::sonic {
 class TF_DequeOps : public ice::sonic::Runtime<::TF_DequeOps, ::TF_Deque>
 {
 public:
-    template<typename Registry>
     TF_DequeOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, type, provider)
+        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
     {
     }
 
-    template<typename Registry>
     TF_DequeOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         ::TF_Deque* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, handle, type, provider)
+        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
     {
     }
 

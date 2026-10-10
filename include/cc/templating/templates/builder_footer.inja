@@ -16,10 +16,19 @@
         return m_handle;
     }
 
-    template<typename Registry, typename StringType>
-    void register_ops(Registry& registry, const StringType& type, const StringType& provider) const noexcept
+    void register_ops(
+        const ::{{ registry_struct }}& registry_ops,
+        ::{{ registry_handle }}* registry_handle,
+        const {{ string_type }}& type,
+        const {{ string_type }}& provider
+    ) const noexcept
     {
-        registry.register_op(type, provider, const_cast<::{{ struct_name }}*>(&m_vtable));
+        registry_ops.register_op(
+            registry_handle,
+            type.get_handle(),
+            provider.get_handle(),
+            const_cast<::{{ struct_name }}*>(&m_vtable)
+        );
     }
 
 private:

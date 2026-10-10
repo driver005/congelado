@@ -1,13 +1,11 @@
 
-                        template<typename Registry>
-                        {{ class_name }}(Registry& registry, const {{ string_type }}& type, const {{ string_type }}& provider) noexcept
-                            : Runtime(registry, type, provider)
+                        {{ class_name }}(const ::{{ registry_struct }}& registry_ops, ::{{ registry_handle }}* registry_handle, const {{ string_type }}& type, const {{ string_type }}& provider) noexcept
+                            : Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
                         {
                         }
 
-                        template<typename Registry>
-                        {{ class_name }}(Registry& registry, ::{{ handle_name }}* handle, const {{ string_type }}& type, const {{ string_type }}& provider) noexcept
-                            : Runtime(registry, handle, type, provider)
+                        {{ class_name }}(const ::{{ registry_struct }}& registry_ops, ::{{ registry_handle }}* registry_handle, ::{{ handle_name }}* handle, const {{ string_type }}& type, const {{ string_type }}& provider) noexcept
+                            : Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
                         {
                         }
 

@@ -14,6 +14,7 @@ class RuntimeEmitter
 {
 public:
     static constexpr std::string_view k_string_struct = "TF_StringOps";
+    static constexpr std::string_view k_registry_struct = "TF_RegistrationOps";
     static constexpr std::string_view k_runtime_partition = "runtime";
     static constexpr std::string_view k_create_slot = "create";
 

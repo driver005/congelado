@@ -6,6 +6,7 @@
 module;
 
 #include "include/c/extern/filesystem/read_only_memory_region.h"
+#include "include/c/extern/registration/registration.h"
 
 export module cc_ice_extern_filesystem_sonic:read_only_memory_region;
 
@@ -18,24 +19,24 @@ class TF_ReadOnlyMemoryRegionOps :
     public ice::sonic::Runtime<::TF_ReadOnlyMemoryRegionOps, ::TF_ReadOnlyMemoryRegion>
 {
 public:
-    template<typename Registry>
     TF_ReadOnlyMemoryRegionOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, type, provider)
+        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
     {
     }
 
-    template<typename Registry>
     TF_ReadOnlyMemoryRegionOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         ::TF_ReadOnlyMemoryRegion* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, handle, type, provider)
+        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
     {
     }
 

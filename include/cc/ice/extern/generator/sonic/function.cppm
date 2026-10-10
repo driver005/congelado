@@ -6,6 +6,7 @@
 module;
 
 #include "include/c/extern/generator/function.h"
+#include "include/c/extern/registration/registration.h"
 
 export module cc_ice_extern_generator_sonic:function;
 
@@ -22,24 +23,24 @@ class TFGeneratorFunctionOps :
     public ice::sonic::Runtime<::TFGeneratorFunctionOps, ::TFGeneratorFunction>
 {
 public:
-    template<typename Registry>
     TFGeneratorFunctionOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, type, provider)
+        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
     {
     }
 
-    template<typename Registry>
     TFGeneratorFunctionOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         ::TFGeneratorFunction* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, handle, type, provider)
+        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
     {
     }
 

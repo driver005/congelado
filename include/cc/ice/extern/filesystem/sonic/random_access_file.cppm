@@ -6,6 +6,7 @@
 module;
 
 #include "include/c/extern/filesystem/random_access_file.h"
+#include "include/c/extern/registration/registration.h"
 
 export module cc_ice_extern_filesystem_sonic:random_access_file;
 
@@ -18,24 +19,24 @@ class TF_RandomAccessFileOps :
     public ice::sonic::Runtime<::TF_RandomAccessFileOps, ::TF_RandomAccessFile>
 {
 public:
-    template<typename Registry>
     TF_RandomAccessFileOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, type, provider)
+        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
     {
     }
 
-    template<typename Registry>
     TF_RandomAccessFileOps(
-        Registry& registry,
+        const ::TF_RegistrationOps& registry_ops,
+        ::TF_Registration* registry_handle,
         ::TF_RandomAccessFile* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry, handle, type, provider)
+        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
     {
     }
 

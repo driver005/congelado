@@ -80,13 +80,13 @@ nothing in the runtime owns a plugin object.
 - Every ops struct in the C headers starts with `create(Handle*)` and `destroy(Handle*)`. The caller creates and
   destroys plugin objects with the ordinary slot methods `x.create()` and `x.destroy()`.
 - The registry (`include/c/extern/registration/registration.h`) maps a type `String` and a provider `String` to an
-  ops pointer; the caller builds those Strings (generated code never calls `copy`). `X{registry, type, provider}`
-  looks the ops up with the registry's `get` slot and gives an empty handle; `X{registry, handle, type,
+  ops pointer; the caller builds those Strings (generated code never calls `copy`). `X{registry_ops, registry_handle, type, provider}`
+  looks the ops up with the registry's `get` slot and gives an empty handle; `X{registry_ops, registry_handle, handle, type,
   provider}` and `X{ops, handle}` wrap a host handle (the struct is copied); `X{ops}` is the raw form used for
   the registry and String roots, which cannot look themselves up.
 - A builder class holds the ops of the domains it wraps (`m_<Dependency>_ops`), is built with `X{deps_ops...}` and
   gets `get_generic_vtable(create)`: the plugin passes its `create` function (the one slot that cannot be dispatched
-  through `from_handle`). `register_ops(registry, type, provider)` puts the ops table into the registry.
+  through `from_handle`). `register_ops(registry_ops, registry_handle, type, provider)` puts the ops table into the registry.
 - The String, Status and registry backends are provided by plugins; without them nothing works.
 
 A folder under `include/c/` becomes one C++ module, so keep the C headers acyclic at folder level: two folders

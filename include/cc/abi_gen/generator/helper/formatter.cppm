@@ -56,7 +56,9 @@ inline HeaderConfig build_header_config(
     std::string_view imports,
     std::span<const DependencyInfo> dependencies,
     std::string_view string_type,
-    std::string_view includes
+    std::string_view includes,
+    std::string_view registry_struct_name,
+    std::string_view registry_handle_name
 )
 {
     std::string_view target_name = domain_name; // actual domain for module name pos 2
@@ -68,6 +70,8 @@ inline HeaderConfig build_header_config(
     data["struct_name"] = std::string{c_struct_name};
     data["handle_name"] = std::string{c_handle_name};
     data["string_type"] = std::string{string_type};
+    data["registry_struct"] = std::string{registry_struct_name};
+    data["registry_handle"] = std::string{registry_handle_name};
     data["deps"] = dependencies_json(dependencies);
 
     if (target == GenTarget::Builder) {
@@ -123,7 +127,9 @@ inline std::expected<std::string, std::string> format_header(
     std::string_view imports,
     std::span<const DependencyInfo> dependencies,
     std::string_view string_type,
-    std::string_view includes
+    std::string_view includes,
+    std::string_view registry_struct_name,
+    std::string_view registry_handle_name
 ) noexcept
 {
     std::string_view mode_name = (target == GenTarget::Builder) ? "builder" : "sonic";
@@ -141,7 +147,9 @@ inline std::expected<std::string, std::string> format_header(
         imports,
         dependencies,
         string_type,
-        includes
+        includes,
+        registry_struct_name,
+        registry_handle_name
     );
 
     return cc::templating::TemplateRenderer::render_template(
@@ -167,7 +175,10 @@ inline std::expected<std::string, std::string> format_footer(
     std::string_view c_struct_name,
     std::string_view c_handle_name,
     std::span<const DependencyInfo> dependencies,
-    [[maybe_unused]] const std::filesystem::path& repo_root
+    [[maybe_unused]] const std::filesystem::path& repo_root,
+    std::string_view string_type,
+    std::string_view registry_struct_name,
+    std::string_view registry_handle_name
 ) noexcept
 {
     std::string_view mode_name = (target == GenTarget::Builder) ? "builder" : "sonic";
@@ -178,6 +189,9 @@ inline std::expected<std::string, std::string> format_footer(
         data["struct_name"] = std::string{c_struct_name};
         data["handle_name"] = std::string{c_handle_name};
         data["deps"] = dependencies_json(dependencies);
+        data["string_type"] = std::string{string_type};
+        data["registry_struct"] = std::string{registry_struct_name};
+        data["registry_handle"] = std::string{registry_handle_name};
 
         auto rendered =
             cc::templating::TemplateRenderer::render_template_json("builder_footer", data);

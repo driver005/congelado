@@ -4,6 +4,8 @@
 
 module;
 
+#include "{{ registry_header }}"
+
 export module {{ module_name }}:{{ partition }};
 
 import std;
@@ -43,24 +45,28 @@ protected:
         }
     }
 
-    template<typename Registry, typename StringType>
-    Runtime(Registry& registry, const StringType& type, const StringType& provider) noexcept
-    {
-        void* ops = nullptr;
-        registry.get(type, provider, &ops);
-        m_ops = static_cast<const OpsStruct*>(ops);
-    }
-
-    template<typename Registry, typename StringType>
     Runtime(
-        Registry& registry,
-        HandleStruct* handle,
-        const StringType& type,
-        const StringType& provider
+        const ::{{ registry_struct }}& registry_ops,
+        ::{{ registry_handle }}* registry_handle,
+        const ::{{ string_handle }}* type,
+        const ::{{ string_handle }}* provider
     ) noexcept
     {
         void* ops = nullptr;
-        registry.get(type, provider, &ops);
+        registry_ops.get(registry_handle, type, provider, &ops);
+        m_ops = static_cast<const OpsStruct*>(ops);
+    }
+
+    Runtime(
+        const ::{{ registry_struct }}& registry_ops,
+        ::{{ registry_handle }}* registry_handle,
+        HandleStruct* handle,
+        const ::{{ string_handle }}* type,
+        const ::{{ string_handle }}* provider
+    ) noexcept
+    {
+        void* ops = nullptr;
+        registry_ops.get(registry_handle, type, provider, &ops);
         m_ops = static_cast<const OpsStruct*>(ops);
         if (handle != nullptr) {
             m_handle = *handle;
