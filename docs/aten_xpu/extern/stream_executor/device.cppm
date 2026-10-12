@@ -13,11 +13,11 @@ import aten_xpu_intern;
 
 export namespace aten_xpu {
 
-class SyclDevice : public ice::builder::TF_DeviceOps
+class SyclDevice : public ice::builder::Device
 {
 public:
     explicit SyclDevice(const SyclOpsTable& ops) noexcept :
-        ice::builder::TF_DeviceOps{ops.getStatusOps(), ops.getStringOps()},
+        ice::builder::Device{ops.getStatusOps(), ops.getStringOps()},
         m_status{ops}
     {
     }

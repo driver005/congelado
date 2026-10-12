@@ -39,7 +39,7 @@ TEST_F(SyclDeviceTest, PointerGetDevice)
 {
     auto allocator = make_allocator();
     TF_DeviceMemoryBase memory{};
-    ice::sonic::TF_StreamOps no_stream{SyclOpsTable::getInstance().getStreamOps()};
+    ice::sonic::Stream no_stream{SyclOpsTable::getInstance().getStreamOps()};
     allocator.allocate(1'024, TF_MEMORY_SPACE_DEVICE, no_stream, &memory, getStatus());
     ASSERT_TRUE(ok());
 

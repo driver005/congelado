@@ -40,7 +40,7 @@ TEST_F(SyclStreamTest, StreamPoolRoundRobin)
     std::set<void*> handles;
     void* first = nullptr;
     for (std::size_t round = 0; round < k_rounds; ++round) {
-        ice::sonic::TF_StreamOps stream{SyclOpsTable::getInstance().getStreamOps()};
+        ice::sonic::Stream stream{SyclOpsTable::getInstance().getStreamOps()};
         stream.create();
         getExecutor().get_stream_from_pool(getDevice(), 0, stream, getStatus());
         void* native = nullptr;
@@ -62,7 +62,7 @@ TEST_F(SyclStreamTest, CurrentStreamIsPerThread)
     auto stream = make_stream();
     getExecutor().set_current_stream(getDevice(), stream, getStatus());
 
-    ice::sonic::TF_StreamOps current{SyclOpsTable::getInstance().getStreamOps()};
+    ice::sonic::Stream current{SyclOpsTable::getInstance().getStreamOps()};
     current.create();
     getExecutor().get_current_stream(getDevice(), current, getStatus());
     void* expected = nullptr;
@@ -75,7 +75,7 @@ TEST_F(SyclStreamTest, CurrentStreamIsPerThread)
     std::thread worker{
         [&]()
         {
-            ice::sonic::TF_StreamOps worker_stream{SyclOpsTable::getInstance().getStreamOps()};
+            ice::sonic::Stream worker_stream{SyclOpsTable::getInstance().getStreamOps()};
             worker_stream.create();
             getExecutor().get_current_stream(getDevice(), worker_stream, getStatus());
             worker_stream.get_native_handle(&other_thread);
@@ -95,7 +95,7 @@ TEST_F(SyclStreamTest, ExternalQueue)
     void* native = nullptr;
     stream.get_native_handle(&native);
 
-    ice::sonic::TF_StreamOps external{SyclOpsTable::getInstance().getStreamOps()};
+    ice::sonic::Stream external{SyclOpsTable::getInstance().getStreamOps()};
     external.create();
     getExecutor().create_stream_from_native(getDevice(), native, external, getStatus());
     EXPECT_TRUE(ok());

@@ -160,7 +160,7 @@ private:
 
     const SyclOpsTable& m_ops;
     SyclStatus m_helper;
-    ice::sonic::TF_OpKernelConstructionOps m_construction;
+    ice::sonic::OpKernelConstruction m_construction;
     ice::sonic::Status m_status;
     ice::sonic::String m_scratch_name;
 };

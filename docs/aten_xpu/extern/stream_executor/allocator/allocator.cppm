@@ -23,7 +23,7 @@ import :allocator_host_cache;
 
 export namespace aten_xpu {
 
-class SyclAllocator : public ice::builder::TF_AllocatorOps
+class SyclAllocator : public ice::builder::Allocator
 {
 public:
     static constexpr std::size_t k_min_block_size = 512;
@@ -39,7 +39,7 @@ public:
     using Action = SyclAllocatorTrace::Action;
 
     explicit SyclAllocator(const SyclOpsTable& ops) noexcept :
-        ice::builder::TF_AllocatorOps{
+        ice::builder::Allocator{
             ops.getBufferOps(),
             ops.getMemPoolOps(),
             ops.getStatusOps(),
@@ -114,7 +114,7 @@ public:
     void allocate(
         uint64_t size,
         TF_MemorySpace memory_space,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Stream& stream,
         TF_DeviceMemoryBase* out_memory,
         const ice::sonic::Status& out_status
     ) noexcept override
@@ -165,7 +165,7 @@ public:
 
     void record_stream(
         const TF_DeviceMemoryBase* memory,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -324,7 +324,7 @@ public:
 
     void get_snapshot(
         const TF_PoolId* pool_filter,
-        const ice::sonic::TF_BufferOps& out_snapshot,
+        const ice::sonic::Buffer& out_snapshot,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -361,7 +361,7 @@ public:
     void create_mem_pool_internal(
         const TF_PoolId* pool_id,
         _Bool is_user_created,
-        const ice::sonic::TF_MemPoolOps& out_pool,
+        const ice::sonic::MemPool& out_pool,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -386,7 +386,7 @@ public:
         m_registered_pools.emplace_back(pool);
     }
 
-    void destroy_mem_pool_internal(const ice::sonic::TF_MemPoolOps& pool) noexcept override
+    void destroy_mem_pool_internal(const ice::sonic::MemPool& pool) noexcept override
     {
         auto& target = SyclHandle::resolve<SyclMemPool>(pool);
         try {
@@ -494,7 +494,7 @@ public:
     }
 
 private:
-    sycl::queue& resolve_queue(const ice::sonic::TF_StreamOps& stream) noexcept
+    sycl::queue& resolve_queue(const ice::sonic::Stream& stream) noexcept
     {
         if (stream.get_handle()->plugin_data == nullptr) {
             return *m_default_queue;
@@ -523,7 +523,7 @@ private:
         return size <= k_small_size ? m_small_blocks : m_large_blocks;
     }
 
-    SyclBlock* malloc(std::size_t requested_size, const ice::sonic::TF_StreamOps& stream)
+    SyclBlock* malloc(std::size_t requested_size, const ice::sonic::Stream& stream)
     {
         if (m_active_captures == 0) {
             process_events();

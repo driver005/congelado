@@ -16,14 +16,14 @@ import :status;
 
 export namespace aten_xpu {
 
-class SyclTensor : public ice::builder::TF_TensorOps
+class SyclTensor : public ice::builder::Tensor
 {
 public:
     using Allocate = std::function<void*(std::size_t, TF_MemorySpace)>;
     using Deallocate = std::function<void(void*, TF_MemorySpace)>;
 
     explicit SyclTensor(const SyclOpsTable& ops) noexcept :
-        ice::builder::TF_TensorOps{ops.getStatusOps(), ops.getStringOps(), ops.getTensorOps()},
+        ice::builder::Tensor{ops.getStatusOps(), ops.getStringOps(), ops.getTensorOps()},
         m_status{ops},
         m_device_index{s_default_device_index}
     {
@@ -167,7 +167,7 @@ public:
         bitcast(dtype, out_tensor, out_status);
     }
 
-    void tensor_copy(const ice::sonic::TF_TensorOps& dst) noexcept override
+    void tensor_copy(const ice::sonic::Tensor& dst) noexcept override
     {
         auto& target = SyclHandle::resolve<SyclTensor>(dst);
         if (getData() == nullptr || target.getData() == nullptr || !s_context || !s_device) {

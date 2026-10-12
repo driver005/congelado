@@ -11,11 +11,11 @@ import aten_xpu_intern;
 
 export namespace aten_xpu {
 
-class SyclStreamExecutor : public ice::builder::TF_StreamExecutorOps
+class SyclStreamExecutor : public ice::builder::StreamExecutor
 {
 public:
     explicit SyclStreamExecutor(const SyclOpsTable& ops) noexcept :
-        ice::builder::TF_StreamExecutorOps{ops.getStringOps()},
+        ice::builder::StreamExecutor{ops.getStringOps()},
         m_status{ops}
     {
     }

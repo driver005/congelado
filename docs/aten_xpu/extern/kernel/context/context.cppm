@@ -147,7 +147,7 @@ public:
 private:
     const SyclOpsTable& m_ops;
     SyclStatus m_helper;
-    ice::sonic::TF_OpKernelContextOps m_context;
+    ice::sonic::OpKernelContext m_context;
     ice::sonic::Status m_status;
 };
 

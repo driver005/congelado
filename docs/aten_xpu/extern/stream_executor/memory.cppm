@@ -11,11 +11,11 @@ import aten_xpu_intern;
 
 export namespace aten_xpu {
 
-class SyclMemory : public ice::builder::TF_MemoryOps
+class SyclMemory : public ice::builder::Memory
 {
 public:
     explicit SyclMemory(const SyclOpsTable& ops) noexcept :
-        ice::builder::TF_MemoryOps{ops.getStringOps()},
+        ice::builder::Memory{ops.getStringOps()},
         m_status{ops}
     {
     }

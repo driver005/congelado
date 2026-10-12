@@ -17,11 +17,11 @@ import :level_zero;
 
 export namespace aten_xpu {
 
-class SyclPlatform : public ice::builder::TF_PlatformOps
+class SyclPlatform : public ice::builder::Platform
 {
 public:
     explicit SyclPlatform(const SyclOpsTable& ops) :
-        ice::builder::TF_PlatformOps{ops.getDeviceOps(), ops.getExecutorOps(), ops.getStatusOps()},
+        ice::builder::Platform{ops.getDeviceOps(), ops.getExecutorOps(), ops.getStatusOps()},
         m_status{ops}
     {
         enumerate_devices();
@@ -54,7 +54,7 @@ public:
     }
 
     void create_device_internal(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -75,13 +75,13 @@ public:
         }
     }
 
-    void destroy_device_internal(const ice::sonic::TF_DeviceOps& device) noexcept override
+    void destroy_device_internal(const ice::sonic::Device& device) noexcept override
     {
         static_cast<void>(device);
     }
 
     void create_executor_internal(
-        const ice::sonic::TF_ExecutorOps& executor,
+        const ice::sonic::Executor& executor,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -95,7 +95,7 @@ public:
         );
     }
 
-    void destroy_executor_internal(const ice::sonic::TF_ExecutorOps& executor) noexcept override
+    void destroy_executor_internal(const ice::sonic::Executor& executor) noexcept override
     {
         SyclHandle::resolve<SyclExecutor>(executor).release();
     }

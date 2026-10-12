@@ -15,13 +15,13 @@ import :philox_state;
 
 export namespace aten_xpu {
 
-class SyclRandomGenerator : public ice::builder::TF_RandomGeneratorOps
+class SyclRandomGenerator : public ice::builder::RandomGenerator
 {
 public:
     static constexpr std::size_t k_state_bytes = 2 * sizeof(uint64_t);
 
     explicit SyclRandomGenerator(const SyclOpsTable& ops) noexcept :
-        ice::builder::TF_RandomGeneratorOps{
+        ice::builder::RandomGenerator{
             ops.getRandomGeneratorOps(),
             ops.getStatusOps(),
             ops.getTensorOps()
@@ -91,7 +91,7 @@ public:
     }
 
     void set_state(
-        const ice::sonic::TF_TensorOps& state,
+        const ice::sonic::Tensor& state,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -141,7 +141,7 @@ public:
     }
 
     void graphsafe_set_state(
-        const ice::sonic::TF_RandomGeneratorOps& other,
+        const ice::sonic::RandomGenerator& other,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -150,7 +150,7 @@ public:
     }
 
     void graphsafe_get_state(
-        const ice::sonic::TF_RandomGeneratorOps& out_other,
+        const ice::sonic::RandomGenerator& out_other,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -203,7 +203,7 @@ public:
     }
 
     void clone(
-        const ice::sonic::TF_RandomGeneratorOps& out_clone,
+        const ice::sonic::RandomGenerator& out_clone,
         const ice::sonic::Status& out_status
     ) noexcept override
     {

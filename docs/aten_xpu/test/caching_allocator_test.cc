@@ -15,8 +15,8 @@ class SyclCachingAllocatorTest : public SyclTestFixture
 {
 protected:
     TF_DeviceMemoryBase allocate(
-        const ice::sonic::TF_AllocatorOps& allocator,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Allocator& allocator,
+        const ice::sonic::Stream& stream,
         uint64_t size
     )
     {
@@ -25,7 +25,7 @@ protected:
         return memory;
     }
 
-    TF_AllocatorStats stats(const ice::sonic::TF_AllocatorOps& allocator)
+    TF_AllocatorStats stats(const ice::sonic::Allocator& allocator)
     {
         TF_AllocatorStats result{};
         _Bool success = false;
@@ -92,7 +92,7 @@ TEST_F(SyclCachingAllocatorTest, MemPoolCapturesAllocations)
 {
     auto stream = make_stream();
     auto allocator = make_allocator();
-    ice::sonic::TF_MemPoolOps pool{SyclOpsTable::getInstance().getMemPoolOps()};
+    ice::sonic::MemPool pool{SyclOpsTable::getInstance().getMemPoolOps()};
     pool.create();
     allocator.create_mem_pool_internal(nullptr, true, pool, getStatus());
     pool.begin_allocate_to_pool(nullptr, nullptr, getStatus());

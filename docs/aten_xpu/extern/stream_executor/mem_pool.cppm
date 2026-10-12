@@ -12,14 +12,14 @@ import :allocator_block_pool;
 
 export namespace aten_xpu {
 
-class SyclMemPool : public ice::builder::TF_MemPoolOps
+class SyclMemPool : public ice::builder::MemPool
 {
 public:
     using RawAllocate = std::function<void*(std::size_t)>;
     using RawDeallocate = std::function<void(void*)>;
 
     explicit SyclMemPool(const SyclOpsTable& ops) noexcept :
-        ice::builder::TF_MemPoolOps{ops.getStatusOps()},
+        ice::builder::MemPool{ops.getStatusOps()},
         m_status{ops}
     {
     }

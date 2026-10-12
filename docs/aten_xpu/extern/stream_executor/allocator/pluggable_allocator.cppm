@@ -14,7 +14,7 @@ import :stream;
 
 export namespace aten_xpu {
 
-class SyclPluggableAllocator : public ice::builder::TF_AllocatorOps
+class SyclPluggableAllocator : public ice::builder::Allocator
 {
 public:
     using AllocateFunction = std::function<void*(std::size_t, int, sycl::queue*)>;
@@ -22,7 +22,7 @@ public:
     using RecordStreamFunction = std::function<void(void*, sycl::queue*)>;
 
     explicit SyclPluggableAllocator(const SyclOpsTable& ops) noexcept :
-        ice::builder::TF_AllocatorOps{
+        ice::builder::Allocator{
             ops.getBufferOps(),
             ops.getMemPoolOps(),
             ops.getStatusOps(),
@@ -63,7 +63,7 @@ public:
     void allocate(
         uint64_t size,
         TF_MemorySpace memory_space,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Stream& stream,
         TF_DeviceMemoryBase* out_memory,
         const ice::sonic::Status& out_status
     ) noexcept override
@@ -103,7 +103,7 @@ public:
 
     void record_stream(
         const TF_DeviceMemoryBase* memory,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -187,7 +187,7 @@ public:
 
     void get_snapshot(
         const TF_PoolId* pool_filter,
-        const ice::sonic::TF_BufferOps& out_snapshot,
+        const ice::sonic::Buffer& out_snapshot,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -204,7 +204,7 @@ public:
     void create_mem_pool_internal(
         const TF_PoolId* pool_id,
         _Bool is_user_created,
-        const ice::sonic::TF_MemPoolOps& out_pool,
+        const ice::sonic::MemPool& out_pool,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -214,7 +214,7 @@ public:
         m_status.fail_unimplemented(out_status, "create_mem_pool_internal");
     }
 
-    void destroy_mem_pool_internal(const ice::sonic::TF_MemPoolOps& pool) noexcept override
+    void destroy_mem_pool_internal(const ice::sonic::MemPool& pool) noexcept override
     {
         static_cast<void>(pool);
     }
@@ -260,7 +260,7 @@ public:
     }
 
 private:
-    sycl::queue* resolve_queue(const ice::sonic::TF_StreamOps& stream) noexcept
+    sycl::queue* resolve_queue(const ice::sonic::Stream& stream) noexcept
     {
         if (stream.get_handle()->plugin_data == nullptr) {
             return m_default_queue ? &m_default_queue->get() : nullptr;

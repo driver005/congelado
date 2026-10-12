@@ -62,7 +62,7 @@ public:
             return false;
         }
 
-        ice::sonic::TF_KernelBuilderOps builder{builder_ops, &handle};
+        ice::sonic::KernelBuilder builder{builder_ops, &handle};
         for (const auto& [attribute, type]: constraints) {
             assign(m_scratch_first, attribute);
             builder.type_constraint(m_scratch_first, type, m_status);

@@ -16,7 +16,7 @@ import :capture_status;
 
 export namespace aten_xpu {
 
-class SyclDeviceGraph : public ice::builder::TFGrapplerDeviceGraphOps
+class SyclDeviceGraph : public ice::builder::GrapplerDeviceGraph
 {
 public:
     using ModifiableGraph = sycl::ext::oneapi::experimental::command_graph<
@@ -25,7 +25,7 @@ public:
         sycl::ext::oneapi::experimental::graph_state::executable>;
 
     explicit SyclDeviceGraph(const SyclOpsTable& ops) noexcept :
-        ice::builder::TFGrapplerDeviceGraphOps{
+        ice::builder::GrapplerDeviceGraph{
             ops.getRandomGeneratorOps(),
             ops.getStatusOps(),
             ops.getStreamOps(),
@@ -65,7 +65,7 @@ public:
     }
 
     void capture_begin(
-        const ice::sonic::TF_StreamOps& capture_stream,
+        const ice::sonic::Stream& capture_stream,
         const TF_PoolId* pool_id,
         TF_CaptureMode mode,
         const ice::sonic::Status& out_status
@@ -185,7 +185,7 @@ public:
     }
 
     void register_random_generator(
-        const ice::sonic::TF_RandomGeneratorOps& generator,
+        const ice::sonic::RandomGenerator& generator,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -200,7 +200,7 @@ public:
     }
 
     void unregister_random_generator(
-        const ice::sonic::TF_RandomGeneratorOps& generator,
+        const ice::sonic::RandomGenerator& generator,
         const ice::sonic::Status& out_status
     ) noexcept override
     {

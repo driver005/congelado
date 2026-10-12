@@ -13,11 +13,11 @@ import aten_xpu_intern;
 
 export namespace aten_xpu {
 
-class SyclStream : public ice::builder::TF_StreamOps
+class SyclStream : public ice::builder::Stream
 {
 public:
     explicit SyclStream(const SyclOpsTable& ops) noexcept :
-        ice::builder::TF_StreamOps{ops.getStatusOps()},
+        ice::builder::Stream{ops.getStatusOps()},
         m_status{ops}
     {
     }

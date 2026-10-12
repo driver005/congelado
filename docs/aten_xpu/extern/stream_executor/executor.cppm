@@ -20,13 +20,13 @@ import :allocator;
 
 export namespace aten_xpu {
 
-class SyclExecutor : public ice::builder::TF_ExecutorOps
+class SyclExecutor : public ice::builder::Executor
 {
 public:
     using PeerAccessCallback = std::function<bool(int, int)>;
 
     explicit SyclExecutor(const SyclOpsTable& ops) noexcept :
-        ice::builder::TF_ExecutorOps{
+        ice::builder::Executor{
             ops.getAllocatorOps(),
             ops.getDeviceOps(),
             ops.getEventOps(),
@@ -70,7 +70,7 @@ public:
     }
 
     void device_memory_usage(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         int64_t* out_free,
         int64_t* out_total,
         _Bool* out_success
@@ -88,8 +88,8 @@ public:
     }
 
     void create_stream_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -97,8 +97,8 @@ public:
     }
 
     void destroy_stream_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream
     ) noexcept override
     {
         static_cast<void>(device);
@@ -106,9 +106,9 @@ public:
     }
 
     void create_stream_dependency(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& dependent,
-        const ice::sonic::TF_StreamOps& other,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& dependent,
+        const ice::sonic::Stream& other,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -122,8 +122,8 @@ public:
     }
 
     void get_stream_status(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -135,8 +135,8 @@ public:
     }
 
     void create_event_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_EventOps& event,
+        const ice::sonic::Device& device,
+        const ice::sonic::Event& event,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -146,8 +146,8 @@ public:
     }
 
     void destroy_event_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_EventOps& event
+        const ice::sonic::Device& device,
+        const ice::sonic::Event& event
     ) noexcept override
     {
         static_cast<void>(device);
@@ -155,8 +155,8 @@ public:
     }
 
     void get_event_status(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_EventOps& event,
+        const ice::sonic::Device& device,
+        const ice::sonic::Event& event,
         TF_EventStatus* out_event_status
     ) noexcept override
     {
@@ -171,9 +171,9 @@ public:
     }
 
     void record_event(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
-        const ice::sonic::TF_EventOps& event,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
+        const ice::sonic::Event& event,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -191,9 +191,9 @@ public:
     }
 
     void wait_for_event(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
-        const ice::sonic::TF_EventOps& event,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
+        const ice::sonic::Event& event,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -211,8 +211,8 @@ public:
     }
 
     void create_timer_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_TimerOps& timer,
+        const ice::sonic::Device& device,
+        const ice::sonic::Timer& timer,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -222,8 +222,8 @@ public:
     }
 
     void destroy_timer_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_TimerOps& timer
+        const ice::sonic::Device& device,
+        const ice::sonic::Timer& timer
     ) noexcept override
     {
         static_cast<void>(device);
@@ -231,9 +231,9 @@ public:
     }
 
     void start_timer(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
-        const ice::sonic::TF_TimerOps& timer,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
+        const ice::sonic::Timer& timer,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -248,9 +248,9 @@ public:
     }
 
     void stop_timer(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
-        const ice::sonic::TF_TimerOps& timer,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
+        const ice::sonic::Timer& timer,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -265,8 +265,8 @@ public:
     }
 
     void memcpy_dtoh(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         void* host_dst,
         const TF_DeviceMemoryBase* device_src,
         uint64_t size,
@@ -278,8 +278,8 @@ public:
     }
 
     void memcpy_htod(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         TF_DeviceMemoryBase* device_dst,
         const void* host_src,
         uint64_t size,
@@ -291,8 +291,8 @@ public:
     }
 
     void memcpy_dtod(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         TF_DeviceMemoryBase* device_dst,
         const TF_DeviceMemoryBase* device_src,
         uint64_t size,
@@ -304,7 +304,7 @@ public:
     }
 
     void sync_memcpy_dtoh(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         void* host_dst,
         const TF_DeviceMemoryBase* device_src,
         uint64_t size,
@@ -315,7 +315,7 @@ public:
     }
 
     void sync_memcpy_htod(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         TF_DeviceMemoryBase* device_dst,
         const void* host_src,
         uint64_t size,
@@ -326,7 +326,7 @@ public:
     }
 
     void sync_memcpy_dtod(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         TF_DeviceMemoryBase* device_dst,
         const TF_DeviceMemoryBase* device_src,
         uint64_t size,
@@ -337,8 +337,8 @@ public:
     }
 
     void block_host_for_event(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_EventOps& event,
+        const ice::sonic::Device& device,
+        const ice::sonic::Event& event,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -356,8 +356,8 @@ public:
     }
 
     void block_host_until_done(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -370,7 +370,7 @@ public:
     }
 
     void synchronize_all_activity(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -387,8 +387,8 @@ public:
     }
 
     void mem_zero(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         TF_DeviceMemoryBase* location,
         uint64_t size,
         const ice::sonic::Status& out_status
@@ -398,8 +398,8 @@ public:
     }
 
     void memset(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         TF_DeviceMemoryBase* location,
         uint8_t pattern,
         uint64_t size,
@@ -410,8 +410,8 @@ public:
     }
 
     void memset32(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         TF_DeviceMemoryBase* location,
         uint32_t pattern,
         uint64_t size,
@@ -428,8 +428,8 @@ public:
     }
 
     void host_callback(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         TF_StatusCallbackFn callback_fn,
         void* callback_arg,
         _Bool* out_success
@@ -459,9 +459,9 @@ public:
     }
 
     void create_stream_with_options(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         const TF_StreamOptions* options,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -469,9 +469,9 @@ public:
     }
 
     void get_stream_from_pool(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         int32_t priority,
-        const ice::sonic::TF_StreamOps& out_stream,
+        const ice::sonic::Stream& out_stream,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -489,8 +489,8 @@ public:
     }
 
     void get_current_stream(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& out_stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& out_stream,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -507,8 +507,8 @@ public:
     }
 
     void set_current_stream(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -521,9 +521,9 @@ public:
     }
 
     void create_stream_from_native(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         void* native_handle,
-        const ice::sonic::TF_StreamOps& out_stream,
+        const ice::sonic::Stream& out_stream,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -542,9 +542,9 @@ public:
     }
 
     void create_event_with_options_internal(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         const TF_EventOptions* options,
-        const ice::sonic::TF_EventOps& out_event,
+        const ice::sonic::Event& out_event,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -556,9 +556,9 @@ public:
     }
 
     void create_event_from_ipc_internal(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         const TF_IpcEventHandle* handle,
-        const ice::sonic::TF_EventOps& out_event,
+        const ice::sonic::Event& out_event,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -571,8 +571,8 @@ public:
     }
 
     void create_allocator_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_AllocatorOps& out_allocator,
+        const ice::sonic::Device& device,
+        const ice::sonic::Allocator& out_allocator,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -585,8 +585,8 @@ public:
     }
 
     void destroy_allocator_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_AllocatorOps& allocator
+        const ice::sonic::Device& device,
+        const ice::sonic::Allocator& allocator
     ) noexcept override
     {
         static_cast<void>(device);
@@ -594,9 +594,9 @@ public:
     }
 
     void create_random_generator_internal(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         uint64_t seed,
-        const ice::sonic::TF_RandomGeneratorOps& out_generator,
+        const ice::sonic::RandomGenerator& out_generator,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -606,8 +606,8 @@ public:
     }
 
     void destroy_random_generator_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_RandomGeneratorOps& generator
+        const ice::sonic::Device& device,
+        const ice::sonic::RandomGenerator& generator
     ) noexcept override
     {
         static_cast<void>(device);
@@ -615,8 +615,8 @@ public:
     }
 
     void get_default_random_generator(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_RandomGeneratorOps& out_generator,
+        const ice::sonic::Device& device,
+        const ice::sonic::RandomGenerator& out_generator,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -626,7 +626,7 @@ public:
     }
 
     void get_native_handle(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         void** out_handle
     ) noexcept override
     {
@@ -665,24 +665,24 @@ private:
         return s_current_streams[index];
     }
 
-    static const sycl::device& native_device(const ice::sonic::TF_DeviceOps& device)
+    static const sycl::device& native_device(const ice::sonic::Device& device)
     {
         return SyclHandle::resolve<SyclDevice>(device).getNativeDevice();
     }
 
-    static int device_index(const ice::sonic::TF_DeviceOps& device)
+    static int device_index(const ice::sonic::Device& device)
     {
         return SyclHandle::resolve<SyclDevice>(device).getDeviceIndex();
     }
 
-    static sycl::queue& queue_of(const ice::sonic::TF_StreamOps& stream)
+    static sycl::queue& queue_of(const ice::sonic::Stream& stream)
     {
         return SyclHandle::resolve<SyclStream>(stream).getNativeQueue();
     }
 
     void bind_new_stream(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         int32_t priority,
         const ice::sonic::Status& out_status
     )
@@ -699,7 +699,7 @@ private:
     }
 
     void submit_copy(
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Stream& stream,
         void* destination,
         const void* source,
         uint64_t size,
@@ -714,8 +714,8 @@ private:
     }
 
     void submit_fill(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         TF_DeviceMemoryBase* location,
         uint8_t pattern,
         uint64_t size,
@@ -731,7 +731,7 @@ private:
     }
 
     void blocking_copy(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         void* destination,
         const void* source,
         uint64_t size,

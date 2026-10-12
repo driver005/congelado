@@ -13,11 +13,11 @@ import :device_graph;
 
 export namespace aten_xpu {
 
-class SyclGrappler : public ice::builder::TF_GrapplerOps
+class SyclGrappler : public ice::builder::Grappler
 {
 public:
     explicit SyclGrappler(const SyclOpsTable& ops) noexcept :
-        ice::builder::TF_GrapplerOps{
+        ice::builder::Grappler{
             ops.getDeviceGraphOps(),
             ops.getDeviceOps(),
             ops.getExecutorOps(),
@@ -51,9 +51,9 @@ public:
     }
 
     void create_device_graph_internal(
-        const ice::sonic::TF_ExecutorOps& executor,
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TFGrapplerDeviceGraphOps& out_graph,
+        const ice::sonic::Executor& executor,
+        const ice::sonic::Device& device,
+        const ice::sonic::GrapplerDeviceGraph& out_graph,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -68,7 +68,7 @@ public:
     }
 
     void destroy_device_graph_internal(
-        const ice::sonic::TFGrapplerDeviceGraphOps& graph
+        const ice::sonic::GrapplerDeviceGraph& graph
     ) noexcept override
     {
         auto& device_graph = SyclHandle::resolve<SyclDeviceGraph>(graph);

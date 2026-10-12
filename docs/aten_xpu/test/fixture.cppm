@@ -59,9 +59,9 @@ protected:
         }
     }
 
-    ice::sonic::TF_StreamOps make_stream(int32_t priority = 0)
+    ice::sonic::Stream make_stream(int32_t priority = 0)
     {
-        ice::sonic::TF_StreamOps stream{SyclOpsTable::getInstance().getStreamOps()};
+        ice::sonic::Stream stream{SyclOpsTable::getInstance().getStreamOps()};
         stream.create();
         const TF_StreamOptions options{
             .struct_size = sizeof(TF_StreamOptions),
@@ -71,21 +71,21 @@ protected:
         return stream;
     }
 
-    ice::sonic::TF_AllocatorOps make_allocator()
+    ice::sonic::Allocator make_allocator()
     {
-        ice::sonic::TF_AllocatorOps allocator{SyclOpsTable::getInstance().getAllocatorOps()};
+        ice::sonic::Allocator allocator{SyclOpsTable::getInstance().getAllocatorOps()};
         allocator.create();
         m_executor->create_allocator_internal(*m_device, allocator, *m_status);
         return allocator;
     }
 
-    void release_stream(const ice::sonic::TF_StreamOps& stream)
+    void release_stream(const ice::sonic::Stream& stream)
     {
         m_executor->destroy_stream_internal(*m_device, stream);
         stream.destroy();
     }
 
-    void release_allocator(const ice::sonic::TF_AllocatorOps& allocator)
+    void release_allocator(const ice::sonic::Allocator& allocator)
     {
         m_executor->destroy_allocator_internal(*m_device, allocator);
         allocator.destroy();
@@ -108,17 +108,17 @@ protected:
         return *m_status;
     }
 
-    const ice::sonic::TF_PlatformOps& getPlatform() const noexcept
+    const ice::sonic::Platform& getPlatform() const noexcept
     {
         return *m_platform;
     }
 
-    const ice::sonic::TF_DeviceOps& getDevice() const noexcept
+    const ice::sonic::Device& getDevice() const noexcept
     {
         return *m_device;
     }
 
-    const ice::sonic::TF_ExecutorOps& getExecutor() const noexcept
+    const ice::sonic::Executor& getExecutor() const noexcept
     {
         return *m_executor;
     }
@@ -126,9 +126,9 @@ protected:
 private:
     int m_device_count{0};
     std::optional<ice::sonic::Status> m_status;
-    std::optional<ice::sonic::TF_PlatformOps> m_platform;
-    std::optional<ice::sonic::TF_DeviceOps> m_device;
-    std::optional<ice::sonic::TF_ExecutorOps> m_executor;
+    std::optional<ice::sonic::Platform> m_platform;
+    std::optional<ice::sonic::Device> m_device;
+    std::optional<ice::sonic::Executor> m_executor;
 };
 
 } // namespace aten_xpu

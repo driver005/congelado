@@ -13,11 +13,11 @@ import aten_xpu_intern;
 
 export namespace aten_xpu {
 
-class SyclEvent : public ice::builder::TF_EventOps
+class SyclEvent : public ice::builder::Event
 {
 public:
     explicit SyclEvent(const SyclOpsTable& ops) noexcept :
-        ice::builder::TF_EventOps{ops.getEventOps(), ops.getStatusOps()},
+        ice::builder::Event{ops.getEventOps(), ops.getStatusOps()},
         m_status{ops}
     {
     }
@@ -82,7 +82,7 @@ public:
     }
 
     void elapsed_time(
-        const ice::sonic::TF_EventOps& end,
+        const ice::sonic::Event& end,
         float* out_milliseconds,
         const ice::sonic::Status& out_status
     ) noexcept override

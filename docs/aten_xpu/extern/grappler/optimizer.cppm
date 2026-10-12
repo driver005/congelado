@@ -14,11 +14,11 @@ import aten_xpu_intern;
 
 export namespace aten_xpu {
 
-class SyclGrapplerOptimizer : public ice::builder::TFGrapplerOptimizerOps
+class SyclGrapplerOptimizer : public ice::builder::GrapplerOptimizer
 {
 public:
     explicit SyclGrapplerOptimizer(const SyclOpsTable& ops) noexcept :
-        ice::builder::TFGrapplerOptimizerOps{
+        ice::builder::GrapplerOptimizer{
             ops.getGrapplerItemOps(),
             ops.getBufferOps(),
             ops.getStatusOps()
@@ -45,9 +45,9 @@ public:
     }
 
     void optimize(
-        const ice::sonic::TF_BufferOps& graph_buf,
-        const ice::sonic::TFGrapplerItemOps& item,
-        const ice::sonic::TF_BufferOps& out_optimized_graph_buf,
+        const ice::sonic::Buffer& graph_buf,
+        const ice::sonic::GrapplerItem& item,
+        const ice::sonic::Buffer& out_optimized_graph_buf,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -74,7 +74,7 @@ public:
 
 private:
     void collect_protected(
-        const ice::sonic::TFGrapplerItemOps& item,
+        const ice::sonic::GrapplerItem& item,
         const ice::sonic::Status& status,
         bool fetch_nodes
     )

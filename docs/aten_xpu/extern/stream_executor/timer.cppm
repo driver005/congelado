@@ -12,7 +12,7 @@ import aten_xpu_intern;
 
 export namespace aten_xpu {
 
-class SyclTimer : public ice::builder::TF_TimerOps
+class SyclTimer : public ice::builder::Timer
 {
 public:
     SyclTimer() noexcept = default;

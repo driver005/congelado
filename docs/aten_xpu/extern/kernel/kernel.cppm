@@ -14,11 +14,11 @@ import :construction;
 export namespace aten_xpu {
 
 template<typename Derived>
-class SyclKernel : public ice::builder::TF_KernelOps
+class SyclKernel : public ice::builder::Kernel
 {
 public:
     explicit SyclKernel(const SyclOpsTable& ops) noexcept :
-        ice::builder::TF_KernelOps{ops.getStringOps()},
+        ice::builder::Kernel{ops.getStringOps()},
         m_status{ops}
     {
     }

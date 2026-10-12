@@ -1,6 +1,6 @@
 # aten_xpu: SYCL backend on the ice layer
 
-Reference SYCL/oneDNN plugin that implements the generated `ice::builder::TF_*Ops` interfaces.
+Reference SYCL/oneDNN plugin that implements the generated `ice::builder::*` interfaces.
 It lives under `docs/` and Bazel does not build it.
 
 ## Layout

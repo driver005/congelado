@@ -14,9 +14,9 @@ namespace aten_xpu {
 class SyclEventTest : public SyclTestFixture
 {
 protected:
-    ice::sonic::TF_EventOps make_event(bool enable_timing, bool enable_ipc)
+    ice::sonic::Event make_event(bool enable_timing, bool enable_ipc)
     {
-        ice::sonic::TF_EventOps event{SyclOpsTable::getInstance().getEventOps()};
+        ice::sonic::Event event{SyclOpsTable::getInstance().getEventOps()};
         event.create();
         const TF_EventOptions options{
             .struct_size = sizeof(TF_EventOptions),
@@ -78,7 +78,7 @@ TEST_F(SyclEventTest, IpcRoundTrip)
     event.export_ipc(&handle, getStatus());
     ASSERT_TRUE(ok());
 
-    ice::sonic::TF_EventOps imported{SyclOpsTable::getInstance().getEventOps()};
+    ice::sonic::Event imported{SyclOpsTable::getInstance().getEventOps()};
     imported.create();
     getExecutor().create_event_from_ipc_internal(getDevice(), &handle, imported, getStatus());
     EXPECT_TRUE(ok());
