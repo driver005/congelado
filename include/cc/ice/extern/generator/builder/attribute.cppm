@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/generator/attribute.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_generator_builder:attribute;
@@ -16,30 +16,30 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TFGeneratorAttributeOps
+class GeneratorAttribute
 {
 public:
-    explicit TFGeneratorAttributeOps(const ::TF_StringOps* String_ops) noexcept :
+    explicit GeneratorAttribute(const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_String_ops = String_ops;
     }
 
-    TFGeneratorAttributeOps(const TFGeneratorAttributeOps&) = delete;
-    TFGeneratorAttributeOps& operator=(const TFGeneratorAttributeOps&) = delete;
+    GeneratorAttribute(const GeneratorAttribute&) = delete;
+    GeneratorAttribute& operator=(const GeneratorAttribute&) = delete;
 
-    static TFGeneratorAttributeOps& from_handle(void* ctx) noexcept
+    static GeneratorAttribute& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TFGeneratorAttributeOps*>(ctx);
+        return *static_cast<GeneratorAttribute*>(ctx);
     }
 
     template<typename HandleT>
-    static TFGeneratorAttributeOps& from_handle(HandleT* handle) noexcept
+    static GeneratorAttribute& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TFGeneratorAttributeOps*>(handle->plugin_data);
+        return *static_cast<GeneratorAttribute*>(handle->plugin_data);
     }
 
-    virtual ~TFGeneratorAttributeOps() = default;
+    virtual ~GeneratorAttribute() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void set_name(const ice::sonic::String& name) noexcept = 0;
@@ -59,77 +59,77 @@ public:
 
             .create = create,
             .destroy =
-                [](TFGeneratorAttribute* handle) noexcept
+                [](::TFGeneratorAttribute* handle) noexcept
             {
-                auto& self = TFGeneratorAttributeOps::from_handle(handle);
+                auto& self = GeneratorAttribute::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TFGeneratorAttribute* attr_context, TF_String* out_name) noexcept
+                [](::TFGeneratorAttribute* attr_context, ::TF_String* out_name) noexcept
             {
-                auto& self = TFGeneratorAttributeOps::from_handle(attr_context);
+                auto& self = GeneratorAttribute::from_handle(attr_context);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .set_name =
-                [](TFGeneratorAttribute* attr_context, const TF_String* name) noexcept
+                [](::TFGeneratorAttribute* attr_context, const ::TF_String* name) noexcept
             {
-                auto& self = TFGeneratorAttributeOps::from_handle(attr_context);
+                auto& self = GeneratorAttribute::from_handle(attr_context);
                 self.set_name(self.wrap(std::type_identity<ice::sonic::String>{}, name));
             },
             .set_description =
-                [](TFGeneratorAttribute* attr_context, const TF_String* description) noexcept
+                [](::TFGeneratorAttribute* attr_context, const ::TF_String* description) noexcept
             {
-                auto& self = TFGeneratorAttributeOps::from_handle(attr_context);
+                auto& self = GeneratorAttribute::from_handle(attr_context);
                 self.set_description(
                     self.wrap(std::type_identity<ice::sonic::String>{}, description)
                 );
             },
             .set_full_type =
-                [](TFGeneratorAttribute* attr_context, const TF_String* full_type) noexcept
+                [](::TFGeneratorAttribute* attr_context, const ::TF_String* full_type) noexcept
             {
-                auto& self = TFGeneratorAttributeOps::from_handle(attr_context);
+                auto& self = GeneratorAttribute::from_handle(attr_context);
                 self.set_full_type(self.wrap(std::type_identity<ice::sonic::String>{}, full_type));
             },
             .set_base_type =
-                [](TFGeneratorAttribute* attr_context, const TF_String* base_type) noexcept
+                [](::TFGeneratorAttribute* attr_context, const ::TF_String* base_type) noexcept
             {
-                auto& self = TFGeneratorAttributeOps::from_handle(attr_context);
+                auto& self = GeneratorAttribute::from_handle(attr_context);
                 self.set_base_type(self.wrap(std::type_identity<ice::sonic::String>{}, base_type));
             },
             .set_is_list =
-                [](TFGeneratorAttribute* attr_context, _Bool is_list) noexcept
+                [](::TFGeneratorAttribute* attr_context, _Bool is_list) noexcept
             {
-                auto& self = TFGeneratorAttributeOps::from_handle(attr_context);
+                auto& self = GeneratorAttribute::from_handle(attr_context);
                 self.set_is_list(is_list);
             },
             .get_description =
-                [](TFGeneratorAttribute* attr_context, TF_String* out_description) noexcept
+                [](::TFGeneratorAttribute* attr_context, ::TF_String* out_description) noexcept
             {
-                auto& self = TFGeneratorAttributeOps::from_handle(attr_context);
+                auto& self = GeneratorAttribute::from_handle(attr_context);
                 self.get_description(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_description)
                 );
             },
             .get_full_type =
-                [](TFGeneratorAttribute* attr_context, TF_String* out_full_type) noexcept
+                [](::TFGeneratorAttribute* attr_context, ::TF_String* out_full_type) noexcept
             {
-                auto& self = TFGeneratorAttributeOps::from_handle(attr_context);
+                auto& self = GeneratorAttribute::from_handle(attr_context);
                 self.get_full_type(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_full_type)
                 );
             },
             .get_base_type =
-                [](TFGeneratorAttribute* attr_context, TF_String* out_base_type) noexcept
+                [](::TFGeneratorAttribute* attr_context, ::TF_String* out_base_type) noexcept
             {
-                auto& self = TFGeneratorAttributeOps::from_handle(attr_context);
+                auto& self = GeneratorAttribute::from_handle(attr_context);
                 self.get_base_type(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_base_type)
                 );
             },
             .is_list =
-                [](TFGeneratorAttribute* attr_context, int* out_is_list) noexcept
+                [](::TFGeneratorAttribute* attr_context, int* out_is_list) noexcept
             {
-                auto& self = TFGeneratorAttributeOps::from_handle(attr_context);
+                auto& self = GeneratorAttribute::from_handle(attr_context);
                 self.is_list(out_is_list);
             },
 
@@ -153,18 +153,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TFGeneratorAttributeOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TFGeneratorAttributeOps*>(&m_vtable));
     }
 
 private:

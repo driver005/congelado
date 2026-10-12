@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/ops/ops.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_ops_sonic:ops;
 
@@ -15,36 +15,41 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_OpsOps : public ice::sonic::Runtime<::TF_OpsOps, ::TF_Ops>
+class Ops : public ice::sonic::Runtime<::TF_OpsOps, ::TF_Ops>
 {
 public:
-    TF_OpsOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Ops(const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
-        const ice::sonic::String& provider
-    ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        const ice::sonic::String& provider) noexcept :
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_OpsOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Ops(const ice::sonic::Registration& registry,
         ::TF_Ops* handle,
         const ice::sonic::String& type,
-        const ice::sonic::String& provider
-    ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        const ice::sonic::String& provider) noexcept :
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_OpsOps(const ::TF_OpsOps* ops) noexcept :
+    explicit Ops(const ::TF_OpsOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_OpsOps(const ::TF_OpsOps* ops, ::TF_Ops* handle) noexcept :
+    Ops(const ::TF_OpsOps* ops, ::TF_Ops* handle) noexcept :
         Runtime(ops, handle)
     {
     }

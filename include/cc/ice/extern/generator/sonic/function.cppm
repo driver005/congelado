@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/generator/function.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_generator_sonic:function;
 
@@ -19,40 +19,46 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFGeneratorFunctionOps :
+class GeneratorFunction :
     public ice::sonic::Runtime<::TFGeneratorFunctionOps, ::TFGeneratorFunction>
 {
 public:
-    TFGeneratorFunctionOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GeneratorFunction(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFGeneratorFunctionOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GeneratorFunction(
+        const ice::sonic::Registration& registry,
         ::TFGeneratorFunction* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFGeneratorFunctionOps(const ::TFGeneratorFunctionOps* ops) noexcept :
+    explicit GeneratorFunction(const ::TFGeneratorFunctionOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFGeneratorFunctionOps(
-        const ::TFGeneratorFunctionOps* ops,
-        ::TFGeneratorFunction* handle
-    ) noexcept :
+    GeneratorFunction(const ::TFGeneratorFunctionOps* ops, ::TFGeneratorFunction* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -73,7 +79,7 @@ public:
     }
 
     void add_parameter(
-        const ice::sonic::TFGeneratorParameterOps& parameter,
+        const ice::sonic::GeneratorParameter& parameter,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -81,7 +87,7 @@ public:
     }
 
     void add_attribute(
-        const ice::sonic::TFGeneratorAttributeOps& attribute,
+        const ice::sonic::GeneratorAttribute& attribute,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -89,7 +95,7 @@ public:
     }
 
     void add_definition(
-        const ice::sonic::TFGeneratorDefinitionOps& definition,
+        const ice::sonic::GeneratorDefinition& definition,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -97,7 +103,7 @@ public:
     }
 
     void add_block(
-        const ice::sonic::TFGeneratorBlockOps& block,
+        const ice::sonic::GeneratorBlock& block,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -106,7 +112,7 @@ public:
 
     void get_parameter(
         const ice::sonic::String& name,
-        const ice::sonic::TFGeneratorParameterOps& out_parameter,
+        const ice::sonic::GeneratorParameter& out_parameter,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -120,7 +126,7 @@ public:
 
     void get_attribute(
         const ice::sonic::String& name,
-        const ice::sonic::TFGeneratorAttributeOps& out_attribute,
+        const ice::sonic::GeneratorAttribute& out_attribute,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -134,7 +140,7 @@ public:
 
     void get_definition(
         const ice::sonic::String& name,
-        const ice::sonic::TFGeneratorDefinitionOps& out_definition,
+        const ice::sonic::GeneratorDefinition& out_definition,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -148,7 +154,7 @@ public:
 
     void get_block(
         const ice::sonic::String& name,
-        const ice::sonic::TFGeneratorBlockOps& out_block,
+        const ice::sonic::GeneratorBlock& out_block,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -161,7 +167,7 @@ public:
     }
 
     void list_parameters(
-        TF_Tensor** out_parameters,
+        ::TF_Tensor** out_parameters,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -169,7 +175,7 @@ public:
     }
 
     void list_attributes(
-        TF_Tensor** out_attributes,
+        ::TF_Tensor** out_attributes,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -177,20 +183,20 @@ public:
     }
 
     void list_definitions(
-        TF_Tensor** out_definitions,
+        ::TF_Tensor** out_definitions,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->list_definitions(get_handle(), out_definitions, out_status.get_handle());
     }
 
-    void list_blocks(TF_Tensor** out_blocks, const ice::sonic::Status& out_status) const noexcept
+    void list_blocks(::TF_Tensor** out_blocks, const ice::sonic::Status& out_status) const noexcept
     {
         m_ops->list_blocks(get_handle(), out_blocks, out_status.get_handle());
     }
 
     void finish(
-        const ice::sonic::TF_TensorOps& outputs,
+        const ice::sonic::Tensor& outputs,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

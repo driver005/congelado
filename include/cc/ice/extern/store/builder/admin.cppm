@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/extern/store/admin.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -17,34 +17,32 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TFStoreAdminOps
+class StoreAdmin
 {
 public:
-    explicit TFStoreAdminOps(
-        const ::TF_StatusOps* Status_ops,
-        const ::TF_StringOps* String_ops
-    ) noexcept :
+    explicit StoreAdmin(const ::TF_StatusOps* Status_ops, const ::TF_StringOps* String_ops) noexcept
+        :
         m_handle{.plugin_data = this}
     {
         m_Status_ops = Status_ops;
         m_String_ops = String_ops;
     }
 
-    TFStoreAdminOps(const TFStoreAdminOps&) = delete;
-    TFStoreAdminOps& operator=(const TFStoreAdminOps&) = delete;
+    StoreAdmin(const StoreAdmin&) = delete;
+    StoreAdmin& operator=(const StoreAdmin&) = delete;
 
-    static TFStoreAdminOps& from_handle(void* ctx) noexcept
+    static StoreAdmin& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TFStoreAdminOps*>(ctx);
+        return *static_cast<StoreAdmin*>(ctx);
     }
 
     template<typename HandleT>
-    static TFStoreAdminOps& from_handle(HandleT* handle) noexcept
+    static StoreAdmin& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TFStoreAdminOps*>(handle->plugin_data);
+        return *static_cast<StoreAdmin*>(handle->plugin_data);
     }
 
-    virtual ~TFStoreAdminOps() = default;
+    virtual ~StoreAdmin() = default;
     virtual void destroy() noexcept = 0;
     virtual void is_connected(int* out_connected) noexcept = 0;
     virtual void backup(
@@ -67,25 +65,25 @@ public:
 
             .create = create,
             .destroy =
-                [](TFStoreAdmin* handle) noexcept
+                [](::TFStoreAdmin* handle) noexcept
             {
-                auto& self = TFStoreAdminOps::from_handle(handle);
+                auto& self = StoreAdmin::from_handle(handle);
                 self.destroy();
             },
             .is_connected =
-                [](TFStoreAdmin* manager, int* out_connected) noexcept
+                [](::TFStoreAdmin* manager, int* out_connected) noexcept
             {
-                auto& self = TFStoreAdminOps::from_handle(manager);
+                auto& self = StoreAdmin::from_handle(manager);
                 self.is_connected(out_connected);
             },
             .backup =
-                [](TFStoreAdmin* manager,
-                   const TF_String* destination,
+                [](::TFStoreAdmin* manager,
+                   const ::TF_String* destination,
                    TFStoreAckFn completion,
                    void* user_data,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFStoreAdminOps::from_handle(manager);
+                auto& self = StoreAdmin::from_handle(manager);
                 self.backup(
                     self.wrap(std::type_identity<ice::sonic::String>{}, destination),
                     completion,
@@ -94,13 +92,13 @@ public:
                 );
             },
             .restore =
-                [](TFStoreAdmin* manager,
-                   const TF_String* source,
+                [](::TFStoreAdmin* manager,
+                   const ::TF_String* source,
                    TFStoreAckFn completion,
                    void* user_data,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFStoreAdminOps::from_handle(manager);
+                auto& self = StoreAdmin::from_handle(manager);
                 self.restore(
                     self.wrap(std::type_identity<ice::sonic::String>{}, source),
                     completion,
@@ -135,18 +133,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TFStoreAdminOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TFStoreAdminOps*>(&m_vtable));
     }
 
 private:

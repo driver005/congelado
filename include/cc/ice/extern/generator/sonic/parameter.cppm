@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/generator/parameter.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_generator_sonic:parameter;
 
@@ -16,37 +16,46 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFGeneratorParameterOps :
+class GeneratorParameter :
     public ice::sonic::Runtime<::TFGeneratorParameterOps, ::TFGeneratorParameter>
 {
 public:
-    TFGeneratorParameterOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GeneratorParameter(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFGeneratorParameterOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GeneratorParameter(
+        const ice::sonic::Registration& registry,
         ::TFGeneratorParameter* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFGeneratorParameterOps(const ::TFGeneratorParameterOps* ops) noexcept :
+    explicit GeneratorParameter(const ::TFGeneratorParameterOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFGeneratorParameterOps(
+    GeneratorParameter(
         const ::TFGeneratorParameterOps* ops,
         ::TFGeneratorParameter* handle
     ) noexcept :
@@ -94,7 +103,7 @@ public:
         m_ops->get_position(get_handle(), out_position);
     }
 
-    void get_type(const ice::sonic::TF_TypeInfoOps& out_type) const noexcept
+    void get_type(const ice::sonic::TypeInfo& out_type) const noexcept
     {
         m_ops->get_type(get_handle(), out_type.get_handle());
     }

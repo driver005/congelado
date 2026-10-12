@@ -5,7 +5,7 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/tstring.h"
 
 export module cc_ice_intern_sonic:tstring;
@@ -18,27 +18,6 @@ export namespace ice::sonic {
 class String : public ice::sonic::Runtime<::TF_StringOps, ::TF_String>
 {
 public:
-    String(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
-        const ice::sonic::String& type,
-        const ice::sonic::String& provider
-    ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
-    {
-    }
-
-    String(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
-        ::TF_String* handle,
-        const ice::sonic::String& type,
-        const ice::sonic::String& provider
-    ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
-    {
-    }
-
     explicit String(const ::TF_StringOps* ops) noexcept :
         Runtime(ops)
     {
@@ -79,7 +58,7 @@ public:
         m_ops->get_data_pointer(get_handle(), out_data);
     }
 
-    void get_type(TFTStringType* out_type) const noexcept
+    void get_type(::TFTStringType* out_type) const noexcept
     {
         m_ops->get_type(get_handle(), out_type);
     }

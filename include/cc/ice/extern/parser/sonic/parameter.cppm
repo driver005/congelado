@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/parser/parameter.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_parser_sonic:parameter;
 
@@ -16,36 +16,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFParserParameterOps : public ice::sonic::Runtime<::TFParserParameterOps, ::TFParserParameter>
+class ParserParameter : public ice::sonic::Runtime<::TFParserParameterOps, ::TFParserParameter>
 {
 public:
-    TFParserParameterOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    ParserParameter(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFParserParameterOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    ParserParameter(
+        const ice::sonic::Registration& registry,
         ::TFParserParameter* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFParserParameterOps(const ::TFParserParameterOps* ops) noexcept :
+    explicit ParserParameter(const ::TFParserParameterOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFParserParameterOps(const ::TFParserParameterOps* ops, ::TFParserParameter* handle) noexcept :
+    ParserParameter(const ::TFParserParameterOps* ops, ::TFParserParameter* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -69,7 +78,7 @@ public:
     }
 
     void get_typeinfo(
-        const ice::sonic::TFParserTypeInfoOps& out_typeinfo,
+        const ice::sonic::ParserTypeInfo& out_typeinfo,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/kernel/builder.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -17,10 +17,10 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_KernelBuilderOps
+class KernelBuilder
 {
 public:
-    explicit TF_KernelBuilderOps(
+    explicit KernelBuilder(
         const ::TF_StatusOps* Status_ops,
         const ::TF_StringOps* String_ops
     ) noexcept :
@@ -30,21 +30,21 @@ public:
         m_String_ops = String_ops;
     }
 
-    TF_KernelBuilderOps(const TF_KernelBuilderOps&) = delete;
-    TF_KernelBuilderOps& operator=(const TF_KernelBuilderOps&) = delete;
+    KernelBuilder(const KernelBuilder&) = delete;
+    KernelBuilder& operator=(const KernelBuilder&) = delete;
 
-    static TF_KernelBuilderOps& from_handle(void* ctx) noexcept
+    static KernelBuilder& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_KernelBuilderOps*>(ctx);
+        return *static_cast<KernelBuilder*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_KernelBuilderOps& from_handle(HandleT* handle) noexcept
+    static KernelBuilder& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_KernelBuilderOps*>(handle->plugin_data);
+        return *static_cast<KernelBuilder*>(handle->plugin_data);
     }
 
-    virtual ~TF_KernelBuilderOps() = default;
+    virtual ~KernelBuilder() = default;
     virtual void destroy() noexcept = 0;
     virtual void type_constraint(
         const ice::sonic::String& attr_name,
@@ -72,18 +72,18 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_KernelBuilder* handle) noexcept
+                [](::TF_KernelBuilder* handle) noexcept
             {
-                auto& self = TF_KernelBuilderOps::from_handle(handle);
+                auto& self = KernelBuilder::from_handle(handle);
                 self.destroy();
             },
             .type_constraint =
-                [](TF_KernelBuilder* kernel_builder,
-                   const TF_String* attr_name,
+                [](::TF_KernelBuilder* kernel_builder,
+                   const ::TF_String* attr_name,
                    TFDataTypeEnum type,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_KernelBuilderOps::from_handle(kernel_builder);
+                auto& self = KernelBuilder::from_handle(kernel_builder);
                 self.type_constraint(
                     self.wrap(std::type_identity<ice::sonic::String>{}, attr_name),
                     type,
@@ -91,41 +91,41 @@ public:
                 );
             },
             .host_memory =
-                [](TF_KernelBuilder* kernel_builder, const TF_String* arg_name) noexcept
+                [](::TF_KernelBuilder* kernel_builder, const ::TF_String* arg_name) noexcept
             {
-                auto& self = TF_KernelBuilderOps::from_handle(kernel_builder);
+                auto& self = KernelBuilder::from_handle(kernel_builder);
                 self.host_memory(self.wrap(std::type_identity<ice::sonic::String>{}, arg_name));
             },
             .priority =
-                [](TF_KernelBuilder* kernel_builder, int32_t priority_number) noexcept
+                [](::TF_KernelBuilder* kernel_builder, int32_t priority_number) noexcept
             {
-                auto& self = TF_KernelBuilderOps::from_handle(kernel_builder);
+                auto& self = KernelBuilder::from_handle(kernel_builder);
                 self.priority(priority_number);
             },
             .label =
-                [](TF_KernelBuilder* kernel_builder, const TF_String* label) noexcept
+                [](::TF_KernelBuilder* kernel_builder, const ::TF_String* label) noexcept
             {
-                auto& self = TF_KernelBuilderOps::from_handle(kernel_builder);
+                auto& self = KernelBuilder::from_handle(kernel_builder);
                 self.label(self.wrap(std::type_identity<ice::sonic::String>{}, label));
             },
             .register_kernel_builder =
-                [](TF_KernelBuilder* builder,
-                   const TF_String* kernel_name,
-                   TF_Status* out_status) noexcept
+                [](::TF_KernelBuilder* builder,
+                   const ::TF_String* kernel_name,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_KernelBuilderOps::from_handle(builder);
+                auto& self = KernelBuilder::from_handle(builder);
                 self.register_kernel_builder(
                     self.wrap(std::type_identity<ice::sonic::String>{}, kernel_name),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .register_kernel_builder_with_kernel_def =
-                [](TF_KernelBuilder* builder,
-                   const TF_String* serialized_kernel_def,
-                   const TF_String* name,
-                   TF_Status* out_status) noexcept
+                [](::TF_KernelBuilder* builder,
+                   const ::TF_String* serialized_kernel_def,
+                   const ::TF_String* name,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_KernelBuilderOps::from_handle(builder);
+                auto& self = KernelBuilder::from_handle(builder);
                 self.register_kernel_builder_with_kernel_def(
                     self.wrap(std::type_identity<ice::sonic::String>{}, serialized_kernel_def),
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
@@ -159,18 +159,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_KernelBuilderOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_KernelBuilderOps*>(&m_vtable));
     }
 
 private:

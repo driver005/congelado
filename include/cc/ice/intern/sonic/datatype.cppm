@@ -5,47 +5,57 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/datatype.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_intern_sonic:datatype;
 
 import std;
+import :registration;
 import :runtime;
 import :tstring;
 
 export namespace ice::sonic {
 
-class TF_DataTypeOps : public ice::sonic::Runtime<::TF_DataTypeOps, ::TF_DataType>
+class DataType : public ice::sonic::Runtime<::TF_DataTypeOps, ::TF_DataType>
 {
 public:
-    TF_DataTypeOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    DataType(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_DataTypeOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    DataType(
+        const ice::sonic::Registration& registry,
         ::TF_DataType* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_DataTypeOps(const ::TF_DataTypeOps* ops) noexcept :
+    explicit DataType(const ::TF_DataTypeOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_DataTypeOps(const ::TF_DataTypeOps* ops, ::TF_DataType* handle) noexcept :
+    DataType(const ::TF_DataTypeOps* ops, ::TF_DataType* handle) noexcept :
         Runtime(ops, handle)
     {
     }

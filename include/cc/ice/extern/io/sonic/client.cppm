@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/io/client.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_io_sonic:client;
 
@@ -17,36 +17,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_ClientOps : public ice::sonic::Runtime<::TF_ClientOps, ::TF_Client>
+class Client : public ice::sonic::Runtime<::TF_ClientOps, ::TF_Client>
 {
 public:
-    TF_ClientOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Client(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_ClientOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Client(
+        const ice::sonic::Registration& registry,
         ::TF_Client* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_ClientOps(const ::TF_ClientOps* ops) noexcept :
+    explicit Client(const ::TF_ClientOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_ClientOps(const ::TF_ClientOps* ops, ::TF_Client* handle) noexcept :
+    Client(const ::TF_ClientOps* ops, ::TF_Client* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -124,7 +133,7 @@ public:
 
     void create_request(
         uint32_t stream_id,
-        const ice::sonic::TF_RequestOps& out_request,
+        const ice::sonic::Request& out_request,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -137,8 +146,8 @@ public:
     }
 
     void send(
-        const ice::sonic::TF_RequestOps& request,
-        const ice::sonic::TF_ResponseOps& out_response,
+        const ice::sonic::Request& request,
+        const ice::sonic::Response& out_response,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -151,7 +160,7 @@ public:
     }
 
     void send_async(
-        const ice::sonic::TF_RequestOps& request,
+        const ice::sonic::Request& request,
         TFClientResponseFn completion,
         void* user_data,
         const ice::sonic::Status& out_status
@@ -172,7 +181,7 @@ public:
     }
 
     void list_pending_requests(
-        const ice::sonic::TF_VectorOps& out_stream_ids,
+        const ice::sonic::Vector& out_stream_ids,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -228,7 +237,7 @@ public:
     }
 
     void get_stats(
-        const ice::sonic::TF_MapOps& out_stats,
+        const ice::sonic::Map& out_stats,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

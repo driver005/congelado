@@ -5,48 +5,58 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/vector.h"
 
 export module cc_ice_intern_sonic:vector;
 
 import std;
+import :registration;
 import :runtime;
 import :status;
 import :tstring;
 
 export namespace ice::sonic {
 
-class TF_VectorOps : public ice::sonic::Runtime<::TF_VectorOps, ::TF_Vector>
+class Vector : public ice::sonic::Runtime<::TF_VectorOps, ::TF_Vector>
 {
 public:
-    TF_VectorOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Vector(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_VectorOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Vector(
+        const ice::sonic::Registration& registry,
         ::TF_Vector* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_VectorOps(const ::TF_VectorOps* ops) noexcept :
+    explicit Vector(const ::TF_VectorOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_VectorOps(const ::TF_VectorOps* ops, ::TF_Vector* handle) noexcept :
+    Vector(const ::TF_VectorOps* ops, ::TF_Vector* handle) noexcept :
         Runtime(ops, handle)
     {
     }

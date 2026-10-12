@@ -1,44 +1,44 @@
 // GENERATED FILE — DO NOT EDIT BY HAND.
-// Produced by cc_abi_gen from include/c/extern/registration/registration.h. Re-run
+// Produced by cc_abi_gen from include/c/intern/registration.h. Re-run
 // `bazel run //include/cc/abi_gen:cc_abi_gen -- generate --pilot` (or `make gen-cc-abi`) to
 // regenerate; edits made directly to this file will be overwritten.
 
 module;
 
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/tstring.h"
 
-export module cc_ice_extern_registration_builder:registration;
+export module cc_ice_intern_builder:registration;
 
 import std;
 import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_RegistrationOps
+class Registration
 {
 public:
-    explicit TF_RegistrationOps(const ::TF_StringOps* String_ops) noexcept :
+    explicit Registration(const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_String_ops = String_ops;
     }
 
-    TF_RegistrationOps(const TF_RegistrationOps&) = delete;
-    TF_RegistrationOps& operator=(const TF_RegistrationOps&) = delete;
+    Registration(const Registration&) = delete;
+    Registration& operator=(const Registration&) = delete;
 
-    static TF_RegistrationOps& from_handle(void* ctx) noexcept
+    static Registration& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_RegistrationOps*>(ctx);
+        return *static_cast<Registration*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_RegistrationOps& from_handle(HandleT* handle) noexcept
+    static Registration& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_RegistrationOps*>(handle->plugin_data);
+        return *static_cast<Registration*>(handle->plugin_data);
     }
 
-    virtual ~TF_RegistrationOps() = default;
+    virtual ~Registration() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void register_op(
@@ -62,24 +62,24 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Registration* handle) noexcept
+                [](::TF_Registration* handle) noexcept
             {
-                auto& self = TF_RegistrationOps::from_handle(handle);
+                auto& self = Registration::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TF_Registration* registration, TF_String* out_name) noexcept
+                [](::TF_Registration* registration, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_RegistrationOps::from_handle(registration);
+                auto& self = Registration::from_handle(registration);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .register_op =
-                [](TF_Registration* registration,
-                   const TF_String* type,
-                   const TF_String* name,
+                [](::TF_Registration* registration,
+                   const ::TF_String* type,
+                   const ::TF_String* name,
                    void* value) noexcept
             {
-                auto& self = TF_RegistrationOps::from_handle(registration);
+                auto& self = Registration::from_handle(registration);
                 self.register_op(
                     self.wrap(std::type_identity<ice::sonic::String>{}, type),
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
@@ -87,12 +87,12 @@ public:
                 );
             },
             .get =
-                [](const TF_Registration* registration,
-                   const TF_String* type,
-                   const TF_String* name,
+                [](const ::TF_Registration* registration,
+                   const ::TF_String* type,
+                   const ::TF_String* name,
                    void** out_value) noexcept
             {
-                auto& self = TF_RegistrationOps::from_handle(registration);
+                auto& self = Registration::from_handle(registration);
                 self.get(
                     self.wrap(std::type_identity<ice::sonic::String>{}, type),
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
@@ -100,22 +100,22 @@ public:
                 );
             },
             .unregister =
-                [](TF_Registration* registration,
-                   const TF_String* type,
-                   const TF_String* name) noexcept
+                [](::TF_Registration* registration,
+                   const ::TF_String* type,
+                   const ::TF_String* name) noexcept
             {
-                auto& self = TF_RegistrationOps::from_handle(registration);
+                auto& self = Registration::from_handle(registration);
                 self.unregister(
                     self.wrap(std::type_identity<ice::sonic::String>{}, type),
                     self.wrap(std::type_identity<ice::sonic::String>{}, name)
                 );
             },
             .set_default =
-                [](TF_Registration* registration,
-                   const TF_String* type,
-                   const TF_String* name) noexcept
+                [](::TF_Registration* registration,
+                   const ::TF_String* type,
+                   const ::TF_String* name) noexcept
             {
-                auto& self = TF_RegistrationOps::from_handle(registration);
+                auto& self = Registration::from_handle(registration);
                 self.set_default(
                     self.wrap(std::type_identity<ice::sonic::String>{}, type),
                     self.wrap(std::type_identity<ice::sonic::String>{}, name)
@@ -142,18 +142,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_RegistrationOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_RegistrationOps*>(&m_vtable));
     }
 
 private:

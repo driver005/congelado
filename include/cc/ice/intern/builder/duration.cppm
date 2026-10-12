@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/duration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_intern_builder:duration;
 
@@ -15,29 +15,29 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_DurationOps
+class Duration
 {
 public:
-    explicit TF_DurationOps() noexcept :
+    explicit Duration() noexcept :
         m_handle{.plugin_data = this}
     {
     }
 
-    TF_DurationOps(const TF_DurationOps&) = delete;
-    TF_DurationOps& operator=(const TF_DurationOps&) = delete;
+    Duration(const Duration&) = delete;
+    Duration& operator=(const Duration&) = delete;
 
-    static TF_DurationOps& from_handle(void* ctx) noexcept
+    static Duration& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_DurationOps*>(ctx);
+        return *static_cast<Duration*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_DurationOps& from_handle(HandleT* handle) noexcept
+    static Duration& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_DurationOps*>(handle->plugin_data);
+        return *static_cast<Duration*>(handle->plugin_data);
     }
 
-    virtual ~TF_DurationOps() = default;
+    virtual ~Duration() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_ticks(int64_t* out_ticks) noexcept = 0;
     virtual void get_ratio_num(int64_t* out_num) noexcept = 0;
@@ -50,27 +50,27 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Duration* handle) noexcept
+                [](::TF_Duration* handle) noexcept
             {
-                auto& self = TF_DurationOps::from_handle(handle);
+                auto& self = Duration::from_handle(handle);
                 self.destroy();
             },
             .get_ticks =
-                [](const TF_Duration* duration, int64_t* out_ticks) noexcept
+                [](const ::TF_Duration* duration, int64_t* out_ticks) noexcept
             {
-                auto& self = TF_DurationOps::from_handle(duration);
+                auto& self = Duration::from_handle(duration);
                 self.get_ticks(out_ticks);
             },
             .get_ratio_num =
-                [](const TF_Duration* duration, int64_t* out_num) noexcept
+                [](const ::TF_Duration* duration, int64_t* out_num) noexcept
             {
-                auto& self = TF_DurationOps::from_handle(duration);
+                auto& self = Duration::from_handle(duration);
                 self.get_ratio_num(out_num);
             },
             .get_ratio_den =
-                [](const TF_Duration* duration, int64_t* out_den) noexcept
+                [](const ::TF_Duration* duration, int64_t* out_den) noexcept
             {
-                auto& self = TF_DurationOps::from_handle(duration);
+                auto& self = Duration::from_handle(duration);
                 self.get_ratio_den(out_den);
             },
 
@@ -88,18 +88,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_DurationOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_DurationOps*>(&m_vtable));
     }
 
 private:

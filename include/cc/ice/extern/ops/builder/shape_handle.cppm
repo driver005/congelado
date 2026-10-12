@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/ops/shape_handle.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_ops_builder:shape_handle;
 
@@ -15,29 +15,29 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_ShapeHandleOps
+class ShapeHandle
 {
 public:
-    explicit TF_ShapeHandleOps() noexcept :
+    explicit ShapeHandle() noexcept :
         m_handle{.plugin_data = this}
     {
     }
 
-    TF_ShapeHandleOps(const TF_ShapeHandleOps&) = delete;
-    TF_ShapeHandleOps& operator=(const TF_ShapeHandleOps&) = delete;
+    ShapeHandle(const ShapeHandle&) = delete;
+    ShapeHandle& operator=(const ShapeHandle&) = delete;
 
-    static TF_ShapeHandleOps& from_handle(void* ctx) noexcept
+    static ShapeHandle& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_ShapeHandleOps*>(ctx);
+        return *static_cast<ShapeHandle*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ShapeHandleOps& from_handle(HandleT* handle) noexcept
+    static ShapeHandle& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_ShapeHandleOps*>(handle->plugin_data);
+        return *static_cast<ShapeHandle*>(handle->plugin_data);
     }
 
-    virtual ~TF_ShapeHandleOps() = default;
+    virtual ~ShapeHandle() = default;
     virtual void destroy() noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_ShapeHandle*)) noexcept
@@ -46,9 +46,9 @@ public:
             .struct_size = TF_OFFSET_OF_END(::TF_ShapeHandleOps, destroy),
 
             .create = create,
-            .destroy = [](TF_ShapeHandle* handle) noexcept
+            .destroy = [](::TF_ShapeHandle* handle) noexcept
             {
-                auto& self = TF_ShapeHandleOps::from_handle(handle);
+                auto& self = ShapeHandle::from_handle(handle);
                 self.destroy();
             },
 
@@ -66,18 +66,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_ShapeHandleOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_ShapeHandleOps*>(&m_vtable));
     }
 
 private:

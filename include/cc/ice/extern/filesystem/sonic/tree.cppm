@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/filesystem/tree.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_filesystem_sonic:tree;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFFilesystemTreeOps : public ice::sonic::Runtime<::TFFilesystemTreeOps, ::TFFilesystemTree>
+class FilesystemTree : public ice::sonic::Runtime<::TFFilesystemTreeOps, ::TFFilesystemTree>
 {
 public:
-    TFFilesystemTreeOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    FilesystemTree(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFFilesystemTreeOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    FilesystemTree(
+        const ice::sonic::Registration& registry,
         ::TFFilesystemTree* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFFilesystemTreeOps(const ::TFFilesystemTreeOps* ops) noexcept :
+    explicit FilesystemTree(const ::TFFilesystemTreeOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFFilesystemTreeOps(const ::TFFilesystemTreeOps* ops, ::TFFilesystemTree* handle) noexcept :
+    FilesystemTree(const ::TFFilesystemTreeOps* ops, ::TFFilesystemTree* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -59,7 +68,7 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void free_options(TFFilesystemOption* options, int num_options) const noexcept
+    void free_options(::TFFilesystemOption* options, int num_options) const noexcept
     {
         m_ops->free_options(get_handle(), options, num_options);
     }
@@ -154,7 +163,7 @@ public:
 
     void stat(
         const ice::sonic::String& path,
-        const ice::sonic::TF_FileStatisticsOps& out_stats,
+        const ice::sonic::FileStatistics& out_stats,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -199,7 +208,7 @@ public:
 
     void get_children(
         const ice::sonic::String& path,
-        TF_Tensor** out_children,
+        ::TF_Tensor** out_children,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -208,7 +217,7 @@ public:
 
     void get_matching_paths(
         const ice::sonic::String& glob,
-        TF_Tensor** out_matches,
+        ::TF_Tensor** out_matches,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -226,7 +235,7 @@ public:
     }
 
     void get_filesystem_configuration(
-        TF_Tensor** out_config,
+        ::TF_Tensor** out_config,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -234,7 +243,7 @@ public:
     }
 
     void set_filesystem_configuration(
-        const ice::sonic::TF_TensorOps& options,
+        const ice::sonic::Tensor& options,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -247,7 +256,7 @@ public:
 
     void get_filesystem_configuration_option(
         const ice::sonic::String& key,
-        TFFilesystemOption* out_option,
+        ::TFFilesystemOption* out_option,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -260,7 +269,7 @@ public:
     }
 
     void set_filesystem_configuration_option(
-        const TFFilesystemOption* option,
+        const ::TFFilesystemOption* option,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -268,7 +277,7 @@ public:
     }
 
     void get_filesystem_configuration_keys(
-        TF_Tensor** out_keys,
+        ::TF_Tensor** out_keys,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

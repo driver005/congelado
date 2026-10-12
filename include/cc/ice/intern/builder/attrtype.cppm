@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/attrtype.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/tstring.h"
 
 export module cc_ice_intern_builder:attrtype;
@@ -16,30 +16,30 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_AttrTypeOps
+class AttrType
 {
 public:
-    explicit TF_AttrTypeOps(const ::TF_StringOps* String_ops) noexcept :
+    explicit AttrType(const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_String_ops = String_ops;
     }
 
-    TF_AttrTypeOps(const TF_AttrTypeOps&) = delete;
-    TF_AttrTypeOps& operator=(const TF_AttrTypeOps&) = delete;
+    AttrType(const AttrType&) = delete;
+    AttrType& operator=(const AttrType&) = delete;
 
-    static TF_AttrTypeOps& from_handle(void* ctx) noexcept
+    static AttrType& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_AttrTypeOps*>(ctx);
+        return *static_cast<AttrType*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_AttrTypeOps& from_handle(HandleT* handle) noexcept
+    static AttrType& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_AttrTypeOps*>(handle->plugin_data);
+        return *static_cast<AttrType*>(handle->plugin_data);
     }
 
-    virtual ~TF_AttrTypeOps() = default;
+    virtual ~AttrType() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void
@@ -52,21 +52,23 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_AttrType* handle) noexcept
+                [](::TF_AttrType* handle) noexcept
             {
-                auto& self = TF_AttrTypeOps::from_handle(handle);
+                auto& self = AttrType::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TF_AttrType* attrtype, TF_String* out_name) noexcept
+                [](::TF_AttrType* attrtype, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_AttrTypeOps::from_handle(attrtype);
+                auto& self = AttrType::from_handle(attrtype);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .attrtype_name =
-                [](TF_AttrType* attrtype, TFAttrTypeEnum type, TF_String* out_type_name) noexcept
+                [](::TF_AttrType* attrtype,
+                   TFAttrTypeEnum type,
+                   ::TF_String* out_type_name) noexcept
             {
-                auto& self = TF_AttrTypeOps::from_handle(attrtype);
+                auto& self = AttrType::from_handle(attrtype);
                 self.attrtype_name(
                     type,
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_type_name)
@@ -93,18 +95,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_AttrTypeOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_AttrTypeOps*>(&m_vtable));
     }
 
 private:

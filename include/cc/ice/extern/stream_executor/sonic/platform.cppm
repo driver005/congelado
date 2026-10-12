@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/extern/stream_executor/platform.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_stream_executor_sonic:platform;
 
@@ -17,36 +17,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_PlatformOps : public ice::sonic::Runtime<::TF_PlatformOps, ::TF_Platform>
+class Platform : public ice::sonic::Runtime<::TF_PlatformOps, ::TF_Platform>
 {
 public:
-    TF_PlatformOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Platform(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_PlatformOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Platform(
+        const ice::sonic::Registration& registry,
         ::TF_Platform* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_PlatformOps(const ::TF_PlatformOps* ops) noexcept :
+    explicit Platform(const ::TF_PlatformOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_PlatformOps(const ::TF_PlatformOps* ops, ::TF_Platform* handle) noexcept :
+    Platform(const ::TF_PlatformOps* ops, ::TF_Platform* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -70,20 +79,20 @@ public:
     }
 
     void create_device_internal(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->create_device_internal(get_handle(), device.get_handle(), out_status.get_handle());
     }
 
-    void destroy_device_internal(const ice::sonic::TF_DeviceOps& device) const noexcept
+    void destroy_device_internal(const ice::sonic::Device& device) const noexcept
     {
         m_ops->destroy_device_internal(get_handle(), device.get_handle());
     }
 
     void create_executor_internal(
-        const ice::sonic::TF_ExecutorOps& executor,
+        const ice::sonic::Executor& executor,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -94,7 +103,7 @@ public:
         );
     }
 
-    void destroy_executor_internal(const ice::sonic::TF_ExecutorOps& executor) const noexcept
+    void destroy_executor_internal(const ice::sonic::Executor& executor) const noexcept
     {
         m_ops->destroy_executor_internal(get_handle(), executor.get_handle());
     }

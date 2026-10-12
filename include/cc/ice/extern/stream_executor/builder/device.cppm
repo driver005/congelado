@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/extern/stream_executor/device.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -17,34 +17,31 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_DeviceOps
+class Device
 {
 public:
-    explicit TF_DeviceOps(
-        const ::TF_StatusOps* Status_ops,
-        const ::TF_StringOps* String_ops
-    ) noexcept :
+    explicit Device(const ::TF_StatusOps* Status_ops, const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_Status_ops = Status_ops;
         m_String_ops = String_ops;
     }
 
-    TF_DeviceOps(const TF_DeviceOps&) = delete;
-    TF_DeviceOps& operator=(const TF_DeviceOps&) = delete;
+    Device(const Device&) = delete;
+    Device& operator=(const Device&) = delete;
 
-    static TF_DeviceOps& from_handle(void* ctx) noexcept
+    static Device& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_DeviceOps*>(ctx);
+        return *static_cast<Device*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_DeviceOps& from_handle(HandleT* handle) noexcept
+    static Device& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_DeviceOps*>(handle->plugin_data);
+        return *static_cast<Device*>(handle->plugin_data);
     }
 
-    virtual ~TF_DeviceOps() = default;
+    virtual ~Device() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_numa_node(int32_t* out_numa_node) noexcept = 0;
     virtual void get_memory_bandwidth(int64_t* out_bandwidth) noexcept = 0;
@@ -53,7 +50,7 @@ public:
     virtual void get_device_vendor(const ice::sonic::String& out_vendor) noexcept = 0;
     virtual void get_pci_bus_id(const ice::sonic::String& out_pci_bus_id) noexcept = 0;
     virtual void get_device_properties(
-        TF_DeviceProperties* out_properties,
+        ::TF_DeviceProperties* out_properties,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_native_handle(void** out_handle) noexcept = 0;
@@ -65,68 +62,68 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Device* handle) noexcept
+                [](::TF_Device* handle) noexcept
             {
-                auto& self = TF_DeviceOps::from_handle(handle);
+                auto& self = Device::from_handle(handle);
                 self.destroy();
             },
             .get_numa_node =
-                [](TF_Device* device, int32_t* out_numa_node) noexcept
+                [](::TF_Device* device, int32_t* out_numa_node) noexcept
             {
-                auto& self = TF_DeviceOps::from_handle(device);
+                auto& self = Device::from_handle(device);
                 self.get_numa_node(out_numa_node);
             },
             .get_memory_bandwidth =
-                [](TF_Device* device, int64_t* out_bandwidth) noexcept
+                [](::TF_Device* device, int64_t* out_bandwidth) noexcept
             {
-                auto& self = TF_DeviceOps::from_handle(device);
+                auto& self = Device::from_handle(device);
                 self.get_memory_bandwidth(out_bandwidth);
             },
             .get_gflops =
-                [](TF_Device* device, double* out_gflops) noexcept
+                [](::TF_Device* device, double* out_gflops) noexcept
             {
-                auto& self = TF_DeviceOps::from_handle(device);
+                auto& self = Device::from_handle(device);
                 self.get_gflops(out_gflops);
             },
             .get_hardware_name =
-                [](TF_Device* device, TF_String* out_name) noexcept
+                [](::TF_Device* device, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_DeviceOps::from_handle(device);
+                auto& self = Device::from_handle(device);
                 self.get_hardware_name(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_name)
                 );
             },
             .get_device_vendor =
-                [](TF_Device* device, TF_String* out_vendor) noexcept
+                [](::TF_Device* device, ::TF_String* out_vendor) noexcept
             {
-                auto& self = TF_DeviceOps::from_handle(device);
+                auto& self = Device::from_handle(device);
                 self.get_device_vendor(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_vendor)
                 );
             },
             .get_pci_bus_id =
-                [](TF_Device* device, TF_String* out_pci_bus_id) noexcept
+                [](::TF_Device* device, ::TF_String* out_pci_bus_id) noexcept
             {
-                auto& self = TF_DeviceOps::from_handle(device);
+                auto& self = Device::from_handle(device);
                 self.get_pci_bus_id(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_pci_bus_id)
                 );
             },
             .get_device_properties =
-                [](TF_Device* device,
-                   TF_DeviceProperties* out_properties,
-                   TF_Status* out_status) noexcept
+                [](::TF_Device* device,
+                   ::TF_DeviceProperties* out_properties,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_DeviceOps::from_handle(device);
+                auto& self = Device::from_handle(device);
                 self.get_device_properties(
                     out_properties,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .get_native_handle =
-                [](TF_Device* device, void** out_handle) noexcept
+                [](::TF_Device* device, void** out_handle) noexcept
             {
-                auto& self = TF_DeviceOps::from_handle(device);
+                auto& self = Device::from_handle(device);
                 self.get_native_handle(out_handle);
             },
 
@@ -156,18 +153,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_DeviceOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_DeviceOps*>(&m_vtable));
     }
 
 private:

@@ -508,9 +508,9 @@ private:
             return std::unexpected(std::move(string_type.error()));
         }
 
-        auto registry_model = m_registry.get().find(std::string{RuntimeEmitter::k_registry_struct});
-        if (!registry_model.has_value()) {
-            return std::unexpected("Runtime registry anchor is not part of the parsed headers");
+        auto registry_type = registry_type_name(model, mode);
+        if (!registry_type) {
+            return std::unexpected(std::move(registry_type.error()));
         }
 
         auto includes = dependency_includes(model, *members);
@@ -534,8 +534,7 @@ private:
             *members,
             *string_type,
             *includes,
-            RuntimeEmitter::k_registry_struct,
-            c_handle_name(registry_model->get())
+            *registry_type
         );
         if (!header_result) {
             return std::unexpected(header_result.error());
@@ -570,8 +569,7 @@ private:
             *members,
             root,
             *string_type,
-            RuntimeEmitter::k_registry_struct,
-            c_handle_name(registry_model->get())
+            *registry_type
         );
         if (!footer_result) {
             return std::unexpected(footer_result.error());
@@ -693,7 +691,7 @@ private:
 
             if (!model.has_value()) {
                 auto param_result =
-                    helper::format_parameter(parameter.get_type(), parameter.get_name());
+                    helper::format_parameter(parameter.get_qualified_type(), parameter.get_name());
                 if (!param_result) {
                     return std::unexpected(param_result.error());
                 }
@@ -855,7 +853,7 @@ private:
             }
 
             auto param_result =
-                helper::format_parameter(parameter.get_type(), parameter.get_name());
+                helper::format_parameter(parameter.get_qualified_type(), parameter.get_name());
             if (!param_result) {
                 // This is a void function, but format_parameter returns expected
                 // In practice this shouldn't fail for simple parameters
@@ -971,6 +969,23 @@ private:
         }
 
         return joined;
+    }
+
+    static bool is_runtime_root(const parser::vtable::Model& model) noexcept
+    {
+        return model.get_struct_name() == RuntimeEmitter::k_string_struct
+               || model.get_struct_name() == RuntimeEmitter::k_registry_struct;
+    }
+
+    // Empty for the String and registry roots in sonic mode: they cannot look themselves up.
+    std::expected<std::string, std::string>
+    registry_type_name(const parser::vtable::Model& model, const Mode& mode) const
+    {
+        if (mode == Mode::Sonic && is_runtime_root(model)) {
+            return std::string{};
+        }
+
+        return runtime_type_name(RuntimeEmitter::k_registry_struct);
     }
 
     std::expected<std::string, std::string> runtime_type_name(std::string_view struct_name) const
@@ -1102,6 +1117,20 @@ private:
             add_model_import(base_path, string_model->get(), model, mode, module_dir);
         if (!string_import) {
             return std::unexpected(std::move(string_import.error()));
+        }
+
+        if (!(mode == Mode::Sonic && is_runtime_root(model))) {
+            auto registry_model =
+                m_registry.get().find(std::string{RuntimeEmitter::k_registry_struct});
+            if (!registry_model.has_value()) {
+                return std::unexpected("Runtime registry anchor is not part of the parsed headers");
+            }
+
+            auto registry_import =
+                add_model_import(base_path, registry_model->get(), model, mode, module_dir);
+            if (!registry_import) {
+                return std::unexpected(std::move(registry_import.error()));
+            }
         }
 
         std::string joined;

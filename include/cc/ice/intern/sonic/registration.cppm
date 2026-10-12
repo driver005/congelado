@@ -1,49 +1,29 @@
 // GENERATED FILE — DO NOT EDIT BY HAND.
-// Produced by cc_abi_gen from include/c/extern/registration/registration.h. Re-run
+// Produced by cc_abi_gen from include/c/intern/registration.h. Re-run
 // `bazel run //include/cc/abi_gen:cc_abi_gen -- generate --pilot` (or `make gen-cc-abi`) to
 // regenerate; edits made directly to this file will be overwritten.
 
 module;
 
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
-export module cc_ice_extern_registration_sonic:registration;
+export module cc_ice_intern_sonic:registration;
 
 import std;
-import cc_ice_intern_sonic;
+import :runtime;
+import :tstring;
 
 export namespace ice::sonic {
 
-class TF_RegistrationOps : public ice::sonic::Runtime<::TF_RegistrationOps, ::TF_Registration>
+class Registration : public ice::sonic::Runtime<::TF_RegistrationOps, ::TF_Registration>
 {
 public:
-    TF_RegistrationOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
-        const ice::sonic::String& type,
-        const ice::sonic::String& provider
-    ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
-    {
-    }
-
-    TF_RegistrationOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
-        ::TF_Registration* handle,
-        const ice::sonic::String& type,
-        const ice::sonic::String& provider
-    ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
-    {
-    }
-
-    explicit TF_RegistrationOps(const ::TF_RegistrationOps* ops) noexcept :
+    explicit Registration(const ::TF_RegistrationOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_RegistrationOps(const ::TF_RegistrationOps* ops, ::TF_Registration* handle) noexcept :
+    Registration(const ::TF_RegistrationOps* ops, ::TF_Registration* handle) noexcept :
         Runtime(ops, handle)
     {
     }

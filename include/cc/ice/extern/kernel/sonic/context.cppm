@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/kernel/context.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_kernel_sonic:context;
 
@@ -16,38 +16,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_OpKernelContextOps :
-    public ice::sonic::Runtime<::TF_OpKernelContextOps, ::TF_OpKernelContext>
+class OpKernelContext : public ice::sonic::Runtime<::TF_OpKernelContextOps, ::TF_OpKernelContext>
 {
 public:
-    TF_OpKernelContextOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    OpKernelContext(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_OpKernelContextOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    OpKernelContext(
+        const ice::sonic::Registration& registry,
         ::TF_OpKernelContext* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_OpKernelContextOps(const ::TF_OpKernelContextOps* ops) noexcept :
+    explicit OpKernelContext(const ::TF_OpKernelContextOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_OpKernelContextOps(const ::TF_OpKernelContextOps* ops, ::TF_OpKernelContext* handle) noexcept
-        :
+    OpKernelContext(const ::TF_OpKernelContextOps* ops, ::TF_OpKernelContext* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -74,26 +81,26 @@ public:
 
     void get_input(
         int i,
-        TF_Tensor** out_tensor,
+        ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_input(get_handle(), i, out_tensor, out_status.get_handle());
     }
 
-    void input_range(const ice::sonic::String& name, TF_InputRange_Args* out_args) const noexcept
+    void input_range(const ice::sonic::String& name, ::TF_InputRange_Args* out_args) const noexcept
     {
         m_ops->input_range(get_handle(), name.get_handle(), out_args);
     }
 
-    void input_datatype(int index, TFDataTypeEnum* out_type) const noexcept
+    void input_datatype(int index, ::TFDataTypeEnum* out_type) const noexcept
     {
         m_ops->input_datatype(get_handle(), index, out_type);
     }
 
     void set_output(
         int i,
-        const ice::sonic::TF_TensorOps& tensor,
+        const ice::sonic::Tensor& tensor,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -102,7 +109,7 @@ public:
 
     void get_mutable_output(
         int i,
-        TF_Tensor** out_tensor,
+        ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -110,7 +117,7 @@ public:
     }
 
     void get_serialized_function_def_library(
-        const ice::sonic::TF_BufferOps& serialized_function_def_library,
+        const ice::sonic::Buffer& serialized_function_def_library,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -122,7 +129,7 @@ public:
     }
 
     void get_serialized_config_proto(
-        const ice::sonic::TF_BufferOps& serialized_config_proto,
+        const ice::sonic::Buffer& serialized_config_proto,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -135,7 +142,7 @@ public:
 
     void get_serialized_resource_handle_proto(
         int i,
-        const ice::sonic::TF_BufferOps& serialized_resource_handle_proto,
+        const ice::sonic::Buffer& serialized_resource_handle_proto,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -152,7 +159,7 @@ public:
         m_ops->failure(get_handle(), out_status.get_handle());
     }
 
-    void expected_output_datatype(int i, TFDataTypeEnum* out_type) const noexcept
+    void expected_output_datatype(int i, ::TFDataTypeEnum* out_type) const noexcept
     {
         m_ops->expected_output_datatype(get_handle(), i, out_type);
     }
@@ -234,7 +241,7 @@ public:
         const int64_t* dims,
         int num_dims,
         size_t len,
-        TF_Tensor** out_tensor,
+        ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -257,7 +264,7 @@ public:
         const int64_t* output_dims,
         int output_num_dims,
         int* out_forwarded_input,
-        TF_Tensor** out_tensor,
+        ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -279,7 +286,7 @@ public:
         const int64_t* dims,
         int num_dims,
         void* alloc_attrs,
-        TF_Tensor** out_tensor,
+        ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -406,7 +413,7 @@ public:
         const int* inputs,
         size_t len,
         TF_CopyTensorFunc copy_func,
-        TF_VariableInputLockHolder** out_lock_holder,
+        ::TF_VariableInputLockHolder** out_lock_holder,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -422,7 +429,9 @@ public:
         );
     }
 
-    void release_variable_input_lock_holder(TF_VariableInputLockHolder* lock_holder) const noexcept
+    void release_variable_input_lock_holder(
+        ::TF_VariableInputLockHolder* lock_holder
+    ) const noexcept
     {
         m_ops->release_variable_input_lock_holder(get_handle(), lock_holder);
     }
@@ -433,7 +442,7 @@ public:
         _Bool is_variant_type,
         _Bool sparse,
         TF_CopyTensorFunc copy_func,
-        TF_Tensor** out_tensor,
+        ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -461,7 +470,7 @@ public:
 
     void get_input_by_name(
         const ice::sonic::String& input_name,
-        TF_Tensor** out_tensor,
+        ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -489,7 +498,7 @@ public:
         m_ops->zeros_like_variant(get_handle(), zeros_like_func, out_status.get_handle());
     }
 
-    void get_stream(TF_Stream** out_stream, const ice::sonic::Status& out_status) const noexcept
+    void get_stream(::TF_Stream** out_stream, const ice::sonic::Status& out_status) const noexcept
     {
         m_ops->get_stream(get_handle(), out_stream, out_status.get_handle());
     }
@@ -500,7 +509,7 @@ public:
     }
 
     void get_random_generator(
-        const ice::sonic::TF_RandomGeneratorOps& out_generator,
+        const ice::sonic::RandomGenerator& out_generator,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

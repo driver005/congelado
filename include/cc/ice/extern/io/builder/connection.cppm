@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/io/connection.h"
 #include "include/c/extern/io/response.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -19,40 +19,40 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TFServerConnectionOps
+class ServerConnection
 {
 public:
-    explicit TFServerConnectionOps(
-        const ::TF_ResponseOps* TF_ResponseOps_ops,
+    explicit ServerConnection(
+        const ::TF_ResponseOps* Response_ops,
         const ::TF_StatusOps* Status_ops,
         const ::TF_StringOps* String_ops
     ) noexcept :
         m_handle{.plugin_data = this}
     {
-        m_TF_ResponseOps_ops = TF_ResponseOps_ops;
+        m_Response_ops = Response_ops;
         m_Status_ops = Status_ops;
         m_String_ops = String_ops;
     }
 
-    TFServerConnectionOps(const TFServerConnectionOps&) = delete;
-    TFServerConnectionOps& operator=(const TFServerConnectionOps&) = delete;
+    ServerConnection(const ServerConnection&) = delete;
+    ServerConnection& operator=(const ServerConnection&) = delete;
 
-    static TFServerConnectionOps& from_handle(void* ctx) noexcept
+    static ServerConnection& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TFServerConnectionOps*>(ctx);
+        return *static_cast<ServerConnection*>(ctx);
     }
 
     template<typename HandleT>
-    static TFServerConnectionOps& from_handle(HandleT* handle) noexcept
+    static ServerConnection& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TFServerConnectionOps*>(handle->plugin_data);
+        return *static_cast<ServerConnection*>(handle->plugin_data);
     }
 
-    virtual ~TFServerConnectionOps() = default;
+    virtual ~ServerConnection() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_connection_id(const ice::sonic::String& out_connection_id) noexcept = 0;
     virtual void send_response(
-        const ice::sonic::TF_ResponseOps& response,
+        const ice::sonic::Response& response,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void close_connection(const ice::sonic::Status& out_status) noexcept = 0;
@@ -64,34 +64,34 @@ public:
 
             .create = create,
             .destroy =
-                [](TFServerConnection* handle) noexcept
+                [](::TFServerConnection* handle) noexcept
             {
-                auto& self = TFServerConnectionOps::from_handle(handle);
+                auto& self = ServerConnection::from_handle(handle);
                 self.destroy();
             },
             .get_connection_id =
-                [](TFServerConnection* connection, TF_String* out_connection_id) noexcept
+                [](::TFServerConnection* connection, ::TF_String* out_connection_id) noexcept
             {
-                auto& self = TFServerConnectionOps::from_handle(connection);
+                auto& self = ServerConnection::from_handle(connection);
                 self.get_connection_id(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_connection_id)
                 );
             },
             .send_response =
-                [](TFServerConnection* connection,
-                   TF_Response* response,
-                   TF_Status* out_status) noexcept
+                [](::TFServerConnection* connection,
+                   ::TF_Response* response,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFServerConnectionOps::from_handle(connection);
+                auto& self = ServerConnection::from_handle(connection);
                 self.send_response(
-                    self.wrap(std::type_identity<ice::sonic::TF_ResponseOps>{}, response),
+                    self.wrap(std::type_identity<ice::sonic::Response>{}, response),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .close_connection =
-                [](TFServerConnection* connection, TF_Status* out_status) noexcept
+                [](::TFServerConnection* connection, ::TF_Status* out_status) noexcept
             {
-                auto& self = TFServerConnectionOps::from_handle(connection);
+                auto& self = ServerConnection::from_handle(connection);
                 self.close_connection(
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
@@ -100,10 +100,10 @@ public:
         };
     }
 
-    ice::sonic::TF_ResponseOps
-    wrap(std::type_identity<ice::sonic::TF_ResponseOps>, const ::TF_Response* handle) const noexcept
+    ice::sonic::Response
+    wrap(std::type_identity<ice::sonic::Response>, const ::TF_Response* handle) const noexcept
     {
-        return ice::sonic::TF_ResponseOps{m_TF_ResponseOps_ops, const_cast<::TF_Response*>(handle)};
+        return ice::sonic::Response{m_Response_ops, const_cast<::TF_Response*>(handle)};
     }
 
     ice::sonic::Status
@@ -129,25 +129,19 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TFServerConnectionOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TFServerConnectionOps*>(&m_vtable));
     }
 
 private:
     ::TFServerConnectionOps m_vtable;
     ::TFServerConnection m_handle;
 
-    const ::TF_ResponseOps* m_TF_ResponseOps_ops{nullptr};
+    const ::TF_ResponseOps* m_Response_ops{nullptr};
 
     const ::TF_StatusOps* m_Status_ops{nullptr};
 

@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/pubsub/pubsub.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_pubsub_sonic:pubsub;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_PubSubOps : public ice::sonic::Runtime<::TF_PubSubOps, ::TF_PubSub>
+class PubSub : public ice::sonic::Runtime<::TF_PubSubOps, ::TF_PubSub>
 {
 public:
-    TF_PubSubOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    PubSub(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_PubSubOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    PubSub(
+        const ice::sonic::Registration& registry,
         ::TF_PubSub* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_PubSubOps(const ::TF_PubSubOps* ops) noexcept :
+    explicit PubSub(const ::TF_PubSubOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_PubSubOps(const ::TF_PubSubOps* ops, ::TF_PubSub* handle) noexcept :
+    PubSub(const ::TF_PubSubOps* ops, ::TF_PubSub* handle) noexcept :
         Runtime(ops, handle)
     {
     }

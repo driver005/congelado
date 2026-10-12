@@ -1,3 +1,7 @@
+module;
+
+#include <cctype>
+
 export module cc_abi_gen_parser:helper_parameter;
 
 import std;
@@ -59,6 +63,26 @@ public:
     std::string_view get_type() const noexcept
     {
         return m_type;
+    }
+
+    // Same as get_type() but with the record pointee spelled from the global namespace, so a
+    // generated class sharing the handle's name (ice::sonic::TF_Tensor) cannot shadow it.
+    // Example: "const TF_Status *" -> "const ::TF_Status *"
+    std::string get_qualified_type() const
+    {
+        if (m_pointee_name.empty() || !std::isupper(static_cast<unsigned char>(m_pointee_name.front()))) {
+            return m_type;
+        }
+
+        const auto position = m_type.find(m_pointee_name);
+        if (position == std::string::npos || (position > 0 && m_type[position - 1] == ':')) {
+            return m_type;
+        }
+
+        std::string qualified = m_type;
+        qualified.insert(position, "::");
+
+        return qualified;
     }
 
     // Example: TF_Status_Handle

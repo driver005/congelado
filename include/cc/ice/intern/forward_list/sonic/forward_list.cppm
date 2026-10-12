@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/forward_list/forward_list.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_intern_forward_list_sonic:forward_list;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_ForwardListOps : public ice::sonic::Runtime<::TF_ForwardListOps, ::TF_ForwardList>
+class ForwardList : public ice::sonic::Runtime<::TF_ForwardListOps, ::TF_ForwardList>
 {
 public:
-    TF_ForwardListOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    ForwardList(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_ForwardListOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    ForwardList(
+        const ice::sonic::Registration& registry,
         ::TF_ForwardList* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_ForwardListOps(const ::TF_ForwardListOps* ops) noexcept :
+    explicit ForwardList(const ::TF_ForwardListOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_ForwardListOps(const ::TF_ForwardListOps* ops, ::TF_ForwardList* handle) noexcept :
+    ForwardList(const ::TF_ForwardListOps* ops, ::TF_ForwardList* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -66,14 +75,14 @@ public:
 
     void push_front(
         const void* value,
-        TFForwardListNode* out_node,
+        ::TFForwardListNode* out_node,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->push_front(get_handle(), value, out_node, out_status.get_handle());
     }
 
-    void erase_after(TFForwardListNode* node) const noexcept
+    void erase_after(::TFForwardListNode* node) const noexcept
     {
         m_ops->erase_after(get_handle(), node);
     }

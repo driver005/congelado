@@ -5,9 +5,9 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/extern/store/query.h"
 #include "include/c/intern/map.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -18,39 +18,39 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TFStoreQueryOps
+class StoreQuery
 {
 public:
-    explicit TFStoreQueryOps(
-        const ::TF_MapOps* TF_MapOps_ops,
+    explicit StoreQuery(
+        const ::TF_MapOps* Map_ops,
         const ::TF_StatusOps* Status_ops,
         const ::TF_StringOps* String_ops
     ) noexcept :
         m_handle{.plugin_data = this}
     {
-        m_TF_MapOps_ops = TF_MapOps_ops;
+        m_Map_ops = Map_ops;
         m_Status_ops = Status_ops;
         m_String_ops = String_ops;
     }
 
-    TFStoreQueryOps(const TFStoreQueryOps&) = delete;
-    TFStoreQueryOps& operator=(const TFStoreQueryOps&) = delete;
+    StoreQuery(const StoreQuery&) = delete;
+    StoreQuery& operator=(const StoreQuery&) = delete;
 
-    static TFStoreQueryOps& from_handle(void* ctx) noexcept
+    static StoreQuery& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TFStoreQueryOps*>(ctx);
+        return *static_cast<StoreQuery*>(ctx);
     }
 
     template<typename HandleT>
-    static TFStoreQueryOps& from_handle(HandleT* handle) noexcept
+    static StoreQuery& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TFStoreQueryOps*>(handle->plugin_data);
+        return *static_cast<StoreQuery*>(handle->plugin_data);
     }
 
-    virtual ~TFStoreQueryOps() = default;
+    virtual ~StoreQuery() = default;
     virtual void destroy() noexcept = 0;
     virtual void
-    run(const ice::sonic::TF_MapOps& filters,
+    run(const ice::sonic::Map& filters,
         const ice::sonic::String& free_text,
         const ice::sonic::String& sort,
         size_t offset,
@@ -66,25 +66,25 @@ public:
 
             .create = create,
             .destroy =
-                [](TFStoreQuery* handle) noexcept
+                [](::TFStoreQuery* handle) noexcept
             {
-                auto& self = TFStoreQueryOps::from_handle(handle);
+                auto& self = StoreQuery::from_handle(handle);
                 self.destroy();
             },
             .run =
-                [](TFStoreQuery* query,
-                   const TF_Map* filters,
-                   const TF_String* free_text,
-                   const TF_String* sort,
+                [](::TFStoreQuery* query,
+                   const ::TF_Map* filters,
+                   const ::TF_String* free_text,
+                   const ::TF_String* sort,
                    size_t offset,
                    size_t limit,
                    TFStoreQueryFn completion,
                    void* user_data,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFStoreQueryOps::from_handle(query);
+                auto& self = StoreQuery::from_handle(query);
                 self.run(
-                    self.wrap(std::type_identity<ice::sonic::TF_MapOps>{}, filters),
+                    self.wrap(std::type_identity<ice::sonic::Map>{}, filters),
                     self.wrap(std::type_identity<ice::sonic::String>{}, free_text),
                     self.wrap(std::type_identity<ice::sonic::String>{}, sort),
                     offset,
@@ -98,10 +98,9 @@ public:
         };
     }
 
-    ice::sonic::TF_MapOps
-    wrap(std::type_identity<ice::sonic::TF_MapOps>, const ::TF_Map* handle) const noexcept
+    ice::sonic::Map wrap(std::type_identity<ice::sonic::Map>, const ::TF_Map* handle) const noexcept
     {
-        return ice::sonic::TF_MapOps{m_TF_MapOps_ops, const_cast<::TF_Map*>(handle)};
+        return ice::sonic::Map{m_Map_ops, const_cast<::TF_Map*>(handle)};
     }
 
     ice::sonic::Status
@@ -127,25 +126,19 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TFStoreQueryOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TFStoreQueryOps*>(&m_vtable));
     }
 
 private:
     ::TFStoreQueryOps m_vtable;
     ::TFStoreQuery m_handle;
 
-    const ::TF_MapOps* m_TF_MapOps_ops{nullptr};
+    const ::TF_MapOps* m_Map_ops{nullptr};
 
     const ::TF_StatusOps* m_Status_ops{nullptr};
 

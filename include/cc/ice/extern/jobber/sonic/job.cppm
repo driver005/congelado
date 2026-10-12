@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/jobber/job.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_jobber_sonic:job;
 
@@ -15,36 +15,41 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_JobOps : public ice::sonic::Runtime<::TF_JobOps, ::TF_Job>
+class Job : public ice::sonic::Runtime<::TF_JobOps, ::TF_Job>
 {
 public:
-    TF_JobOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Job(const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
-        const ice::sonic::String& provider
-    ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        const ice::sonic::String& provider) noexcept :
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_JobOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Job(const ice::sonic::Registration& registry,
         ::TF_Job* handle,
         const ice::sonic::String& type,
-        const ice::sonic::String& provider
-    ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        const ice::sonic::String& provider) noexcept :
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_JobOps(const ::TF_JobOps* ops) noexcept :
+    explicit Job(const ::TF_JobOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_JobOps(const ::TF_JobOps* ops, ::TF_Job* handle) noexcept :
+    Job(const ::TF_JobOps* ops, ::TF_Job* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -104,8 +109,8 @@ public:
     }
 
     void list(
-        const ice::sonic::TF_MapOps& filters,
-        const ice::sonic::TF_VectorOps& out_job_ids,
+        const ice::sonic::Map& filters,
+        const ice::sonic::Vector& out_job_ids,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

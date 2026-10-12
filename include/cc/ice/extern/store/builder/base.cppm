@@ -6,12 +6,12 @@
 export module cc_ice_extern_store_builder;
 
 // clang-format off
+export import :query;
 export import :collection;
 export import :store;
 export import :transaction;
 export import :watch;
 export import :index;
 export import :admin;
-export import :query;
 
 // clang-format on

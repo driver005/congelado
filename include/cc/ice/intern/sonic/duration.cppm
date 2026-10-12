@@ -5,47 +5,57 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/duration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_intern_sonic:duration;
 
 import std;
+import :registration;
 import :runtime;
 import :tstring;
 
 export namespace ice::sonic {
 
-class TF_DurationOps : public ice::sonic::Runtime<::TF_DurationOps, ::TF_Duration>
+class Duration : public ice::sonic::Runtime<::TF_DurationOps, ::TF_Duration>
 {
 public:
-    TF_DurationOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Duration(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_DurationOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Duration(
+        const ice::sonic::Registration& registry,
         ::TF_Duration* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_DurationOps(const ::TF_DurationOps* ops) noexcept :
+    explicit Duration(const ::TF_DurationOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_DurationOps(const ::TF_DurationOps* ops, ::TF_Duration* handle) noexcept :
+    Duration(const ::TF_DurationOps* ops, ::TF_Duration* handle) noexcept :
         Runtime(ops, handle)
     {
     }

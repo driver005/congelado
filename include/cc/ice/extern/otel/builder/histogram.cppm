@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/otel/histogram.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -17,10 +17,10 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TFOtelHistogramOps
+class OtelHistogram
 {
 public:
-    explicit TFOtelHistogramOps(
+    explicit OtelHistogram(
         const ::TF_StatusOps* Status_ops,
         const ::TF_StringOps* String_ops
     ) noexcept :
@@ -30,21 +30,21 @@ public:
         m_String_ops = String_ops;
     }
 
-    TFOtelHistogramOps(const TFOtelHistogramOps&) = delete;
-    TFOtelHistogramOps& operator=(const TFOtelHistogramOps&) = delete;
+    OtelHistogram(const OtelHistogram&) = delete;
+    OtelHistogram& operator=(const OtelHistogram&) = delete;
 
-    static TFOtelHistogramOps& from_handle(void* ctx) noexcept
+    static OtelHistogram& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TFOtelHistogramOps*>(ctx);
+        return *static_cast<OtelHistogram*>(ctx);
     }
 
     template<typename HandleT>
-    static TFOtelHistogramOps& from_handle(HandleT* handle) noexcept
+    static OtelHistogram& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TFOtelHistogramOps*>(handle->plugin_data);
+        return *static_cast<OtelHistogram*>(handle->plugin_data);
     }
 
-    virtual ~TFOtelHistogramOps() = default;
+    virtual ~OtelHistogram() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void record(double value, const ice::sonic::Status& out_status) noexcept = 0;
@@ -56,21 +56,21 @@ public:
 
             .create = create,
             .destroy =
-                [](TFOtelHistogram* handle) noexcept
+                [](::TFOtelHistogram* handle) noexcept
             {
-                auto& self = TFOtelHistogramOps::from_handle(handle);
+                auto& self = OtelHistogram::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TFOtelHistogram* histogram, TF_String* out_name) noexcept
+                [](::TFOtelHistogram* histogram, ::TF_String* out_name) noexcept
             {
-                auto& self = TFOtelHistogramOps::from_handle(histogram);
+                auto& self = OtelHistogram::from_handle(histogram);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .record =
-                [](TFOtelHistogram* histogram, double value, TF_Status* out_status) noexcept
+                [](::TFOtelHistogram* histogram, double value, ::TF_Status* out_status) noexcept
             {
-                auto& self = TFOtelHistogramOps::from_handle(histogram);
+                auto& self = OtelHistogram::from_handle(histogram);
                 self.record(value, self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
 
@@ -100,18 +100,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TFOtelHistogramOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TFOtelHistogramOps*>(&m_vtable));
     }
 
 private:

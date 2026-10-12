@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/profiler/profiler.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -17,41 +17,38 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_ProfilerOps
+class Profiler
 {
 public:
-    explicit TF_ProfilerOps(
-        const ::TF_StatusOps* Status_ops,
-        const ::TF_StringOps* String_ops
-    ) noexcept :
+    explicit Profiler(const ::TF_StatusOps* Status_ops, const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_Status_ops = Status_ops;
         m_String_ops = String_ops;
     }
 
-    TF_ProfilerOps(const TF_ProfilerOps&) = delete;
-    TF_ProfilerOps& operator=(const TF_ProfilerOps&) = delete;
+    Profiler(const Profiler&) = delete;
+    Profiler& operator=(const Profiler&) = delete;
 
-    static TF_ProfilerOps& from_handle(void* ctx) noexcept
+    static Profiler& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_ProfilerOps*>(ctx);
+        return *static_cast<Profiler*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ProfilerOps& from_handle(HandleT* handle) noexcept
+    static Profiler& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_ProfilerOps*>(handle->plugin_data);
+        return *static_cast<Profiler*>(handle->plugin_data);
     }
 
-    virtual ~TF_ProfilerOps() = default;
+    virtual ~Profiler() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void get_device_type(const ice::sonic::String& out_device_type) noexcept = 0;
     virtual void start(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void stop(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void
-    collect_data_xspace(TF_Tensor** out_data, const ice::sonic::Status& out_status) noexcept = 0;
+    collect_data_xspace(::TF_Tensor** out_data, const ice::sonic::Status& out_status) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_Profiler*)) noexcept
     {
@@ -60,41 +57,43 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Profiler* handle) noexcept
+                [](::TF_Profiler* handle) noexcept
             {
-                auto& self = TF_ProfilerOps::from_handle(handle);
+                auto& self = Profiler::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TF_Profiler* profiler, TF_String* out_name) noexcept
+                [](::TF_Profiler* profiler, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_ProfilerOps::from_handle(profiler);
+                auto& self = Profiler::from_handle(profiler);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .get_device_type =
-                [](TF_Profiler* profiler, TF_String* out_device_type) noexcept
+                [](::TF_Profiler* profiler, ::TF_String* out_device_type) noexcept
             {
-                auto& self = TF_ProfilerOps::from_handle(profiler);
+                auto& self = Profiler::from_handle(profiler);
                 self.get_device_type(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_device_type)
                 );
             },
             .start =
-                [](TF_Profiler* profiler, TF_Status* out_status) noexcept
+                [](::TF_Profiler* profiler, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_ProfilerOps::from_handle(profiler);
+                auto& self = Profiler::from_handle(profiler);
                 self.start(self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .stop =
-                [](TF_Profiler* profiler, TF_Status* out_status) noexcept
+                [](::TF_Profiler* profiler, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_ProfilerOps::from_handle(profiler);
+                auto& self = Profiler::from_handle(profiler);
                 self.stop(self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .collect_data_xspace =
-                [](TF_Profiler* profiler, TF_Tensor** out_data, TF_Status* out_status) noexcept
+                [](::TF_Profiler* profiler,
+                   ::TF_Tensor** out_data,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_ProfilerOps::from_handle(profiler);
+                auto& self = Profiler::from_handle(profiler);
                 self.collect_data_xspace(
                     out_data,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
@@ -127,18 +126,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_ProfilerOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_ProfilerOps*>(&m_vtable));
     }
 
 private:

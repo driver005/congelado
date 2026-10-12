@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/parser/block.h"
 #include "include/c/extern/parser/node.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -19,43 +19,43 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TFParserBlockOps
+class ParserBlock
 {
 public:
-    explicit TFParserBlockOps(
-        const ::TFParserNodeOps* TFParserNodeOps_ops,
+    explicit ParserBlock(
+        const ::TFParserNodeOps* ParserNode_ops,
         const ::TF_StatusOps* Status_ops,
         const ::TF_StringOps* String_ops
     ) noexcept :
         m_handle{.plugin_data = this}
     {
-        m_TFParserNodeOps_ops = TFParserNodeOps_ops;
+        m_ParserNode_ops = ParserNode_ops;
         m_Status_ops = Status_ops;
         m_String_ops = String_ops;
     }
 
-    TFParserBlockOps(const TFParserBlockOps&) = delete;
-    TFParserBlockOps& operator=(const TFParserBlockOps&) = delete;
+    ParserBlock(const ParserBlock&) = delete;
+    ParserBlock& operator=(const ParserBlock&) = delete;
 
-    static TFParserBlockOps& from_handle(void* ctx) noexcept
+    static ParserBlock& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TFParserBlockOps*>(ctx);
+        return *static_cast<ParserBlock*>(ctx);
     }
 
     template<typename HandleT>
-    static TFParserBlockOps& from_handle(HandleT* handle) noexcept
+    static ParserBlock& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TFParserBlockOps*>(handle->plugin_data);
+        return *static_cast<ParserBlock*>(handle->plugin_data);
     }
 
-    virtual ~TFParserBlockOps() = default;
+    virtual ~ParserBlock() = default;
     virtual void destroy() noexcept = 0;
     virtual void
     get_name(const ice::sonic::String& out_name, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_node_count(int* out_count, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_node(
         int index,
-        const ice::sonic::TFParserNodeOps& out_node,
+        const ice::sonic::ParserNode& out_node,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
 
@@ -66,39 +66,39 @@ public:
 
             .create = create,
             .destroy =
-                [](TFParserBlock* handle) noexcept
+                [](::TFParserBlock* handle) noexcept
             {
-                auto& self = TFParserBlockOps::from_handle(handle);
+                auto& self = ParserBlock::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TFParserBlock* block, TF_String* out_name, TF_Status* out_status) noexcept
+                [](::TFParserBlock* block, ::TF_String* out_name, ::TF_Status* out_status) noexcept
             {
-                auto& self = TFParserBlockOps::from_handle(block);
+                auto& self = ParserBlock::from_handle(block);
                 self.get_name(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_name),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .get_node_count =
-                [](TFParserBlock* block, int* out_count, TF_Status* out_status) noexcept
+                [](::TFParserBlock* block, int* out_count, ::TF_Status* out_status) noexcept
             {
-                auto& self = TFParserBlockOps::from_handle(block);
+                auto& self = ParserBlock::from_handle(block);
                 self.get_node_count(
                     out_count,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .get_node =
-                [](TFParserBlock* block,
+                [](::TFParserBlock* block,
                    int index,
-                   TFParserNode* out_node,
-                   TF_Status* out_status) noexcept
+                   ::TFParserNode* out_node,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFParserBlockOps::from_handle(block);
+                auto& self = ParserBlock::from_handle(block);
                 self.get_node(
                     index,
-                    self.wrap(std::type_identity<ice::sonic::TFParserNodeOps>{}, out_node),
+                    self.wrap(std::type_identity<ice::sonic::ParserNode>{}, out_node),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -106,15 +106,10 @@ public:
         };
     }
 
-    ice::sonic::TFParserNodeOps wrap(
-        std::type_identity<ice::sonic::TFParserNodeOps>,
-        const ::TFParserNode* handle
-    ) const noexcept
+    ice::sonic::ParserNode
+    wrap(std::type_identity<ice::sonic::ParserNode>, const ::TFParserNode* handle) const noexcept
     {
-        return ice::sonic::TFParserNodeOps{
-            m_TFParserNodeOps_ops,
-            const_cast<::TFParserNode*>(handle)
-        };
+        return ice::sonic::ParserNode{m_ParserNode_ops, const_cast<::TFParserNode*>(handle)};
     }
 
     ice::sonic::Status
@@ -140,25 +135,19 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TFParserBlockOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TFParserBlockOps*>(&m_vtable));
     }
 
 private:
     ::TFParserBlockOps m_vtable;
     ::TFParserBlock m_handle;
 
-    const ::TFParserNodeOps* m_TFParserNodeOps_ops{nullptr};
+    const ::TFParserNodeOps* m_ParserNode_ops{nullptr};
 
     const ::TF_StatusOps* m_Status_ops{nullptr};
 

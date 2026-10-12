@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/grappler/properties.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -17,10 +17,10 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TFGrapplerPropertiesOps
+class GrapplerProperties
 {
 public:
-    explicit TFGrapplerPropertiesOps(
+    explicit GrapplerProperties(
         const ::TF_StatusOps* Status_ops,
         const ::TF_StringOps* String_ops
     ) noexcept :
@@ -30,21 +30,21 @@ public:
         m_String_ops = String_ops;
     }
 
-    TFGrapplerPropertiesOps(const TFGrapplerPropertiesOps&) = delete;
-    TFGrapplerPropertiesOps& operator=(const TFGrapplerPropertiesOps&) = delete;
+    GrapplerProperties(const GrapplerProperties&) = delete;
+    GrapplerProperties& operator=(const GrapplerProperties&) = delete;
 
-    static TFGrapplerPropertiesOps& from_handle(void* ctx) noexcept
+    static GrapplerProperties& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TFGrapplerPropertiesOps*>(ctx);
+        return *static_cast<GrapplerProperties*>(ctx);
     }
 
     template<typename HandleT>
-    static TFGrapplerPropertiesOps& from_handle(HandleT* handle) noexcept
+    static GrapplerProperties& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TFGrapplerPropertiesOps*>(handle->plugin_data);
+        return *static_cast<GrapplerProperties*>(handle->plugin_data);
     }
 
-    virtual ~TFGrapplerPropertiesOps() = default;
+    virtual ~GrapplerProperties() = default;
     virtual void destroy() noexcept = 0;
     virtual void infer_statically(
         _Bool assume_valid_feeds,
@@ -65,13 +65,13 @@ public:
     ) noexcept = 0;
     virtual void get_input_properties(
         const ice::sonic::String& name,
-        TF_Buffer** out_properties,
+        ::TF_Buffer** out_properties,
         int num_values,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_output_properties(
         const ice::sonic::String& name,
-        TF_Buffer** out_properties,
+        ::TF_Buffer** out_properties,
         int num_values,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
@@ -83,20 +83,20 @@ public:
 
             .create = create,
             .destroy =
-                [](TFGrapplerProperties* handle) noexcept
+                [](::TFGrapplerProperties* handle) noexcept
             {
-                auto& self = TFGrapplerPropertiesOps::from_handle(handle);
+                auto& self = GrapplerProperties::from_handle(handle);
                 self.destroy();
             },
             .infer_statically =
-                [](TFGrapplerProperties* props,
+                [](::TFGrapplerProperties* props,
                    _Bool assume_valid_feeds,
                    _Bool aggressive_shape_inference,
                    _Bool include_input_tensor_values,
                    _Bool include_output_tensor_values,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFGrapplerPropertiesOps::from_handle(props);
+                auto& self = GrapplerProperties::from_handle(props);
                 self.infer_statically(
                     assume_valid_feeds,
                     aggressive_shape_inference,
@@ -106,12 +106,12 @@ public:
                 );
             },
             .get_input_properties_size =
-                [](TFGrapplerProperties* props,
-                   const TF_String* name,
+                [](::TFGrapplerProperties* props,
+                   const ::TF_String* name,
                    int* out_num_values,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFGrapplerPropertiesOps::from_handle(props);
+                auto& self = GrapplerProperties::from_handle(props);
                 self.get_input_properties_size(
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
                     out_num_values,
@@ -119,12 +119,12 @@ public:
                 );
             },
             .get_output_properties_size =
-                [](TFGrapplerProperties* props,
-                   const TF_String* name,
+                [](::TFGrapplerProperties* props,
+                   const ::TF_String* name,
                    int* out_num_values,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFGrapplerPropertiesOps::from_handle(props);
+                auto& self = GrapplerProperties::from_handle(props);
                 self.get_output_properties_size(
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
                     out_num_values,
@@ -132,13 +132,13 @@ public:
                 );
             },
             .get_input_properties =
-                [](TFGrapplerProperties* props,
-                   const TF_String* name,
-                   TF_Buffer** out_properties,
+                [](::TFGrapplerProperties* props,
+                   const ::TF_String* name,
+                   ::TF_Buffer** out_properties,
                    int num_values,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFGrapplerPropertiesOps::from_handle(props);
+                auto& self = GrapplerProperties::from_handle(props);
                 self.get_input_properties(
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
                     out_properties,
@@ -147,13 +147,13 @@ public:
                 );
             },
             .get_output_properties =
-                [](TFGrapplerProperties* props,
-                   const TF_String* name,
-                   TF_Buffer** out_properties,
+                [](::TFGrapplerProperties* props,
+                   const ::TF_String* name,
+                   ::TF_Buffer** out_properties,
                    int num_values,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFGrapplerPropertiesOps::from_handle(props);
+                auto& self = GrapplerProperties::from_handle(props);
                 self.get_output_properties(
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
                     out_properties,
@@ -188,18 +188,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TFGrapplerPropertiesOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TFGrapplerPropertiesOps*>(&m_vtable));
     }
 
 private:

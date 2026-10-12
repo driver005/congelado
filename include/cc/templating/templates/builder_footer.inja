@@ -17,18 +17,12 @@
     }
 
     void register_ops(
-        const ::{{ registry_struct }}& registry_ops,
-        ::{{ registry_handle }}* registry_handle,
+        const {{ registry_type }}& registry,
         const {{ string_type }}& type,
         const {{ string_type }}& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::{{ struct_name }}*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::{{ struct_name }}*>(&m_vtable));
     }
 
 private:

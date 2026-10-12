@@ -24,12 +24,6 @@ public:
     AstVisitor(AstVisitor&&) = default;
     AstVisitor& operator=(AstVisitor&&) = default;
 
-    AstVisitor& add_nameing(Naming&& naming) noexcept
-    {
-        m_naming = std::move(naming);
-        return *this;
-    }
-
     AstVisitor& add_slot_reader(slot::Reader&& slot_reader) noexcept
     {
         m_reader = std::move(slot_reader);
@@ -90,27 +84,17 @@ public:
 
         return Model{
             std::move(struct_name),
-            m_naming.struct_size_macro(struct_name),
+            struct_size_macro(struct_name),
             std::move(domain_name),
-            m_naming.class_name(struct_name),
+            class_name(struct_name),
             std::string{header_path},
             std::move(slots)
         };
     }
 
-    void set_naming(Naming&& naming) noexcept
-    {
-        m_naming = std::move(naming);
-    }
-
     void set_slot_reader(slot::Reader&& slot_reader) noexcept
     {
         m_reader = std::move(slot_reader);
-    }
-
-    const Naming& get_naming() const noexcept
-    {
-        return m_naming;
     }
 
     const slot::Reader& get_slot_reader() const noexcept
@@ -152,7 +136,6 @@ private:
         return std::string{domain_view};
     }
 
-    Naming m_naming{};
     slot::Reader m_reader{};
 };
 

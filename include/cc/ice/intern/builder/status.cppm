@@ -5,7 +5,7 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -48,7 +48,7 @@ public:
     virtual void for_each_payload(TF_PayloadVisitor visitor, void* capture) noexcept = 0;
     virtual void
     set_status_from_io_error(int error_code, const ice::sonic::String& context) noexcept = 0;
-    virtual void get_code(TF_Code* out_code) noexcept = 0;
+    virtual void get_code(::TF_Code* out_code) noexcept = 0;
     virtual void message(const ice::sonic::String& out_message) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_Status*)) noexcept
@@ -58,25 +58,25 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Status* handle) noexcept
+                [](::TF_Status* handle) noexcept
             {
                 auto& self = Status::from_handle(handle);
                 self.destroy();
             },
             .delete_status =
-                [](TF_Status* s) noexcept
+                [](::TF_Status* s) noexcept
             {
                 auto& self = Status::from_handle(s);
                 self.delete_status();
             },
             .set_status =
-                [](TF_Status* s, TF_Code code, const TF_String* msg) noexcept
+                [](::TF_Status* s, TF_Code code, const ::TF_String* msg) noexcept
             {
                 auto& self = Status::from_handle(s);
                 self.set_status(code, self.wrap(std::type_identity<ice::sonic::String>{}, msg));
             },
             .set_payload =
-                [](TF_Status* s, const TF_String* key, const TF_String* value) noexcept
+                [](::TF_Status* s, const ::TF_String* key, const ::TF_String* value) noexcept
             {
                 auto& self = Status::from_handle(s);
                 self.set_payload(
@@ -85,13 +85,13 @@ public:
                 );
             },
             .for_each_payload =
-                [](const TF_Status* s, TF_PayloadVisitor visitor, void* capture) noexcept
+                [](const ::TF_Status* s, TF_PayloadVisitor visitor, void* capture) noexcept
             {
                 auto& self = Status::from_handle(s);
                 self.for_each_payload(visitor, capture);
             },
             .set_status_from_io_error =
-                [](TF_Status* s, int error_code, const TF_String* context) noexcept
+                [](::TF_Status* s, int error_code, const ::TF_String* context) noexcept
             {
                 auto& self = Status::from_handle(s);
                 self.set_status_from_io_error(
@@ -100,13 +100,13 @@ public:
                 );
             },
             .get_code =
-                [](const TF_Status* s, TF_Code* out_code) noexcept
+                [](const ::TF_Status* s, ::TF_Code* out_code) noexcept
             {
                 auto& self = Status::from_handle(s);
                 self.get_code(out_code);
             },
             .message =
-                [](const TF_Status* s, TF_String* out_message) noexcept
+                [](const ::TF_Status* s, ::TF_String* out_message) noexcept
             {
                 auto& self = Status::from_handle(s);
                 self.message(self.wrap(std::type_identity<ice::sonic::String>{}, out_message));
@@ -132,18 +132,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_StatusOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_StatusOps*>(&m_vtable));
     }
 
 private:

@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/otel/counter.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_otel_sonic:counter;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFOtelCounterOps : public ice::sonic::Runtime<::TFOtelCounterOps, ::TFOtelCounter>
+class OtelCounter : public ice::sonic::Runtime<::TFOtelCounterOps, ::TFOtelCounter>
 {
 public:
-    TFOtelCounterOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    OtelCounter(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFOtelCounterOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    OtelCounter(
+        const ice::sonic::Registration& registry,
         ::TFOtelCounter* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFOtelCounterOps(const ::TFOtelCounterOps* ops) noexcept :
+    explicit OtelCounter(const ::TFOtelCounterOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFOtelCounterOps(const ::TFOtelCounterOps* ops, ::TFOtelCounter* handle) noexcept :
+    OtelCounter(const ::TFOtelCounterOps* ops, ::TFOtelCounter* handle) noexcept :
         Runtime(ops, handle)
     {
     }

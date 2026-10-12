@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/extern/store/index.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_store_sonic:index;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFStoreIndexOps : public ice::sonic::Runtime<::TFStoreIndexOps, ::TFStoreIndex>
+class StoreIndex : public ice::sonic::Runtime<::TFStoreIndexOps, ::TFStoreIndex>
 {
 public:
-    TFStoreIndexOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    StoreIndex(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFStoreIndexOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    StoreIndex(
+        const ice::sonic::Registration& registry,
         ::TFStoreIndex* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFStoreIndexOps(const ::TFStoreIndexOps* ops) noexcept :
+    explicit StoreIndex(const ::TFStoreIndexOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFStoreIndexOps(const ::TFStoreIndexOps* ops, ::TFStoreIndex* handle) noexcept :
+    StoreIndex(const ::TFStoreIndexOps* ops, ::TFStoreIndex* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -61,7 +70,7 @@ public:
 
     void create_index(
         const ice::sonic::String& name,
-        const ice::sonic::TF_MapOps& field_config,
+        const ice::sonic::Map& field_config,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -79,7 +88,7 @@ public:
     }
 
     void list(
-        const ice::sonic::TF_VectorOps& out_names,
+        const ice::sonic::Vector& out_names,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

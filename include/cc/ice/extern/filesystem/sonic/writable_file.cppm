@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/filesystem/writable_file.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_filesystem_sonic:writable_file;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_WritableFileOps : public ice::sonic::Runtime<::TF_WritableFileOps, ::TF_WritableFile>
+class WritableFile : public ice::sonic::Runtime<::TF_WritableFileOps, ::TF_WritableFile>
 {
 public:
-    TF_WritableFileOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    WritableFile(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_WritableFileOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    WritableFile(
+        const ice::sonic::Registration& registry,
         ::TF_WritableFile* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_WritableFileOps(const ::TF_WritableFileOps* ops) noexcept :
+    explicit WritableFile(const ::TF_WritableFileOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_WritableFileOps(const ::TF_WritableFileOps* ops, ::TF_WritableFile* handle) noexcept :
+    WritableFile(const ::TF_WritableFileOps* ops, ::TF_WritableFile* handle) noexcept :
         Runtime(ops, handle)
     {
     }

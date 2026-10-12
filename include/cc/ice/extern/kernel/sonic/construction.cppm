@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/kernel/construction.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_kernel_sonic:construction;
 
@@ -15,37 +15,46 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_OpKernelConstructionOps :
+class OpKernelConstruction :
     public ice::sonic::Runtime<::TF_OpKernelConstructionOps, ::TF_OpKernelConstruction>
 {
 public:
-    TF_OpKernelConstructionOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    OpKernelConstruction(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_OpKernelConstructionOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    OpKernelConstruction(
+        const ice::sonic::Registration& registry,
         ::TF_OpKernelConstruction* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_OpKernelConstructionOps(const ::TF_OpKernelConstructionOps* ops) noexcept :
+    explicit OpKernelConstruction(const ::TF_OpKernelConstructionOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_OpKernelConstructionOps(
+    OpKernelConstruction(
         const ::TF_OpKernelConstructionOps* ops,
         ::TF_OpKernelConstruction* handle
     ) noexcept :
@@ -69,7 +78,7 @@ public:
     }
 
     void get_node_def(
-        const ice::sonic::TF_BufferOps& buffer,
+        const ice::sonic::Buffer& buffer,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -94,7 +103,7 @@ public:
 
     void get_attr_type(
         const ice::sonic::String& attr_name,
-        TFDataTypeEnum* out_val,
+        ::TFDataTypeEnum* out_val,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -170,7 +179,7 @@ public:
 
     void get_attr_tensor(
         const ice::sonic::String& attr_name,
-        TF_Tensor** out_val,
+        ::TF_Tensor** out_val,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -184,7 +193,7 @@ public:
 
     void get_attr_type_list(
         const ice::sonic::String& attr_name,
-        TFDataTypeEnum* out_vals,
+        ::TFDataTypeEnum* out_vals,
         int max_vals,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -286,7 +295,7 @@ public:
 
     void get_attr_tensor_list(
         const ice::sonic::String& attr_name,
-        TF_Tensor** out_vals,
+        ::TF_Tensor** out_vals,
         int max_values,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -302,7 +311,7 @@ public:
 
     void get_attr_function(
         const ice::sonic::String& attr_name,
-        const ice::sonic::TF_BufferOps& buffer,
+        const ice::sonic::Buffer& buffer,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

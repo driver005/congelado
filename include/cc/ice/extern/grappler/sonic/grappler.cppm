@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/grappler/grappler.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_grappler_sonic:grappler;
 
@@ -17,36 +17,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_GrapplerOps : public ice::sonic::Runtime<::TF_GrapplerOps, ::TF_Grappler>
+class Grappler : public ice::sonic::Runtime<::TF_GrapplerOps, ::TF_Grappler>
 {
 public:
-    TF_GrapplerOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Grappler(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_GrapplerOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Grappler(
+        const ice::sonic::Registration& registry,
         ::TF_Grappler* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_GrapplerOps(const ::TF_GrapplerOps* ops) noexcept :
+    explicit Grappler(const ::TF_GrapplerOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_GrapplerOps(const ::TF_GrapplerOps* ops, ::TF_Grappler* handle) noexcept :
+    Grappler(const ::TF_GrapplerOps* ops, ::TF_Grappler* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -67,9 +76,9 @@ public:
     }
 
     void create_device_graph_internal(
-        const ice::sonic::TF_ExecutorOps& executor,
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TFGrapplerDeviceGraphOps& out_graph,
+        const ice::sonic::Executor& executor,
+        const ice::sonic::Device& device,
+        const ice::sonic::GrapplerDeviceGraph& out_graph,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -82,9 +91,7 @@ public:
         );
     }
 
-    void destroy_device_graph_internal(
-        const ice::sonic::TFGrapplerDeviceGraphOps& graph
-    ) const noexcept
+    void destroy_device_graph_internal(const ice::sonic::GrapplerDeviceGraph& graph) const noexcept
     {
         m_ops->destroy_device_graph_internal(get_handle(), graph.get_handle());
     }

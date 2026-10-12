@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/io/request.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_io_sonic:request;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_RequestOps : public ice::sonic::Runtime<::TF_RequestOps, ::TF_Request>
+class Request : public ice::sonic::Runtime<::TF_RequestOps, ::TF_Request>
 {
 public:
-    TF_RequestOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Request(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_RequestOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Request(
+        const ice::sonic::Registration& registry,
         ::TF_Request* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_RequestOps(const ::TF_RequestOps* ops) noexcept :
+    explicit Request(const ::TF_RequestOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_RequestOps(const ::TF_RequestOps* ops, ::TF_Request* handle) noexcept :
+    Request(const ::TF_RequestOps* ops, ::TF_Request* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -163,7 +172,7 @@ public:
     }
 
     void get_headers(
-        const ice::sonic::TF_MapOps& out_headers,
+        const ice::sonic::Map& out_headers,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -185,7 +194,7 @@ public:
     }
 
     void get_query_params(
-        const ice::sonic::TF_MapOps& out_params,
+        const ice::sonic::Map& out_params,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

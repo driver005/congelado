@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/extern/stream_executor/mem_pool.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 
 export module cc_ice_extern_stream_executor_builder:mem_pool;
@@ -16,32 +16,32 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_MemPoolOps
+class MemPool
 {
 public:
-    explicit TF_MemPoolOps(const ::TF_StatusOps* Status_ops) noexcept :
+    explicit MemPool(const ::TF_StatusOps* Status_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_Status_ops = Status_ops;
     }
 
-    TF_MemPoolOps(const TF_MemPoolOps&) = delete;
-    TF_MemPoolOps& operator=(const TF_MemPoolOps&) = delete;
+    MemPool(const MemPool&) = delete;
+    MemPool& operator=(const MemPool&) = delete;
 
-    static TF_MemPoolOps& from_handle(void* ctx) noexcept
+    static MemPool& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_MemPoolOps*>(ctx);
+        return *static_cast<MemPool*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_MemPoolOps& from_handle(HandleT* handle) noexcept
+    static MemPool& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_MemPoolOps*>(handle->plugin_data);
+        return *static_cast<MemPool*>(handle->plugin_data);
     }
 
-    virtual ~TF_MemPoolOps() = default;
+    virtual ~MemPool() = default;
     virtual void destroy() noexcept = 0;
-    virtual void get_id(TF_PoolId* out_pool_id) noexcept = 0;
+    virtual void get_id(::TF_PoolId* out_pool_id) noexcept = 0;
     virtual void use_count(int* out_count) noexcept = 0;
     virtual void begin_allocate_to_pool(
         TF_StreamFilterFn stream_filter,
@@ -60,30 +60,30 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_MemPool* handle) noexcept
+                [](::TF_MemPool* handle) noexcept
             {
-                auto& self = TF_MemPoolOps::from_handle(handle);
+                auto& self = MemPool::from_handle(handle);
                 self.destroy();
             },
             .get_id =
-                [](TF_MemPool* pool, TF_PoolId* out_pool_id) noexcept
+                [](::TF_MemPool* pool, ::TF_PoolId* out_pool_id) noexcept
             {
-                auto& self = TF_MemPoolOps::from_handle(pool);
+                auto& self = MemPool::from_handle(pool);
                 self.get_id(out_pool_id);
             },
             .use_count =
-                [](TF_MemPool* pool, int* out_count) noexcept
+                [](::TF_MemPool* pool, int* out_count) noexcept
             {
-                auto& self = TF_MemPoolOps::from_handle(pool);
+                auto& self = MemPool::from_handle(pool);
                 self.use_count(out_count);
             },
             .begin_allocate_to_pool =
-                [](TF_MemPool* pool,
+                [](::TF_MemPool* pool,
                    TF_StreamFilterFn stream_filter,
                    void* filter_data,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_MemPoolOps::from_handle(pool);
+                auto& self = MemPool::from_handle(pool);
                 self.begin_allocate_to_pool(
                     stream_filter,
                     filter_data,
@@ -91,23 +91,23 @@ public:
                 );
             },
             .end_allocate_to_pool =
-                [](TF_MemPool* pool, TF_Status* out_status) noexcept
+                [](::TF_MemPool* pool, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_MemPoolOps::from_handle(pool);
+                auto& self = MemPool::from_handle(pool);
                 self.end_allocate_to_pool(
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .release =
-                [](TF_MemPool* pool, TF_Status* out_status) noexcept
+                [](::TF_MemPool* pool, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_MemPoolOps::from_handle(pool);
+                auto& self = MemPool::from_handle(pool);
                 self.release(self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .set_use_on_oom =
-                [](TF_MemPool* pool, _Bool use_on_oom, TF_Status* out_status) noexcept
+                [](::TF_MemPool* pool, _Bool use_on_oom, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_MemPoolOps::from_handle(pool);
+                auto& self = MemPool::from_handle(pool);
                 self.set_use_on_oom(
                     use_on_oom,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
@@ -134,18 +134,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_MemPoolOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_MemPoolOps*>(&m_vtable));
     }
 
 private:

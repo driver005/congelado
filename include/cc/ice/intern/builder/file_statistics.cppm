@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/file_statistics.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/tstring.h"
 
 export module cc_ice_intern_builder:file_statistics;
@@ -16,30 +16,30 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_FileStatisticsOps
+class FileStatistics
 {
 public:
-    explicit TF_FileStatisticsOps(const ::TF_StringOps* String_ops) noexcept :
+    explicit FileStatistics(const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_String_ops = String_ops;
     }
 
-    TF_FileStatisticsOps(const TF_FileStatisticsOps&) = delete;
-    TF_FileStatisticsOps& operator=(const TF_FileStatisticsOps&) = delete;
+    FileStatistics(const FileStatistics&) = delete;
+    FileStatistics& operator=(const FileStatistics&) = delete;
 
-    static TF_FileStatisticsOps& from_handle(void* ctx) noexcept
+    static FileStatistics& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_FileStatisticsOps*>(ctx);
+        return *static_cast<FileStatistics*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_FileStatisticsOps& from_handle(HandleT* handle) noexcept
+    static FileStatistics& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_FileStatisticsOps*>(handle->plugin_data);
+        return *static_cast<FileStatistics*>(handle->plugin_data);
     }
 
-    virtual ~TF_FileStatisticsOps() = default;
+    virtual ~FileStatistics() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void is_directory(int* out_is_directory) noexcept = 0;
@@ -56,51 +56,51 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_FileStatistics* handle) noexcept
+                [](::TF_FileStatistics* handle) noexcept
             {
-                auto& self = TF_FileStatisticsOps::from_handle(handle);
+                auto& self = FileStatistics::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TF_FileStatistics* stats, TF_String* out_name) noexcept
+                [](::TF_FileStatistics* stats, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_FileStatisticsOps::from_handle(stats);
+                auto& self = FileStatistics::from_handle(stats);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .is_directory =
-                [](const TF_FileStatistics* stats, int* out_is_directory) noexcept
+                [](const ::TF_FileStatistics* stats, int* out_is_directory) noexcept
             {
-                auto& self = TF_FileStatisticsOps::from_handle(stats);
+                auto& self = FileStatistics::from_handle(stats);
                 self.is_directory(out_is_directory);
             },
             .set_is_directory =
-                [](TF_FileStatistics* stats, int is_directory) noexcept
+                [](::TF_FileStatistics* stats, int is_directory) noexcept
             {
-                auto& self = TF_FileStatisticsOps::from_handle(stats);
+                auto& self = FileStatistics::from_handle(stats);
                 self.set_is_directory(is_directory);
             },
             .length =
-                [](const TF_FileStatistics* stats, int64_t* out_length) noexcept
+                [](const ::TF_FileStatistics* stats, int64_t* out_length) noexcept
             {
-                auto& self = TF_FileStatisticsOps::from_handle(stats);
+                auto& self = FileStatistics::from_handle(stats);
                 self.length(out_length);
             },
             .set_length =
-                [](TF_FileStatistics* stats, int64_t length) noexcept
+                [](::TF_FileStatistics* stats, int64_t length) noexcept
             {
-                auto& self = TF_FileStatisticsOps::from_handle(stats);
+                auto& self = FileStatistics::from_handle(stats);
                 self.set_length(length);
             },
             .mtime_nsec =
-                [](const TF_FileStatistics* stats, int64_t* out_mtime_nsec) noexcept
+                [](const ::TF_FileStatistics* stats, int64_t* out_mtime_nsec) noexcept
             {
-                auto& self = TF_FileStatisticsOps::from_handle(stats);
+                auto& self = FileStatistics::from_handle(stats);
                 self.mtime_nsec(out_mtime_nsec);
             },
             .set_mtime_nsec =
-                [](TF_FileStatistics* stats, int64_t mtime_nsec) noexcept
+                [](::TF_FileStatistics* stats, int64_t mtime_nsec) noexcept
             {
-                auto& self = TF_FileStatisticsOps::from_handle(stats);
+                auto& self = FileStatistics::from_handle(stats);
                 self.set_mtime_nsec(mtime_nsec);
             },
 
@@ -124,18 +124,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_FileStatisticsOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_FileStatisticsOps*>(&m_vtable));
     }
 
 private:

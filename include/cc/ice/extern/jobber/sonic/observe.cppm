@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/jobber/observe.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_jobber_sonic:observe;
 
@@ -16,36 +16,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_ObserveOps : public ice::sonic::Runtime<::TF_ObserveOps, ::TF_Observe>
+class Observe : public ice::sonic::Runtime<::TF_ObserveOps, ::TF_Observe>
 {
 public:
-    TF_ObserveOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Observe(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_ObserveOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Observe(
+        const ice::sonic::Registration& registry,
         ::TF_Observe* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_ObserveOps(const ::TF_ObserveOps* ops) noexcept :
+    explicit Observe(const ::TF_ObserveOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_ObserveOps(const ::TF_ObserveOps* ops, ::TF_Observe* handle) noexcept :
+    Observe(const ::TF_ObserveOps* ops, ::TF_Observe* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -61,7 +70,7 @@ public:
     }
 
     void get_status(
-        const ice::sonic::TF_JobOps& job,
+        const ice::sonic::Job& job,
         TFObserveStatusFn completion,
         void* user_data,
         const ice::sonic::Status& out_status
@@ -77,7 +86,7 @@ public:
     }
 
     void get_result(
-        const ice::sonic::TF_JobOps& job,
+        const ice::sonic::Job& job,
         TFObserveResultFn completion,
         void* user_data,
         const ice::sonic::Status& out_status
@@ -93,8 +102,8 @@ public:
     }
 
     void get_history(
-        const ice::sonic::TF_JobOps& job,
-        const ice::sonic::TF_VectorOps& out_transitions,
+        const ice::sonic::Job& job,
+        const ice::sonic::Vector& out_transitions,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -107,8 +116,8 @@ public:
     }
 
     void get_metrics(
-        const ice::sonic::TF_JobOps& job,
-        const ice::sonic::TF_MapOps& out_metrics,
+        const ice::sonic::Job& job,
+        const ice::sonic::Map& out_metrics,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -121,8 +130,8 @@ public:
     }
 
     void get_logs(
-        const ice::sonic::TF_JobOps& job,
-        const ice::sonic::TF_VectorOps& out_lines,
+        const ice::sonic::Job& job,
+        const ice::sonic::Vector& out_lines,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

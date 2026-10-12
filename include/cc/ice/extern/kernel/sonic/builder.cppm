@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/kernel/builder.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_kernel_sonic:builder;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_KernelBuilderOps : public ice::sonic::Runtime<::TF_KernelBuilderOps, ::TF_KernelBuilder>
+class KernelBuilder : public ice::sonic::Runtime<::TF_KernelBuilderOps, ::TF_KernelBuilder>
 {
 public:
-    TF_KernelBuilderOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    KernelBuilder(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_KernelBuilderOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    KernelBuilder(
+        const ice::sonic::Registration& registry,
         ::TF_KernelBuilder* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_KernelBuilderOps(const ::TF_KernelBuilderOps* ops) noexcept :
+    explicit KernelBuilder(const ::TF_KernelBuilderOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_KernelBuilderOps(const ::TF_KernelBuilderOps* ops, ::TF_KernelBuilder* handle) noexcept :
+    KernelBuilder(const ::TF_KernelBuilderOps* ops, ::TF_KernelBuilder* handle) noexcept :
         Runtime(ops, handle)
     {
     }

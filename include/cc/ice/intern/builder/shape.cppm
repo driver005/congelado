@@ -5,7 +5,7 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/shape.h"
 #include "include/c/intern/tstring.h"
 
@@ -16,30 +16,30 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_ShapeOps
+class Shape
 {
 public:
-    explicit TF_ShapeOps(const ::TF_StringOps* String_ops) noexcept :
+    explicit Shape(const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_String_ops = String_ops;
     }
 
-    TF_ShapeOps(const TF_ShapeOps&) = delete;
-    TF_ShapeOps& operator=(const TF_ShapeOps&) = delete;
+    Shape(const Shape&) = delete;
+    Shape& operator=(const Shape&) = delete;
 
-    static TF_ShapeOps& from_handle(void* ctx) noexcept
+    static Shape& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_ShapeOps*>(ctx);
+        return *static_cast<Shape*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ShapeOps& from_handle(HandleT* handle) noexcept
+    static Shape& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_ShapeOps*>(handle->plugin_data);
+        return *static_cast<Shape*>(handle->plugin_data);
     }
 
-    virtual ~TF_ShapeOps() = default;
+    virtual ~Shape() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void set_dims(const int64_t* dims, int num_dims) noexcept = 0;
@@ -54,39 +54,39 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Shape* handle) noexcept
+                [](::TF_Shape* handle) noexcept
             {
-                auto& self = TF_ShapeOps::from_handle(handle);
+                auto& self = Shape::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TF_Shape* shape, TF_String* out_name) noexcept
+                [](::TF_Shape* shape, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_ShapeOps::from_handle(shape);
+                auto& self = Shape::from_handle(shape);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .set_dims =
-                [](TF_Shape* shape, const int64_t* dims, int num_dims) noexcept
+                [](::TF_Shape* shape, const int64_t* dims, int num_dims) noexcept
             {
-                auto& self = TF_ShapeOps::from_handle(shape);
+                auto& self = Shape::from_handle(shape);
                 self.set_dims(dims, num_dims);
             },
             .delete_shape =
-                [](TF_Shape* shape) noexcept
+                [](::TF_Shape* shape) noexcept
             {
-                auto& self = TF_ShapeOps::from_handle(shape);
+                auto& self = Shape::from_handle(shape);
                 self.delete_shape();
             },
             .shape_num_dims =
-                [](const TF_Shape* shape, int* out_num_dims) noexcept
+                [](const ::TF_Shape* shape, int* out_num_dims) noexcept
             {
-                auto& self = TF_ShapeOps::from_handle(shape);
+                auto& self = Shape::from_handle(shape);
                 self.shape_num_dims(out_num_dims);
             },
             .shape_dim =
-                [](const TF_Shape* shape, int index, int64_t* out_dim) noexcept
+                [](const ::TF_Shape* shape, int index, int64_t* out_dim) noexcept
             {
-                auto& self = TF_ShapeOps::from_handle(shape);
+                auto& self = Shape::from_handle(shape);
                 self.shape_dim(index, out_dim);
             },
 
@@ -110,18 +110,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_ShapeOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_ShapeOps*>(&m_vtable));
     }
 
 private:

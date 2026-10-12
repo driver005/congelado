@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/complex.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_intern_builder:complex;
 
@@ -15,29 +15,29 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_ComplexOps
+class Complex
 {
 public:
-    explicit TF_ComplexOps() noexcept :
+    explicit Complex() noexcept :
         m_handle{.plugin_data = this}
     {
     }
 
-    TF_ComplexOps(const TF_ComplexOps&) = delete;
-    TF_ComplexOps& operator=(const TF_ComplexOps&) = delete;
+    Complex(const Complex&) = delete;
+    Complex& operator=(const Complex&) = delete;
 
-    static TF_ComplexOps& from_handle(void* ctx) noexcept
+    static Complex& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_ComplexOps*>(ctx);
+        return *static_cast<Complex*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ComplexOps& from_handle(HandleT* handle) noexcept
+    static Complex& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_ComplexOps*>(handle->plugin_data);
+        return *static_cast<Complex*>(handle->plugin_data);
     }
 
-    virtual ~TF_ComplexOps() = default;
+    virtual ~Complex() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_real(double* out_real) noexcept = 0;
     virtual void get_imag(double* out_imag) noexcept = 0;
@@ -51,33 +51,33 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Complex* handle) noexcept
+                [](::TF_Complex* handle) noexcept
             {
-                auto& self = TF_ComplexOps::from_handle(handle);
+                auto& self = Complex::from_handle(handle);
                 self.destroy();
             },
             .get_real =
-                [](const TF_Complex* complex_value, double* out_real) noexcept
+                [](const ::TF_Complex* complex_value, double* out_real) noexcept
             {
-                auto& self = TF_ComplexOps::from_handle(complex_value);
+                auto& self = Complex::from_handle(complex_value);
                 self.get_real(out_real);
             },
             .get_imag =
-                [](const TF_Complex* complex_value, double* out_imag) noexcept
+                [](const ::TF_Complex* complex_value, double* out_imag) noexcept
             {
-                auto& self = TF_ComplexOps::from_handle(complex_value);
+                auto& self = Complex::from_handle(complex_value);
                 self.get_imag(out_imag);
             },
             .set_real =
-                [](TF_Complex* complex_value, double real) noexcept
+                [](::TF_Complex* complex_value, double real) noexcept
             {
-                auto& self = TF_ComplexOps::from_handle(complex_value);
+                auto& self = Complex::from_handle(complex_value);
                 self.set_real(real);
             },
             .set_imag =
-                [](TF_Complex* complex_value, double imag) noexcept
+                [](::TF_Complex* complex_value, double imag) noexcept
             {
-                auto& self = TF_ComplexOps::from_handle(complex_value);
+                auto& self = Complex::from_handle(complex_value);
                 self.set_imag(imag);
             },
 
@@ -95,18 +95,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_ComplexOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_ComplexOps*>(&m_vtable));
     }
 
 private:

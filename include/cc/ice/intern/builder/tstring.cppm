@@ -5,7 +5,7 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/tstring.h"
 
 export module cc_ice_intern_builder:tstring;
@@ -43,7 +43,7 @@ public:
     virtual void copy(const char* src, size_t size) noexcept = 0;
     virtual void assign_view(const char* src, size_t size) noexcept = 0;
     virtual void get_data_pointer(const char** out_data) noexcept = 0;
-    virtual void get_type(TFTStringType* out_type) noexcept = 0;
+    virtual void get_type(::TFTStringType* out_type) noexcept = 0;
     virtual void get_size(size_t* out_size) noexcept = 0;
     virtual void get_capacity(size_t* out_capacity) noexcept = 0;
     virtual void dealloc() noexcept = 0;
@@ -55,55 +55,55 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_String* handle) noexcept
+                [](::TF_String* handle) noexcept
             {
                 auto& self = String::from_handle(handle);
                 self.destroy();
             },
             .init =
-                [](TF_String* t) noexcept
+                [](::TF_String* t) noexcept
             {
                 auto& self = String::from_handle(t);
                 self.init();
             },
             .copy =
-                [](TF_String* dst, const char* src, size_t size) noexcept
+                [](::TF_String* dst, const char* src, size_t size) noexcept
             {
                 auto& self = String::from_handle(dst);
                 self.copy(src, size);
             },
             .assign_view =
-                [](TF_String* dst, const char* src, size_t size) noexcept
+                [](::TF_String* dst, const char* src, size_t size) noexcept
             {
                 auto& self = String::from_handle(dst);
                 self.assign_view(src, size);
             },
             .get_data_pointer =
-                [](const TF_String* t, const char** out_data) noexcept
+                [](const ::TF_String* t, const char** out_data) noexcept
             {
                 auto& self = String::from_handle(t);
                 self.get_data_pointer(out_data);
             },
             .get_type =
-                [](const TF_String* t, TFTStringType* out_type) noexcept
+                [](const ::TF_String* t, ::TFTStringType* out_type) noexcept
             {
                 auto& self = String::from_handle(t);
                 self.get_type(out_type);
             },
             .get_size =
-                [](const TF_String* t, size_t* out_size) noexcept
+                [](const ::TF_String* t, size_t* out_size) noexcept
             {
                 auto& self = String::from_handle(t);
                 self.get_size(out_size);
             },
             .get_capacity =
-                [](const TF_String* t, size_t* out_capacity) noexcept
+                [](const ::TF_String* t, size_t* out_capacity) noexcept
             {
                 auto& self = String::from_handle(t);
                 self.get_capacity(out_capacity);
             },
             .dealloc =
-                [](TF_String* t) noexcept
+                [](::TF_String* t) noexcept
             {
                 auto& self = String::from_handle(t);
                 self.dealloc();
@@ -123,18 +123,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_StringOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_StringOps*>(&m_vtable));
     }
 
 private:

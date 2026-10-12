@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/grappler/optimizer.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_grappler_sonic:optimizer;
 
@@ -16,40 +16,46 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFGrapplerOptimizerOps :
+class GrapplerOptimizer :
     public ice::sonic::Runtime<::TFGrapplerOptimizerOps, ::TFGrapplerOptimizer>
 {
 public:
-    TFGrapplerOptimizerOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GrapplerOptimizer(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFGrapplerOptimizerOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GrapplerOptimizer(
+        const ice::sonic::Registration& registry,
         ::TFGrapplerOptimizer* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFGrapplerOptimizerOps(const ::TFGrapplerOptimizerOps* ops) noexcept :
+    explicit GrapplerOptimizer(const ::TFGrapplerOptimizerOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFGrapplerOptimizerOps(
-        const ::TFGrapplerOptimizerOps* ops,
-        ::TFGrapplerOptimizer* handle
-    ) noexcept :
+    GrapplerOptimizer(const ::TFGrapplerOptimizerOps* ops, ::TFGrapplerOptimizer* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -65,9 +71,9 @@ public:
     }
 
     void optimize(
-        const ice::sonic::TF_BufferOps& graph_buf,
-        const ice::sonic::TFGrapplerItemOps& item,
-        const ice::sonic::TF_BufferOps& out_optimized_graph_buf,
+        const ice::sonic::Buffer& graph_buf,
+        const ice::sonic::GrapplerItem& item,
+        const ice::sonic::Buffer& out_optimized_graph_buf,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

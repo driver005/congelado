@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/parser/function.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_parser_sonic:function;
 
@@ -17,36 +17,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFParserFunctionOps : public ice::sonic::Runtime<::TFParserFunctionOps, ::TFParserFunction>
+class ParserFunction : public ice::sonic::Runtime<::TFParserFunctionOps, ::TFParserFunction>
 {
 public:
-    TFParserFunctionOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    ParserFunction(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFParserFunctionOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    ParserFunction(
+        const ice::sonic::Registration& registry,
         ::TFParserFunction* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFParserFunctionOps(const ::TFParserFunctionOps* ops) noexcept :
+    explicit ParserFunction(const ::TFParserFunctionOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFParserFunctionOps(const ::TFParserFunctionOps* ops, ::TFParserFunction* handle) noexcept :
+    ParserFunction(const ::TFParserFunctionOps* ops, ::TFParserFunction* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -76,7 +85,7 @@ public:
 
     void get_parameter(
         int index,
-        const ice::sonic::TFParserParameterOps& out_parameter,
+        const ice::sonic::ParserParameter& out_parameter,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -95,7 +104,7 @@ public:
 
     void get_block(
         int index,
-        const ice::sonic::TFParserBlockOps& out_block,
+        const ice::sonic::ParserBlock& out_block,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

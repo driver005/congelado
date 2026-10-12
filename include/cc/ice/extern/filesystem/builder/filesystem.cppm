@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/filesystem/filesystem.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_filesystem_builder:filesystem;
@@ -16,30 +16,30 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_FilesystemOps
+class Filesystem
 {
 public:
-    explicit TF_FilesystemOps(const ::TF_StringOps* String_ops) noexcept :
+    explicit Filesystem(const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_String_ops = String_ops;
     }
 
-    TF_FilesystemOps(const TF_FilesystemOps&) = delete;
-    TF_FilesystemOps& operator=(const TF_FilesystemOps&) = delete;
+    Filesystem(const Filesystem&) = delete;
+    Filesystem& operator=(const Filesystem&) = delete;
 
-    static TF_FilesystemOps& from_handle(void* ctx) noexcept
+    static Filesystem& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_FilesystemOps*>(ctx);
+        return *static_cast<Filesystem*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_FilesystemOps& from_handle(HandleT* handle) noexcept
+    static Filesystem& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_FilesystemOps*>(handle->plugin_data);
+        return *static_cast<Filesystem*>(handle->plugin_data);
     }
 
-    virtual ~TF_FilesystemOps() = default;
+    virtual ~Filesystem() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
 
@@ -50,15 +50,15 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Filesystem* handle) noexcept
+                [](::TF_Filesystem* handle) noexcept
             {
-                auto& self = TF_FilesystemOps::from_handle(handle);
+                auto& self = Filesystem::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TF_Filesystem* filesystem, TF_String* out_name) noexcept
+                [](::TF_Filesystem* filesystem, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_FilesystemOps::from_handle(filesystem);
+                auto& self = Filesystem::from_handle(filesystem);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
 
@@ -82,18 +82,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_FilesystemOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_FilesystemOps*>(&m_vtable));
     }
 
 private:

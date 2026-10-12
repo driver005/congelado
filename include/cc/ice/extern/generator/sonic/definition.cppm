@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/generator/definition.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_generator_sonic:definition;
 
@@ -17,37 +17,46 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFGeneratorDefinitionOps :
+class GeneratorDefinition :
     public ice::sonic::Runtime<::TFGeneratorDefinitionOps, ::TFGeneratorDefinition>
 {
 public:
-    TFGeneratorDefinitionOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GeneratorDefinition(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFGeneratorDefinitionOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GeneratorDefinition(
+        const ice::sonic::Registration& registry,
         ::TFGeneratorDefinition* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFGeneratorDefinitionOps(const ::TFGeneratorDefinitionOps* ops) noexcept :
+    explicit GeneratorDefinition(const ::TFGeneratorDefinitionOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFGeneratorDefinitionOps(
+    GeneratorDefinition(
         const ::TFGeneratorDefinitionOps* ops,
         ::TFGeneratorDefinition* handle
     ) noexcept :
@@ -86,7 +95,7 @@ public:
     }
 
     void add_input(
-        const ice::sonic::TFGeneratorParameterOps& input,
+        const ice::sonic::GeneratorParameter& input,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -94,7 +103,7 @@ public:
     }
 
     void add_output(
-        const ice::sonic::TFGeneratorParameterOps& output,
+        const ice::sonic::GeneratorParameter& output,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -102,7 +111,7 @@ public:
     }
 
     void add_attr(
-        const ice::sonic::TFGeneratorAttributeOps& attr,
+        const ice::sonic::GeneratorAttribute& attr,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -119,17 +128,20 @@ public:
         m_ops->get_description(get_handle(), out_description.get_handle());
     }
 
-    void list_inputs(TF_Tensor** out_inputs, const ice::sonic::Status& out_status) const noexcept
+    void list_inputs(::TF_Tensor** out_inputs, const ice::sonic::Status& out_status) const noexcept
     {
         m_ops->list_inputs(get_handle(), out_inputs, out_status.get_handle());
     }
 
-    void list_outputs(TF_Tensor** out_outputs, const ice::sonic::Status& out_status) const noexcept
+    void list_outputs(
+        ::TF_Tensor** out_outputs,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
         m_ops->list_outputs(get_handle(), out_outputs, out_status.get_handle());
     }
 
-    void list_attrs(TF_Tensor** out_attrs, const ice::sonic::Status& out_status) const noexcept
+    void list_attrs(::TF_Tensor** out_attrs, const ice::sonic::Status& out_status) const noexcept
     {
         m_ops->list_attrs(get_handle(), out_attrs, out_status.get_handle());
     }

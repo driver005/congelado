@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/otel/span.h"
 #include "include/c/extern/otel/tracer.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -19,42 +19,42 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TFOtelTracerOps
+class OtelTracer
 {
 public:
-    explicit TFOtelTracerOps(
-        const ::TFOtelSpanOps* TFOtelSpanOps_ops,
+    explicit OtelTracer(
+        const ::TFOtelSpanOps* OtelSpan_ops,
         const ::TF_StatusOps* Status_ops,
         const ::TF_StringOps* String_ops
     ) noexcept :
         m_handle{.plugin_data = this}
     {
-        m_TFOtelSpanOps_ops = TFOtelSpanOps_ops;
+        m_OtelSpan_ops = OtelSpan_ops;
         m_Status_ops = Status_ops;
         m_String_ops = String_ops;
     }
 
-    TFOtelTracerOps(const TFOtelTracerOps&) = delete;
-    TFOtelTracerOps& operator=(const TFOtelTracerOps&) = delete;
+    OtelTracer(const OtelTracer&) = delete;
+    OtelTracer& operator=(const OtelTracer&) = delete;
 
-    static TFOtelTracerOps& from_handle(void* ctx) noexcept
+    static OtelTracer& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TFOtelTracerOps*>(ctx);
+        return *static_cast<OtelTracer*>(ctx);
     }
 
     template<typename HandleT>
-    static TFOtelTracerOps& from_handle(HandleT* handle) noexcept
+    static OtelTracer& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TFOtelTracerOps*>(handle->plugin_data);
+        return *static_cast<OtelTracer*>(handle->plugin_data);
     }
 
-    virtual ~TFOtelTracerOps() = default;
+    virtual ~OtelTracer() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void start_span(
         const ice::sonic::String& name,
         int kind,
-        const ice::sonic::TFOtelSpanOps& out_span,
+        const ice::sonic::OtelSpan& out_span,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
 
@@ -65,29 +65,29 @@ public:
 
             .create = create,
             .destroy =
-                [](TFOtelTracer* handle) noexcept
+                [](::TFOtelTracer* handle) noexcept
             {
-                auto& self = TFOtelTracerOps::from_handle(handle);
+                auto& self = OtelTracer::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TFOtelTracer* tracer, TF_String* out_name) noexcept
+                [](::TFOtelTracer* tracer, ::TF_String* out_name) noexcept
             {
-                auto& self = TFOtelTracerOps::from_handle(tracer);
+                auto& self = OtelTracer::from_handle(tracer);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .start_span =
-                [](TFOtelTracer* tracer,
-                   const TF_String* name,
+                [](::TFOtelTracer* tracer,
+                   const ::TF_String* name,
                    int kind,
-                   TFOtelSpan* out_span,
-                   TF_Status* out_status) noexcept
+                   ::TFOtelSpan* out_span,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFOtelTracerOps::from_handle(tracer);
+                auto& self = OtelTracer::from_handle(tracer);
                 self.start_span(
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
                     kind,
-                    self.wrap(std::type_identity<ice::sonic::TFOtelSpanOps>{}, out_span),
+                    self.wrap(std::type_identity<ice::sonic::OtelSpan>{}, out_span),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -95,10 +95,10 @@ public:
         };
     }
 
-    ice::sonic::TFOtelSpanOps
-    wrap(std::type_identity<ice::sonic::TFOtelSpanOps>, const ::TFOtelSpan* handle) const noexcept
+    ice::sonic::OtelSpan
+    wrap(std::type_identity<ice::sonic::OtelSpan>, const ::TFOtelSpan* handle) const noexcept
     {
-        return ice::sonic::TFOtelSpanOps{m_TFOtelSpanOps_ops, const_cast<::TFOtelSpan*>(handle)};
+        return ice::sonic::OtelSpan{m_OtelSpan_ops, const_cast<::TFOtelSpan*>(handle)};
     }
 
     ice::sonic::Status
@@ -124,25 +124,19 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TFOtelTracerOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TFOtelTracerOps*>(&m_vtable));
     }
 
 private:
     ::TFOtelTracerOps m_vtable;
     ::TFOtelTracer m_handle;
 
-    const ::TFOtelSpanOps* m_TFOtelSpanOps_ops{nullptr};
+    const ::TFOtelSpanOps* m_OtelSpan_ops{nullptr};
 
     const ::TF_StatusOps* m_Status_ops{nullptr};
 

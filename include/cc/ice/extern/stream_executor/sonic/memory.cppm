@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/extern/stream_executor/memory.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_stream_executor_sonic:memory;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_MemoryOps : public ice::sonic::Runtime<::TF_MemoryOps, ::TF_Memory>
+class Memory : public ice::sonic::Runtime<::TF_MemoryOps, ::TF_Memory>
 {
 public:
-    TF_MemoryOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Memory(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_MemoryOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Memory(
+        const ice::sonic::Registration& registry,
         ::TF_Memory* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_MemoryOps(const ::TF_MemoryOps* ops) noexcept :
+    explicit Memory(const ::TF_MemoryOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_MemoryOps(const ::TF_MemoryOps* ops, ::TF_Memory* handle) noexcept :
+    Memory(const ::TF_MemoryOps* ops, ::TF_Memory* handle) noexcept :
         Runtime(ops, handle)
     {
     }

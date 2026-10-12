@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/generator/typeinfo.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_generator_builder:typeinfo;
@@ -16,30 +16,30 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_TypeInfoOps
+class TypeInfo
 {
 public:
-    explicit TF_TypeInfoOps(const ::TF_StringOps* String_ops) noexcept :
+    explicit TypeInfo(const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_String_ops = String_ops;
     }
 
-    TF_TypeInfoOps(const TF_TypeInfoOps&) = delete;
-    TF_TypeInfoOps& operator=(const TF_TypeInfoOps&) = delete;
+    TypeInfo(const TypeInfo&) = delete;
+    TypeInfo& operator=(const TypeInfo&) = delete;
 
-    static TF_TypeInfoOps& from_handle(void* ctx) noexcept
+    static TypeInfo& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_TypeInfoOps*>(ctx);
+        return *static_cast<TypeInfo*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_TypeInfoOps& from_handle(HandleT* handle) noexcept
+    static TypeInfo& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_TypeInfoOps*>(handle->plugin_data);
+        return *static_cast<TypeInfo*>(handle->plugin_data);
     }
 
-    virtual ~TF_TypeInfoOps() = default;
+    virtual ~TypeInfo() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void set_type_attr_name(const ice::sonic::String& type_attr_name) noexcept = 0;
@@ -58,67 +58,67 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_TypeInfo* handle) noexcept
+                [](::TF_TypeInfo* handle) noexcept
             {
-                auto& self = TF_TypeInfoOps::from_handle(handle);
+                auto& self = TypeInfo::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TF_TypeInfo* type_context, TF_String* out_name) noexcept
+                [](::TF_TypeInfo* type_context, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                auto& self = TypeInfo::from_handle(type_context);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .set_type_attr_name =
-                [](TF_TypeInfo* type_context, const TF_String* type_attr_name) noexcept
+                [](::TF_TypeInfo* type_context, const ::TF_String* type_attr_name) noexcept
             {
-                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                auto& self = TypeInfo::from_handle(type_context);
                 self.set_type_attr_name(
                     self.wrap(std::type_identity<ice::sonic::String>{}, type_attr_name)
                 );
             },
             .set_data_type =
-                [](TF_TypeInfo* type_context, int data_type) noexcept
+                [](::TF_TypeInfo* type_context, int data_type) noexcept
             {
-                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                auto& self = TypeInfo::from_handle(type_context);
                 self.set_data_type(data_type);
             },
             .set_read_only =
-                [](TF_TypeInfo* type_context, _Bool read_only) noexcept
+                [](::TF_TypeInfo* type_context, _Bool read_only) noexcept
             {
-                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                auto& self = TypeInfo::from_handle(type_context);
                 self.set_read_only(read_only);
             },
             .set_list =
-                [](TF_TypeInfo* type_context, _Bool is_list) noexcept
+                [](::TF_TypeInfo* type_context, _Bool is_list) noexcept
             {
-                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                auto& self = TypeInfo::from_handle(type_context);
                 self.set_list(is_list);
             },
             .get_type_attr_name =
-                [](TF_TypeInfo* type_context, TF_String* out_type_attr_name) noexcept
+                [](::TF_TypeInfo* type_context, ::TF_String* out_type_attr_name) noexcept
             {
-                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                auto& self = TypeInfo::from_handle(type_context);
                 self.get_type_attr_name(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_type_attr_name)
                 );
             },
             .get_data_type =
-                [](TF_TypeInfo* type_context, int* out_data_type) noexcept
+                [](::TF_TypeInfo* type_context, int* out_data_type) noexcept
             {
-                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                auto& self = TypeInfo::from_handle(type_context);
                 self.get_data_type(out_data_type);
             },
             .is_read_only =
-                [](TF_TypeInfo* type_context, int* out_is_read_only) noexcept
+                [](::TF_TypeInfo* type_context, int* out_is_read_only) noexcept
             {
-                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                auto& self = TypeInfo::from_handle(type_context);
                 self.is_read_only(out_is_read_only);
             },
             .is_list =
-                [](TF_TypeInfo* type_context, int* out_is_list) noexcept
+                [](::TF_TypeInfo* type_context, int* out_is_list) noexcept
             {
-                auto& self = TF_TypeInfoOps::from_handle(type_context);
+                auto& self = TypeInfo::from_handle(type_context);
                 self.is_list(out_is_list);
             },
 
@@ -142,18 +142,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_TypeInfoOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_TypeInfoOps*>(&m_vtable));
     }
 
 private:

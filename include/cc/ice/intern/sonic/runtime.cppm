@@ -4,7 +4,7 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_intern_sonic:runtime;
 

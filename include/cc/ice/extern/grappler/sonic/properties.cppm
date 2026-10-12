@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/grappler/properties.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_grappler_sonic:properties;
 
@@ -15,37 +15,46 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFGrapplerPropertiesOps :
+class GrapplerProperties :
     public ice::sonic::Runtime<::TFGrapplerPropertiesOps, ::TFGrapplerProperties>
 {
 public:
-    TFGrapplerPropertiesOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GrapplerProperties(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFGrapplerPropertiesOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GrapplerProperties(
+        const ice::sonic::Registration& registry,
         ::TFGrapplerProperties* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFGrapplerPropertiesOps(const ::TFGrapplerPropertiesOps* ops) noexcept :
+    explicit GrapplerProperties(const ::TFGrapplerPropertiesOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFGrapplerPropertiesOps(
+    GrapplerProperties(
         const ::TFGrapplerPropertiesOps* ops,
         ::TFGrapplerProperties* handle
     ) noexcept :
@@ -111,7 +120,7 @@ public:
 
     void get_input_properties(
         const ice::sonic::String& name,
-        TF_Buffer** out_properties,
+        ::TF_Buffer** out_properties,
         int num_values,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -127,7 +136,7 @@ public:
 
     void get_output_properties(
         const ice::sonic::String& name,
-        TF_Buffer** out_properties,
+        ::TF_Buffer** out_properties,
         int num_values,
         const ice::sonic::Status& out_status
     ) const noexcept

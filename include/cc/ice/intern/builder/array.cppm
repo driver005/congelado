@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/array.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 
 export module cc_ice_intern_builder:array;
@@ -16,30 +16,30 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_ArrayOps
+class Array
 {
 public:
-    explicit TF_ArrayOps(const ::TF_StatusOps* Status_ops) noexcept :
+    explicit Array(const ::TF_StatusOps* Status_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_Status_ops = Status_ops;
     }
 
-    TF_ArrayOps(const TF_ArrayOps&) = delete;
-    TF_ArrayOps& operator=(const TF_ArrayOps&) = delete;
+    Array(const Array&) = delete;
+    Array& operator=(const Array&) = delete;
 
-    static TF_ArrayOps& from_handle(void* ctx) noexcept
+    static Array& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_ArrayOps*>(ctx);
+        return *static_cast<Array*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ArrayOps& from_handle(HandleT* handle) noexcept
+    static Array& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_ArrayOps*>(handle->plugin_data);
+        return *static_cast<Array*>(handle->plugin_data);
     }
 
-    virtual ~TF_ArrayOps() = default;
+    virtual ~Array() = default;
     virtual void destroy() noexcept = 0;
     virtual void set_element_size(size_t element_size) noexcept = 0;
     virtual void set_count(size_t count) noexcept = 0;
@@ -57,30 +57,30 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Array* handle) noexcept
+                [](::TF_Array* handle) noexcept
             {
-                auto& self = TF_ArrayOps::from_handle(handle);
+                auto& self = Array::from_handle(handle);
                 self.destroy();
             },
             .set_element_size =
-                [](TF_Array* array, size_t element_size) noexcept
+                [](::TF_Array* array, size_t element_size) noexcept
             {
-                auto& self = TF_ArrayOps::from_handle(array);
+                auto& self = Array::from_handle(array);
                 self.set_element_size(element_size);
             },
             .set_count =
-                [](TF_Array* array, size_t count) noexcept
+                [](::TF_Array* array, size_t count) noexcept
             {
-                auto& self = TF_ArrayOps::from_handle(array);
+                auto& self = Array::from_handle(array);
                 self.set_count(count);
             },
             .get =
-                [](const TF_Array* array,
+                [](const ::TF_Array* array,
                    size_t index,
                    const void** out_value,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_ArrayOps::from_handle(array);
+                auto& self = Array::from_handle(array);
                 self.get(
                     index,
                     out_value,
@@ -88,9 +88,12 @@ public:
                 );
             },
             .set =
-                [](TF_Array* array, size_t index, const void* value, TF_Status* out_status) noexcept
+                [](::TF_Array* array,
+                   size_t index,
+                   const void* value,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_ArrayOps::from_handle(array);
+                auto& self = Array::from_handle(array);
                 self.set(
                     index,
                     value,
@@ -98,15 +101,15 @@ public:
                 );
             },
             .size =
-                [](const TF_Array* array, size_t* out_size) noexcept
+                [](const ::TF_Array* array, size_t* out_size) noexcept
             {
-                auto& self = TF_ArrayOps::from_handle(array);
+                auto& self = Array::from_handle(array);
                 self.size(out_size);
             },
             .data =
-                [](TF_Array* array, void** out_data) noexcept
+                [](::TF_Array* array, void** out_data) noexcept
             {
-                auto& self = TF_ArrayOps::from_handle(array);
+                auto& self = Array::from_handle(array);
                 self.data(out_data);
             },
 
@@ -130,18 +133,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_ArrayOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_ArrayOps*>(&m_vtable));
     }
 
 private:

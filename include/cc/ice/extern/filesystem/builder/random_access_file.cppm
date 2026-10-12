@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/filesystem/random_access_file.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -17,10 +17,10 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_RandomAccessFileOps
+class RandomAccessFile
 {
 public:
-    explicit TF_RandomAccessFileOps(
+    explicit RandomAccessFile(
         const ::TF_StatusOps* Status_ops,
         const ::TF_StringOps* String_ops
     ) noexcept :
@@ -30,21 +30,21 @@ public:
         m_String_ops = String_ops;
     }
 
-    TF_RandomAccessFileOps(const TF_RandomAccessFileOps&) = delete;
-    TF_RandomAccessFileOps& operator=(const TF_RandomAccessFileOps&) = delete;
+    RandomAccessFile(const RandomAccessFile&) = delete;
+    RandomAccessFile& operator=(const RandomAccessFile&) = delete;
 
-    static TF_RandomAccessFileOps& from_handle(void* ctx) noexcept
+    static RandomAccessFile& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_RandomAccessFileOps*>(ctx);
+        return *static_cast<RandomAccessFile*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_RandomAccessFileOps& from_handle(HandleT* handle) noexcept
+    static RandomAccessFile& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_RandomAccessFileOps*>(handle->plugin_data);
+        return *static_cast<RandomAccessFile*>(handle->plugin_data);
     }
 
-    virtual ~TF_RandomAccessFileOps() = default;
+    virtual ~RandomAccessFile() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void read(
@@ -62,26 +62,26 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_RandomAccessFile* handle) noexcept
+                [](::TF_RandomAccessFile* handle) noexcept
             {
-                auto& self = TF_RandomAccessFileOps::from_handle(handle);
+                auto& self = RandomAccessFile::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TF_RandomAccessFile* file, TF_String* out_name) noexcept
+                [](::TF_RandomAccessFile* file, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_RandomAccessFileOps::from_handle(file);
+                auto& self = RandomAccessFile::from_handle(file);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .read =
-                [](TF_RandomAccessFile* file,
+                [](::TF_RandomAccessFile* file,
                    uint64_t offset,
                    size_t n,
                    char* buffer,
                    int64_t* out_bytes_read,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RandomAccessFileOps::from_handle(file);
+                auto& self = RandomAccessFile::from_handle(file);
                 self.read(
                     offset,
                     n,
@@ -117,18 +117,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_RandomAccessFileOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_RandomAccessFileOps*>(&m_vtable));
     }
 
 private:

@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/grappler/function_library.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_grappler_sonic:function_library;
 
@@ -15,37 +15,46 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFGrapplerFunctionLibraryOps :
+class GrapplerFunctionLibrary :
     public ice::sonic::Runtime<::TFGrapplerFunctionLibraryOps, ::TFGrapplerFunctionLibrary>
 {
 public:
-    TFGrapplerFunctionLibraryOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GrapplerFunctionLibrary(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFGrapplerFunctionLibraryOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GrapplerFunctionLibrary(
+        const ice::sonic::Registration& registry,
         ::TFGrapplerFunctionLibrary* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFGrapplerFunctionLibraryOps(const ::TFGrapplerFunctionLibraryOps* ops) noexcept :
+    explicit GrapplerFunctionLibrary(const ::TFGrapplerFunctionLibraryOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFGrapplerFunctionLibraryOps(
+    GrapplerFunctionLibrary(
         const ::TFGrapplerFunctionLibraryOps* ops,
         ::TFGrapplerFunctionLibrary* handle
     ) noexcept :
@@ -65,7 +74,7 @@ public:
 
     void look_up_op_def(
         const ice::sonic::String& name,
-        const ice::sonic::TF_BufferOps& out_buf,
+        const ice::sonic::Buffer& out_buf,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

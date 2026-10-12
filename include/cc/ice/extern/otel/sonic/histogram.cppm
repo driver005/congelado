@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/otel/histogram.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_otel_sonic:histogram;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFOtelHistogramOps : public ice::sonic::Runtime<::TFOtelHistogramOps, ::TFOtelHistogram>
+class OtelHistogram : public ice::sonic::Runtime<::TFOtelHistogramOps, ::TFOtelHistogram>
 {
 public:
-    TFOtelHistogramOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    OtelHistogram(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFOtelHistogramOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    OtelHistogram(
+        const ice::sonic::Registration& registry,
         ::TFOtelHistogram* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFOtelHistogramOps(const ::TFOtelHistogramOps* ops) noexcept :
+    explicit OtelHistogram(const ::TFOtelHistogramOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFOtelHistogramOps(const ::TFOtelHistogramOps* ops, ::TFOtelHistogram* handle) noexcept :
+    OtelHistogram(const ::TFOtelHistogramOps* ops, ::TFOtelHistogram* handle) noexcept :
         Runtime(ops, handle)
     {
     }

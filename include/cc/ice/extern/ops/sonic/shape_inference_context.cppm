@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/ops/shape_inference_context.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_ops_sonic:shape_inference_context;
 
@@ -17,37 +17,46 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_ShapeInferenceContextOps :
+class ShapeInferenceContext :
     public ice::sonic::Runtime<::TF_ShapeInferenceContextOps, ::TF_ShapeInferenceContext>
 {
 public:
-    TF_ShapeInferenceContextOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    ShapeInferenceContext(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_ShapeInferenceContextOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    ShapeInferenceContext(
+        const ice::sonic::Registration& registry,
         ::TF_ShapeInferenceContext* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_ShapeInferenceContextOps(const ::TF_ShapeInferenceContextOps* ops) noexcept :
+    explicit ShapeInferenceContext(const ::TF_ShapeInferenceContextOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_ShapeInferenceContextOps(
+    ShapeInferenceContext(
         const ::TF_ShapeInferenceContextOps* ops,
         ::TF_ShapeInferenceContext* handle
     ) noexcept :
@@ -72,7 +81,7 @@ public:
 
     void get_input(
         int i,
-        const ice::sonic::TF_ShapeHandleOps& handle,
+        const ice::sonic::ShapeHandle& handle,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -81,26 +90,26 @@ public:
 
     void set_output(
         int i,
-        const ice::sonic::TF_ShapeHandleOps& handle,
+        const ice::sonic::ShapeHandle& handle,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->set_output(get_handle(), i, handle.get_handle(), out_status.get_handle());
     }
 
-    void scalar(const ice::sonic::TF_ShapeHandleOps& handle) const noexcept
+    void scalar(const ice::sonic::ShapeHandle& handle) const noexcept
     {
         m_ops->scalar(get_handle(), handle.get_handle());
     }
 
-    void vector_from_size(size_t size, const ice::sonic::TF_ShapeHandleOps& handle) const noexcept
+    void vector_from_size(size_t size, const ice::sonic::ShapeHandle& handle) const noexcept
     {
         m_ops->vector_from_size(get_handle(), size, handle.get_handle());
     }
 
     void get_attr_type(
         const ice::sonic::String& attr_name,
-        TFDataTypeEnum* out_val,
+        ::TFDataTypeEnum* out_val,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -108,20 +117,20 @@ public:
             ->get_attr_type(get_handle(), attr_name.get_handle(), out_val, out_status.get_handle());
     }
 
-    void rank(const ice::sonic::TF_ShapeHandleOps& handle, int64_t* out_rank) const noexcept
+    void rank(const ice::sonic::ShapeHandle& handle, int64_t* out_rank) const noexcept
     {
         m_ops->rank(get_handle(), handle.get_handle(), out_rank);
     }
 
-    void rank_known(const ice::sonic::TF_ShapeHandleOps& handle, int* out_known) const noexcept
+    void rank_known(const ice::sonic::ShapeHandle& handle, int* out_known) const noexcept
     {
         m_ops->rank_known(get_handle(), handle.get_handle(), out_known);
     }
 
     void with_rank(
-        const ice::sonic::TF_ShapeHandleOps& handle,
+        const ice::sonic::ShapeHandle& handle,
         int64_t rank,
-        const ice::sonic::TF_ShapeHandleOps& result,
+        const ice::sonic::ShapeHandle& result,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -135,9 +144,9 @@ public:
     }
 
     void with_rank_at_least(
-        const ice::sonic::TF_ShapeHandleOps& handle,
+        const ice::sonic::ShapeHandle& handle,
         int64_t rank,
-        const ice::sonic::TF_ShapeHandleOps& result,
+        const ice::sonic::ShapeHandle& result,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -151,9 +160,9 @@ public:
     }
 
     void with_rank_at_most(
-        const ice::sonic::TF_ShapeHandleOps& handle,
+        const ice::sonic::ShapeHandle& handle,
         int64_t rank,
-        const ice::sonic::TF_ShapeHandleOps& result,
+        const ice::sonic::ShapeHandle& result,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -167,19 +176,19 @@ public:
     }
 
     void dim(
-        const ice::sonic::TF_ShapeHandleOps& shape_handle,
+        const ice::sonic::ShapeHandle& shape_handle,
         int64_t i,
-        const ice::sonic::TF_DimensionHandleOps& result
+        const ice::sonic::DimensionHandle& result
     ) const noexcept
     {
         m_ops->dim(get_handle(), shape_handle.get_handle(), i, result.get_handle());
     }
 
     void subshape(
-        const ice::sonic::TF_ShapeHandleOps& shape_handle,
+        const ice::sonic::ShapeHandle& shape_handle,
         int64_t start,
         int64_t end,
-        const ice::sonic::TF_ShapeHandleOps& result,
+        const ice::sonic::ShapeHandle& result,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -199,9 +208,9 @@ public:
     }
 
     void concatenate_shapes(
-        const ice::sonic::TF_ShapeHandleOps& first,
-        const ice::sonic::TF_ShapeHandleOps& second,
-        const ice::sonic::TF_ShapeHandleOps& result,
+        const ice::sonic::ShapeHandle& first,
+        const ice::sonic::ShapeHandle& second,
+        const ice::sonic::ShapeHandle& result,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

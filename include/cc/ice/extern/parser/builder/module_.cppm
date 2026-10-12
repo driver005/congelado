@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/parser/function.h"
 #include "include/c/extern/parser/module.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -19,36 +19,36 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TFParserModuleOps
+class ParserModule
 {
 public:
-    explicit TFParserModuleOps(
-        const ::TFParserFunctionOps* TFParserFunctionOps_ops,
+    explicit ParserModule(
+        const ::TFParserFunctionOps* ParserFunction_ops,
         const ::TF_StatusOps* Status_ops,
         const ::TF_StringOps* String_ops
     ) noexcept :
         m_handle{.plugin_data = this}
     {
-        m_TFParserFunctionOps_ops = TFParserFunctionOps_ops;
+        m_ParserFunction_ops = ParserFunction_ops;
         m_Status_ops = Status_ops;
         m_String_ops = String_ops;
     }
 
-    TFParserModuleOps(const TFParserModuleOps&) = delete;
-    TFParserModuleOps& operator=(const TFParserModuleOps&) = delete;
+    ParserModule(const ParserModule&) = delete;
+    ParserModule& operator=(const ParserModule&) = delete;
 
-    static TFParserModuleOps& from_handle(void* ctx) noexcept
+    static ParserModule& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TFParserModuleOps*>(ctx);
+        return *static_cast<ParserModule*>(ctx);
     }
 
     template<typename HandleT>
-    static TFParserModuleOps& from_handle(HandleT* handle) noexcept
+    static ParserModule& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TFParserModuleOps*>(handle->plugin_data);
+        return *static_cast<ParserModule*>(handle->plugin_data);
     }
 
-    virtual ~TFParserModuleOps() = default;
+    virtual ~ParserModule() = default;
     virtual void destroy() noexcept = 0;
     virtual void
     get_name(const ice::sonic::String& out_name, const ice::sonic::Status& out_status) noexcept = 0;
@@ -56,7 +56,7 @@ public:
     get_function_count(int* out_count, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_function(
         int index,
-        const ice::sonic::TFParserFunctionOps& out_function,
+        const ice::sonic::ParserFunction& out_function,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
 
@@ -67,39 +67,41 @@ public:
 
             .create = create,
             .destroy =
-                [](TFParserModule* handle) noexcept
+                [](::TFParserModule* handle) noexcept
             {
-                auto& self = TFParserModuleOps::from_handle(handle);
+                auto& self = ParserModule::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TFParserModule* module, TF_String* out_name, TF_Status* out_status) noexcept
+                [](::TFParserModule* module,
+                   ::TF_String* out_name,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFParserModuleOps::from_handle(module);
+                auto& self = ParserModule::from_handle(module);
                 self.get_name(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_name),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .get_function_count =
-                [](TFParserModule* module, int* out_count, TF_Status* out_status) noexcept
+                [](::TFParserModule* module, int* out_count, ::TF_Status* out_status) noexcept
             {
-                auto& self = TFParserModuleOps::from_handle(module);
+                auto& self = ParserModule::from_handle(module);
                 self.get_function_count(
                     out_count,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .get_function =
-                [](TFParserModule* module,
+                [](::TFParserModule* module,
                    int index,
-                   TFParserFunction* out_function,
-                   TF_Status* out_status) noexcept
+                   ::TFParserFunction* out_function,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFParserModuleOps::from_handle(module);
+                auto& self = ParserModule::from_handle(module);
                 self.get_function(
                     index,
-                    self.wrap(std::type_identity<ice::sonic::TFParserFunctionOps>{}, out_function),
+                    self.wrap(std::type_identity<ice::sonic::ParserFunction>{}, out_function),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -107,13 +109,13 @@ public:
         };
     }
 
-    ice::sonic::TFParserFunctionOps wrap(
-        std::type_identity<ice::sonic::TFParserFunctionOps>,
+    ice::sonic::ParserFunction wrap(
+        std::type_identity<ice::sonic::ParserFunction>,
         const ::TFParserFunction* handle
     ) const noexcept
     {
-        return ice::sonic::TFParserFunctionOps{
-            m_TFParserFunctionOps_ops,
+        return ice::sonic::ParserFunction{
+            m_ParserFunction_ops,
             const_cast<::TFParserFunction*>(handle)
         };
     }
@@ -141,25 +143,19 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TFParserModuleOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TFParserModuleOps*>(&m_vtable));
     }
 
 private:
     ::TFParserModuleOps m_vtable;
     ::TFParserModule m_handle;
 
-    const ::TFParserFunctionOps* m_TFParserFunctionOps_ops{nullptr};
+    const ::TFParserFunctionOps* m_ParserFunction_ops{nullptr};
 
     const ::TF_StatusOps* m_Status_ops{nullptr};
 

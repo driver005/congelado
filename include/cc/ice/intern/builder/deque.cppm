@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/deque.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 
 export module cc_ice_intern_builder:deque;
@@ -16,30 +16,30 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_DequeOps
+class Deque
 {
 public:
-    explicit TF_DequeOps(const ::TF_StatusOps* Status_ops) noexcept :
+    explicit Deque(const ::TF_StatusOps* Status_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_Status_ops = Status_ops;
     }
 
-    TF_DequeOps(const TF_DequeOps&) = delete;
-    TF_DequeOps& operator=(const TF_DequeOps&) = delete;
+    Deque(const Deque&) = delete;
+    Deque& operator=(const Deque&) = delete;
 
-    static TF_DequeOps& from_handle(void* ctx) noexcept
+    static Deque& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_DequeOps*>(ctx);
+        return *static_cast<Deque*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_DequeOps& from_handle(HandleT* handle) noexcept
+    static Deque& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_DequeOps*>(handle->plugin_data);
+        return *static_cast<Deque*>(handle->plugin_data);
     }
 
-    virtual ~TF_DequeOps() = default;
+    virtual ~Deque() = default;
     virtual void destroy() noexcept = 0;
     virtual void set_element_size(size_t element_size) noexcept = 0;
     virtual void push_front(const void* value) noexcept = 0;
@@ -57,48 +57,48 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Deque* handle) noexcept
+                [](::TF_Deque* handle) noexcept
             {
-                auto& self = TF_DequeOps::from_handle(handle);
+                auto& self = Deque::from_handle(handle);
                 self.destroy();
             },
             .set_element_size =
-                [](TF_Deque* deque, size_t element_size) noexcept
+                [](::TF_Deque* deque, size_t element_size) noexcept
             {
-                auto& self = TF_DequeOps::from_handle(deque);
+                auto& self = Deque::from_handle(deque);
                 self.set_element_size(element_size);
             },
             .push_front =
-                [](TF_Deque* deque, const void* value) noexcept
+                [](::TF_Deque* deque, const void* value) noexcept
             {
-                auto& self = TF_DequeOps::from_handle(deque);
+                auto& self = Deque::from_handle(deque);
                 self.push_front(value);
             },
             .push_back =
-                [](TF_Deque* deque, const void* value) noexcept
+                [](::TF_Deque* deque, const void* value) noexcept
             {
-                auto& self = TF_DequeOps::from_handle(deque);
+                auto& self = Deque::from_handle(deque);
                 self.push_back(value);
             },
             .pop_front =
-                [](TF_Deque* deque) noexcept
+                [](::TF_Deque* deque) noexcept
             {
-                auto& self = TF_DequeOps::from_handle(deque);
+                auto& self = Deque::from_handle(deque);
                 self.pop_front();
             },
             .pop_back =
-                [](TF_Deque* deque) noexcept
+                [](::TF_Deque* deque) noexcept
             {
-                auto& self = TF_DequeOps::from_handle(deque);
+                auto& self = Deque::from_handle(deque);
                 self.pop_back();
             },
             .get =
-                [](const TF_Deque* deque,
+                [](const ::TF_Deque* deque,
                    size_t index,
                    const void** out_value,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_DequeOps::from_handle(deque);
+                auto& self = Deque::from_handle(deque);
                 self.get(
                     index,
                     out_value,
@@ -106,9 +106,9 @@ public:
                 );
             },
             .size =
-                [](const TF_Deque* deque, size_t* out_size) noexcept
+                [](const ::TF_Deque* deque, size_t* out_size) noexcept
             {
-                auto& self = TF_DequeOps::from_handle(deque);
+                auto& self = Deque::from_handle(deque);
                 self.size(out_size);
             },
 
@@ -132,18 +132,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_DequeOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_DequeOps*>(&m_vtable));
     }
 
 private:

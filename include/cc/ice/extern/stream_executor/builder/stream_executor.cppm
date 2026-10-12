@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/extern/stream_executor/stream_executor.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_stream_executor_builder:stream_executor;
@@ -16,30 +16,30 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_StreamExecutorOps
+class StreamExecutor
 {
 public:
-    explicit TF_StreamExecutorOps(const ::TF_StringOps* String_ops) noexcept :
+    explicit StreamExecutor(const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_String_ops = String_ops;
     }
 
-    TF_StreamExecutorOps(const TF_StreamExecutorOps&) = delete;
-    TF_StreamExecutorOps& operator=(const TF_StreamExecutorOps&) = delete;
+    StreamExecutor(const StreamExecutor&) = delete;
+    StreamExecutor& operator=(const StreamExecutor&) = delete;
 
-    static TF_StreamExecutorOps& from_handle(void* ctx) noexcept
+    static StreamExecutor& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_StreamExecutorOps*>(ctx);
+        return *static_cast<StreamExecutor*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_StreamExecutorOps& from_handle(HandleT* handle) noexcept
+    static StreamExecutor& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_StreamExecutorOps*>(handle->plugin_data);
+        return *static_cast<StreamExecutor*>(handle->plugin_data);
     }
 
-    virtual ~TF_StreamExecutorOps() = default;
+    virtual ~StreamExecutor() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
 
@@ -50,15 +50,15 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_StreamExecutor* handle) noexcept
+                [](::TF_StreamExecutor* handle) noexcept
             {
-                auto& self = TF_StreamExecutorOps::from_handle(handle);
+                auto& self = StreamExecutor::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TF_StreamExecutor* facade, TF_String* out_name) noexcept
+                [](::TF_StreamExecutor* facade, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_StreamExecutorOps::from_handle(facade);
+                auto& self = StreamExecutor::from_handle(facade);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
 
@@ -82,18 +82,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_StreamExecutorOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_StreamExecutorOps*>(&m_vtable));
     }
 
 private:

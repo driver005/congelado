@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/generator/node.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_generator_sonic:node;
 
@@ -16,36 +16,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFGeneratorNodeOps : public ice::sonic::Runtime<::TFGeneratorNodeOps, ::TFGeneratorNode>
+class GeneratorNode : public ice::sonic::Runtime<::TFGeneratorNodeOps, ::TFGeneratorNode>
 {
 public:
-    TFGeneratorNodeOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GeneratorNode(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFGeneratorNodeOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GeneratorNode(
+        const ice::sonic::Registration& registry,
         ::TFGeneratorNode* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFGeneratorNodeOps(const ::TFGeneratorNodeOps* ops) noexcept :
+    explicit GeneratorNode(const ::TFGeneratorNodeOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFGeneratorNodeOps(const ::TFGeneratorNodeOps* ops, ::TFGeneratorNode* handle) noexcept :
+    GeneratorNode(const ::TFGeneratorNodeOps* ops, ::TFGeneratorNode* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -105,7 +114,7 @@ public:
     }
 
     void get_definition(
-        const ice::sonic::TFGeneratorDefinitionOps& out_definition,
+        const ice::sonic::GeneratorDefinition& out_definition,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

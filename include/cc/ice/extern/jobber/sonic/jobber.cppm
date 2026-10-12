@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/jobber/jobber.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_jobber_sonic:jobber;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_JobberOps : public ice::sonic::Runtime<::TF_JobberOps, ::TF_Jobber>
+class Jobber : public ice::sonic::Runtime<::TF_JobberOps, ::TF_Jobber>
 {
 public:
-    TF_JobberOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Jobber(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_JobberOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Jobber(
+        const ice::sonic::Registration& registry,
         ::TF_Jobber* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_JobberOps(const ::TF_JobberOps* ops) noexcept :
+    explicit Jobber(const ::TF_JobberOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_JobberOps(const ::TF_JobberOps* ops, ::TF_Jobber* handle) noexcept :
+    Jobber(const ::TF_JobberOps* ops, ::TF_Jobber* handle) noexcept :
         Runtime(ops, handle)
     {
     }

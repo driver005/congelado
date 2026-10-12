@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/duration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/time_point.h"
 
 export module cc_ice_intern_builder:time_point;
@@ -16,33 +16,32 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_TimePointOps
+class TimePoint
 {
 public:
-    explicit TF_TimePointOps(const ::TF_DurationOps* TF_DurationOps_ops) noexcept :
+    explicit TimePoint(const ::TF_DurationOps* Duration_ops) noexcept :
         m_handle{.plugin_data = this}
     {
-        m_TF_DurationOps_ops = TF_DurationOps_ops;
+        m_Duration_ops = Duration_ops;
     }
 
-    TF_TimePointOps(const TF_TimePointOps&) = delete;
-    TF_TimePointOps& operator=(const TF_TimePointOps&) = delete;
+    TimePoint(const TimePoint&) = delete;
+    TimePoint& operator=(const TimePoint&) = delete;
 
-    static TF_TimePointOps& from_handle(void* ctx) noexcept
+    static TimePoint& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_TimePointOps*>(ctx);
+        return *static_cast<TimePoint*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_TimePointOps& from_handle(HandleT* handle) noexcept
+    static TimePoint& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_TimePointOps*>(handle->plugin_data);
+        return *static_cast<TimePoint*>(handle->plugin_data);
     }
 
-    virtual ~TF_TimePointOps() = default;
+    virtual ~TimePoint() = default;
     virtual void destroy() noexcept = 0;
-    virtual void
-    get_duration_since_epoch(const ice::sonic::TF_DurationOps& out_duration) noexcept = 0;
+    virtual void get_duration_since_epoch(const ice::sonic::Duration& out_duration) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_TimePoint*)) noexcept
     {
@@ -51,27 +50,27 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_TimePoint* handle) noexcept
+                [](::TF_TimePoint* handle) noexcept
             {
-                auto& self = TF_TimePointOps::from_handle(handle);
+                auto& self = TimePoint::from_handle(handle);
                 self.destroy();
             },
             .get_duration_since_epoch =
-                [](const TF_TimePoint* time_point, TF_Duration* out_duration) noexcept
+                [](const ::TF_TimePoint* time_point, ::TF_Duration* out_duration) noexcept
             {
-                auto& self = TF_TimePointOps::from_handle(time_point);
+                auto& self = TimePoint::from_handle(time_point);
                 self.get_duration_since_epoch(
-                    self.wrap(std::type_identity<ice::sonic::TF_DurationOps>{}, out_duration)
+                    self.wrap(std::type_identity<ice::sonic::Duration>{}, out_duration)
                 );
             },
 
         };
     }
 
-    ice::sonic::TF_DurationOps
-    wrap(std::type_identity<ice::sonic::TF_DurationOps>, const ::TF_Duration* handle) const noexcept
+    ice::sonic::Duration
+    wrap(std::type_identity<ice::sonic::Duration>, const ::TF_Duration* handle) const noexcept
     {
-        return ice::sonic::TF_DurationOps{m_TF_DurationOps_ops, const_cast<::TF_Duration*>(handle)};
+        return ice::sonic::Duration{m_Duration_ops, const_cast<::TF_Duration*>(handle)};
     }
 
     const ::TF_TimePointOps& get_vtable() const noexcept
@@ -85,25 +84,19 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_TimePointOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_TimePointOps*>(&m_vtable));
     }
 
 private:
     ::TF_TimePointOps m_vtable;
     ::TF_TimePoint m_handle;
 
-    const ::TF_DurationOps* m_TF_DurationOps_ops{nullptr};
+    const ::TF_DurationOps* m_Duration_ops{nullptr};
 };
 
 } // namespace ice::builder

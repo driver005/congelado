@@ -5,48 +5,58 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/time_point.h"
 
 export module cc_ice_intern_sonic:time_point;
 
 import std;
 import :duration;
+import :registration;
 import :runtime;
 import :tstring;
 
 export namespace ice::sonic {
 
-class TF_TimePointOps : public ice::sonic::Runtime<::TF_TimePointOps, ::TF_TimePoint>
+class TimePoint : public ice::sonic::Runtime<::TF_TimePointOps, ::TF_TimePoint>
 {
 public:
-    TF_TimePointOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    TimePoint(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_TimePointOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    TimePoint(
+        const ice::sonic::Registration& registry,
         ::TF_TimePoint* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_TimePointOps(const ::TF_TimePointOps* ops) noexcept :
+    explicit TimePoint(const ::TF_TimePointOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_TimePointOps(const ::TF_TimePointOps* ops, ::TF_TimePoint* handle) noexcept :
+    TimePoint(const ::TF_TimePointOps* ops, ::TF_TimePoint* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -61,7 +71,7 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void get_duration_since_epoch(const ice::sonic::TF_DurationOps& out_duration) const noexcept
+    void get_duration_since_epoch(const ice::sonic::Duration& out_duration) const noexcept
     {
         m_ops->get_duration_since_epoch(get_handle(), out_duration.get_handle());
     }

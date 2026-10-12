@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/pubsub/publish.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_pubsub_sonic:publish;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFPubSubPublishOps : public ice::sonic::Runtime<::TFPubSubPublishOps, ::TFPubSubPublish>
+class PubSubPublish : public ice::sonic::Runtime<::TFPubSubPublishOps, ::TFPubSubPublish>
 {
 public:
-    TFPubSubPublishOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    PubSubPublish(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFPubSubPublishOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    PubSubPublish(
+        const ice::sonic::Registration& registry,
         ::TFPubSubPublish* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFPubSubPublishOps(const ::TFPubSubPublishOps* ops) noexcept :
+    explicit PubSubPublish(const ::TFPubSubPublishOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFPubSubPublishOps(const ::TFPubSubPublishOps* ops, ::TFPubSubPublish* handle) noexcept :
+    PubSubPublish(const ::TFPubSubPublishOps* ops, ::TFPubSubPublish* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -77,7 +86,7 @@ public:
 
     void publish_batch(
         const ice::sonic::String& channel,
-        const ice::sonic::TF_VectorOps& payloads,
+        const ice::sonic::Vector& payloads,
         TFPubSubAckFn completion,
         void* user_data,
         const ice::sonic::Status& out_status

@@ -5,48 +5,58 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/hash.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_intern_sonic:hash;
 
 import std;
+import :registration;
 import :runtime;
 import :status;
 import :tstring;
 
 export namespace ice::sonic {
 
-class TF_HashOps : public ice::sonic::Runtime<::TF_HashOps, ::TF_Hash>
+class Hash : public ice::sonic::Runtime<::TF_HashOps, ::TF_Hash>
 {
 public:
-    TF_HashOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Hash(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_HashOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Hash(
+        const ice::sonic::Registration& registry,
         ::TF_Hash* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_HashOps(const ::TF_HashOps* ops) noexcept :
+    explicit Hash(const ::TF_HashOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_HashOps(const ::TF_HashOps* ops, ::TF_Hash* handle) noexcept :
+    Hash(const ::TF_HashOps* ops, ::TF_Hash* handle) noexcept :
         Runtime(ops, handle)
     {
     }

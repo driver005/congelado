@@ -6,8 +6,8 @@
 module;
 
 #include "include/c/extern/io/request.h"
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/map.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -18,36 +18,36 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_RequestOps
+class Request
 {
 public:
-    explicit TF_RequestOps(
-        const ::TF_MapOps* TF_MapOps_ops,
+    explicit Request(
+        const ::TF_MapOps* Map_ops,
         const ::TF_StatusOps* Status_ops,
         const ::TF_StringOps* String_ops
     ) noexcept :
         m_handle{.plugin_data = this}
     {
-        m_TF_MapOps_ops = TF_MapOps_ops;
+        m_Map_ops = Map_ops;
         m_Status_ops = Status_ops;
         m_String_ops = String_ops;
     }
 
-    TF_RequestOps(const TF_RequestOps&) = delete;
-    TF_RequestOps& operator=(const TF_RequestOps&) = delete;
+    Request(const Request&) = delete;
+    Request& operator=(const Request&) = delete;
 
-    static TF_RequestOps& from_handle(void* ctx) noexcept
+    static Request& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_RequestOps*>(ctx);
+        return *static_cast<Request*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_RequestOps& from_handle(HandleT* handle) noexcept
+    static Request& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_RequestOps*>(handle->plugin_data);
+        return *static_cast<Request*>(handle->plugin_data);
     }
 
-    virtual ~TF_RequestOps() = default;
+    virtual ~Request() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void
@@ -82,7 +82,7 @@ public:
     find_header(const ice::sonic::String& name, const TF_String** out_value) noexcept = 0;
     virtual void clear_headers(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_headers(
-        const ice::sonic::TF_MapOps& out_headers,
+        const ice::sonic::Map& out_headers,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void set_query_param(
@@ -91,7 +91,7 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_query_params(
-        const ice::sonic::TF_MapOps& out_params,
+        const ice::sonic::Map& out_params,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void
@@ -136,86 +136,92 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Request* handle) noexcept
+                [](::TF_Request* handle) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(handle);
+                auto& self = Request::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TF_Request* request, TF_String* out_name) noexcept
+                [](::TF_Request* request, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .set_method =
-                [](TF_Request* request, const TF_String* method, TF_Status* out_status) noexcept
+                [](::TF_Request* request,
+                   const ::TF_String* method,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.set_method(
                     self.wrap(std::type_identity<ice::sonic::String>{}, method),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .get_method =
-                [](TF_Request* request, TF_String* out_method) noexcept
+                [](::TF_Request* request, ::TF_String* out_method) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.get_method(self.wrap(std::type_identity<ice::sonic::String>{}, out_method));
             },
             .set_path =
-                [](TF_Request* request, const TF_String* path, TF_Status* out_status) noexcept
+                [](::TF_Request* request, const ::TF_String* path, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.set_path(
                     self.wrap(std::type_identity<ice::sonic::String>{}, path),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .get_path =
-                [](TF_Request* request, TF_String* out_path) noexcept
+                [](::TF_Request* request, ::TF_String* out_path) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.get_path(self.wrap(std::type_identity<ice::sonic::String>{}, out_path));
             },
             .set_scheme =
-                [](TF_Request* request, const TF_String* scheme, TF_Status* out_status) noexcept
+                [](::TF_Request* request,
+                   const ::TF_String* scheme,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.set_scheme(
                     self.wrap(std::type_identity<ice::sonic::String>{}, scheme),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .get_scheme =
-                [](TF_Request* request, TF_String* out_scheme) noexcept
+                [](::TF_Request* request, ::TF_String* out_scheme) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.get_scheme(self.wrap(std::type_identity<ice::sonic::String>{}, out_scheme));
             },
             .set_authority =
-                [](TF_Request* request, const TF_String* authority, TF_Status* out_status) noexcept
+                [](::TF_Request* request,
+                   const ::TF_String* authority,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.set_authority(
                     self.wrap(std::type_identity<ice::sonic::String>{}, authority),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .get_authority =
-                [](TF_Request* request, TF_String* out_authority) noexcept
+                [](::TF_Request* request, ::TF_String* out_authority) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.get_authority(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_authority)
                 );
             },
             .set_header =
-                [](TF_Request* request,
-                   const TF_String* name,
-                   const TF_String* value,
-                   TF_Status* out_status) noexcept
+                [](::TF_Request* request,
+                   const ::TF_String* name,
+                   const ::TF_String* value,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.set_header(
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
                     self.wrap(std::type_identity<ice::sonic::String>{}, value),
@@ -223,12 +229,12 @@ public:
                 );
             },
             .add_header =
-                [](TF_Request* request,
-                   const TF_String* name,
-                   const TF_String* value,
-                   TF_Status* out_status) noexcept
+                [](::TF_Request* request,
+                   const ::TF_String* name,
+                   const ::TF_String* value,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.add_header(
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
                     self.wrap(std::type_identity<ice::sonic::String>{}, value),
@@ -236,45 +242,47 @@ public:
                 );
             },
             .remove_header =
-                [](TF_Request* request, const TF_String* name, TF_Status* out_status) noexcept
+                [](::TF_Request* request, const ::TF_String* name, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.remove_header(
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .find_header =
-                [](TF_Request* request, const TF_String* name, const TF_String** out_value) noexcept
+                [](::TF_Request* request,
+                   const ::TF_String* name,
+                   const TF_String** out_value) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.find_header(
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
                     out_value
                 );
             },
             .clear_headers =
-                [](TF_Request* request, TF_Status* out_status) noexcept
+                [](::TF_Request* request, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.clear_headers(self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .get_headers =
-                [](TF_Request* request, TF_Map* out_headers, TF_Status* out_status) noexcept
+                [](::TF_Request* request, ::TF_Map* out_headers, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.get_headers(
-                    self.wrap(std::type_identity<ice::sonic::TF_MapOps>{}, out_headers),
+                    self.wrap(std::type_identity<ice::sonic::Map>{}, out_headers),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .set_query_param =
-                [](TF_Request* request,
-                   const TF_String* name,
-                   const TF_String* value,
-                   TF_Status* out_status) noexcept
+                [](::TF_Request* request,
+                   const ::TF_String* name,
+                   const ::TF_String* value,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.set_query_param(
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
                     self.wrap(std::type_identity<ice::sonic::String>{}, value),
@@ -282,21 +290,21 @@ public:
                 );
             },
             .get_query_params =
-                [](TF_Request* request, TF_Map* out_params, TF_Status* out_status) noexcept
+                [](::TF_Request* request, ::TF_Map* out_params, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.get_query_params(
-                    self.wrap(std::type_identity<ice::sonic::TF_MapOps>{}, out_params),
+                    self.wrap(std::type_identity<ice::sonic::Map>{}, out_params),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .set_body =
-                [](TF_Request* request,
+                [](::TF_Request* request,
                    const void* data,
                    size_t length,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.set_body(
                     data,
                     length,
@@ -304,78 +312,84 @@ public:
                 );
             },
             .get_body =
-                [](TF_Request* request, const void** out_data, size_t* out_length) noexcept
+                [](::TF_Request* request, const void** out_data, size_t* out_length) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.get_body(out_data, out_length);
             },
             .set_content_type =
-                [](TF_Request* request,
-                   const TF_String* content_type,
-                   TF_Status* out_status) noexcept
+                [](::TF_Request* request,
+                   const ::TF_String* content_type,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.set_content_type(
                     self.wrap(std::type_identity<ice::sonic::String>{}, content_type),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .get_content_type =
-                [](TF_Request* request, TF_String* out_content_type) noexcept
+                [](::TF_Request* request, ::TF_String* out_content_type) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.get_content_type(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_content_type)
                 );
             },
             .set_accept =
-                [](TF_Request* request, const TF_String* accept, TF_Status* out_status) noexcept
+                [](::TF_Request* request,
+                   const ::TF_String* accept,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.set_accept(
                     self.wrap(std::type_identity<ice::sonic::String>{}, accept),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .get_accept =
-                [](TF_Request* request, TF_String* out_accept) noexcept
+                [](::TF_Request* request, ::TF_String* out_accept) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.get_accept(self.wrap(std::type_identity<ice::sonic::String>{}, out_accept));
             },
             .set_user_agent =
-                [](TF_Request* request, const TF_String* user_agent, TF_Status* out_status) noexcept
+                [](::TF_Request* request,
+                   const ::TF_String* user_agent,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.set_user_agent(
                     self.wrap(std::type_identity<ice::sonic::String>{}, user_agent),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .get_user_agent =
-                [](TF_Request* request, TF_String* out_user_agent) noexcept
+                [](::TF_Request* request, ::TF_String* out_user_agent) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.get_user_agent(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_user_agent)
                 );
             },
             .set_bearer_auth =
-                [](TF_Request* request, const TF_String* token, TF_Status* out_status) noexcept
+                [](::TF_Request* request,
+                   const ::TF_String* token,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.set_bearer_auth(
                     self.wrap(std::type_identity<ice::sonic::String>{}, token),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .set_basic_auth =
-                [](TF_Request* request,
-                   const TF_String* username,
-                   const TF_String* password,
-                   TF_Status* out_status) noexcept
+                [](::TF_Request* request,
+                   const ::TF_String* username,
+                   const ::TF_String* password,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.set_basic_auth(
                     self.wrap(std::type_identity<ice::sonic::String>{}, username),
                     self.wrap(std::type_identity<ice::sonic::String>{}, password),
@@ -383,69 +397,68 @@ public:
                 );
             },
             .get_authorization =
-                [](TF_Request* request, TF_String* out_authorization) noexcept
+                [](::TF_Request* request, ::TF_String* out_authorization) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.get_authorization(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_authorization)
                 );
             },
             .set_addr =
-                [](TF_Request* request, const TF_String* addr, TF_Status* out_status) noexcept
+                [](::TF_Request* request, const ::TF_String* addr, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.set_addr(
                     self.wrap(std::type_identity<ice::sonic::String>{}, addr),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .set_no_decompress =
-                [](TF_Request* request, int enabled, TF_Status* out_status) noexcept
+                [](::TF_Request* request, int enabled, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.set_no_decompress(
                     enabled,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .set_timeout =
-                [](TF_Request* request, int64_t timeout_ms, TF_Status* out_status) noexcept
+                [](::TF_Request* request, int64_t timeout_ms, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.set_timeout(
                     timeout_ms,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .get_timeout =
-                [](TF_Request* request, int64_t* out_timeout_ms) noexcept
+                [](::TF_Request* request, int64_t* out_timeout_ms) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.get_timeout(out_timeout_ms);
             },
             .set_stream_id =
-                [](TF_Request* request, uint32_t stream_id, TF_Status* out_status) noexcept
+                [](::TF_Request* request, uint32_t stream_id, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.set_stream_id(
                     stream_id,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .get_stream_id =
-                [](TF_Request* request, uint32_t* out_stream_id) noexcept
+                [](::TF_Request* request, uint32_t* out_stream_id) noexcept
             {
-                auto& self = TF_RequestOps::from_handle(request);
+                auto& self = Request::from_handle(request);
                 self.get_stream_id(out_stream_id);
             },
 
         };
     }
 
-    ice::sonic::TF_MapOps
-    wrap(std::type_identity<ice::sonic::TF_MapOps>, const ::TF_Map* handle) const noexcept
+    ice::sonic::Map wrap(std::type_identity<ice::sonic::Map>, const ::TF_Map* handle) const noexcept
     {
-        return ice::sonic::TF_MapOps{m_TF_MapOps_ops, const_cast<::TF_Map*>(handle)};
+        return ice::sonic::Map{m_Map_ops, const_cast<::TF_Map*>(handle)};
     }
 
     ice::sonic::Status
@@ -471,25 +484,19 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_RequestOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_RequestOps*>(&m_vtable));
     }
 
 private:
     ::TF_RequestOps m_vtable;
     ::TF_Request m_handle;
 
-    const ::TF_MapOps* m_TF_MapOps_ops{nullptr};
+    const ::TF_MapOps* m_Map_ops{nullptr};
 
     const ::TF_StatusOps* m_Status_ops{nullptr};
 

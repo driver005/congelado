@@ -5,7 +5,7 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/vector.h"
 
@@ -16,30 +16,30 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_VectorOps
+class Vector
 {
 public:
-    explicit TF_VectorOps(const ::TF_StatusOps* Status_ops) noexcept :
+    explicit Vector(const ::TF_StatusOps* Status_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_Status_ops = Status_ops;
     }
 
-    TF_VectorOps(const TF_VectorOps&) = delete;
-    TF_VectorOps& operator=(const TF_VectorOps&) = delete;
+    Vector(const Vector&) = delete;
+    Vector& operator=(const Vector&) = delete;
 
-    static TF_VectorOps& from_handle(void* ctx) noexcept
+    static Vector& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_VectorOps*>(ctx);
+        return *static_cast<Vector*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_VectorOps& from_handle(HandleT* handle) noexcept
+    static Vector& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_VectorOps*>(handle->plugin_data);
+        return *static_cast<Vector*>(handle->plugin_data);
     }
 
-    virtual ~TF_VectorOps() = default;
+    virtual ~Vector() = default;
     virtual void destroy() noexcept = 0;
     virtual void set_element_size(size_t element_size) noexcept = 0;
     virtual void push_back(const void* value) noexcept = 0;
@@ -59,30 +59,30 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Vector* handle) noexcept
+                [](::TF_Vector* handle) noexcept
             {
-                auto& self = TF_VectorOps::from_handle(handle);
+                auto& self = Vector::from_handle(handle);
                 self.destroy();
             },
             .set_element_size =
-                [](TF_Vector* vector, size_t element_size) noexcept
+                [](::TF_Vector* vector, size_t element_size) noexcept
             {
-                auto& self = TF_VectorOps::from_handle(vector);
+                auto& self = Vector::from_handle(vector);
                 self.set_element_size(element_size);
             },
             .push_back =
-                [](TF_Vector* vector, const void* value) noexcept
+                [](::TF_Vector* vector, const void* value) noexcept
             {
-                auto& self = TF_VectorOps::from_handle(vector);
+                auto& self = Vector::from_handle(vector);
                 self.push_back(value);
             },
             .get =
-                [](const TF_Vector* vector,
+                [](const ::TF_Vector* vector,
                    size_t index,
                    const void** out_value,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_VectorOps::from_handle(vector);
+                auto& self = Vector::from_handle(vector);
                 self.get(
                     index,
                     out_value,
@@ -90,12 +90,12 @@ public:
                 );
             },
             .set =
-                [](TF_Vector* vector,
+                [](::TF_Vector* vector,
                    size_t index,
                    const void* value,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_VectorOps::from_handle(vector);
+                auto& self = Vector::from_handle(vector);
                 self.set(
                     index,
                     value,
@@ -103,30 +103,30 @@ public:
                 );
             },
             .size =
-                [](const TF_Vector* vector, size_t* out_size) noexcept
+                [](const ::TF_Vector* vector, size_t* out_size) noexcept
             {
-                auto& self = TF_VectorOps::from_handle(vector);
+                auto& self = Vector::from_handle(vector);
                 self.size(out_size);
             },
             .capacity =
-                [](const TF_Vector* vector, size_t* out_capacity) noexcept
+                [](const ::TF_Vector* vector, size_t* out_capacity) noexcept
             {
-                auto& self = TF_VectorOps::from_handle(vector);
+                auto& self = Vector::from_handle(vector);
                 self.capacity(out_capacity);
             },
             .reserve =
-                [](TF_Vector* vector, size_t new_capacity, TF_Status* out_status) noexcept
+                [](::TF_Vector* vector, size_t new_capacity, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_VectorOps::from_handle(vector);
+                auto& self = Vector::from_handle(vector);
                 self.reserve(
                     new_capacity,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .data =
-                [](TF_Vector* vector, void** out_data) noexcept
+                [](::TF_Vector* vector, void** out_data) noexcept
             {
-                auto& self = TF_VectorOps::from_handle(vector);
+                auto& self = Vector::from_handle(vector);
                 self.data(out_data);
             },
 
@@ -150,18 +150,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_VectorOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_VectorOps*>(&m_vtable));
     }
 
 private:

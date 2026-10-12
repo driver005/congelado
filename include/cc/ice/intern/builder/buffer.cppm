@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/buffer.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/tstring.h"
 
 export module cc_ice_intern_builder:buffer;
@@ -16,35 +16,35 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_BufferOps
+class Buffer
 {
 public:
-    explicit TF_BufferOps(const ::TF_StringOps* String_ops) noexcept :
+    explicit Buffer(const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_String_ops = String_ops;
     }
 
-    TF_BufferOps(const TF_BufferOps&) = delete;
-    TF_BufferOps& operator=(const TF_BufferOps&) = delete;
+    Buffer(const Buffer&) = delete;
+    Buffer& operator=(const Buffer&) = delete;
 
-    static TF_BufferOps& from_handle(void* ctx) noexcept
+    static Buffer& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_BufferOps*>(ctx);
+        return *static_cast<Buffer*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_BufferOps& from_handle(HandleT* handle) noexcept
+    static Buffer& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_BufferOps*>(handle->plugin_data);
+        return *static_cast<Buffer*>(handle->plugin_data);
     }
 
-    virtual ~TF_BufferOps() = default;
+    virtual ~Buffer() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void assign_from_string(const void* proto, size_t proto_len) noexcept = 0;
     virtual void delete_buffer() noexcept = 0;
-    virtual void get_buffer(TFBufferData* out_buffer) noexcept = 0;
+    virtual void get_buffer(::TFBufferData* out_buffer) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_Buffer*)) noexcept
     {
@@ -53,33 +53,33 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Buffer* handle) noexcept
+                [](::TF_Buffer* handle) noexcept
             {
-                auto& self = TF_BufferOps::from_handle(handle);
+                auto& self = Buffer::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TF_Buffer* buffer, TF_String* out_name) noexcept
+                [](::TF_Buffer* buffer, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_BufferOps::from_handle(buffer);
+                auto& self = Buffer::from_handle(buffer);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .assign_from_string =
-                [](TF_Buffer* buffer, const void* proto, size_t proto_len) noexcept
+                [](::TF_Buffer* buffer, const void* proto, size_t proto_len) noexcept
             {
-                auto& self = TF_BufferOps::from_handle(buffer);
+                auto& self = Buffer::from_handle(buffer);
                 self.assign_from_string(proto, proto_len);
             },
             .delete_buffer =
-                [](TF_Buffer* buffer) noexcept
+                [](::TF_Buffer* buffer) noexcept
             {
-                auto& self = TF_BufferOps::from_handle(buffer);
+                auto& self = Buffer::from_handle(buffer);
                 self.delete_buffer();
             },
             .get_buffer =
-                [](TF_Buffer* buffer, TFBufferData* out_buffer) noexcept
+                [](::TF_Buffer* buffer, ::TFBufferData* out_buffer) noexcept
             {
-                auto& self = TF_BufferOps::from_handle(buffer);
+                auto& self = Buffer::from_handle(buffer);
                 self.get_buffer(out_buffer);
             },
 
@@ -103,18 +103,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_BufferOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_BufferOps*>(&m_vtable));
     }
 
 private:

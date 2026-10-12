@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/extern/store/watch.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_store_builder:watch;
 
@@ -15,29 +15,29 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TFStoreWatchOps
+class StoreWatch
 {
 public:
-    explicit TFStoreWatchOps() noexcept :
+    explicit StoreWatch() noexcept :
         m_handle{.plugin_data = this}
     {
     }
 
-    TFStoreWatchOps(const TFStoreWatchOps&) = delete;
-    TFStoreWatchOps& operator=(const TFStoreWatchOps&) = delete;
+    StoreWatch(const StoreWatch&) = delete;
+    StoreWatch& operator=(const StoreWatch&) = delete;
 
-    static TFStoreWatchOps& from_handle(void* ctx) noexcept
+    static StoreWatch& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TFStoreWatchOps*>(ctx);
+        return *static_cast<StoreWatch*>(ctx);
     }
 
     template<typename HandleT>
-    static TFStoreWatchOps& from_handle(HandleT* handle) noexcept
+    static StoreWatch& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TFStoreWatchOps*>(handle->plugin_data);
+        return *static_cast<StoreWatch*>(handle->plugin_data);
     }
 
-    virtual ~TFStoreWatchOps() = default;
+    virtual ~StoreWatch() = default;
     virtual void destroy() noexcept = 0;
     virtual void cancel() noexcept = 0;
 
@@ -48,15 +48,15 @@ public:
 
             .create = create,
             .destroy =
-                [](TFStoreWatch* handle) noexcept
+                [](::TFStoreWatch* handle) noexcept
             {
-                auto& self = TFStoreWatchOps::from_handle(handle);
+                auto& self = StoreWatch::from_handle(handle);
                 self.destroy();
             },
             .cancel =
-                [](TFStoreWatch* watch) noexcept
+                [](::TFStoreWatch* watch) noexcept
             {
-                auto& self = TFStoreWatchOps::from_handle(watch);
+                auto& self = StoreWatch::from_handle(watch);
                 self.cancel();
             },
 
@@ -74,18 +74,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TFStoreWatchOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TFStoreWatchOps*>(&m_vtable));
     }
 
 private:

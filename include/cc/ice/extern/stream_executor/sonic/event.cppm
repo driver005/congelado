@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/extern/stream_executor/event.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_stream_executor_sonic:event;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_EventOps : public ice::sonic::Runtime<::TF_EventOps, ::TF_Event>
+class Event : public ice::sonic::Runtime<::TF_EventOps, ::TF_Event>
 {
 public:
-    TF_EventOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Event(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_EventOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Event(
+        const ice::sonic::Registration& registry,
         ::TF_Event* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_EventOps(const ::TF_EventOps* ops) noexcept :
+    explicit Event(const ::TF_EventOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_EventOps(const ::TF_EventOps* ops, ::TF_Event* handle) noexcept :
+    Event(const ::TF_EventOps* ops, ::TF_Event* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -60,7 +69,7 @@ public:
     }
 
     void elapsed_time(
-        const ice::sonic::TF_EventOps& end,
+        const ice::sonic::Event& end,
         float* out_milliseconds,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -74,7 +83,7 @@ public:
     }
 
     void export_ipc(
-        TF_IpcEventHandle* out_handle,
+        ::TF_IpcEventHandle* out_handle,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

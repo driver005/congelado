@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/grappler/configs.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 
 export module cc_ice_extern_grappler_builder:configs;
@@ -16,39 +16,39 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TFGrapplerConfigsOps
+class GrapplerConfigs
 {
 public:
-    explicit TFGrapplerConfigsOps(const ::TF_StatusOps* Status_ops) noexcept :
+    explicit GrapplerConfigs(const ::TF_StatusOps* Status_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_Status_ops = Status_ops;
     }
 
-    TFGrapplerConfigsOps(const TFGrapplerConfigsOps&) = delete;
-    TFGrapplerConfigsOps& operator=(const TFGrapplerConfigsOps&) = delete;
+    GrapplerConfigs(const GrapplerConfigs&) = delete;
+    GrapplerConfigs& operator=(const GrapplerConfigs&) = delete;
 
-    static TFGrapplerConfigsOps& from_handle(void* ctx) noexcept
+    static GrapplerConfigs& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TFGrapplerConfigsOps*>(ctx);
+        return *static_cast<GrapplerConfigs*>(ctx);
     }
 
     template<typename HandleT>
-    static TFGrapplerConfigsOps& from_handle(HandleT* handle) noexcept
+    static GrapplerConfigs& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TFGrapplerConfigsOps*>(handle->plugin_data);
+        return *static_cast<GrapplerConfigs*>(handle->plugin_data);
     }
 
-    virtual ~TFGrapplerConfigsOps() = default;
+    virtual ~GrapplerConfigs() = default;
     virtual void destroy() noexcept = 0;
-    virtual void get_optimization_level(TFGrapplerOptimizationLevel* out_level) noexcept = 0;
+    virtual void get_optimization_level(::TFGrapplerOptimizationLevel* out_level) noexcept = 0;
     virtual void set_optimization_level(TFGrapplerOptimizationLevel level) noexcept = 0;
     virtual void get_optimizer_configs(
-        TFGrapplerOptimizerConfigs* out_configs,
+        ::TFGrapplerOptimizerConfigs* out_configs,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void set_optimizer_configs(
-        const TFGrapplerOptimizerConfigs* in_configs,
+        const ::TFGrapplerOptimizerConfigs* in_configs,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
 
@@ -59,40 +59,40 @@ public:
 
             .create = create,
             .destroy =
-                [](TFGrapplerConfigs* handle) noexcept
+                [](::TFGrapplerConfigs* handle) noexcept
             {
-                auto& self = TFGrapplerConfigsOps::from_handle(handle);
+                auto& self = GrapplerConfigs::from_handle(handle);
                 self.destroy();
             },
             .get_optimization_level =
-                [](TFGrapplerConfigs* configs, TFGrapplerOptimizationLevel* out_level) noexcept
+                [](::TFGrapplerConfigs* configs, ::TFGrapplerOptimizationLevel* out_level) noexcept
             {
-                auto& self = TFGrapplerConfigsOps::from_handle(configs);
+                auto& self = GrapplerConfigs::from_handle(configs);
                 self.get_optimization_level(out_level);
             },
             .set_optimization_level =
-                [](TFGrapplerConfigs* configs, TFGrapplerOptimizationLevel level) noexcept
+                [](::TFGrapplerConfigs* configs, TFGrapplerOptimizationLevel level) noexcept
             {
-                auto& self = TFGrapplerConfigsOps::from_handle(configs);
+                auto& self = GrapplerConfigs::from_handle(configs);
                 self.set_optimization_level(level);
             },
             .get_optimizer_configs =
-                [](TFGrapplerConfigs* configs,
-                   TFGrapplerOptimizerConfigs* out_configs,
-                   TF_Status* out_status) noexcept
+                [](::TFGrapplerConfigs* configs,
+                   ::TFGrapplerOptimizerConfigs* out_configs,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFGrapplerConfigsOps::from_handle(configs);
+                auto& self = GrapplerConfigs::from_handle(configs);
                 self.get_optimizer_configs(
                     out_configs,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .set_optimizer_configs =
-                [](TFGrapplerConfigs* configs,
-                   const TFGrapplerOptimizerConfigs* in_configs,
-                   TF_Status* out_status) noexcept
+                [](::TFGrapplerConfigs* configs,
+                   const ::TFGrapplerOptimizerConfigs* in_configs,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFGrapplerConfigsOps::from_handle(configs);
+                auto& self = GrapplerConfigs::from_handle(configs);
                 self.set_optimizer_configs(
                     in_configs,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
@@ -119,18 +119,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TFGrapplerConfigsOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TFGrapplerConfigsOps*>(&m_vtable));
     }
 
 private:

@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/jobber/jobber.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_jobber_builder:jobber;
@@ -16,30 +16,30 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_JobberOps
+class Jobber
 {
 public:
-    explicit TF_JobberOps(const ::TF_StringOps* String_ops) noexcept :
+    explicit Jobber(const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_String_ops = String_ops;
     }
 
-    TF_JobberOps(const TF_JobberOps&) = delete;
-    TF_JobberOps& operator=(const TF_JobberOps&) = delete;
+    Jobber(const Jobber&) = delete;
+    Jobber& operator=(const Jobber&) = delete;
 
-    static TF_JobberOps& from_handle(void* ctx) noexcept
+    static Jobber& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_JobberOps*>(ctx);
+        return *static_cast<Jobber*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_JobberOps& from_handle(HandleT* handle) noexcept
+    static Jobber& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_JobberOps*>(handle->plugin_data);
+        return *static_cast<Jobber*>(handle->plugin_data);
     }
 
-    virtual ~TF_JobberOps() = default;
+    virtual ~Jobber() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
 
@@ -50,15 +50,15 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Jobber* handle) noexcept
+                [](::TF_Jobber* handle) noexcept
             {
-                auto& self = TF_JobberOps::from_handle(handle);
+                auto& self = Jobber::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TF_Jobber* jobber, TF_String* out_name) noexcept
+                [](::TF_Jobber* jobber, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_JobberOps::from_handle(jobber);
+                auto& self = Jobber::from_handle(jobber);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
 
@@ -82,18 +82,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_JobberOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_JobberOps*>(&m_vtable));
     }
 
 private:

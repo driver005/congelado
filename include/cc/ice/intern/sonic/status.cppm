@@ -5,12 +5,13 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 
 export module cc_ice_intern_sonic:status;
 
 import std;
+import :registration;
 import :runtime;
 import :tstring;
 
@@ -20,23 +21,32 @@ class Status : public ice::sonic::Runtime<::TF_StatusOps, ::TF_Status>
 {
 public:
     Status(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
     Status(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         ::TF_Status* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
@@ -85,7 +95,7 @@ public:
         m_ops->set_status_from_io_error(get_handle(), error_code, context.get_handle());
     }
 
-    void get_code(TF_Code* out_code) const noexcept
+    void get_code(::TF_Code* out_code) const noexcept
     {
         m_ops->get_code(get_handle(), out_code);
     }

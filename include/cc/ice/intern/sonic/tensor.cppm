@@ -5,48 +5,58 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/tensor.h"
 
 export module cc_ice_intern_sonic:tensor;
 
 import std;
+import :registration;
 import :runtime;
 import :status;
 import :tstring;
 
 export namespace ice::sonic {
 
-class TF_TensorOps : public ice::sonic::Runtime<::TF_TensorOps, ::TF_Tensor>
+class Tensor : public ice::sonic::Runtime<::TF_TensorOps, ::TF_Tensor>
 {
 public:
-    TF_TensorOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Tensor(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_TensorOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Tensor(
+        const ice::sonic::Registration& registry,
         ::TF_Tensor* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_TensorOps(const ::TF_TensorOps* ops) noexcept :
+    explicit Tensor(const ::TF_TensorOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_TensorOps(const ::TF_TensorOps* ops, ::TF_Tensor* handle) noexcept :
+    Tensor(const ::TF_TensorOps* ops, ::TF_Tensor* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -86,7 +96,7 @@ public:
         m_ops->delete_tensor(get_handle());
     }
 
-    void tensor_type(TFDataTypeEnum* out_dtype) const noexcept
+    void tensor_type(::TFDataTypeEnum* out_dtype) const noexcept
     {
         m_ops->tensor_type(get_handle(), out_dtype);
     }
@@ -118,7 +128,7 @@ public:
 
     void tensor_bitcast_from(
         TFDataTypeEnum dtype,
-        TF_Tensor** out_tensor,
+        ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -127,14 +137,14 @@ public:
 
     void tensor_bitcast_to(
         TFDataTypeEnum dtype,
-        TF_Tensor** out_tensor,
+        ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->tensor_bitcast_to(get_handle(), dtype, out_tensor, out_status.get_handle());
     }
 
-    void tensor_copy(const ice::sonic::TF_TensorOps& dst) const noexcept
+    void tensor_copy(const ice::sonic::Tensor& dst) const noexcept
     {
         m_ops->tensor_copy(get_handle(), dst.get_handle());
     }
@@ -174,7 +184,7 @@ public:
         int num_dims,
         const int64_t* strides,
         int64_t offset_elements,
-        TF_Tensor** out_view,
+        ::TF_Tensor** out_view,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

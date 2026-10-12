@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/parser/block.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_parser_sonic:block;
 
@@ -16,36 +16,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFParserBlockOps : public ice::sonic::Runtime<::TFParserBlockOps, ::TFParserBlock>
+class ParserBlock : public ice::sonic::Runtime<::TFParserBlockOps, ::TFParserBlock>
 {
 public:
-    TFParserBlockOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    ParserBlock(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFParserBlockOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    ParserBlock(
+        const ice::sonic::Registration& registry,
         ::TFParserBlock* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFParserBlockOps(const ::TFParserBlockOps* ops) noexcept :
+    explicit ParserBlock(const ::TFParserBlockOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFParserBlockOps(const ::TFParserBlockOps* ops, ::TFParserBlock* handle) noexcept :
+    ParserBlock(const ::TFParserBlockOps* ops, ::TFParserBlock* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -75,7 +84,7 @@ public:
 
     void get_node(
         int index,
-        const ice::sonic::TFParserNodeOps& out_node,
+        const ice::sonic::ParserNode& out_node,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

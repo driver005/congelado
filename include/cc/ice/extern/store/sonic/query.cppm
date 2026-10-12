@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/extern/store/query.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_store_sonic:query;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFStoreQueryOps : public ice::sonic::Runtime<::TFStoreQueryOps, ::TFStoreQuery>
+class StoreQuery : public ice::sonic::Runtime<::TFStoreQueryOps, ::TFStoreQuery>
 {
 public:
-    TFStoreQueryOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    StoreQuery(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFStoreQueryOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    StoreQuery(
+        const ice::sonic::Registration& registry,
         ::TFStoreQuery* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFStoreQueryOps(const ::TFStoreQueryOps* ops) noexcept :
+    explicit StoreQuery(const ::TFStoreQueryOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFStoreQueryOps(const ::TFStoreQueryOps* ops, ::TFStoreQuery* handle) noexcept :
+    StoreQuery(const ::TFStoreQueryOps* ops, ::TFStoreQuery* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -60,7 +69,7 @@ public:
     }
 
     void run(
-        const ice::sonic::TF_MapOps& filters,
+        const ice::sonic::Map& filters,
         const ice::sonic::String& free_text,
         const ice::sonic::String& sort,
         size_t offset,

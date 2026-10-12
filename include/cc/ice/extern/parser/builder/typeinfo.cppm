@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/parser/typeinfo.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 
 export module cc_ice_extern_parser_builder:typeinfo;
@@ -16,30 +16,30 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TFParserTypeInfoOps
+class ParserTypeInfo
 {
 public:
-    explicit TFParserTypeInfoOps(const ::TF_StatusOps* Status_ops) noexcept :
+    explicit ParserTypeInfo(const ::TF_StatusOps* Status_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_Status_ops = Status_ops;
     }
 
-    TFParserTypeInfoOps(const TFParserTypeInfoOps&) = delete;
-    TFParserTypeInfoOps& operator=(const TFParserTypeInfoOps&) = delete;
+    ParserTypeInfo(const ParserTypeInfo&) = delete;
+    ParserTypeInfo& operator=(const ParserTypeInfo&) = delete;
 
-    static TFParserTypeInfoOps& from_handle(void* ctx) noexcept
+    static ParserTypeInfo& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TFParserTypeInfoOps*>(ctx);
+        return *static_cast<ParserTypeInfo*>(ctx);
     }
 
     template<typename HandleT>
-    static TFParserTypeInfoOps& from_handle(HandleT* handle) noexcept
+    static ParserTypeInfo& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TFParserTypeInfoOps*>(handle->plugin_data);
+        return *static_cast<ParserTypeInfo*>(handle->plugin_data);
     }
 
-    virtual ~TFParserTypeInfoOps() = default;
+    virtual ~ParserTypeInfo() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_dtype(int* out_dtype, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_shape(
@@ -55,27 +55,27 @@ public:
 
             .create = create,
             .destroy =
-                [](TFParserTypeInfo* handle) noexcept
+                [](::TFParserTypeInfo* handle) noexcept
             {
-                auto& self = TFParserTypeInfoOps::from_handle(handle);
+                auto& self = ParserTypeInfo::from_handle(handle);
                 self.destroy();
             },
             .get_dtype =
-                [](TFParserTypeInfo* typeinfo, int* out_dtype, TF_Status* out_status) noexcept
+                [](::TFParserTypeInfo* typeinfo, int* out_dtype, ::TF_Status* out_status) noexcept
             {
-                auto& self = TFParserTypeInfoOps::from_handle(typeinfo);
+                auto& self = ParserTypeInfo::from_handle(typeinfo);
                 self.get_dtype(
                     out_dtype,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .get_shape =
-                [](TFParserTypeInfo* typeinfo,
+                [](::TFParserTypeInfo* typeinfo,
                    int64_t** out_dims,
                    int* out_num_dims,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFParserTypeInfoOps::from_handle(typeinfo);
+                auto& self = ParserTypeInfo::from_handle(typeinfo);
                 self.get_shape(
                     out_dims,
                     out_num_dims,
@@ -103,18 +103,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TFParserTypeInfoOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TFParserTypeInfoOps*>(&m_vtable));
     }
 
 private:

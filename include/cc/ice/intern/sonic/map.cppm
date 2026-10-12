@@ -5,48 +5,54 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/map.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_intern_sonic:map;
 
 import std;
+import :registration;
 import :runtime;
 import :status;
 import :tstring;
 
 export namespace ice::sonic {
 
-class TF_MapOps : public ice::sonic::Runtime<::TF_MapOps, ::TF_Map>
+class Map : public ice::sonic::Runtime<::TF_MapOps, ::TF_Map>
 {
 public:
-    TF_MapOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Map(const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
-        const ice::sonic::String& provider
-    ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        const ice::sonic::String& provider) noexcept :
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_MapOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Map(const ice::sonic::Registration& registry,
         ::TF_Map* handle,
         const ice::sonic::String& type,
-        const ice::sonic::String& provider
-    ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        const ice::sonic::String& provider) noexcept :
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_MapOps(const ::TF_MapOps* ops) noexcept :
+    explicit Map(const ::TF_MapOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_MapOps(const ::TF_MapOps* ops, ::TF_Map* handle) noexcept :
+    Map(const ::TF_MapOps* ops, ::TF_Map* handle) noexcept :
         Runtime(ops, handle)
     {
     }

@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/generator/module.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_generator_sonic:module_;
 
@@ -16,36 +16,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFGeneratorModuleOps : public ice::sonic::Runtime<::TFGeneratorModuleOps, ::TFGeneratorModule>
+class GeneratorModule : public ice::sonic::Runtime<::TFGeneratorModuleOps, ::TFGeneratorModule>
 {
 public:
-    TFGeneratorModuleOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GeneratorModule(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFGeneratorModuleOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GeneratorModule(
+        const ice::sonic::Registration& registry,
         ::TFGeneratorModule* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFGeneratorModuleOps(const ::TFGeneratorModuleOps* ops) noexcept :
+    explicit GeneratorModule(const ::TFGeneratorModuleOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFGeneratorModuleOps(const ::TFGeneratorModuleOps* ops, ::TFGeneratorModule* handle) noexcept :
+    GeneratorModule(const ::TFGeneratorModuleOps* ops, ::TFGeneratorModule* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -66,7 +75,7 @@ public:
     }
 
     void add_function(
-        const ice::sonic::TFGeneratorFunctionOps& function,
+        const ice::sonic::GeneratorFunction& function,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -75,7 +84,7 @@ public:
 
     void get_function(
         const ice::sonic::String& name,
-        const ice::sonic::TFGeneratorFunctionOps& out_function,
+        const ice::sonic::GeneratorFunction& out_function,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -88,7 +97,7 @@ public:
     }
 
     void list_functions(
-        TF_Tensor** out_functions,
+        ::TF_Tensor** out_functions,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

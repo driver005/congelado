@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/hash.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -17,32 +17,31 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_HashOps
+class Hash
 {
 public:
-    explicit TF_HashOps(const ::TF_StatusOps* Status_ops, const ::TF_StringOps* String_ops) noexcept
-        :
+    explicit Hash(const ::TF_StatusOps* Status_ops, const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_Status_ops = Status_ops;
         m_String_ops = String_ops;
     }
 
-    TF_HashOps(const TF_HashOps&) = delete;
-    TF_HashOps& operator=(const TF_HashOps&) = delete;
+    Hash(const Hash&) = delete;
+    Hash& operator=(const Hash&) = delete;
 
-    static TF_HashOps& from_handle(void* ctx) noexcept
+    static Hash& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_HashOps*>(ctx);
+        return *static_cast<Hash*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_HashOps& from_handle(HandleT* handle) noexcept
+    static Hash& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_HashOps*>(handle->plugin_data);
+        return *static_cast<Hash*>(handle->plugin_data);
     }
 
-    virtual ~TF_HashOps() = default;
+    virtual ~Hash() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void hash_bytes(
@@ -65,25 +64,25 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Hash* handle) noexcept
+                [](::TF_Hash* handle) noexcept
             {
-                auto& self = TF_HashOps::from_handle(handle);
+                auto& self = Hash::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TF_Hash* hash, TF_String* out_name) noexcept
+                [](::TF_Hash* hash, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_HashOps::from_handle(hash);
+                auto& self = Hash::from_handle(hash);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .hash_bytes =
-                [](TF_Hash* hash,
+                [](::TF_Hash* hash,
                    const void* data,
                    size_t size,
                    size_t* out_hash,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_HashOps::from_handle(hash);
+                auto& self = Hash::from_handle(hash);
                 self.hash_bytes(
                     data,
                     size,
@@ -92,13 +91,13 @@ public:
                 );
             },
             .hash_combine =
-                [](TF_Hash* hash,
+                [](::TF_Hash* hash,
                    size_t seed,
                    size_t value,
                    size_t* out_hash,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_HashOps::from_handle(hash);
+                auto& self = Hash::from_handle(hash);
                 self.hash_combine(
                     seed,
                     value,
@@ -133,18 +132,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_HashOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_HashOps*>(&m_vtable));
     }
 
 private:

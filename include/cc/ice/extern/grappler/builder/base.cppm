@@ -9,9 +9,9 @@ export module cc_ice_extern_grappler_builder;
 export import :device_graph;
 export import :function_library;
 export import :item;
+export import :properties;
 export import :optimizer;
 export import :configs;
 export import :grappler;
-export import :properties;
 
 // clang-format on

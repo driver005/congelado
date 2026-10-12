@@ -5,7 +5,7 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/set.h"
 #include "include/c/intern/status.h"
 
@@ -16,30 +16,30 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_SetOps
+class Set
 {
 public:
-    explicit TF_SetOps(const ::TF_StatusOps* Status_ops) noexcept :
+    explicit Set(const ::TF_StatusOps* Status_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_Status_ops = Status_ops;
     }
 
-    TF_SetOps(const TF_SetOps&) = delete;
-    TF_SetOps& operator=(const TF_SetOps&) = delete;
+    Set(const Set&) = delete;
+    Set& operator=(const Set&) = delete;
 
-    static TF_SetOps& from_handle(void* ctx) noexcept
+    static Set& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_SetOps*>(ctx);
+        return *static_cast<Set*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_SetOps& from_handle(HandleT* handle) noexcept
+    static Set& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_SetOps*>(handle->plugin_data);
+        return *static_cast<Set*>(handle->plugin_data);
     }
 
-    virtual ~TF_SetOps() = default;
+    virtual ~Set() = default;
     virtual void destroy() noexcept = 0;
     virtual void insert(const void* key, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void find(
@@ -60,24 +60,24 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Set* handle) noexcept
+                [](::TF_Set* handle) noexcept
             {
-                auto& self = TF_SetOps::from_handle(handle);
+                auto& self = Set::from_handle(handle);
                 self.destroy();
             },
             .insert =
-                [](TF_Set* set, const void* key, TF_Status* out_status) noexcept
+                [](::TF_Set* set, const void* key, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SetOps::from_handle(set);
+                auto& self = Set::from_handle(set);
                 self.insert(key, self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .find =
-                [](const TF_Set* set,
+                [](const ::TF_Set* set,
                    const void* key,
                    const void** out_value,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SetOps::from_handle(set);
+                auto& self = Set::from_handle(set);
                 self.find(
                     key,
                     out_value,
@@ -85,18 +85,18 @@ public:
                 );
             },
             .erase =
-                [](TF_Set* set, const void* key, TF_Status* out_status) noexcept
+                [](::TF_Set* set, const void* key, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SetOps::from_handle(set);
+                auto& self = Set::from_handle(set);
                 self.erase(key, self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .contains =
-                [](const TF_Set* set,
+                [](const ::TF_Set* set,
                    const void* key,
                    int* out_found,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SetOps::from_handle(set);
+                auto& self = Set::from_handle(set);
                 self.contains(
                     key,
                     out_found,
@@ -104,15 +104,15 @@ public:
                 );
             },
             .size =
-                [](const TF_Set* set, size_t* out_size) noexcept
+                [](const ::TF_Set* set, size_t* out_size) noexcept
             {
-                auto& self = TF_SetOps::from_handle(set);
+                auto& self = Set::from_handle(set);
                 self.size(out_size);
             },
             .for_each =
-                [](const TF_Set* set, TF_SetVisitor visitor, void* capture) noexcept
+                [](const ::TF_Set* set, TF_SetVisitor visitor, void* capture) noexcept
             {
-                auto& self = TF_SetOps::from_handle(set);
+                auto& self = Set::from_handle(set);
                 self.for_each(visitor, capture);
             },
 
@@ -136,18 +136,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_SetOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_SetOps*>(&m_vtable));
     }
 
 private:

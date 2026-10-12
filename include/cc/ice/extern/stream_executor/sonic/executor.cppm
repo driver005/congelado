@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/extern/stream_executor/executor.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_stream_executor_sonic:executor;
 
@@ -21,36 +21,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_ExecutorOps : public ice::sonic::Runtime<::TF_ExecutorOps, ::TF_Executor>
+class Executor : public ice::sonic::Runtime<::TF_ExecutorOps, ::TF_Executor>
 {
 public:
-    TF_ExecutorOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Executor(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_ExecutorOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Executor(
+        const ice::sonic::Registration& registry,
         ::TF_Executor* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_ExecutorOps(const ::TF_ExecutorOps* ops) noexcept :
+    explicit Executor(const ::TF_ExecutorOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_ExecutorOps(const ::TF_ExecutorOps* ops, ::TF_Executor* handle) noexcept :
+    Executor(const ::TF_ExecutorOps* ops, ::TF_Executor* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -66,7 +75,7 @@ public:
     }
 
     void device_memory_usage(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         int64_t* out_free,
         int64_t* out_total,
         _Bool* out_success
@@ -82,8 +91,8 @@ public:
     }
 
     void create_stream_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -96,17 +105,17 @@ public:
     }
 
     void destroy_stream_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream
     ) const noexcept
     {
         m_ops->destroy_stream_internal(get_handle(), device.get_handle(), stream.get_handle());
     }
 
     void create_stream_dependency(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& dependent,
-        const ice::sonic::TF_StreamOps& other,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& dependent,
+        const ice::sonic::Stream& other,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -120,8 +129,8 @@ public:
     }
 
     void get_stream_status(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -134,8 +143,8 @@ public:
     }
 
     void create_event_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_EventOps& event,
+        const ice::sonic::Device& device,
+        const ice::sonic::Event& event,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -148,17 +157,17 @@ public:
     }
 
     void destroy_event_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_EventOps& event
+        const ice::sonic::Device& device,
+        const ice::sonic::Event& event
     ) const noexcept
     {
         m_ops->destroy_event_internal(get_handle(), device.get_handle(), event.get_handle());
     }
 
     void get_event_status(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_EventOps& event,
-        TF_EventStatus* out_event_status
+        const ice::sonic::Device& device,
+        const ice::sonic::Event& event,
+        ::TF_EventStatus* out_event_status
     ) const noexcept
     {
         m_ops->get_event_status(
@@ -170,9 +179,9 @@ public:
     }
 
     void record_event(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
-        const ice::sonic::TF_EventOps& event,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
+        const ice::sonic::Event& event,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -186,9 +195,9 @@ public:
     }
 
     void wait_for_event(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
-        const ice::sonic::TF_EventOps& event,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
+        const ice::sonic::Event& event,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -202,8 +211,8 @@ public:
     }
 
     void create_timer_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_TimerOps& timer,
+        const ice::sonic::Device& device,
+        const ice::sonic::Timer& timer,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -216,17 +225,17 @@ public:
     }
 
     void destroy_timer_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_TimerOps& timer
+        const ice::sonic::Device& device,
+        const ice::sonic::Timer& timer
     ) const noexcept
     {
         m_ops->destroy_timer_internal(get_handle(), device.get_handle(), timer.get_handle());
     }
 
     void start_timer(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
-        const ice::sonic::TF_TimerOps& timer,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
+        const ice::sonic::Timer& timer,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -240,9 +249,9 @@ public:
     }
 
     void stop_timer(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
-        const ice::sonic::TF_TimerOps& timer,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
+        const ice::sonic::Timer& timer,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -256,10 +265,10 @@ public:
     }
 
     void memcpy_dtoh(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         void* host_dst,
-        const TF_DeviceMemoryBase* device_src,
+        const ::TF_DeviceMemoryBase* device_src,
         uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -276,9 +285,9 @@ public:
     }
 
     void memcpy_htod(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
-        TF_DeviceMemoryBase* device_dst,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
+        ::TF_DeviceMemoryBase* device_dst,
         const void* host_src,
         uint64_t size,
         const ice::sonic::Status& out_status
@@ -296,10 +305,10 @@ public:
     }
 
     void memcpy_dtod(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
-        TF_DeviceMemoryBase* device_dst,
-        const TF_DeviceMemoryBase* device_src,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
+        ::TF_DeviceMemoryBase* device_dst,
+        const ::TF_DeviceMemoryBase* device_src,
         uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -316,9 +325,9 @@ public:
     }
 
     void sync_memcpy_dtoh(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         void* host_dst,
-        const TF_DeviceMemoryBase* device_src,
+        const ::TF_DeviceMemoryBase* device_src,
         uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -334,8 +343,8 @@ public:
     }
 
     void sync_memcpy_htod(
-        const ice::sonic::TF_DeviceOps& device,
-        TF_DeviceMemoryBase* device_dst,
+        const ice::sonic::Device& device,
+        ::TF_DeviceMemoryBase* device_dst,
         const void* host_src,
         uint64_t size,
         const ice::sonic::Status& out_status
@@ -352,9 +361,9 @@ public:
     }
 
     void sync_memcpy_dtod(
-        const ice::sonic::TF_DeviceOps& device,
-        TF_DeviceMemoryBase* device_dst,
-        const TF_DeviceMemoryBase* device_src,
+        const ice::sonic::Device& device,
+        ::TF_DeviceMemoryBase* device_dst,
+        const ::TF_DeviceMemoryBase* device_src,
         uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -370,8 +379,8 @@ public:
     }
 
     void block_host_for_event(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_EventOps& event,
+        const ice::sonic::Device& device,
+        const ice::sonic::Event& event,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -384,8 +393,8 @@ public:
     }
 
     void block_host_until_done(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -398,7 +407,7 @@ public:
     }
 
     void synchronize_all_activity(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -406,9 +415,9 @@ public:
     }
 
     void mem_zero(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
-        TF_DeviceMemoryBase* location,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
+        ::TF_DeviceMemoryBase* location,
         uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -424,9 +433,9 @@ public:
     }
 
     void memset(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
-        TF_DeviceMemoryBase* location,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
+        ::TF_DeviceMemoryBase* location,
         uint8_t pattern,
         uint64_t size,
         const ice::sonic::Status& out_status
@@ -444,9 +453,9 @@ public:
     }
 
     void memset32(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
-        TF_DeviceMemoryBase* location,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
+        ::TF_DeviceMemoryBase* location,
         uint32_t pattern,
         uint64_t size,
         const ice::sonic::Status& out_status
@@ -464,8 +473,8 @@ public:
     }
 
     void host_callback(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         TF_StatusCallbackFn callback_fn,
         void* callback_arg,
         _Bool* out_success
@@ -482,9 +491,9 @@ public:
     }
 
     void create_stream_with_options(
-        const ice::sonic::TF_DeviceOps& device,
-        const TF_StreamOptions* options,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ::TF_StreamOptions* options,
+        const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -498,9 +507,9 @@ public:
     }
 
     void get_stream_from_pool(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         int32_t priority,
-        const ice::sonic::TF_StreamOps& out_stream,
+        const ice::sonic::Stream& out_stream,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -514,8 +523,8 @@ public:
     }
 
     void get_current_stream(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& out_stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& out_stream,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -528,8 +537,8 @@ public:
     }
 
     void set_current_stream(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_StreamOps& stream,
+        const ice::sonic::Device& device,
+        const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -542,9 +551,9 @@ public:
     }
 
     void create_stream_from_native(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         void* native_handle,
-        const ice::sonic::TF_StreamOps& out_stream,
+        const ice::sonic::Stream& out_stream,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -558,9 +567,9 @@ public:
     }
 
     void create_event_with_options_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const TF_EventOptions* options,
-        const ice::sonic::TF_EventOps& out_event,
+        const ice::sonic::Device& device,
+        const ::TF_EventOptions* options,
+        const ice::sonic::Event& out_event,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -574,9 +583,9 @@ public:
     }
 
     void create_event_from_ipc_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const TF_IpcEventHandle* handle,
-        const ice::sonic::TF_EventOps& out_event,
+        const ice::sonic::Device& device,
+        const ::TF_IpcEventHandle* handle,
+        const ice::sonic::Event& out_event,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -590,8 +599,8 @@ public:
     }
 
     void create_allocator_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_AllocatorOps& out_allocator,
+        const ice::sonic::Device& device,
+        const ice::sonic::Allocator& out_allocator,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -604,8 +613,8 @@ public:
     }
 
     void destroy_allocator_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_AllocatorOps& allocator
+        const ice::sonic::Device& device,
+        const ice::sonic::Allocator& allocator
     ) const noexcept
     {
         m_ops
@@ -613,9 +622,9 @@ public:
     }
 
     void create_random_generator_internal(
-        const ice::sonic::TF_DeviceOps& device,
+        const ice::sonic::Device& device,
         uint64_t seed,
-        const ice::sonic::TF_RandomGeneratorOps& out_generator,
+        const ice::sonic::RandomGenerator& out_generator,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -629,8 +638,8 @@ public:
     }
 
     void destroy_random_generator_internal(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_RandomGeneratorOps& generator
+        const ice::sonic::Device& device,
+        const ice::sonic::RandomGenerator& generator
     ) const noexcept
     {
         m_ops->destroy_random_generator_internal(
@@ -641,8 +650,8 @@ public:
     }
 
     void get_default_random_generator(
-        const ice::sonic::TF_DeviceOps& device,
-        const ice::sonic::TF_RandomGeneratorOps& out_generator,
+        const ice::sonic::Device& device,
+        const ice::sonic::RandomGenerator& out_generator,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -654,7 +663,7 @@ public:
         );
     }
 
-    void get_native_handle(const ice::sonic::TF_DeviceOps& device, void** out_handle) const noexcept
+    void get_native_handle(const ice::sonic::Device& device, void** out_handle) const noexcept
     {
         m_ops->get_native_handle(get_handle(), device.get_handle(), out_handle);
     }

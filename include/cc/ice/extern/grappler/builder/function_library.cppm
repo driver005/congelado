@@ -6,8 +6,8 @@
 module;
 
 #include "include/c/extern/grappler/function_library.h"
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/buffer.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -18,40 +18,40 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TFGrapplerFunctionLibraryOps
+class GrapplerFunctionLibrary
 {
 public:
-    explicit TFGrapplerFunctionLibraryOps(
-        const ::TF_BufferOps* TF_BufferOps_ops,
+    explicit GrapplerFunctionLibrary(
+        const ::TF_BufferOps* Buffer_ops,
         const ::TF_StatusOps* Status_ops,
         const ::TF_StringOps* String_ops
     ) noexcept :
         m_handle{.plugin_data = this}
     {
-        m_TF_BufferOps_ops = TF_BufferOps_ops;
+        m_Buffer_ops = Buffer_ops;
         m_Status_ops = Status_ops;
         m_String_ops = String_ops;
     }
 
-    TFGrapplerFunctionLibraryOps(const TFGrapplerFunctionLibraryOps&) = delete;
-    TFGrapplerFunctionLibraryOps& operator=(const TFGrapplerFunctionLibraryOps&) = delete;
+    GrapplerFunctionLibrary(const GrapplerFunctionLibrary&) = delete;
+    GrapplerFunctionLibrary& operator=(const GrapplerFunctionLibrary&) = delete;
 
-    static TFGrapplerFunctionLibraryOps& from_handle(void* ctx) noexcept
+    static GrapplerFunctionLibrary& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TFGrapplerFunctionLibraryOps*>(ctx);
+        return *static_cast<GrapplerFunctionLibrary*>(ctx);
     }
 
     template<typename HandleT>
-    static TFGrapplerFunctionLibraryOps& from_handle(HandleT* handle) noexcept
+    static GrapplerFunctionLibrary& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TFGrapplerFunctionLibraryOps*>(handle->plugin_data);
+        return *static_cast<GrapplerFunctionLibrary*>(handle->plugin_data);
     }
 
-    virtual ~TFGrapplerFunctionLibraryOps() = default;
+    virtual ~GrapplerFunctionLibrary() = default;
     virtual void destroy() noexcept = 0;
     virtual void look_up_op_def(
         const ice::sonic::String& name,
-        const ice::sonic::TF_BufferOps& out_buf,
+        const ice::sonic::Buffer& out_buf,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
 
@@ -62,21 +62,21 @@ public:
 
             .create = create,
             .destroy =
-                [](TFGrapplerFunctionLibrary* handle) noexcept
+                [](::TFGrapplerFunctionLibrary* handle) noexcept
             {
-                auto& self = TFGrapplerFunctionLibraryOps::from_handle(handle);
+                auto& self = GrapplerFunctionLibrary::from_handle(handle);
                 self.destroy();
             },
             .look_up_op_def =
-                [](TFGrapplerFunctionLibrary* lib,
-                   const TF_String* name,
-                   TF_Buffer* out_buf,
-                   TF_Status* out_status) noexcept
+                [](::TFGrapplerFunctionLibrary* lib,
+                   const ::TF_String* name,
+                   ::TF_Buffer* out_buf,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFGrapplerFunctionLibraryOps::from_handle(lib);
+                auto& self = GrapplerFunctionLibrary::from_handle(lib);
                 self.look_up_op_def(
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
-                    self.wrap(std::type_identity<ice::sonic::TF_BufferOps>{}, out_buf),
+                    self.wrap(std::type_identity<ice::sonic::Buffer>{}, out_buf),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -84,10 +84,10 @@ public:
         };
     }
 
-    ice::sonic::TF_BufferOps
-    wrap(std::type_identity<ice::sonic::TF_BufferOps>, const ::TF_Buffer* handle) const noexcept
+    ice::sonic::Buffer
+    wrap(std::type_identity<ice::sonic::Buffer>, const ::TF_Buffer* handle) const noexcept
     {
-        return ice::sonic::TF_BufferOps{m_TF_BufferOps_ops, const_cast<::TF_Buffer*>(handle)};
+        return ice::sonic::Buffer{m_Buffer_ops, const_cast<::TF_Buffer*>(handle)};
     }
 
     ice::sonic::Status
@@ -113,25 +113,20 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TFGrapplerFunctionLibraryOps*>(&m_vtable)
-        );
+        registry
+            .register_op(type, provider, const_cast<::TFGrapplerFunctionLibraryOps*>(&m_vtable));
     }
 
 private:
     ::TFGrapplerFunctionLibraryOps m_vtable;
     ::TFGrapplerFunctionLibrary m_handle;
 
-    const ::TF_BufferOps* m_TF_BufferOps_ops{nullptr};
+    const ::TF_BufferOps* m_Buffer_ops{nullptr};
 
     const ::TF_StatusOps* m_Status_ops{nullptr};
 

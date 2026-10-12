@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/generator/definition.h"
 #include "include/c/extern/generator/node.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -19,36 +19,36 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TFGeneratorNodeOps
+class GeneratorNode
 {
 public:
-    explicit TFGeneratorNodeOps(
-        const ::TFGeneratorDefinitionOps* TFGeneratorDefinitionOps_ops,
+    explicit GeneratorNode(
+        const ::TFGeneratorDefinitionOps* GeneratorDefinition_ops,
         const ::TF_StatusOps* Status_ops,
         const ::TF_StringOps* String_ops
     ) noexcept :
         m_handle{.plugin_data = this}
     {
-        m_TFGeneratorDefinitionOps_ops = TFGeneratorDefinitionOps_ops;
+        m_GeneratorDefinition_ops = GeneratorDefinition_ops;
         m_Status_ops = Status_ops;
         m_String_ops = String_ops;
     }
 
-    TFGeneratorNodeOps(const TFGeneratorNodeOps&) = delete;
-    TFGeneratorNodeOps& operator=(const TFGeneratorNodeOps&) = delete;
+    GeneratorNode(const GeneratorNode&) = delete;
+    GeneratorNode& operator=(const GeneratorNode&) = delete;
 
-    static TFGeneratorNodeOps& from_handle(void* ctx) noexcept
+    static GeneratorNode& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TFGeneratorNodeOps*>(ctx);
+        return *static_cast<GeneratorNode*>(ctx);
     }
 
     template<typename HandleT>
-    static TFGeneratorNodeOps& from_handle(HandleT* handle) noexcept
+    static GeneratorNode& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TFGeneratorNodeOps*>(handle->plugin_data);
+        return *static_cast<GeneratorNode*>(handle->plugin_data);
     }
 
-    virtual ~TFGeneratorNodeOps() = default;
+    virtual ~GeneratorNode() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void set_operand(
@@ -70,7 +70,7 @@ public:
     virtual void get_operand(int index, const ice::sonic::String& out_operand) noexcept = 0;
     virtual void get_output_name(int index, const ice::sonic::String& out_output_name) noexcept = 0;
     virtual void get_definition(
-        const ice::sonic::TFGeneratorDefinitionOps& out_definition,
+        const ice::sonic::GeneratorDefinition& out_definition,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
 
@@ -81,24 +81,24 @@ public:
 
             .create = create,
             .destroy =
-                [](TFGeneratorNode* handle) noexcept
+                [](::TFGeneratorNode* handle) noexcept
             {
-                auto& self = TFGeneratorNodeOps::from_handle(handle);
+                auto& self = GeneratorNode::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TFGeneratorNode* node_context, TF_String* out_name) noexcept
+                [](::TFGeneratorNode* node_context, ::TF_String* out_name) noexcept
             {
-                auto& self = TFGeneratorNodeOps::from_handle(node_context);
+                auto& self = GeneratorNode::from_handle(node_context);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .set_operand =
-                [](TFGeneratorNode* node_context,
+                [](::TFGeneratorNode* node_context,
                    int index,
-                   const TF_String* var_name,
-                   TF_Status* out_status) noexcept
+                   const ::TF_String* var_name,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFGeneratorNodeOps::from_handle(node_context);
+                auto& self = GeneratorNode::from_handle(node_context);
                 self.set_operand(
                     index,
                     self.wrap(std::type_identity<ice::sonic::String>{}, var_name),
@@ -106,12 +106,12 @@ public:
                 );
             },
             .set_output_name =
-                [](TFGeneratorNode* node_context,
+                [](::TFGeneratorNode* node_context,
                    int index,
-                   const TF_String* var_name,
-                   TF_Status* out_status) noexcept
+                   const ::TF_String* var_name,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFGeneratorNodeOps::from_handle(node_context);
+                auto& self = GeneratorNode::from_handle(node_context);
                 self.set_output_name(
                     index,
                     self.wrap(std::type_identity<ice::sonic::String>{}, var_name),
@@ -119,13 +119,13 @@ public:
                 );
             },
             .set_attr =
-                [](TFGeneratorNode* node_context,
-                   const TF_String* name,
+                [](::TFGeneratorNode* node_context,
+                   const ::TF_String* name,
                    const void* value,
                    size_t value_size,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFGeneratorNodeOps::from_handle(node_context);
+                auto& self = GeneratorNode::from_handle(node_context);
                 self.set_attr(
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
                     value,
@@ -134,32 +134,34 @@ public:
                 );
             },
             .get_operand =
-                [](TFGeneratorNode* node_context, int index, TF_String* out_operand) noexcept
+                [](::TFGeneratorNode* node_context, int index, ::TF_String* out_operand) noexcept
             {
-                auto& self = TFGeneratorNodeOps::from_handle(node_context);
+                auto& self = GeneratorNode::from_handle(node_context);
                 self.get_operand(
                     index,
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_operand)
                 );
             },
             .get_output_name =
-                [](TFGeneratorNode* node_context, int index, TF_String* out_output_name) noexcept
+                [](::TFGeneratorNode* node_context,
+                   int index,
+                   ::TF_String* out_output_name) noexcept
             {
-                auto& self = TFGeneratorNodeOps::from_handle(node_context);
+                auto& self = GeneratorNode::from_handle(node_context);
                 self.get_output_name(
                     index,
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_output_name)
                 );
             },
             .get_definition =
-                [](TFGeneratorNode* node_context,
-                   TFGeneratorDefinition* out_definition,
-                   TF_Status* out_status) noexcept
+                [](::TFGeneratorNode* node_context,
+                   ::TFGeneratorDefinition* out_definition,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFGeneratorNodeOps::from_handle(node_context);
+                auto& self = GeneratorNode::from_handle(node_context);
                 self.get_definition(
                     self.wrap(
-                        std::type_identity<ice::sonic::TFGeneratorDefinitionOps>{},
+                        std::type_identity<ice::sonic::GeneratorDefinition>{},
                         out_definition
                     ),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
@@ -169,13 +171,13 @@ public:
         };
     }
 
-    ice::sonic::TFGeneratorDefinitionOps wrap(
-        std::type_identity<ice::sonic::TFGeneratorDefinitionOps>,
+    ice::sonic::GeneratorDefinition wrap(
+        std::type_identity<ice::sonic::GeneratorDefinition>,
         const ::TFGeneratorDefinition* handle
     ) const noexcept
     {
-        return ice::sonic::TFGeneratorDefinitionOps{
-            m_TFGeneratorDefinitionOps_ops,
+        return ice::sonic::GeneratorDefinition{
+            m_GeneratorDefinition_ops,
             const_cast<::TFGeneratorDefinition*>(handle)
         };
     }
@@ -203,25 +205,19 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TFGeneratorNodeOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TFGeneratorNodeOps*>(&m_vtable));
     }
 
 private:
     ::TFGeneratorNodeOps m_vtable;
     ::TFGeneratorNode m_handle;
 
-    const ::TFGeneratorDefinitionOps* m_TFGeneratorDefinitionOps_ops{nullptr};
+    const ::TFGeneratorDefinitionOps* m_GeneratorDefinition_ops{nullptr};
 
     const ::TF_StatusOps* m_Status_ops{nullptr};
 

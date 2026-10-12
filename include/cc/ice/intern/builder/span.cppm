@@ -5,7 +5,7 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/span.h"
 #include "include/c/intern/status.h"
 
@@ -16,34 +16,31 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_SpanOps
+class Span
 {
 public:
-    explicit TF_SpanOps(
-        const ::TF_SpanOps* TF_SpanOps_ops,
-        const ::TF_StatusOps* Status_ops
-    ) noexcept :
+    explicit Span(const ::TF_SpanOps* Span_ops, const ::TF_StatusOps* Status_ops) noexcept :
         m_handle{.plugin_data = this}
     {
-        m_TF_SpanOps_ops = TF_SpanOps_ops;
+        m_Span_ops = Span_ops;
         m_Status_ops = Status_ops;
     }
 
-    TF_SpanOps(const TF_SpanOps&) = delete;
-    TF_SpanOps& operator=(const TF_SpanOps&) = delete;
+    Span(const Span&) = delete;
+    Span& operator=(const Span&) = delete;
 
-    static TF_SpanOps& from_handle(void* ctx) noexcept
+    static Span& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_SpanOps*>(ctx);
+        return *static_cast<Span*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_SpanOps& from_handle(HandleT* handle) noexcept
+    static Span& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_SpanOps*>(handle->plugin_data);
+        return *static_cast<Span*>(handle->plugin_data);
     }
 
-    virtual ~TF_SpanOps() = default;
+    virtual ~Span() = default;
     virtual void destroy() noexcept = 0;
     virtual void
     get(size_t index, const void** out_value, const ice::sonic::Status& out_status) noexcept = 0;
@@ -52,7 +49,7 @@ public:
     virtual void subspan(
         size_t offset,
         size_t count,
-        const ice::sonic::TF_SpanOps& out_span,
+        const ice::sonic::Span& out_span,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
 
@@ -63,18 +60,18 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Span* handle) noexcept
+                [](::TF_Span* handle) noexcept
             {
-                auto& self = TF_SpanOps::from_handle(handle);
+                auto& self = Span::from_handle(handle);
                 self.destroy();
             },
             .get =
-                [](const TF_Span* span,
+                [](const ::TF_Span* span,
                    size_t index,
                    const void** out_value,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SpanOps::from_handle(span);
+                auto& self = Span::from_handle(span);
                 self.get(
                     index,
                     out_value,
@@ -82,29 +79,29 @@ public:
                 );
             },
             .size =
-                [](const TF_Span* span, size_t* out_size) noexcept
+                [](const ::TF_Span* span, size_t* out_size) noexcept
             {
-                auto& self = TF_SpanOps::from_handle(span);
+                auto& self = Span::from_handle(span);
                 self.size(out_size);
             },
             .data =
-                [](const TF_Span* span, void** out_data) noexcept
+                [](const ::TF_Span* span, void** out_data) noexcept
             {
-                auto& self = TF_SpanOps::from_handle(span);
+                auto& self = Span::from_handle(span);
                 self.data(out_data);
             },
             .subspan =
-                [](const TF_Span* span,
+                [](const ::TF_Span* span,
                    size_t offset,
                    size_t count,
-                   TF_Span* out_span,
-                   TF_Status* out_status) noexcept
+                   ::TF_Span* out_span,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SpanOps::from_handle(span);
+                auto& self = Span::from_handle(span);
                 self.subspan(
                     offset,
                     count,
-                    self.wrap(std::type_identity<ice::sonic::TF_SpanOps>{}, out_span),
+                    self.wrap(std::type_identity<ice::sonic::Span>{}, out_span),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -112,10 +109,10 @@ public:
         };
     }
 
-    ice::sonic::TF_SpanOps
-    wrap(std::type_identity<ice::sonic::TF_SpanOps>, const ::TF_Span* handle) const noexcept
+    ice::sonic::Span
+    wrap(std::type_identity<ice::sonic::Span>, const ::TF_Span* handle) const noexcept
     {
-        return ice::sonic::TF_SpanOps{m_TF_SpanOps_ops, const_cast<::TF_Span*>(handle)};
+        return ice::sonic::Span{m_Span_ops, const_cast<::TF_Span*>(handle)};
     }
 
     ice::sonic::Status
@@ -135,25 +132,19 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_SpanOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_SpanOps*>(&m_vtable));
     }
 
 private:
     ::TF_SpanOps m_vtable;
     ::TF_Span m_handle;
 
-    const ::TF_SpanOps* m_TF_SpanOps_ops{nullptr};
+    const ::TF_SpanOps* m_Span_ops{nullptr};
 
     const ::TF_StatusOps* m_Status_ops{nullptr};
 };

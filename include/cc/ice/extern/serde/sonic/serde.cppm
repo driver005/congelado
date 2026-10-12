@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/extern/serde/serde.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_serde_sonic:serde;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_SerdeOps : public ice::sonic::Runtime<::TF_SerdeOps, ::TF_Serde>
+class Serde : public ice::sonic::Runtime<::TF_SerdeOps, ::TF_Serde>
 {
 public:
-    TF_SerdeOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Serde(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_SerdeOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Serde(
+        const ice::sonic::Registration& registry,
         ::TF_Serde* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_SerdeOps(const ::TF_SerdeOps* ops) noexcept :
+    explicit Serde(const ::TF_SerdeOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_SerdeOps(const ::TF_SerdeOps* ops, ::TF_Serde* handle) noexcept :
+    Serde(const ::TF_SerdeOps* ops, ::TF_Serde* handle) noexcept :
         Runtime(ops, handle)
     {
     }

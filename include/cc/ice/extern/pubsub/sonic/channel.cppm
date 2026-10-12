@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/pubsub/channel.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_pubsub_sonic:channel;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFPubSubChannelOps : public ice::sonic::Runtime<::TFPubSubChannelOps, ::TFPubSubChannel>
+class PubSubChannel : public ice::sonic::Runtime<::TFPubSubChannelOps, ::TFPubSubChannel>
 {
 public:
-    TFPubSubChannelOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    PubSubChannel(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFPubSubChannelOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    PubSubChannel(
+        const ice::sonic::Registration& registry,
         ::TFPubSubChannel* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFPubSubChannelOps(const ::TFPubSubChannelOps* ops) noexcept :
+    explicit PubSubChannel(const ::TFPubSubChannelOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFPubSubChannelOps(const ::TFPubSubChannelOps* ops, ::TFPubSubChannel* handle) noexcept :
+    PubSubChannel(const ::TFPubSubChannelOps* ops, ::TFPubSubChannel* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -61,7 +70,7 @@ public:
 
     void create_channel(
         const ice::sonic::String& name,
-        const ice::sonic::TF_MapOps& config,
+        const ice::sonic::Map& config,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -80,7 +89,7 @@ public:
 
     void get_config(
         const ice::sonic::String& name,
-        const ice::sonic::TF_MapOps& out_config,
+        const ice::sonic::Map& out_config,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -94,7 +103,7 @@ public:
 
     void set_config(
         const ice::sonic::String& name,
-        const ice::sonic::TF_MapOps& config,
+        const ice::sonic::Map& config,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -108,7 +117,7 @@ public:
 
     void get_stats(
         const ice::sonic::String& name,
-        const ice::sonic::TF_MapOps& out_stats,
+        const ice::sonic::Map& out_stats,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -141,7 +150,7 @@ public:
 
     void list_dead_letters(
         const ice::sonic::String& target_channel,
-        const ice::sonic::TF_VectorOps& out_payloads,
+        const ice::sonic::Vector& out_payloads,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -168,7 +177,7 @@ public:
     }
 
     void list(
-        const ice::sonic::TF_VectorOps& out_channels,
+        const ice::sonic::Vector& out_channels,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

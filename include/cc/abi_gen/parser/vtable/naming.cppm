@@ -8,61 +8,47 @@ import std;
 
 export namespace cc_abi_gen::parser::vtable {
 
-class Naming
+// Ops-vtable structs are tagged "TF_XOps" (their handle owns the bare "TF_X" name instead,
+// since C++ auto-injects a completed struct's tag as an ordinary type name — the vtable and its
+// handle can't both be spelled "TF_X"). Domain/macro/class derivation wants bare "TF_X".
+std::string_view strip_ops_suffix(std::string_view struct_name)
 {
-public:
-    Naming() = default;
-
-    // "TF_Cache" -> "TF_CACHE_STRUCT_SIZE"; "TF_CacheOps" -> "TF_CACHE_STRUCT_SIZE"
-    std::string struct_size_macro(const std::string& struct_name)
-    {
-        m_scratch_text = "TF_";
-        for (char character: strip_ops_suffix(struct_name).substr(3)) {
-            m_scratch_text +=
-                static_cast<char>(std::toupper(static_cast<unsigned char>(character)));
-        }
-        m_scratch_text += "_STRUCT_SIZE";
-
-        return m_scratch_text;
+    static constexpr std::string_view suffix = "Ops";
+    if (struct_name.size() > suffix.size() && struct_name.ends_with(suffix)) {
+        struct_name.remove_suffix(suffix.size());
     }
 
-    // "TF_Cache" -> "Cache"; "TF_CacheOps" -> "Cache"
-    std::string class_name(const std::string& domain)
-    {
-        static constexpr std::array<std::pair<std::string_view, std::string_view>, 2>
-            k_intern_names{{
-                {"TF_StringOps", "String"},
-                {"TF_StatusOps", "Status"},
-            }};
-        for (const auto& [struct_name, intern_name]: k_intern_names) {
-            if (domain == struct_name) {
-                return std::string{intern_name};
-            }
-        }
+    return struct_name;
+}
 
-        m_scratch_text = domain;
-        if (!m_scratch_text.empty()) {
-            m_scratch_text[0] =
-                static_cast<char>(std::toupper(static_cast<unsigned char>(m_scratch_text[0])));
-        }
+// "TF_Cache" -> "TF_CACHE_STRUCT_SIZE"; "TF_CacheOps" -> "TF_CACHE_STRUCT_SIZE"
+std::string struct_size_macro(std::string_view struct_name)
+{
+    std::string macro = "TF_";
+    for (char character: strip_ops_suffix(struct_name).substr(3)) {
+        macro += static_cast<char>(std::toupper(static_cast<unsigned char>(character)));
+    }
+    macro += "_STRUCT_SIZE";
 
-        return m_scratch_text;
+    return macro;
+}
+
+// "TF_CacheOps" -> "Cache"; "TF_StringOps" -> "String"; "TFParserDefinitionOps" -> "ParserDefinition"
+std::string class_name(std::string_view struct_name)
+{
+    std::string_view bare = strip_ops_suffix(struct_name);
+    if (bare.starts_with("TF_")) {
+        bare.remove_prefix(3);
+    } else if (bare.starts_with("TF")) {
+        bare.remove_prefix(2);
     }
 
-private:
-    // Ops-vtable structs are tagged "TF_XOps" (their handle owns the bare "TF_X" name instead,
-    // since C++ auto-injects a completed struct's tag as an ordinary type name — the vtable and its
-    // handle can't both be spelled "TF_X"). Domain/macro derivation still wants bare "TF_X".
-    static std::string strip_ops_suffix(const std::string& struct_name)
-    {
-        static constexpr std::string_view suffix = "Ops";
-        if (struct_name.size() > suffix.size() && struct_name.ends_with(suffix)) {
-            return struct_name.substr(0, struct_name.size() - suffix.size());
-        }
-        return struct_name;
+    std::string name{bare};
+    if (!name.empty()) {
+        name[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(name[0])));
     }
 
-    std::string m_scratch_text;
-};
+    return name;
+}
 
 } // namespace cc_abi_gen::parser::vtable

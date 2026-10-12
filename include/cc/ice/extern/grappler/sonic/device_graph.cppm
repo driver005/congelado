@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/grappler/device_graph.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_grappler_sonic:device_graph;
 
@@ -17,37 +17,46 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFGrapplerDeviceGraphOps :
+class GrapplerDeviceGraph :
     public ice::sonic::Runtime<::TFGrapplerDeviceGraphOps, ::TFGrapplerDeviceGraph>
 {
 public:
-    TFGrapplerDeviceGraphOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GrapplerDeviceGraph(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFGrapplerDeviceGraphOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    GrapplerDeviceGraph(
+        const ice::sonic::Registration& registry,
         ::TFGrapplerDeviceGraph* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFGrapplerDeviceGraphOps(const ::TFGrapplerDeviceGraphOps* ops) noexcept :
+    explicit GrapplerDeviceGraph(const ::TFGrapplerDeviceGraphOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFGrapplerDeviceGraphOps(
+    GrapplerDeviceGraph(
         const ::TFGrapplerDeviceGraphOps* ops,
         ::TFGrapplerDeviceGraph* handle
     ) noexcept :
@@ -66,8 +75,8 @@ public:
     }
 
     void capture_begin(
-        const ice::sonic::TF_StreamOps& capture_stream,
-        const TF_PoolId* pool_id,
+        const ice::sonic::Stream& capture_stream,
+        const ::TF_PoolId* pool_id,
         TF_CaptureMode mode,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -101,13 +110,13 @@ public:
         m_ops->reset(get_handle(), out_status.get_handle());
     }
 
-    void get_pool(TF_PoolId* out_pool_id) const noexcept
+    void get_pool(::TF_PoolId* out_pool_id) const noexcept
     {
         m_ops->get_pool(get_handle(), out_pool_id);
     }
 
     void register_random_generator(
-        const ice::sonic::TF_RandomGeneratorOps& generator,
+        const ice::sonic::RandomGenerator& generator,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -119,7 +128,7 @@ public:
     }
 
     void unregister_random_generator(
-        const ice::sonic::TF_RandomGeneratorOps& generator,
+        const ice::sonic::RandomGenerator& generator,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

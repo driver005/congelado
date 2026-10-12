@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/forward_list/forward_list.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 
 export module cc_ice_intern_forward_list_builder:forward_list;
@@ -16,38 +16,38 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_ForwardListOps
+class ForwardList
 {
 public:
-    explicit TF_ForwardListOps(const ::TF_StatusOps* Status_ops) noexcept :
+    explicit ForwardList(const ::TF_StatusOps* Status_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_Status_ops = Status_ops;
     }
 
-    TF_ForwardListOps(const TF_ForwardListOps&) = delete;
-    TF_ForwardListOps& operator=(const TF_ForwardListOps&) = delete;
+    ForwardList(const ForwardList&) = delete;
+    ForwardList& operator=(const ForwardList&) = delete;
 
-    static TF_ForwardListOps& from_handle(void* ctx) noexcept
+    static ForwardList& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_ForwardListOps*>(ctx);
+        return *static_cast<ForwardList*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ForwardListOps& from_handle(HandleT* handle) noexcept
+    static ForwardList& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_ForwardListOps*>(handle->plugin_data);
+        return *static_cast<ForwardList*>(handle->plugin_data);
     }
 
-    virtual ~TF_ForwardListOps() = default;
+    virtual ~ForwardList() = default;
     virtual void destroy() noexcept = 0;
     virtual void set_element_size(size_t element_size) noexcept = 0;
     virtual void push_front(
         const void* value,
-        TFForwardListNode* out_node,
+        ::TFForwardListNode* out_node,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
-    virtual void erase_after(TFForwardListNode* node) noexcept = 0;
+    virtual void erase_after(::TFForwardListNode* node) noexcept = 0;
     virtual void for_each(TF_ForwardListVisitor visitor, void* capture) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_ForwardList*)) noexcept
@@ -57,24 +57,24 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_ForwardList* handle) noexcept
+                [](::TF_ForwardList* handle) noexcept
             {
-                auto& self = TF_ForwardListOps::from_handle(handle);
+                auto& self = ForwardList::from_handle(handle);
                 self.destroy();
             },
             .set_element_size =
-                [](TF_ForwardList* list, size_t element_size) noexcept
+                [](::TF_ForwardList* list, size_t element_size) noexcept
             {
-                auto& self = TF_ForwardListOps::from_handle(list);
+                auto& self = ForwardList::from_handle(list);
                 self.set_element_size(element_size);
             },
             .push_front =
-                [](TF_ForwardList* list,
+                [](::TF_ForwardList* list,
                    const void* value,
-                   TFForwardListNode* out_node,
-                   TF_Status* out_status) noexcept
+                   ::TFForwardListNode* out_node,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_ForwardListOps::from_handle(list);
+                auto& self = ForwardList::from_handle(list);
                 self.push_front(
                     value,
                     out_node,
@@ -82,17 +82,17 @@ public:
                 );
             },
             .erase_after =
-                [](TF_ForwardList* list, TFForwardListNode* node) noexcept
+                [](::TF_ForwardList* list, ::TFForwardListNode* node) noexcept
             {
-                auto& self = TF_ForwardListOps::from_handle(list);
+                auto& self = ForwardList::from_handle(list);
                 self.erase_after(node);
             },
             .for_each =
-                [](const TF_ForwardList* list,
+                [](const ::TF_ForwardList* list,
                    TF_ForwardListVisitor visitor,
                    void* capture) noexcept
             {
-                auto& self = TF_ForwardListOps::from_handle(list);
+                auto& self = ForwardList::from_handle(list);
                 self.for_each(visitor, capture);
             },
 
@@ -116,18 +116,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_ForwardListOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_ForwardListOps*>(&m_vtable));
     }
 
 private:

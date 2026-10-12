@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/hive/hive.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 
 export module cc_ice_intern_hive_builder:hive;
@@ -16,40 +16,40 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_HiveOps
+class Hive
 {
 public:
-    explicit TF_HiveOps(const ::TF_StatusOps* Status_ops) noexcept :
+    explicit Hive(const ::TF_StatusOps* Status_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_Status_ops = Status_ops;
     }
 
-    TF_HiveOps(const TF_HiveOps&) = delete;
-    TF_HiveOps& operator=(const TF_HiveOps&) = delete;
+    Hive(const Hive&) = delete;
+    Hive& operator=(const Hive&) = delete;
 
-    static TF_HiveOps& from_handle(void* ctx) noexcept
+    static Hive& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_HiveOps*>(ctx);
+        return *static_cast<Hive*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_HiveOps& from_handle(HandleT* handle) noexcept
+    static Hive& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_HiveOps*>(handle->plugin_data);
+        return *static_cast<Hive*>(handle->plugin_data);
     }
 
-    virtual ~TF_HiveOps() = default;
+    virtual ~Hive() = default;
     virtual void destroy() noexcept = 0;
     virtual void set_element_size(size_t element_size) noexcept = 0;
     virtual void insert(
         const void* value,
-        TFHiveSlot* out_slot,
+        ::TFHiveSlot* out_slot,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
-    virtual void erase(TFHiveSlot* slot, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void erase(::TFHiveSlot* slot, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void
-    get(const TFHiveSlot* slot,
+    get(const ::TFHiveSlot* slot,
         const void** out_value,
         const ice::sonic::Status& out_status) noexcept = 0;
     virtual void for_each(TF_HiveVisitor visitor, void* capture) noexcept = 0;
@@ -62,24 +62,24 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Hive* handle) noexcept
+                [](::TF_Hive* handle) noexcept
             {
-                auto& self = TF_HiveOps::from_handle(handle);
+                auto& self = Hive::from_handle(handle);
                 self.destroy();
             },
             .set_element_size =
-                [](TF_Hive* hive, size_t element_size) noexcept
+                [](::TF_Hive* hive, size_t element_size) noexcept
             {
-                auto& self = TF_HiveOps::from_handle(hive);
+                auto& self = Hive::from_handle(hive);
                 self.set_element_size(element_size);
             },
             .insert =
-                [](TF_Hive* hive,
+                [](::TF_Hive* hive,
                    const void* value,
-                   TFHiveSlot* out_slot,
-                   TF_Status* out_status) noexcept
+                   ::TFHiveSlot* out_slot,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_HiveOps::from_handle(hive);
+                auto& self = Hive::from_handle(hive);
                 self.insert(
                     value,
                     out_slot,
@@ -87,18 +87,18 @@ public:
                 );
             },
             .erase =
-                [](TF_Hive* hive, TFHiveSlot* slot, TF_Status* out_status) noexcept
+                [](::TF_Hive* hive, ::TFHiveSlot* slot, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_HiveOps::from_handle(hive);
+                auto& self = Hive::from_handle(hive);
                 self.erase(slot, self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .get =
-                [](const TF_Hive* hive,
-                   const TFHiveSlot* slot,
+                [](const ::TF_Hive* hive,
+                   const ::TFHiveSlot* slot,
                    const void** out_value,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_HiveOps::from_handle(hive);
+                auto& self = Hive::from_handle(hive);
                 self.get(
                     slot,
                     out_value,
@@ -106,15 +106,15 @@ public:
                 );
             },
             .for_each =
-                [](const TF_Hive* hive, TF_HiveVisitor visitor, void* capture) noexcept
+                [](const ::TF_Hive* hive, TF_HiveVisitor visitor, void* capture) noexcept
             {
-                auto& self = TF_HiveOps::from_handle(hive);
+                auto& self = Hive::from_handle(hive);
                 self.for_each(visitor, capture);
             },
             .size =
-                [](const TF_Hive* hive, size_t* out_size) noexcept
+                [](const ::TF_Hive* hive, size_t* out_size) noexcept
             {
-                auto& self = TF_HiveOps::from_handle(hive);
+                auto& self = Hive::from_handle(hive);
                 self.size(out_size);
             },
 
@@ -138,18 +138,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_HiveOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_HiveOps*>(&m_vtable));
     }
 
 private:

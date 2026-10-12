@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/io/server.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_io_sonic:server;
 
@@ -17,36 +17,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_ServerOps : public ice::sonic::Runtime<::TF_ServerOps, ::TF_Server>
+class Server : public ice::sonic::Runtime<::TF_ServerOps, ::TF_Server>
 {
 public:
-    TF_ServerOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Server(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_ServerOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Server(
+        const ice::sonic::Registration& registry,
         ::TF_Server* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_ServerOps(const ::TF_ServerOps* ops) noexcept :
+    explicit Server(const ::TF_ServerOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_ServerOps(const ::TF_ServerOps* ops, ::TF_Server* handle) noexcept :
+    Server(const ::TF_ServerOps* ops, ::TF_Server* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -146,7 +155,7 @@ public:
 
     void find_connection(
         const ice::sonic::String& connection_id,
-        const ice::sonic::TFServerConnectionOps& out_connection,
+        const ice::sonic::ServerConnection& out_connection,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -159,7 +168,7 @@ public:
     }
 
     void broadcast(
-        const ice::sonic::TF_ResponseOps& response,
+        const ice::sonic::Response& response,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -167,7 +176,7 @@ public:
     }
 
     void list_connections(
-        const ice::sonic::TF_VectorOps& out_connections,
+        const ice::sonic::Vector& out_connections,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -181,7 +190,7 @@ public:
     }
 
     void get_stats(
-        const ice::sonic::TF_MapOps& out_stats,
+        const ice::sonic::Map& out_stats,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -190,7 +199,7 @@ public:
 
     void register_extension(
         const ice::sonic::String& name,
-        const ice::sonic::TF_MapOps& config,
+        const ice::sonic::Map& config,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -211,7 +220,7 @@ public:
     }
 
     void list_extensions(
-        const ice::sonic::TF_VectorOps& out_names,
+        const ice::sonic::Vector& out_names,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

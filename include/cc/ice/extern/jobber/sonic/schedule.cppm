@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/jobber/schedule.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_jobber_sonic:schedule;
 
@@ -16,36 +16,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_ScheduleOps : public ice::sonic::Runtime<::TF_ScheduleOps, ::TF_Schedule>
+class Schedule : public ice::sonic::Runtime<::TF_ScheduleOps, ::TF_Schedule>
 {
 public:
-    TF_ScheduleOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Schedule(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_ScheduleOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Schedule(
+        const ice::sonic::Registration& registry,
         ::TF_Schedule* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_ScheduleOps(const ::TF_ScheduleOps* ops) noexcept :
+    explicit Schedule(const ::TF_ScheduleOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_ScheduleOps(const ::TF_ScheduleOps* ops, ::TF_Schedule* handle) noexcept :
+    Schedule(const ::TF_ScheduleOps* ops, ::TF_Schedule* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -61,8 +70,8 @@ public:
     }
 
     void add_dependency(
-        const ice::sonic::TF_JobOps& job,
-        const ice::sonic::TF_JobOps& depends_on,
+        const ice::sonic::Job& job,
+        const ice::sonic::Job& depends_on,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -75,8 +84,8 @@ public:
     }
 
     void list_dependencies(
-        const ice::sonic::TF_JobOps& job,
-        const ice::sonic::TF_VectorOps& out_job_ids,
+        const ice::sonic::Job& job,
+        const ice::sonic::Vector& out_job_ids,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -88,31 +97,22 @@ public:
         );
     }
 
-    void pause(
-        const ice::sonic::TF_JobOps& job,
-        const ice::sonic::Status& out_status
-    ) const noexcept
+    void pause(const ice::sonic::Job& job, const ice::sonic::Status& out_status) const noexcept
     {
         m_ops->pause(get_handle(), job.get_handle(), out_status.get_handle());
     }
 
-    void resume(
-        const ice::sonic::TF_JobOps& job,
-        const ice::sonic::Status& out_status
-    ) const noexcept
+    void resume(const ice::sonic::Job& job, const ice::sonic::Status& out_status) const noexcept
     {
         m_ops->resume(get_handle(), job.get_handle(), out_status.get_handle());
     }
 
-    void cancel(
-        const ice::sonic::TF_JobOps& job,
-        const ice::sonic::Status& out_status
-    ) const noexcept
+    void cancel(const ice::sonic::Job& job, const ice::sonic::Status& out_status) const noexcept
     {
         m_ops->cancel(get_handle(), job.get_handle(), out_status.get_handle());
     }
 
-    void stop(const ice::sonic::TF_JobOps& job, const ice::sonic::Status& out_status) const noexcept
+    void stop(const ice::sonic::Job& job, const ice::sonic::Status& out_status) const noexcept
     {
         m_ops->stop(get_handle(), job.get_handle(), out_status.get_handle());
     }

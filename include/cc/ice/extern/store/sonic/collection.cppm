@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/extern/store/collection.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_store_sonic:collection;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFStoreCollectionOps : public ice::sonic::Runtime<::TFStoreCollectionOps, ::TFStoreCollection>
+class StoreCollection : public ice::sonic::Runtime<::TFStoreCollectionOps, ::TFStoreCollection>
 {
 public:
-    TFStoreCollectionOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    StoreCollection(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFStoreCollectionOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    StoreCollection(
+        const ice::sonic::Registration& registry,
         ::TFStoreCollection* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFStoreCollectionOps(const ::TFStoreCollectionOps* ops) noexcept :
+    explicit StoreCollection(const ::TFStoreCollectionOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFStoreCollectionOps(const ::TFStoreCollectionOps* ops, ::TFStoreCollection* handle) noexcept :
+    StoreCollection(const ::TFStoreCollectionOps* ops, ::TFStoreCollection* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -65,7 +74,7 @@ public:
     }
 
     void list(
-        const ice::sonic::TF_VectorOps& out_names,
+        const ice::sonic::Vector& out_names,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -78,7 +87,7 @@ public:
     }
 
     void get_stats(
-        const ice::sonic::TF_MapOps& out_stats,
+        const ice::sonic::Map& out_stats,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -96,7 +105,7 @@ public:
     }
 
     void multi_get(
-        const ice::sonic::TF_VectorOps& keys,
+        const ice::sonic::Vector& keys,
         TFStoreMultiGetCompletionFn completion,
         void* user_data,
         const ice::sonic::Status& out_status
@@ -132,7 +141,7 @@ public:
     }
 
     void multi_set(
-        const ice::sonic::TF_MapOps& entries,
+        const ice::sonic::Map& entries,
         int64_t ttl_seconds,
         TFStoreAckFn completion,
         void* user_data,
@@ -161,7 +170,7 @@ public:
     }
 
     void multi_erase(
-        const ice::sonic::TF_VectorOps& keys,
+        const ice::sonic::Vector& keys,
         TFStoreAckFn completion,
         void* user_data,
         const ice::sonic::Status& out_status

@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/otel/tracer.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_otel_sonic:tracer;
 
@@ -16,36 +16,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFOtelTracerOps : public ice::sonic::Runtime<::TFOtelTracerOps, ::TFOtelTracer>
+class OtelTracer : public ice::sonic::Runtime<::TFOtelTracerOps, ::TFOtelTracer>
 {
 public:
-    TFOtelTracerOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    OtelTracer(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFOtelTracerOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    OtelTracer(
+        const ice::sonic::Registration& registry,
         ::TFOtelTracer* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFOtelTracerOps(const ::TFOtelTracerOps* ops) noexcept :
+    explicit OtelTracer(const ::TFOtelTracerOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFOtelTracerOps(const ::TFOtelTracerOps* ops, ::TFOtelTracer* handle) noexcept :
+    OtelTracer(const ::TFOtelTracerOps* ops, ::TFOtelTracer* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -68,7 +77,7 @@ public:
     void start_span(
         const ice::sonic::String& name,
         int kind,
-        const ice::sonic::TFOtelSpanOps& out_span,
+        const ice::sonic::OtelSpan& out_span,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

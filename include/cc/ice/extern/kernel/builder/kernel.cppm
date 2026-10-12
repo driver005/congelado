@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/kernel/kernel.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_kernel_builder:kernel;
@@ -16,30 +16,30 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_KernelOps
+class Kernel
 {
 public:
-    explicit TF_KernelOps(const ::TF_StringOps* String_ops) noexcept :
+    explicit Kernel(const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_String_ops = String_ops;
     }
 
-    TF_KernelOps(const TF_KernelOps&) = delete;
-    TF_KernelOps& operator=(const TF_KernelOps&) = delete;
+    Kernel(const Kernel&) = delete;
+    Kernel& operator=(const Kernel&) = delete;
 
-    static TF_KernelOps& from_handle(void* ctx) noexcept
+    static Kernel& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_KernelOps*>(ctx);
+        return *static_cast<Kernel*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_KernelOps& from_handle(HandleT* handle) noexcept
+    static Kernel& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_KernelOps*>(handle->plugin_data);
+        return *static_cast<Kernel*>(handle->plugin_data);
     }
 
-    virtual ~TF_KernelOps() = default;
+    virtual ~Kernel() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
 
@@ -50,15 +50,15 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Kernel* handle) noexcept
+                [](::TF_Kernel* handle) noexcept
             {
-                auto& self = TF_KernelOps::from_handle(handle);
+                auto& self = Kernel::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TF_Kernel* kernel, TF_String* out_name) noexcept
+                [](::TF_Kernel* kernel, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_KernelOps::from_handle(kernel);
+                auto& self = Kernel::from_handle(kernel);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
 
@@ -82,18 +82,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_KernelOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_KernelOps*>(&m_vtable));
     }
 
 private:

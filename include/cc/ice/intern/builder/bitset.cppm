@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/bitset.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 
 export module cc_ice_intern_builder:bitset;
@@ -16,30 +16,30 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_BitSetOps
+class BitSet
 {
 public:
-    explicit TF_BitSetOps(const ::TF_StatusOps* Status_ops) noexcept :
+    explicit BitSet(const ::TF_StatusOps* Status_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_Status_ops = Status_ops;
     }
 
-    TF_BitSetOps(const TF_BitSetOps&) = delete;
-    TF_BitSetOps& operator=(const TF_BitSetOps&) = delete;
+    BitSet(const BitSet&) = delete;
+    BitSet& operator=(const BitSet&) = delete;
 
-    static TF_BitSetOps& from_handle(void* ctx) noexcept
+    static BitSet& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_BitSetOps*>(ctx);
+        return *static_cast<BitSet*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_BitSetOps& from_handle(HandleT* handle) noexcept
+    static BitSet& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_BitSetOps*>(handle->plugin_data);
+        return *static_cast<BitSet*>(handle->plugin_data);
     }
 
-    virtual ~TF_BitSetOps() = default;
+    virtual ~BitSet() = default;
     virtual void destroy() noexcept = 0;
     virtual void set(size_t index) noexcept = 0;
     virtual void clear(size_t index) noexcept = 0;
@@ -56,30 +56,30 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_BitSet* handle) noexcept
+                [](::TF_BitSet* handle) noexcept
             {
-                auto& self = TF_BitSetOps::from_handle(handle);
+                auto& self = BitSet::from_handle(handle);
                 self.destroy();
             },
             .set =
-                [](TF_BitSet* bitset, size_t index) noexcept
+                [](::TF_BitSet* bitset, size_t index) noexcept
             {
-                auto& self = TF_BitSetOps::from_handle(bitset);
+                auto& self = BitSet::from_handle(bitset);
                 self.set(index);
             },
             .clear =
-                [](TF_BitSet* bitset, size_t index) noexcept
+                [](::TF_BitSet* bitset, size_t index) noexcept
             {
-                auto& self = TF_BitSetOps::from_handle(bitset);
+                auto& self = BitSet::from_handle(bitset);
                 self.clear(index);
             },
             .test =
-                [](const TF_BitSet* bitset,
+                [](const ::TF_BitSet* bitset,
                    size_t index,
                    int* out_result,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_BitSetOps::from_handle(bitset);
+                auto& self = BitSet::from_handle(bitset);
                 self.test(
                     index,
                     out_result,
@@ -87,21 +87,21 @@ public:
                 );
             },
             .flip =
-                [](TF_BitSet* bitset, size_t index, TF_Status* out_status) noexcept
+                [](::TF_BitSet* bitset, size_t index, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_BitSetOps::from_handle(bitset);
+                auto& self = BitSet::from_handle(bitset);
                 self.flip(index, self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .count =
-                [](const TF_BitSet* bitset, size_t* out_count) noexcept
+                [](const ::TF_BitSet* bitset, size_t* out_count) noexcept
             {
-                auto& self = TF_BitSetOps::from_handle(bitset);
+                auto& self = BitSet::from_handle(bitset);
                 self.count(out_count);
             },
             .size =
-                [](const TF_BitSet* bitset, size_t* out_size) noexcept
+                [](const ::TF_BitSet* bitset, size_t* out_size) noexcept
             {
-                auto& self = TF_BitSetOps::from_handle(bitset);
+                auto& self = BitSet::from_handle(bitset);
                 self.size(out_size);
             },
 
@@ -125,18 +125,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_BitSetOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_BitSetOps*>(&m_vtable));
     }
 
 private:

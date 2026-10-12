@@ -7,7 +7,7 @@ module;
 
 #include "include/c/extern/jobber/job.h"
 #include "include/c/extern/jobber/options.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 
 export module cc_ice_extern_jobber_builder:options;
@@ -18,47 +18,44 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_OptionsOps
+class Options
 {
 public:
-    explicit TF_OptionsOps(
-        const ::TF_JobOps* TF_JobOps_ops,
-        const ::TF_StatusOps* Status_ops
-    ) noexcept :
+    explicit Options(const ::TF_JobOps* Job_ops, const ::TF_StatusOps* Status_ops) noexcept :
         m_handle{.plugin_data = this}
     {
-        m_TF_JobOps_ops = TF_JobOps_ops;
+        m_Job_ops = Job_ops;
         m_Status_ops = Status_ops;
     }
 
-    TF_OptionsOps(const TF_OptionsOps&) = delete;
-    TF_OptionsOps& operator=(const TF_OptionsOps&) = delete;
+    Options(const Options&) = delete;
+    Options& operator=(const Options&) = delete;
 
-    static TF_OptionsOps& from_handle(void* ctx) noexcept
+    static Options& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_OptionsOps*>(ctx);
+        return *static_cast<Options*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_OptionsOps& from_handle(HandleT* handle) noexcept
+    static Options& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_OptionsOps*>(handle->plugin_data);
+        return *static_cast<Options*>(handle->plugin_data);
     }
 
-    virtual ~TF_OptionsOps() = default;
+    virtual ~Options() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_options(
-        const ice::sonic::TF_JobOps& job,
-        TFJobOptions* out_options,
+        const ice::sonic::Job& job,
+        ::TFJobOptions* out_options,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void update_options(
-        const ice::sonic::TF_JobOps& job,
-        const TFJobOptions* new_options,
+        const ice::sonic::Job& job,
+        const ::TFJobOptions* new_options,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void set_priority(
-        const ice::sonic::TF_JobOps& job,
+        const ice::sonic::Job& job,
         int priority,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
@@ -70,43 +67,46 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Options* handle) noexcept
+                [](::TF_Options* handle) noexcept
             {
-                auto& self = TF_OptionsOps::from_handle(handle);
+                auto& self = Options::from_handle(handle);
                 self.destroy();
             },
             .get_options =
-                [](TF_Options* options,
-                   TF_Job* job,
-                   TFJobOptions* out_options,
-                   TF_Status* out_status) noexcept
+                [](::TF_Options* options,
+                   ::TF_Job* job,
+                   ::TFJobOptions* out_options,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_OptionsOps::from_handle(options);
+                auto& self = Options::from_handle(options);
                 self.get_options(
-                    self.wrap(std::type_identity<ice::sonic::TF_JobOps>{}, job),
+                    self.wrap(std::type_identity<ice::sonic::Job>{}, job),
                     out_options,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .update_options =
-                [](TF_Options* options,
-                   TF_Job* job,
-                   const TFJobOptions* new_options,
-                   TF_Status* out_status) noexcept
+                [](::TF_Options* options,
+                   ::TF_Job* job,
+                   const ::TFJobOptions* new_options,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_OptionsOps::from_handle(options);
+                auto& self = Options::from_handle(options);
                 self.update_options(
-                    self.wrap(std::type_identity<ice::sonic::TF_JobOps>{}, job),
+                    self.wrap(std::type_identity<ice::sonic::Job>{}, job),
                     new_options,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .set_priority =
-                [](TF_Options* options, TF_Job* job, int priority, TF_Status* out_status) noexcept
+                [](::TF_Options* options,
+                   ::TF_Job* job,
+                   int priority,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_OptionsOps::from_handle(options);
+                auto& self = Options::from_handle(options);
                 self.set_priority(
-                    self.wrap(std::type_identity<ice::sonic::TF_JobOps>{}, job),
+                    self.wrap(std::type_identity<ice::sonic::Job>{}, job),
                     priority,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
@@ -115,10 +115,9 @@ public:
         };
     }
 
-    ice::sonic::TF_JobOps
-    wrap(std::type_identity<ice::sonic::TF_JobOps>, const ::TF_Job* handle) const noexcept
+    ice::sonic::Job wrap(std::type_identity<ice::sonic::Job>, const ::TF_Job* handle) const noexcept
     {
-        return ice::sonic::TF_JobOps{m_TF_JobOps_ops, const_cast<::TF_Job*>(handle)};
+        return ice::sonic::Job{m_Job_ops, const_cast<::TF_Job*>(handle)};
     }
 
     ice::sonic::Status
@@ -138,25 +137,19 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_OptionsOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_OptionsOps*>(&m_vtable));
     }
 
 private:
     ::TF_OptionsOps m_vtable;
     ::TF_Options m_handle;
 
-    const ::TF_JobOps* m_TF_JobOps_ops{nullptr};
+    const ::TF_JobOps* m_Job_ops{nullptr};
 
     const ::TF_StatusOps* m_Status_ops{nullptr};
 };

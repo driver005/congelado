@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/jobber/task.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_jobber_sonic:task;
 
@@ -16,36 +16,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_TaskOps : public ice::sonic::Runtime<::TF_TaskOps, ::TF_Task>
+class Task : public ice::sonic::Runtime<::TF_TaskOps, ::TF_Task>
 {
 public:
-    TF_TaskOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Task(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_TaskOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Task(
+        const ice::sonic::Registration& registry,
         ::TF_Task* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_TaskOps(const ::TF_TaskOps* ops) noexcept :
+    explicit Task(const ::TF_TaskOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_TaskOps(const ::TF_TaskOps* ops, ::TF_Task* handle) noexcept :
+    Task(const ::TF_TaskOps* ops, ::TF_Task* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -77,7 +86,7 @@ public:
     void create_task(
         const ice::sonic::String& node_ref,
         const ice::sonic::String& input,
-        const ice::sonic::TF_JobOps& out_child,
+        const ice::sonic::Job& out_child,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -92,14 +101,14 @@ public:
 
     void get_task(
         const ice::sonic::String& node_ref,
-        const ice::sonic::TF_JobOps& out_child
+        const ice::sonic::Job& out_child
     ) const noexcept
     {
         m_ops->get_task(get_handle(), node_ref.get_handle(), out_child.get_handle());
     }
 
     void list_tasks(
-        const ice::sonic::TF_VectorOps& out_node_refs,
+        const ice::sonic::Vector& out_node_refs,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

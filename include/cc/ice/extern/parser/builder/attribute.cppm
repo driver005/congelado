@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/parser/attribute.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -17,10 +17,10 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TFParserAttributeOps
+class ParserAttribute
 {
 public:
-    explicit TFParserAttributeOps(
+    explicit ParserAttribute(
         const ::TF_StatusOps* Status_ops,
         const ::TF_StringOps* String_ops
     ) noexcept :
@@ -30,26 +30,26 @@ public:
         m_String_ops = String_ops;
     }
 
-    TFParserAttributeOps(const TFParserAttributeOps&) = delete;
-    TFParserAttributeOps& operator=(const TFParserAttributeOps&) = delete;
+    ParserAttribute(const ParserAttribute&) = delete;
+    ParserAttribute& operator=(const ParserAttribute&) = delete;
 
-    static TFParserAttributeOps& from_handle(void* ctx) noexcept
+    static ParserAttribute& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TFParserAttributeOps*>(ctx);
+        return *static_cast<ParserAttribute*>(ctx);
     }
 
     template<typename HandleT>
-    static TFParserAttributeOps& from_handle(HandleT* handle) noexcept
+    static ParserAttribute& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TFParserAttributeOps*>(handle->plugin_data);
+        return *static_cast<ParserAttribute*>(handle->plugin_data);
     }
 
-    virtual ~TFParserAttributeOps() = default;
+    virtual ~ParserAttribute() = default;
     virtual void destroy() noexcept = 0;
     virtual void
     get_name(const ice::sonic::String& out_name, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void
-    get_value(TF_Tensor** out_value, const ice::sonic::Status& out_status) noexcept = 0;
+    get_value(::TF_Tensor** out_value, const ice::sonic::Status& out_status) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TFParserAttribute*)) noexcept
     {
@@ -58,28 +58,28 @@ public:
 
             .create = create,
             .destroy =
-                [](TFParserAttribute* handle) noexcept
+                [](::TFParserAttribute* handle) noexcept
             {
-                auto& self = TFParserAttributeOps::from_handle(handle);
+                auto& self = ParserAttribute::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TFParserAttribute* attribute,
-                   TF_String* out_name,
-                   TF_Status* out_status) noexcept
+                [](::TFParserAttribute* attribute,
+                   ::TF_String* out_name,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFParserAttributeOps::from_handle(attribute);
+                auto& self = ParserAttribute::from_handle(attribute);
                 self.get_name(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_name),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .get_value =
-                [](TFParserAttribute* attribute,
-                   TF_Tensor** out_value,
-                   TF_Status* out_status) noexcept
+                [](::TFParserAttribute* attribute,
+                   ::TF_Tensor** out_value,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFParserAttributeOps::from_handle(attribute);
+                auto& self = ParserAttribute::from_handle(attribute);
                 self.get_value(
                     out_value,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
@@ -112,18 +112,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TFParserAttributeOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TFParserAttributeOps*>(&m_vtable));
     }
 
 private:

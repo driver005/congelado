@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/filesystem/read_only_memory_region.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_filesystem_builder:read_only_memory_region;
@@ -16,30 +16,30 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_ReadOnlyMemoryRegionOps
+class ReadOnlyMemoryRegion
 {
 public:
-    explicit TF_ReadOnlyMemoryRegionOps(const ::TF_StringOps* String_ops) noexcept :
+    explicit ReadOnlyMemoryRegion(const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_String_ops = String_ops;
     }
 
-    TF_ReadOnlyMemoryRegionOps(const TF_ReadOnlyMemoryRegionOps&) = delete;
-    TF_ReadOnlyMemoryRegionOps& operator=(const TF_ReadOnlyMemoryRegionOps&) = delete;
+    ReadOnlyMemoryRegion(const ReadOnlyMemoryRegion&) = delete;
+    ReadOnlyMemoryRegion& operator=(const ReadOnlyMemoryRegion&) = delete;
 
-    static TF_ReadOnlyMemoryRegionOps& from_handle(void* ctx) noexcept
+    static ReadOnlyMemoryRegion& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_ReadOnlyMemoryRegionOps*>(ctx);
+        return *static_cast<ReadOnlyMemoryRegion*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_ReadOnlyMemoryRegionOps& from_handle(HandleT* handle) noexcept
+    static ReadOnlyMemoryRegion& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_ReadOnlyMemoryRegionOps*>(handle->plugin_data);
+        return *static_cast<ReadOnlyMemoryRegion*>(handle->plugin_data);
     }
 
-    virtual ~TF_ReadOnlyMemoryRegionOps() = default;
+    virtual ~ReadOnlyMemoryRegion() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void data(const void** out_data) noexcept = 0;
@@ -52,27 +52,27 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_ReadOnlyMemoryRegion* handle) noexcept
+                [](::TF_ReadOnlyMemoryRegion* handle) noexcept
             {
-                auto& self = TF_ReadOnlyMemoryRegionOps::from_handle(handle);
+                auto& self = ReadOnlyMemoryRegion::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TF_ReadOnlyMemoryRegion* region, TF_String* out_name) noexcept
+                [](::TF_ReadOnlyMemoryRegion* region, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_ReadOnlyMemoryRegionOps::from_handle(region);
+                auto& self = ReadOnlyMemoryRegion::from_handle(region);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .data =
-                [](TF_ReadOnlyMemoryRegion* region, const void** out_data) noexcept
+                [](::TF_ReadOnlyMemoryRegion* region, const void** out_data) noexcept
             {
-                auto& self = TF_ReadOnlyMemoryRegionOps::from_handle(region);
+                auto& self = ReadOnlyMemoryRegion::from_handle(region);
                 self.data(out_data);
             },
             .length =
-                [](TF_ReadOnlyMemoryRegion* region, uint64_t* out_length) noexcept
+                [](::TF_ReadOnlyMemoryRegion* region, uint64_t* out_length) noexcept
             {
-                auto& self = TF_ReadOnlyMemoryRegionOps::from_handle(region);
+                auto& self = ReadOnlyMemoryRegion::from_handle(region);
                 self.length(out_length);
             },
 
@@ -96,18 +96,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_ReadOnlyMemoryRegionOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_ReadOnlyMemoryRegionOps*>(&m_vtable));
     }
 
 private:

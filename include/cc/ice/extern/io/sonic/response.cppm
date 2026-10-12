@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/io/response.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_io_sonic:response;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_ResponseOps : public ice::sonic::Runtime<::TF_ResponseOps, ::TF_Response>
+class Response : public ice::sonic::Runtime<::TF_ResponseOps, ::TF_Response>
 {
 public:
-    TF_ResponseOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Response(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_ResponseOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Response(
+        const ice::sonic::Registration& registry,
         ::TF_Response* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_ResponseOps(const ::TF_ResponseOps* ops) noexcept :
+    explicit Response(const ::TF_ResponseOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_ResponseOps(const ::TF_ResponseOps* ops, ::TF_Response* handle) noexcept :
+    Response(const ::TF_ResponseOps* ops, ::TF_Response* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -121,7 +130,7 @@ public:
     }
 
     void get_headers(
-        const ice::sonic::TF_MapOps& out_headers,
+        const ice::sonic::Map& out_headers,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -155,7 +164,7 @@ public:
     void set_cookie(
         const ice::sonic::String& name,
         const ice::sonic::String& value,
-        const ice::sonic::TF_MapOps& attributes,
+        const ice::sonic::Map& attributes,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -169,7 +178,7 @@ public:
     }
 
     void get_set_cookies(
-        const ice::sonic::TF_VectorOps& out_cookies,
+        const ice::sonic::Vector& out_cookies,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

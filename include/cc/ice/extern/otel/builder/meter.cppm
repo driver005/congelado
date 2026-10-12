@@ -8,7 +8,7 @@ module;
 #include "include/c/extern/otel/counter.h"
 #include "include/c/extern/otel/histogram.h"
 #include "include/c/extern/otel/meter.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -20,52 +20,52 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TFOtelMeterOps
+class OtelMeter
 {
 public:
-    explicit TFOtelMeterOps(
-        const ::TFOtelCounterOps* TFOtelCounterOps_ops,
-        const ::TFOtelHistogramOps* TFOtelHistogramOps_ops,
+    explicit OtelMeter(
+        const ::TFOtelCounterOps* OtelCounter_ops,
+        const ::TFOtelHistogramOps* OtelHistogram_ops,
         const ::TF_StatusOps* Status_ops,
         const ::TF_StringOps* String_ops
     ) noexcept :
         m_handle{.plugin_data = this}
     {
-        m_TFOtelCounterOps_ops = TFOtelCounterOps_ops;
-        m_TFOtelHistogramOps_ops = TFOtelHistogramOps_ops;
+        m_OtelCounter_ops = OtelCounter_ops;
+        m_OtelHistogram_ops = OtelHistogram_ops;
         m_Status_ops = Status_ops;
         m_String_ops = String_ops;
     }
 
-    TFOtelMeterOps(const TFOtelMeterOps&) = delete;
-    TFOtelMeterOps& operator=(const TFOtelMeterOps&) = delete;
+    OtelMeter(const OtelMeter&) = delete;
+    OtelMeter& operator=(const OtelMeter&) = delete;
 
-    static TFOtelMeterOps& from_handle(void* ctx) noexcept
+    static OtelMeter& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TFOtelMeterOps*>(ctx);
+        return *static_cast<OtelMeter*>(ctx);
     }
 
     template<typename HandleT>
-    static TFOtelMeterOps& from_handle(HandleT* handle) noexcept
+    static OtelMeter& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TFOtelMeterOps*>(handle->plugin_data);
+        return *static_cast<OtelMeter*>(handle->plugin_data);
     }
 
-    virtual ~TFOtelMeterOps() = default;
+    virtual ~OtelMeter() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void create_counter(
         const ice::sonic::String& name,
         const ice::sonic::String& description,
         const ice::sonic::String& unit,
-        const ice::sonic::TFOtelCounterOps& out_counter,
+        const ice::sonic::OtelCounter& out_counter,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void create_histogram(
         const ice::sonic::String& name,
         const ice::sonic::String& description,
         const ice::sonic::String& unit,
-        const ice::sonic::TFOtelHistogramOps& out_histogram,
+        const ice::sonic::OtelHistogram& out_histogram,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
 
@@ -76,48 +76,48 @@ public:
 
             .create = create,
             .destroy =
-                [](TFOtelMeter* handle) noexcept
+                [](::TFOtelMeter* handle) noexcept
             {
-                auto& self = TFOtelMeterOps::from_handle(handle);
+                auto& self = OtelMeter::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TFOtelMeter* meter, TF_String* out_name) noexcept
+                [](::TFOtelMeter* meter, ::TF_String* out_name) noexcept
             {
-                auto& self = TFOtelMeterOps::from_handle(meter);
+                auto& self = OtelMeter::from_handle(meter);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .create_counter =
-                [](TFOtelMeter* meter,
-                   const TF_String* name,
-                   const TF_String* description,
-                   const TF_String* unit,
-                   TFOtelCounter* out_counter,
-                   TF_Status* out_status) noexcept
+                [](::TFOtelMeter* meter,
+                   const ::TF_String* name,
+                   const ::TF_String* description,
+                   const ::TF_String* unit,
+                   ::TFOtelCounter* out_counter,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFOtelMeterOps::from_handle(meter);
+                auto& self = OtelMeter::from_handle(meter);
                 self.create_counter(
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
                     self.wrap(std::type_identity<ice::sonic::String>{}, description),
                     self.wrap(std::type_identity<ice::sonic::String>{}, unit),
-                    self.wrap(std::type_identity<ice::sonic::TFOtelCounterOps>{}, out_counter),
+                    self.wrap(std::type_identity<ice::sonic::OtelCounter>{}, out_counter),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .create_histogram =
-                [](TFOtelMeter* meter,
-                   const TF_String* name,
-                   const TF_String* description,
-                   const TF_String* unit,
-                   TFOtelHistogram* out_histogram,
-                   TF_Status* out_status) noexcept
+                [](::TFOtelMeter* meter,
+                   const ::TF_String* name,
+                   const ::TF_String* description,
+                   const ::TF_String* unit,
+                   ::TFOtelHistogram* out_histogram,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TFOtelMeterOps::from_handle(meter);
+                auto& self = OtelMeter::from_handle(meter);
                 self.create_histogram(
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
                     self.wrap(std::type_identity<ice::sonic::String>{}, description),
                     self.wrap(std::type_identity<ice::sonic::String>{}, unit),
-                    self.wrap(std::type_identity<ice::sonic::TFOtelHistogramOps>{}, out_histogram),
+                    self.wrap(std::type_identity<ice::sonic::OtelHistogram>{}, out_histogram),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -125,24 +125,19 @@ public:
         };
     }
 
-    ice::sonic::TFOtelCounterOps wrap(
-        std::type_identity<ice::sonic::TFOtelCounterOps>,
-        const ::TFOtelCounter* handle
-    ) const noexcept
+    ice::sonic::OtelCounter
+    wrap(std::type_identity<ice::sonic::OtelCounter>, const ::TFOtelCounter* handle) const noexcept
     {
-        return ice::sonic::TFOtelCounterOps{
-            m_TFOtelCounterOps_ops,
-            const_cast<::TFOtelCounter*>(handle)
-        };
+        return ice::sonic::OtelCounter{m_OtelCounter_ops, const_cast<::TFOtelCounter*>(handle)};
     }
 
-    ice::sonic::TFOtelHistogramOps wrap(
-        std::type_identity<ice::sonic::TFOtelHistogramOps>,
+    ice::sonic::OtelHistogram wrap(
+        std::type_identity<ice::sonic::OtelHistogram>,
         const ::TFOtelHistogram* handle
     ) const noexcept
     {
-        return ice::sonic::TFOtelHistogramOps{
-            m_TFOtelHistogramOps_ops,
+        return ice::sonic::OtelHistogram{
+            m_OtelHistogram_ops,
             const_cast<::TFOtelHistogram*>(handle)
         };
     }
@@ -170,27 +165,21 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TFOtelMeterOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TFOtelMeterOps*>(&m_vtable));
     }
 
 private:
     ::TFOtelMeterOps m_vtable;
     ::TFOtelMeter m_handle;
 
-    const ::TFOtelCounterOps* m_TFOtelCounterOps_ops{nullptr};
+    const ::TFOtelCounterOps* m_OtelCounter_ops{nullptr};
 
-    const ::TFOtelHistogramOps* m_TFOtelHistogramOps_ops{nullptr};
+    const ::TFOtelHistogramOps* m_OtelHistogram_ops{nullptr};
 
     const ::TF_StatusOps* m_Status_ops{nullptr};
 

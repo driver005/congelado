@@ -5,48 +5,58 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/intern/bitset.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_intern_sonic:bitset;
 
 import std;
+import :registration;
 import :runtime;
 import :status;
 import :tstring;
 
 export namespace ice::sonic {
 
-class TF_BitSetOps : public ice::sonic::Runtime<::TF_BitSetOps, ::TF_BitSet>
+class BitSet : public ice::sonic::Runtime<::TF_BitSetOps, ::TF_BitSet>
 {
 public:
-    TF_BitSetOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    BitSet(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_BitSetOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    BitSet(
+        const ice::sonic::Registration& registry,
         ::TF_BitSet* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_BitSetOps(const ::TF_BitSetOps* ops) noexcept :
+    explicit BitSet(const ::TF_BitSetOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_BitSetOps(const ::TF_BitSetOps* ops, ::TF_BitSet* handle) noexcept :
+    BitSet(const ::TF_BitSetOps* ops, ::TF_BitSet* handle) noexcept :
         Runtime(ops, handle)
     {
     }

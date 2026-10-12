@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/pubsub/pubsub.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/tstring.h"
 
 export module cc_ice_extern_pubsub_builder:pubsub;
@@ -16,30 +16,30 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_PubSubOps
+class PubSub
 {
 public:
-    explicit TF_PubSubOps(const ::TF_StringOps* String_ops) noexcept :
+    explicit PubSub(const ::TF_StringOps* String_ops) noexcept :
         m_handle{.plugin_data = this}
     {
         m_String_ops = String_ops;
     }
 
-    TF_PubSubOps(const TF_PubSubOps&) = delete;
-    TF_PubSubOps& operator=(const TF_PubSubOps&) = delete;
+    PubSub(const PubSub&) = delete;
+    PubSub& operator=(const PubSub&) = delete;
 
-    static TF_PubSubOps& from_handle(void* ctx) noexcept
+    static PubSub& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_PubSubOps*>(ctx);
+        return *static_cast<PubSub*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_PubSubOps& from_handle(HandleT* handle) noexcept
+    static PubSub& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_PubSubOps*>(handle->plugin_data);
+        return *static_cast<PubSub*>(handle->plugin_data);
     }
 
-    virtual ~TF_PubSubOps() = default;
+    virtual ~PubSub() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
 
@@ -50,15 +50,15 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_PubSub* handle) noexcept
+                [](::TF_PubSub* handle) noexcept
             {
-                auto& self = TF_PubSubOps::from_handle(handle);
+                auto& self = PubSub::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TF_PubSub* pubsub, TF_String* out_name) noexcept
+                [](::TF_PubSub* pubsub, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_PubSubOps::from_handle(pubsub);
+                auto& self = PubSub::from_handle(pubsub);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
 
@@ -82,18 +82,12 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_PubSubOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_PubSubOps*>(&m_vtable));
     }
 
 private:

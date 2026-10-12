@@ -5,8 +5,8 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
 #include "include/c/extern/store/watch.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_store_sonic:watch;
 
@@ -15,36 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFStoreWatchOps : public ice::sonic::Runtime<::TFStoreWatchOps, ::TFStoreWatch>
+class StoreWatch : public ice::sonic::Runtime<::TFStoreWatchOps, ::TFStoreWatch>
 {
 public:
-    TFStoreWatchOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    StoreWatch(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFStoreWatchOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    StoreWatch(
+        const ice::sonic::Registration& registry,
         ::TFStoreWatch* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFStoreWatchOps(const ::TFStoreWatchOps* ops) noexcept :
+    explicit StoreWatch(const ::TFStoreWatchOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFStoreWatchOps(const ::TFStoreWatchOps* ops, ::TFStoreWatch* handle) noexcept :
+    StoreWatch(const ::TFStoreWatchOps* ops, ::TFStoreWatch* handle) noexcept :
         Runtime(ops, handle)
     {
     }

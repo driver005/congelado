@@ -5,47 +5,57 @@
 
 module;
 
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/shape.h"
 
 export module cc_ice_intern_sonic:shape;
 
 import std;
+import :registration;
 import :runtime;
 import :tstring;
 
 export namespace ice::sonic {
 
-class TF_ShapeOps : public ice::sonic::Runtime<::TF_ShapeOps, ::TF_Shape>
+class Shape : public ice::sonic::Runtime<::TF_ShapeOps, ::TF_Shape>
 {
 public:
-    TF_ShapeOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Shape(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_ShapeOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    Shape(
+        const ice::sonic::Registration& registry,
         ::TF_Shape* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_ShapeOps(const ::TF_ShapeOps* ops) noexcept :
+    explicit Shape(const ::TF_ShapeOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_ShapeOps(const ::TF_ShapeOps* ops, ::TF_Shape* handle) noexcept :
+    Shape(const ::TF_ShapeOps* ops, ::TF_Shape* handle) noexcept :
         Runtime(ops, handle)
     {
     }

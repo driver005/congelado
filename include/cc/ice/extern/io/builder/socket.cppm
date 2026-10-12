@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/io/socket.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
 
@@ -18,36 +18,36 @@ import cc_ice_intern_sonic;
 
 export namespace ice::builder {
 
-class TF_SocketOps
+class Socket
 {
 public:
-    explicit TF_SocketOps(
-        const ::TF_SocketOps* TF_SocketOps_ops,
+    explicit Socket(
+        const ::TF_SocketOps* Socket_ops,
         const ::TF_StatusOps* Status_ops,
         const ::TF_StringOps* String_ops
     ) noexcept :
         m_handle{.plugin_data = this}
     {
-        m_TF_SocketOps_ops = TF_SocketOps_ops;
+        m_Socket_ops = Socket_ops;
         m_Status_ops = Status_ops;
         m_String_ops = String_ops;
     }
 
-    TF_SocketOps(const TF_SocketOps&) = delete;
-    TF_SocketOps& operator=(const TF_SocketOps&) = delete;
+    Socket(const Socket&) = delete;
+    Socket& operator=(const Socket&) = delete;
 
-    static TF_SocketOps& from_handle(void* ctx) noexcept
+    static Socket& from_handle(void* ctx) noexcept
     {
-        return *static_cast<TF_SocketOps*>(ctx);
+        return *static_cast<Socket*>(ctx);
     }
 
     template<typename HandleT>
-    static TF_SocketOps& from_handle(HandleT* handle) noexcept
+    static Socket& from_handle(HandleT* handle) noexcept
     {
-        return *static_cast<TF_SocketOps*>(handle->plugin_data);
+        return *static_cast<Socket*>(handle->plugin_data);
     }
 
-    virtual ~TF_SocketOps() = default;
+    virtual ~Socket() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void close_socket() noexcept = 0;
@@ -73,7 +73,7 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void accept(
-        const ice::sonic::TF_SocketOps& out_accepted,
+        const ice::sonic::Socket& out_accepted,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void accept_async(
@@ -147,7 +147,7 @@ public:
         uint16_t* out_port,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
-    virtual void get_protocol(TFSocketProtocol* out_protocol) noexcept = 0;
+    virtual void get_protocol(::TFSocketProtocol* out_protocol) noexcept = 0;
     virtual void get_fd(intptr_t* out_fd) noexcept = 0;
     virtual void is_valid(int* out_valid) noexcept = 0;
 
@@ -158,66 +158,66 @@ public:
 
             .create = create,
             .destroy =
-                [](TF_Socket* handle) noexcept
+                [](::TF_Socket* handle) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(handle);
+                auto& self = Socket::from_handle(handle);
                 self.destroy();
             },
             .get_name =
-                [](TF_Socket* socket, TF_String* out_name) noexcept
+                [](::TF_Socket* socket, ::TF_String* out_name) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .close_socket =
-                [](TF_Socket* socket) noexcept
+                [](::TF_Socket* socket) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.close_socket();
             },
             .set_non_blocking =
-                [](TF_Socket* socket, int enabled, TF_Status* out_status) noexcept
+                [](::TF_Socket* socket, int enabled, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.set_non_blocking(
                     enabled,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .set_reuse_address =
-                [](TF_Socket* socket, int enabled, TF_Status* out_status) noexcept
+                [](::TF_Socket* socket, int enabled, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.set_reuse_address(
                     enabled,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .set_broadcast =
-                [](TF_Socket* socket, int enabled, TF_Status* out_status) noexcept
+                [](::TF_Socket* socket, int enabled, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.set_broadcast(
                     enabled,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .set_tcp_no_delay =
-                [](TF_Socket* socket, int enabled, TF_Status* out_status) noexcept
+                [](::TF_Socket* socket, int enabled, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.set_tcp_no_delay(
                     enabled,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .load_certificate =
-                [](TF_Socket* socket,
-                   const TF_String* cert_path,
-                   const TF_String* key_path,
-                   TF_Status* out_status) noexcept
+                [](::TF_Socket* socket,
+                   const ::TF_String* cert_path,
+                   const ::TF_String* key_path,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.load_certificate(
                     self.wrap(std::type_identity<ice::sonic::String>{}, cert_path),
                     self.wrap(std::type_identity<ice::sonic::String>{}, key_path),
@@ -225,12 +225,12 @@ public:
                 );
             },
             .generate_certificate =
-                [](TF_Socket* socket,
-                   const TF_String* cert_path,
-                   const TF_String* key_path,
-                   TF_Status* out_status) noexcept
+                [](::TF_Socket* socket,
+                   const ::TF_String* cert_path,
+                   const ::TF_String* key_path,
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.generate_certificate(
                     self.wrap(std::type_identity<ice::sonic::String>{}, cert_path),
                     self.wrap(std::type_identity<ice::sonic::String>{}, key_path),
@@ -238,57 +238,57 @@ public:
                 );
             },
             .set_verify_peer =
-                [](TF_Socket* socket, int enabled, TF_Status* out_status) noexcept
+                [](::TF_Socket* socket, int enabled, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.set_verify_peer(
                     enabled,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .bind =
-                [](TF_Socket* socket, int allow_unauthorized, TF_Status* out_status) noexcept
+                [](::TF_Socket* socket, int allow_unauthorized, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.bind(
                     allow_unauthorized,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .listen =
-                [](TF_Socket* socket, int backlog, TF_Status* out_status) noexcept
+                [](::TF_Socket* socket, int backlog, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.listen(
                     backlog,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .join_multicast =
-                [](TF_Socket* socket, const TF_String* group, TF_Status* out_status) noexcept
+                [](::TF_Socket* socket, const ::TF_String* group, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.join_multicast(
                     self.wrap(std::type_identity<ice::sonic::String>{}, group),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .accept =
-                [](TF_Socket* socket, TF_Socket* out_accepted, TF_Status* out_status) noexcept
+                [](::TF_Socket* socket, ::TF_Socket* out_accepted, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.accept(
-                    self.wrap(std::type_identity<ice::sonic::TF_SocketOps>{}, out_accepted),
+                    self.wrap(std::type_identity<ice::sonic::Socket>{}, out_accepted),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .accept_async =
-                [](TF_Socket* socket,
+                [](::TF_Socket* socket,
                    TFSocketAcceptFn completion,
                    void* user_data,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.accept_async(
                     completion,
                     user_data,
@@ -296,22 +296,22 @@ public:
                 );
             },
             .connect =
-                [](TF_Socket* socket, int64_t timeout_ms, TF_Status* out_status) noexcept
+                [](::TF_Socket* socket, int64_t timeout_ms, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.connect(
                     timeout_ms,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .connect_async =
-                [](TF_Socket* socket,
+                [](::TF_Socket* socket,
                    int64_t timeout_ms,
                    TFSocketAckFn completion,
                    void* user_data,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.connect_async(
                     timeout_ms,
                     completion,
@@ -320,13 +320,13 @@ public:
                 );
             },
             .send =
-                [](TF_Socket* socket,
+                [](::TF_Socket* socket,
                    const void* data,
                    size_t length,
                    size_t* out_bytes_sent,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.send(
                     data,
                     length,
@@ -335,14 +335,14 @@ public:
                 );
             },
             .send_async =
-                [](TF_Socket* socket,
+                [](::TF_Socket* socket,
                    const void* data,
                    size_t length,
                    TFSocketTransferFn completion,
                    void* user_data,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.send_async(
                     data,
                     length,
@@ -352,13 +352,13 @@ public:
                 );
             },
             .receive =
-                [](TF_Socket* socket,
+                [](::TF_Socket* socket,
                    void* out_buffer,
                    size_t buffer_size,
                    size_t* out_bytes_received,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.receive(
                     out_buffer,
                     buffer_size,
@@ -367,14 +367,14 @@ public:
                 );
             },
             .receive_async =
-                [](TF_Socket* socket,
+                [](::TF_Socket* socket,
                    void* out_buffer,
                    size_t buffer_size,
                    TFSocketTransferFn completion,
                    void* user_data,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.receive_async(
                     out_buffer,
                     buffer_size,
@@ -384,15 +384,15 @@ public:
                 );
             },
             .send_to =
-                [](TF_Socket* socket,
+                [](::TF_Socket* socket,
                    const void* data,
                    size_t length,
-                   const TF_String* dest_host,
+                   const ::TF_String* dest_host,
                    uint16_t dest_port,
                    size_t* out_bytes_sent,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.send_to(
                     data,
                     length,
@@ -403,15 +403,15 @@ public:
                 );
             },
             .receive_from =
-                [](TF_Socket* socket,
+                [](::TF_Socket* socket,
                    void* out_buffer,
                    size_t buffer_size,
                    size_t* out_bytes_received,
-                   TF_String* out_sender_host,
+                   ::TF_String* out_sender_host,
                    uint16_t* out_sender_port,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.receive_from(
                     out_buffer,
                     buffer_size,
@@ -422,48 +422,48 @@ public:
                 );
             },
             .set_send_timeout =
-                [](TF_Socket* socket, int64_t timeout_ms, TF_Status* out_status) noexcept
+                [](::TF_Socket* socket, int64_t timeout_ms, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.set_send_timeout(
                     timeout_ms,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .set_receive_timeout =
-                [](TF_Socket* socket, int64_t timeout_ms, TF_Status* out_status) noexcept
+                [](::TF_Socket* socket, int64_t timeout_ms, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.set_receive_timeout(
                     timeout_ms,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
             .shutdown =
-                [](TF_Socket* socket, int how, TF_Status* out_status) noexcept
+                [](::TF_Socket* socket, int how, ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.shutdown(how, self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .get_status =
-                [](TF_Socket* socket, int* out_status) noexcept
+                [](::TF_Socket* socket, int* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.get_status(out_status);
             },
             .get_error_code =
-                [](TF_Socket* socket, int* out_error_code) noexcept
+                [](::TF_Socket* socket, int* out_error_code) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.get_error_code(out_error_code);
             },
             .get_local_endpoint =
-                [](TF_Socket* socket,
-                   TF_String* out_host,
+                [](::TF_Socket* socket,
+                   ::TF_String* out_host,
                    uint16_t* out_port,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.get_local_endpoint(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_host),
                     out_port,
@@ -471,12 +471,12 @@ public:
                 );
             },
             .get_remote_endpoint =
-                [](TF_Socket* socket,
-                   TF_String* out_host,
+                [](::TF_Socket* socket,
+                   ::TF_String* out_host,
                    uint16_t* out_port,
-                   TF_Status* out_status) noexcept
+                   ::TF_Status* out_status) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.get_remote_endpoint(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_host),
                     out_port,
@@ -484,31 +484,31 @@ public:
                 );
             },
             .get_protocol =
-                [](TF_Socket* socket, TFSocketProtocol* out_protocol) noexcept
+                [](::TF_Socket* socket, ::TFSocketProtocol* out_protocol) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.get_protocol(out_protocol);
             },
             .get_fd =
-                [](TF_Socket* socket, intptr_t* out_fd) noexcept
+                [](::TF_Socket* socket, intptr_t* out_fd) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.get_fd(out_fd);
             },
             .is_valid =
-                [](TF_Socket* socket, int* out_valid) noexcept
+                [](::TF_Socket* socket, int* out_valid) noexcept
             {
-                auto& self = TF_SocketOps::from_handle(socket);
+                auto& self = Socket::from_handle(socket);
                 self.is_valid(out_valid);
             },
 
         };
     }
 
-    ice::sonic::TF_SocketOps
-    wrap(std::type_identity<ice::sonic::TF_SocketOps>, const ::TF_Socket* handle) const noexcept
+    ice::sonic::Socket
+    wrap(std::type_identity<ice::sonic::Socket>, const ::TF_Socket* handle) const noexcept
     {
-        return ice::sonic::TF_SocketOps{m_TF_SocketOps_ops, const_cast<::TF_Socket*>(handle)};
+        return ice::sonic::Socket{m_Socket_ops, const_cast<::TF_Socket*>(handle)};
     }
 
     ice::sonic::Status
@@ -534,25 +534,19 @@ public:
     }
 
     void register_ops(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) const noexcept
     {
-        registry_ops.register_op(
-            registry_handle,
-            type.get_handle(),
-            provider.get_handle(),
-            const_cast<::TF_SocketOps*>(&m_vtable)
-        );
+        registry.register_op(type, provider, const_cast<::TF_SocketOps*>(&m_vtable));
     }
 
 private:
     ::TF_SocketOps m_vtable;
     ::TF_Socket m_handle;
 
-    const ::TF_SocketOps* m_TF_SocketOps_ops{nullptr};
+    const ::TF_SocketOps* m_Socket_ops{nullptr};
 
     const ::TF_StatusOps* m_Status_ops{nullptr};
 

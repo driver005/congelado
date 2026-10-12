@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/pubsub/subscription.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_pubsub_sonic:subscription;
 
@@ -15,37 +15,46 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TFPubSubSubscriptionOps :
+class PubSubSubscription :
     public ice::sonic::Runtime<::TFPubSubSubscriptionOps, ::TFPubSubSubscription>
 {
 public:
-    TFPubSubSubscriptionOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    PubSubSubscription(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TFPubSubSubscriptionOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    PubSubSubscription(
+        const ice::sonic::Registration& registry,
         ::TFPubSubSubscription* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TFPubSubSubscriptionOps(const ::TFPubSubSubscriptionOps* ops) noexcept :
+    explicit PubSubSubscription(const ::TFPubSubSubscriptionOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TFPubSubSubscriptionOps(
+    PubSubSubscription(
         const ::TFPubSubSubscriptionOps* ops,
         ::TFPubSubSubscription* handle
     ) noexcept :

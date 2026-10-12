@@ -6,7 +6,7 @@
 module;
 
 #include "include/c/extern/filesystem/random_access_file.h"
-#include "include/c/extern/registration/registration.h"
+#include "include/c/intern/registration.h"
 
 export module cc_ice_extern_filesystem_sonic:random_access_file;
 
@@ -15,40 +15,45 @@ import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
 
-class TF_RandomAccessFileOps :
-    public ice::sonic::Runtime<::TF_RandomAccessFileOps, ::TF_RandomAccessFile>
+class RandomAccessFile : public ice::sonic::Runtime<::TF_RandomAccessFileOps, ::TF_RandomAccessFile>
 {
 public:
-    TF_RandomAccessFileOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    RandomAccessFile(
+        const ice::sonic::Registration& registry,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    TF_RandomAccessFileOps(
-        const ::TF_RegistrationOps& registry_ops,
-        ::TF_Registration* registry_handle,
+    RandomAccessFile(
+        const ice::sonic::Registration& registry,
         ::TF_RandomAccessFile* handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
-        Runtime(registry_ops, registry_handle, handle, type.get_handle(), provider.get_handle())
+        Runtime(
+            *registry.get_ops(),
+            registry.get_handle(),
+            handle,
+            type.get_handle(),
+            provider.get_handle()
+        )
     {
     }
 
-    explicit TF_RandomAccessFileOps(const ::TF_RandomAccessFileOps* ops) noexcept :
+    explicit RandomAccessFile(const ::TF_RandomAccessFileOps* ops) noexcept :
         Runtime(ops)
     {
     }
 
-    TF_RandomAccessFileOps(
-        const ::TF_RandomAccessFileOps* ops,
-        ::TF_RandomAccessFile* handle
-    ) noexcept :
+    RandomAccessFile(const ::TF_RandomAccessFileOps* ops, ::TF_RandomAccessFile* handle) noexcept :
         Runtime(ops, handle)
     {
     }
