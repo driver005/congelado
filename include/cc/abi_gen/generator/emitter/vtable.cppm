@@ -677,8 +677,7 @@ private:
         return {};
     }
 
-    std::expected<void, std::string>
-    write_cpp_parameter_list(const parser::slot::Slot& slot)
+    std::expected<void, std::string> write_cpp_parameter_list(const parser::slot::Slot& slot)
     {
         for (auto&& [index, parameter]: slot.extract_parameters() | std::views::enumerate) {
             if (index != 0) {
@@ -735,9 +734,8 @@ private:
             return false;
         }
 
-        static constexpr std::array<std::string_view, 6> k_length_words{
-            "num", "count", "capacity", "size", "max", "len"
-        };
+        static constexpr std::array<std::string_view, 6>
+            k_length_words{"num", "count", "capacity", "size", "max", "len"};
 
         for (const parser::helper::Parameter& candidate: slot.extract_parameters()) {
             if (candidate.get_type().contains('*') || candidate.get_name().starts_with("out_")) {
@@ -1020,8 +1018,8 @@ private:
 
     static bool is_runtime_root(const parser::vtable::Model& model) noexcept
     {
-        return model.get_struct_name() == RuntimeEmitter::k_string_struct
-               || model.get_struct_name() == RuntimeEmitter::k_registry_struct;
+        return model.get_struct_name() == RuntimeEmitter::k_string_struct ||
+               model.get_struct_name() == RuntimeEmitter::k_registry_struct;
     }
 
     // Empty for the String and registry roots in sonic mode: they cannot look themselves up.
@@ -1206,7 +1204,9 @@ private:
         auto string_model = m_registry.get().find(std::string{RuntimeEmitter::k_string_struct});
         auto registry_model = m_registry.get().find(std::string{RuntimeEmitter::k_registry_struct});
         if (!string_model.has_value() || !registry_model.has_value()) {
-            return std::unexpected("Runtime String or registry anchor is not part of the parsed headers");
+            return std::unexpected(
+                "Runtime String or registry anchor is not part of the parsed headers"
+            );
         }
 
         m_runtime_emitter.add_value("namespace_name", std::string{m_namespace_name})

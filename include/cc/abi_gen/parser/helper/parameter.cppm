@@ -76,7 +76,8 @@ public:
     // Example: "const TF_Status *" -> "const ::TF_Status *"
     std::string get_qualified_type() const
     {
-        if (m_pointee_name.empty() || !std::isupper(static_cast<unsigned char>(m_pointee_name.front()))) {
+        if (m_pointee_name.empty() ||
+            !std::isupper(static_cast<unsigned char>(m_pointee_name.front()))) {
             return m_type;
         }
 
@@ -130,12 +131,23 @@ public:
     }
 
     // C++ spelling of the pointee for the reference form of a scalar out parameter.
-    // Example: "int32_t" -> "std::int32_t", "_Bool" -> "bool", "TFDataTypeEnum" -> "::TFDataTypeEnum"
+    // Example: "int32_t" -> "std::int32_t", "_Bool" -> "bool", "TFDataTypeEnum" ->
+    // "::TFDataTypeEnum"
     std::string get_value_type() const
     {
         static constexpr std::array<std::string_view, 12> k_std_names{
-            "int8_t", "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t",
-            "uint32_t", "uint64_t", "intptr_t", "uintptr_t", "size_t", "ptrdiff_t"
+            "int8_t",
+            "int16_t",
+            "int32_t",
+            "int64_t",
+            "uint8_t",
+            "uint16_t",
+            "uint32_t",
+            "uint64_t",
+            "intptr_t",
+            "uintptr_t",
+            "size_t",
+            "ptrdiff_t"
         };
 
         if (m_pointee_name == "_Bool") {
@@ -144,7 +156,8 @@ public:
         if (std::ranges::find(k_std_names, std::string_view{m_pointee_name}) != k_std_names.end()) {
             return "std::" + m_pointee_name;
         }
-        if (!m_pointee_name.empty() && std::isupper(static_cast<unsigned char>(m_pointee_name.front()))) {
+        if (!m_pointee_name.empty() &&
+            std::isupper(static_cast<unsigned char>(m_pointee_name.front()))) {
             return "::" + m_pointee_name;
         }
 
