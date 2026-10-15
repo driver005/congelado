@@ -76,17 +76,17 @@ public:
 
     void device_memory_usage(
         const ice::sonic::Device& device,
-        int64_t* out_free,
-        int64_t* out_total,
-        _Bool* out_success
+        std::int64_t& out_free,
+        std::int64_t& out_total,
+        bool& out_success
     ) const noexcept
     {
         m_ops->device_memory_usage(
             get_handle(),
             device.get_handle(),
-            out_free,
-            out_total,
-            out_success
+            &out_free,
+            &out_total,
+            &out_success
         );
     }
 
@@ -167,14 +167,14 @@ public:
     void get_event_status(
         const ice::sonic::Device& device,
         const ice::sonic::Event& event,
-        ::TF_EventStatus* out_event_status
+        ::TF_EventStatus& out_event_status
     ) const noexcept
     {
         m_ops->get_event_status(
             get_handle(),
             device.get_handle(),
             event.get_handle(),
-            out_event_status
+            &out_event_status
         );
     }
 
@@ -477,7 +477,7 @@ public:
         const ice::sonic::Stream& stream,
         TF_StatusCallbackFn callback_fn,
         void* callback_arg,
-        _Bool* out_success
+        bool& out_success
     ) const noexcept
     {
         m_ops->host_callback(
@@ -486,7 +486,7 @@ public:
             stream.get_handle(),
             callback_fn,
             callback_arg,
-            out_success
+            &out_success
         );
     }
 

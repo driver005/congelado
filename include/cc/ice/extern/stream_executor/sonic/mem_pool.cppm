@@ -73,9 +73,9 @@ public:
         m_ops->get_id(get_handle(), out_pool_id);
     }
 
-    void use_count(int* out_count) const noexcept
+    void use_count(int& out_count) const noexcept
     {
-        m_ops->use_count(get_handle(), out_count);
+        m_ops->use_count(get_handle(), &out_count);
     }
 
     void begin_allocate_to_pool(

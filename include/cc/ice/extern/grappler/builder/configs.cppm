@@ -41,7 +41,7 @@ public:
 
     virtual ~GrapplerConfigs() = default;
     virtual void destroy() noexcept = 0;
-    virtual void get_optimization_level(::TFGrapplerOptimizationLevel* out_level) noexcept = 0;
+    virtual void get_optimization_level(::TFGrapplerOptimizationLevel& out_level) noexcept = 0;
     virtual void set_optimization_level(TFGrapplerOptimizationLevel level) noexcept = 0;
     virtual void get_optimizer_configs(
         ::TFGrapplerOptimizerConfigs* out_configs,
@@ -68,7 +68,7 @@ public:
                 [](::TFGrapplerConfigs* configs, ::TFGrapplerOptimizationLevel* out_level) noexcept
             {
                 auto& self = GrapplerConfigs::from_handle(configs);
-                self.get_optimization_level(out_level);
+                self.get_optimization_level(*out_level);
             },
             .set_optimization_level =
                 [](::TFGrapplerConfigs* configs, TFGrapplerOptimizationLevel level) noexcept

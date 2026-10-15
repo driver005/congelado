@@ -13,9 +13,12 @@ export namespace aten_xpu {
 class SyclIpcMemory
 {
 public:
-    static constexpr std::uint8_t k_handle_version = 1;
-    static constexpr std::uint8_t k_handle_type_device_malloc = 0;
-    static constexpr std::size_t k_header_size = 3 + sizeof(std::int64_t);
+    enum Header : std::size_t
+    {
+        k_handle_version = 1,
+        k_handle_type_device_malloc = 0,
+        k_header_size = 3 + sizeof(std::int64_t)
+    };
 
     SyclIpcMemory(const sycl::context& context, const sycl::device& device) :
         m_context{context},
@@ -48,8 +51,8 @@ public:
         }
 
         out_handle = TF_IpcMemoryHandle{.struct_size = sizeof(TF_IpcMemoryHandle)};
-        out_handle.data[0] = k_handle_version;
-        out_handle.data[1] = k_handle_type_device_malloc;
+        out_handle.data[0] = static_cast<std::uint8_t>(k_handle_version);
+        out_handle.data[1] = static_cast<std::uint8_t>(k_handle_type_device_malloc);
         out_handle.data[2] = static_cast<std::uint8_t>(handle_data.size());
         std::memcpy(out_handle.data + 3, &offset, sizeof(offset));
         std::memcpy(out_handle.data + k_header_size, handle_data.data(), handle_data.size());

@@ -93,12 +93,12 @@ public:
     ) noexcept = 0;
     virtual void is_directory(
         const ice::sonic::String& path,
-        int* out_is_directory,
+        int& out_is_directory,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_file_size(
         const ice::sonic::String& path,
-        int64_t* out_size,
+        std::int64_t& out_size,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void
@@ -288,7 +288,7 @@ public:
                 auto& self = FilesystemTree::from_handle(manager);
                 self.is_directory(
                     self.wrap(std::type_identity<ice::sonic::String>{}, path),
-                    out_is_directory,
+                    *out_is_directory,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -301,7 +301,7 @@ public:
                 auto& self = FilesystemTree::from_handle(manager);
                 self.get_file_size(
                     self.wrap(std::type_identity<ice::sonic::String>{}, path),
-                    out_size,
+                    *out_size,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },

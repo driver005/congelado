@@ -43,9 +43,9 @@ public:
     virtual void copy(const char* src, size_t size) noexcept = 0;
     virtual void assign_view(const char* src, size_t size) noexcept = 0;
     virtual void get_data_pointer(const char** out_data) noexcept = 0;
-    virtual void get_type(::TFTStringType* out_type) noexcept = 0;
-    virtual void get_size(size_t* out_size) noexcept = 0;
-    virtual void get_capacity(size_t* out_capacity) noexcept = 0;
+    virtual void get_type(::TFTStringType& out_type) noexcept = 0;
+    virtual void get_size(std::size_t& out_size) noexcept = 0;
+    virtual void get_capacity(std::size_t& out_capacity) noexcept = 0;
     virtual void dealloc() noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_String*)) noexcept
@@ -88,19 +88,19 @@ public:
                 [](const ::TF_String* t, ::TFTStringType* out_type) noexcept
             {
                 auto& self = String::from_handle(t);
-                self.get_type(out_type);
+                self.get_type(*out_type);
             },
             .get_size =
                 [](const ::TF_String* t, size_t* out_size) noexcept
             {
                 auto& self = String::from_handle(t);
-                self.get_size(out_size);
+                self.get_size(*out_size);
             },
             .get_capacity =
                 [](const ::TF_String* t, size_t* out_capacity) noexcept
             {
                 auto& self = String::from_handle(t);
-                self.get_capacity(out_capacity);
+                self.get_capacity(*out_capacity);
             },
             .dealloc =
                 [](::TF_String* t) noexcept

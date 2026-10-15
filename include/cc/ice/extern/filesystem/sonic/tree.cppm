@@ -177,25 +177,25 @@ public:
 
     void is_directory(
         const ice::sonic::String& path,
-        int* out_is_directory,
+        int& out_is_directory,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->is_directory(
             get_handle(),
             path.get_handle(),
-            out_is_directory,
+            &out_is_directory,
             out_status.get_handle()
         );
     }
 
     void get_file_size(
         const ice::sonic::String& path,
-        int64_t* out_size,
+        std::int64_t& out_size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->get_file_size(get_handle(), path.get_handle(), out_size, out_status.get_handle());
+        m_ops->get_file_size(get_handle(), path.get_handle(), &out_size, out_status.get_handle());
     }
 
     void translate_name(

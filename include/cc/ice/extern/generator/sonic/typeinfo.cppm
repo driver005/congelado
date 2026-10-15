@@ -98,19 +98,19 @@ public:
         m_ops->get_type_attr_name(get_handle(), out_type_attr_name.get_handle());
     }
 
-    void get_data_type(int* out_data_type) const noexcept
+    void get_data_type(int& out_data_type) const noexcept
     {
-        m_ops->get_data_type(get_handle(), out_data_type);
+        m_ops->get_data_type(get_handle(), &out_data_type);
     }
 
-    void is_read_only(int* out_is_read_only) const noexcept
+    void is_read_only(int& out_is_read_only) const noexcept
     {
-        m_ops->is_read_only(get_handle(), out_is_read_only);
+        m_ops->is_read_only(get_handle(), &out_is_read_only);
     }
 
-    void is_list(int* out_is_list) const noexcept
+    void is_list(int& out_is_list) const noexcept
     {
-        m_ops->is_list(get_handle(), out_is_list);
+        m_ops->is_list(get_handle(), &out_is_list);
     }
 };
 

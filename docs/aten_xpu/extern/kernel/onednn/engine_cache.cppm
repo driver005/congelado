@@ -13,16 +13,12 @@ export namespace aten_xpu {
 class SyclEngineCache
 {
 public:
+    SyclEngineCache() = default;
+    ~SyclEngineCache() = default;
     SyclEngineCache(const SyclEngineCache&) = delete;
     SyclEngineCache& operator=(const SyclEngineCache&) = delete;
     SyclEngineCache(SyclEngineCache&&) = delete;
     SyclEngineCache& operator=(SyclEngineCache&&) = delete;
-
-    static SyclEngineCache& getInstance()
-    {
-        static SyclEngineCache cache;
-        return cache;
-    }
 
     dnnl::engine& getEngine(const sycl::queue& queue)
     {
@@ -50,9 +46,6 @@ public:
     }
 
 private:
-    SyclEngineCache() = default;
-    ~SyclEngineCache() = default;
-
     std::mutex m_mutex;
     std::deque<std::pair<sycl::device, dnnl::engine>> m_engines;
     std::map<const sycl::queue*, dnnl::stream> m_streams;

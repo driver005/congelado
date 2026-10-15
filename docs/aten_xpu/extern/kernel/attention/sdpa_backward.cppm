@@ -16,13 +16,13 @@ import :attention_sdpa_math;
 
 export namespace aten_xpu {
 
+inline constexpr std::string_view k_sdpa_backward_kernel_name = "ScaledDotProductAttentionGrad";
+
 class SyclSdpaBackwardKernel : public SyclKernel<SyclSdpaBackwardKernel>
 {
 public:
-    static constexpr std::string_view k_name = "ScaledDotProductAttentionGrad";
-
     SyclSdpaBackwardKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
-        SyclKernel<SyclSdpaBackwardKernel>{ops},
+        SyclKernel<SyclSdpaBackwardKernel>{ops, k_sdpa_backward_kernel_name},
         m_scale{construction.getFloat("scale", 0.0F)},
         m_is_causal{construction.getBool("is_causal", false)}
     {
@@ -39,7 +39,7 @@ public:
             context.propagate();
             return;
         }
-        if (!SyclSdpaSelector::valid_shapes(query->get(), key->get(), value->get())) {
+        if (!m_selector.valid_shapes(query->get(), key->get(), value->get())) {
             context.fail(
                 TF_INVALID_ARGUMENT,
                 "attention expects [batch, heads, length, head_dim] inputs"
@@ -64,7 +64,7 @@ public:
         const float scale = m_scale > 0.0F
                                 ? m_scale
                                 : 1.0F / std::sqrt(static_cast<float>(query->get().getDims()[3]));
-        SyclSdpaMath math{context, queue->get()};
+        SyclSdpaMath math{getRuntime(), context, queue->get()};
         auto saved = context.getInputCount() > 4 ? context.getInput(4) : std::nullopt;
         if (!saved || saved->get().getByteSize() == 0) {
             auto recomputed_output =
@@ -104,6 +104,7 @@ public:
 private:
     float m_scale;
     bool m_is_causal;
+    SyclSdpaSelector m_selector;
 };
 
 } // namespace aten_xpu

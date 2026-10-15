@@ -70,14 +70,14 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void get_real(double* out_real) const noexcept
+    void get_real(double& out_real) const noexcept
     {
-        m_ops->get_real(get_handle(), out_real);
+        m_ops->get_real(get_handle(), &out_real);
     }
 
-    void get_imag(double* out_imag) const noexcept
+    void get_imag(double& out_imag) const noexcept
     {
-        m_ops->get_imag(get_handle(), out_imag);
+        m_ops->get_imag(get_handle(), &out_imag);
     }
 
     void set_real(double real) const noexcept

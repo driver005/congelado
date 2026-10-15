@@ -51,7 +51,7 @@ public:
         uint64_t offset,
         size_t n,
         char* buffer,
-        int64_t* out_bytes_read,
+        std::int64_t& out_bytes_read,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
 
@@ -86,7 +86,7 @@ public:
                     offset,
                     n,
                     buffer,
-                    out_bytes_read,
+                    *out_bytes_read,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },

@@ -13,14 +13,12 @@ export namespace aten_xpu {
 class SyclFusion
 {
 public:
-    SyclFusion() = delete;
-
-    static bool add_unary(
+    bool add_unary(
         SyclPostOpAttributes& attributes,
         std::string_view unary,
         std::span<const float> scalars,
         std::string_view algorithm
-    )
+    ) const
     {
         if (unary == "none" || unary.empty()) {
             return true;
@@ -55,7 +53,7 @@ public:
         return true;
     }
 
-    static bool add_binary_then_unary(
+    bool add_binary_then_unary(
         SyclPostOpAttributes& attributes,
         std::string_view binary,
         float input_scale,
@@ -64,7 +62,7 @@ public:
         std::string_view unary,
         std::span<const float> scalars,
         std::string_view algorithm
-    )
+    ) const
     {
         const bool unary_only = binary == "none";
         const bool valid_binary =
@@ -98,7 +96,7 @@ public:
         return true;
     }
 
-    static std::string_view activation_name(int64_t activation) noexcept
+    std::string_view activation_name(int64_t activation) const noexcept
     {
         switch (activation) {
             case 1:

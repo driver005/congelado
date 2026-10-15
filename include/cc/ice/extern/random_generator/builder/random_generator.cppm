@@ -50,10 +50,10 @@ public:
     virtual ~RandomGenerator() = default;
     virtual void destroy() noexcept = 0;
     virtual void set_seed(uint64_t seed) noexcept = 0;
-    virtual void get_seed(uint64_t* out_seed) noexcept = 0;
-    virtual void reseed_nondeterministic(uint64_t* out_seed) noexcept = 0;
+    virtual void get_seed(std::uint64_t& out_seed) noexcept = 0;
+    virtual void reseed_nondeterministic(std::uint64_t& out_seed) noexcept = 0;
     virtual void set_offset(uint64_t offset) noexcept = 0;
-    virtual void get_offset(uint64_t* out_offset) noexcept = 0;
+    virtual void get_offset(std::uint64_t& out_offset) noexcept = 0;
     virtual void
     set_state(const ice::sonic::Tensor& state, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void
@@ -73,11 +73,11 @@ public:
     ) noexcept = 0;
     virtual void philox_engine_inputs(
         uint64_t increment,
-        uint64_t* out_seed,
-        uint64_t* out_offset,
+        std::uint64_t& out_seed,
+        std::uint64_t& out_offset,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
-    virtual void get_device_index(int* out_device_index) noexcept = 0;
+    virtual void get_device_index(int& out_device_index) noexcept = 0;
     virtual void clone(
         const ice::sonic::RandomGenerator& out_clone,
         const ice::sonic::Status& out_status
@@ -105,13 +105,13 @@ public:
                 [](::TF_RandomGenerator* generator, uint64_t* out_seed) noexcept
             {
                 auto& self = RandomGenerator::from_handle(generator);
-                self.get_seed(out_seed);
+                self.get_seed(*out_seed);
             },
             .reseed_nondeterministic =
                 [](::TF_RandomGenerator* generator, uint64_t* out_seed) noexcept
             {
                 auto& self = RandomGenerator::from_handle(generator);
-                self.reseed_nondeterministic(out_seed);
+                self.reseed_nondeterministic(*out_seed);
             },
             .set_offset =
                 [](::TF_RandomGenerator* generator, uint64_t offset) noexcept
@@ -123,7 +123,7 @@ public:
                 [](::TF_RandomGenerator* generator, uint64_t* out_offset) noexcept
             {
                 auto& self = RandomGenerator::from_handle(generator);
-                self.get_offset(out_offset);
+                self.get_offset(*out_offset);
             },
             .set_state =
                 [](::TF_RandomGenerator* generator,
@@ -192,8 +192,8 @@ public:
                 auto& self = RandomGenerator::from_handle(generator);
                 self.philox_engine_inputs(
                     increment,
-                    out_seed,
-                    out_offset,
+                    *out_seed,
+                    *out_offset,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -201,7 +201,7 @@ public:
                 [](::TF_RandomGenerator* generator, int* out_device_index) noexcept
             {
                 auto& self = RandomGenerator::from_handle(generator);
-                self.get_device_index(out_device_index);
+                self.get_device_index(*out_device_index);
             },
             .clone =
                 [](::TF_RandomGenerator* generator,

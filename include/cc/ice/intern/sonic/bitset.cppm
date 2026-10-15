@@ -81,9 +81,9 @@ public:
         m_ops->clear(get_handle(), index);
     }
 
-    void test(size_t index, int* out_result, const ice::sonic::Status& out_status) const noexcept
+    void test(size_t index, int& out_result, const ice::sonic::Status& out_status) const noexcept
     {
-        m_ops->test(get_handle(), index, out_result, out_status.get_handle());
+        m_ops->test(get_handle(), index, &out_result, out_status.get_handle());
     }
 
     void flip(size_t index, const ice::sonic::Status& out_status) const noexcept
@@ -91,14 +91,14 @@ public:
         m_ops->flip(get_handle(), index, out_status.get_handle());
     }
 
-    void count(size_t* out_count) const noexcept
+    void count(std::size_t& out_count) const noexcept
     {
-        m_ops->count(get_handle(), out_count);
+        m_ops->count(get_handle(), &out_count);
     }
 
-    void size(size_t* out_size) const noexcept
+    void size(std::size_t& out_size) const noexcept
     {
-        m_ops->size(get_handle(), out_size);
+        m_ops->size(get_handle(), &out_size);
     }
 };
 

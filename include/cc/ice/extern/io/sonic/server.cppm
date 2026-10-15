@@ -80,9 +80,9 @@ public:
         m_ops->get_bind_host(get_handle(), out_host.get_handle());
     }
 
-    void get_bind_port(uint16_t* out_port) const noexcept
+    void get_bind_port(std::uint16_t& out_port) const noexcept
     {
-        m_ops->get_bind_port(get_handle(), out_port);
+        m_ops->get_bind_port(get_handle(), &out_port);
     }
 
     void get_tls_cert(const ice::sonic::String& out_cert) const noexcept
@@ -130,14 +130,14 @@ public:
         m_ops->resume_accepting(get_handle(), out_status.get_handle());
     }
 
-    void is_running(int* out_running) const noexcept
+    void is_running(int& out_running) const noexcept
     {
-        m_ops->is_running(get_handle(), out_running);
+        m_ops->is_running(get_handle(), &out_running);
     }
 
-    void is_idle(int* out_idle) const noexcept
+    void is_idle(int& out_idle) const noexcept
     {
-        m_ops->is_idle(get_handle(), out_idle);
+        m_ops->is_idle(get_handle(), &out_idle);
     }
 
     void set_max_connections(
@@ -148,9 +148,9 @@ public:
         m_ops->set_max_connections(get_handle(), max_connections, out_status.get_handle());
     }
 
-    void get_max_connections(size_t* out_max_connections) const noexcept
+    void get_max_connections(std::size_t& out_max_connections) const noexcept
     {
-        m_ops->get_max_connections(get_handle(), out_max_connections);
+        m_ops->get_max_connections(get_handle(), &out_max_connections);
     }
 
     void find_connection(
@@ -184,9 +184,9 @@ public:
             ->list_connections(get_handle(), out_connections.get_handle(), out_status.get_handle());
     }
 
-    void get_connection_count(size_t* out_count) const noexcept
+    void get_connection_count(std::size_t& out_count) const noexcept
     {
-        m_ops->get_connection_count(get_handle(), out_count);
+        m_ops->get_connection_count(get_handle(), &out_count);
     }
 
     void get_stats(

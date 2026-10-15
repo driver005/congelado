@@ -44,7 +44,7 @@ public:
 
     virtual ~StoreAdmin() = default;
     virtual void destroy() noexcept = 0;
-    virtual void is_connected(int* out_connected) noexcept = 0;
+    virtual void is_connected(int& out_connected) noexcept = 0;
     virtual void backup(
         const ice::sonic::String& destination,
         TFStoreAckFn completion,
@@ -74,7 +74,7 @@ public:
                 [](::TFStoreAdmin* manager, int* out_connected) noexcept
             {
                 auto& self = StoreAdmin::from_handle(manager);
-                self.is_connected(out_connected);
+                self.is_connected(*out_connected);
             },
             .backup =
                 [](::TFStoreAdmin* manager,

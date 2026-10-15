@@ -78,9 +78,9 @@ public:
         m_ops->set_status(get_handle(), status_code, out_status.get_handle());
     }
 
-    void get_status(int32_t* out_status_code) const noexcept
+    void get_status(std::int32_t& out_status_code) const noexcept
     {
-        m_ops->get_status(get_handle(), out_status_code);
+        m_ops->get_status(get_handle(), &out_status_code);
     }
 
     void get_status_text(const ice::sonic::String& out_status_text) const noexcept
@@ -146,9 +146,9 @@ public:
         m_ops->set_body(get_handle(), data, length, out_status.get_handle());
     }
 
-    void get_body(const void** out_data, size_t* out_length) const noexcept
+    void get_body(const void** out_data, std::size_t& out_length) const noexcept
     {
-        m_ops->get_body(get_handle(), out_data, out_length);
+        m_ops->get_body(get_handle(), out_data, &out_length);
     }
 
     void set_keep_alive(int enabled, const ice::sonic::Status& out_status) const noexcept
@@ -156,9 +156,9 @@ public:
         m_ops->set_keep_alive(get_handle(), enabled, out_status.get_handle());
     }
 
-    void is_keep_alive(int* out_keep_alive) const noexcept
+    void is_keep_alive(int& out_keep_alive) const noexcept
     {
-        m_ops->is_keep_alive(get_handle(), out_keep_alive);
+        m_ops->is_keep_alive(get_handle(), &out_keep_alive);
     }
 
     void set_cookie(
@@ -190,9 +190,9 @@ public:
         m_ops->get_content_type(get_handle(), out_content_type.get_handle());
     }
 
-    void get_content_length(int64_t* out_length) const noexcept
+    void get_content_length(std::int64_t& out_length) const noexcept
     {
-        m_ops->get_content_length(get_handle(), out_length);
+        m_ops->get_content_length(get_handle(), &out_length);
     }
 
     void get_location(const ice::sonic::String& out_location) const noexcept
@@ -225,29 +225,29 @@ public:
         m_ops->get_last_modified(get_handle(), out_last_modified.get_handle());
     }
 
-    void is_informational(int* out_result) const noexcept
+    void is_informational(int& out_result) const noexcept
     {
-        m_ops->is_informational(get_handle(), out_result);
+        m_ops->is_informational(get_handle(), &out_result);
     }
 
-    void is_success(int* out_result) const noexcept
+    void is_success(int& out_result) const noexcept
     {
-        m_ops->is_success(get_handle(), out_result);
+        m_ops->is_success(get_handle(), &out_result);
     }
 
-    void is_redirection(int* out_result) const noexcept
+    void is_redirection(int& out_result) const noexcept
     {
-        m_ops->is_redirection(get_handle(), out_result);
+        m_ops->is_redirection(get_handle(), &out_result);
     }
 
-    void is_client_error(int* out_result) const noexcept
+    void is_client_error(int& out_result) const noexcept
     {
-        m_ops->is_client_error(get_handle(), out_result);
+        m_ops->is_client_error(get_handle(), &out_result);
     }
 
-    void is_server_error(int* out_result) const noexcept
+    void is_server_error(int& out_result) const noexcept
     {
-        m_ops->is_server_error(get_handle(), out_result);
+        m_ops->is_server_error(get_handle(), &out_result);
     }
 };
 

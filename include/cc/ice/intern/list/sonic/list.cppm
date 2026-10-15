@@ -101,9 +101,9 @@ public:
         m_ops->for_each(get_handle(), visitor, capture);
     }
 
-    void size(size_t* out_size) const noexcept
+    void size(std::size_t& out_size) const noexcept
     {
-        m_ops->size(get_handle(), out_size);
+        m_ops->size(get_handle(), &out_size);
     }
 };
 

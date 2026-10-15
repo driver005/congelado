@@ -18,21 +18,25 @@ import :onednn_matmul_primitive;
 
 export namespace aten_xpu {
 
+inline constexpr std::string_view k_linear_kernel_name = "Linear";
+
 class SyclLinearKernel : public SyclKernel<SyclLinearKernel>
 {
 public:
-    static constexpr std::string_view k_name = "Linear";
-    static constexpr std::size_t k_max_scalars = 4;
+    enum Limits : std::size_t
+    {
+        k_max_scalars = 4
+    };
 
     SyclLinearKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
-        SyclKernel<SyclLinearKernel>{ops},
+        SyclKernel<SyclLinearKernel>{ops, k_linear_kernel_name},
         m_unary{construction.getString("unary", "none")},
         m_algorithm{construction.getString("algorithm", "none")},
         m_binary{construction.getString("binary", "none")}
     {
         m_scalar_count = construction.getFloatList("scalars", m_scalars);
         if (m_unary == "none") {
-            m_unary = SyclFusion::activation_name(construction.getInt64("activation", 0));
+            m_unary = m_fusion.activation_name(construction.getInt64("activation", 0));
         }
     }
 
@@ -71,12 +75,12 @@ public:
         SyclPostOpAttributes attributes;
         const auto scalars = std::span<const float>{m_scalars}.first(m_scalar_count);
         const bool built = m_binary == "none"
-                               ? SyclFusion::add_unary(attributes, m_unary, scalars, m_algorithm)
+                               ? m_fusion.add_unary(attributes, m_unary, scalars, m_algorithm)
                                : add_binary(attributes, other_matrix);
         if (!built) {
             context.fail(TF_INVALID_ARGUMENT, "unsupported linear post op");
         } else {
-            SyclMatmulPrimitive::run(
+            getRuntime().getMatmul().run(
                 queue->get(),
                 input_matrix,
                 weight->get(),
@@ -104,7 +108,7 @@ private:
         if (!other) {
             return false;
         }
-        static constexpr std::array<std::pair<std::string_view, dnnl::algorithm>, 6> k_binary{{
+        constexpr std::array<std::pair<std::string_view, dnnl::algorithm>, 6> k_binary{{
             {"add", dnnl::algorithm::binary_add},
             {"sum", dnnl::algorithm::binary_add},
             {"mul", dnnl::algorithm::binary_mul},
@@ -124,8 +128,8 @@ private:
         return true;
     }
 
-    static SyclTensor&
-    as_matrix(SyclTensor& tensor, int64_t rows, int64_t columns, SyclKernelContext& context)
+    SyclTensor&
+    as_matrix(SyclTensor& tensor, int64_t rows, int64_t columns, SyclKernelContext& context) const
     {
         const std::array<int64_t, 2> dims{rows, columns};
         const std::array<int64_t, 2> strides{columns, 1};
@@ -138,7 +142,7 @@ private:
             &handle,
             context.getStatus()
         );
-        return SyclHandle::resolve_raw<SyclTensor>(handle);
+        return static_cast<SyclTensor&>(SyclTensor::from_handle(handle));
     }
 
     std::string m_unary;
@@ -147,6 +151,7 @@ private:
     std::array<float, k_max_scalars> m_scalars{};
     std::size_t m_scalar_count{0};
     std::vector<int64_t> m_scratch_dims;
+    SyclFusion m_fusion;
 };
 
 } // namespace aten_xpu

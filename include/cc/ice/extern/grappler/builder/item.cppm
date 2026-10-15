@@ -42,8 +42,8 @@ public:
     virtual ~GrapplerItem() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_nodes_to_preserve_size(
-        int* out_num_values,
-        size_t* out_storage_size,
+        int& out_num_values,
+        std::size_t& out_storage_size,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_nodes_to_preserve_list(
@@ -55,8 +55,8 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_fetch_nodes_size(
-        int* out_num_values,
-        size_t* out_storage_size,
+        int& out_num_values,
+        std::size_t& out_storage_size,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_fetch_nodes_list(
@@ -88,8 +88,8 @@ public:
             {
                 auto& self = GrapplerItem::from_handle(item);
                 self.get_nodes_to_preserve_size(
-                    out_num_values,
-                    out_storage_size,
+                    *out_num_values,
+                    *out_storage_size,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -120,8 +120,8 @@ public:
             {
                 auto& self = GrapplerItem::from_handle(item);
                 self.get_fetch_nodes_size(
-                    out_num_values,
-                    out_storage_size,
+                    *out_num_values,
+                    *out_storage_size,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },

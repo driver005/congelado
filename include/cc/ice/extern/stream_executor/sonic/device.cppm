@@ -68,19 +68,19 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void get_numa_node(int32_t* out_numa_node) const noexcept
+    void get_numa_node(std::int32_t& out_numa_node) const noexcept
     {
-        m_ops->get_numa_node(get_handle(), out_numa_node);
+        m_ops->get_numa_node(get_handle(), &out_numa_node);
     }
 
-    void get_memory_bandwidth(int64_t* out_bandwidth) const noexcept
+    void get_memory_bandwidth(std::int64_t& out_bandwidth) const noexcept
     {
-        m_ops->get_memory_bandwidth(get_handle(), out_bandwidth);
+        m_ops->get_memory_bandwidth(get_handle(), &out_bandwidth);
     }
 
-    void get_gflops(double* out_gflops) const noexcept
+    void get_gflops(double& out_gflops) const noexcept
     {
-        m_ops->get_gflops(get_handle(), out_gflops);
+        m_ops->get_gflops(get_handle(), &out_gflops);
     }
 
     void get_hardware_name(const ice::sonic::String& out_name) const noexcept

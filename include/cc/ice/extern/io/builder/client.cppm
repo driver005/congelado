@@ -70,11 +70,11 @@ public:
     virtual void disconnect(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void reconnect(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void on_disconnect(TFClientDisconnectFn handler, void* user_data) noexcept = 0;
-    virtual void is_connected(int* out_connected) noexcept = 0;
+    virtual void is_connected(int& out_connected) noexcept = 0;
     virtual void
-    get_remote_endpoint(const ice::sonic::String& out_host, uint16_t* out_port) noexcept = 0;
+    get_remote_endpoint(const ice::sonic::String& out_host, std::uint16_t& out_port) noexcept = 0;
     virtual void set_keep_alive(int enabled, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void is_keep_alive(int* out_keep_alive) noexcept = 0;
+    virtual void is_keep_alive(int& out_keep_alive) noexcept = 0;
     virtual void create_request(
         uint32_t stream_id,
         const ice::sonic::Request& out_request,
@@ -97,7 +97,7 @@ public:
         const ice::sonic::Vector& out_stream_ids,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
-    virtual void get_pending_request_count(size_t* out_count) noexcept = 0;
+    virtual void get_pending_request_count(std::size_t& out_count) noexcept = 0;
     virtual void ping(
         TFClientConnectFn completion,
         void* user_data,
@@ -178,7 +178,7 @@ public:
                 [](::TF_Client* client, int* out_connected) noexcept
             {
                 auto& self = Client::from_handle(client);
-                self.is_connected(out_connected);
+                self.is_connected(*out_connected);
             },
             .get_remote_endpoint =
                 [](::TF_Client* client, ::TF_String* out_host, uint16_t* out_port) noexcept
@@ -186,7 +186,7 @@ public:
                 auto& self = Client::from_handle(client);
                 self.get_remote_endpoint(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_host),
-                    out_port
+                    *out_port
                 );
             },
             .set_keep_alive =
@@ -202,7 +202,7 @@ public:
                 [](::TF_Client* client, int* out_keep_alive) noexcept
             {
                 auto& self = Client::from_handle(client);
-                self.is_keep_alive(out_keep_alive);
+                self.is_keep_alive(*out_keep_alive);
             },
             .create_request =
                 [](::TF_Client* client,
@@ -269,7 +269,7 @@ public:
                 [](::TF_Client* client, size_t* out_count) noexcept
             {
                 auto& self = Client::from_handle(client);
-                self.get_pending_request_count(out_count);
+                self.get_pending_request_count(*out_count);
             },
             .ping =
                 [](::TF_Client* client,

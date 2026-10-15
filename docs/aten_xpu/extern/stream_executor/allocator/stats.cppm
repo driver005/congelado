@@ -124,10 +124,14 @@ private:
     using Entry = std::array<int64_t, 4>;
 
     static constexpr std::size_t k_scope_count = static_cast<std::size_t>(Scope::count);
-    static constexpr std::size_t k_current = 0;
-    static constexpr std::size_t k_peak = 1;
-    static constexpr std::size_t k_allocated = 2;
-    static constexpr std::size_t k_freed = 3;
+
+    enum Slot : std::size_t
+    {
+        k_current = 0,
+        k_peak = 1,
+        k_allocated = 2,
+        k_freed = 3
+    };
 
     const Entry& entry(Kind kind, Scope scope) const noexcept
     {

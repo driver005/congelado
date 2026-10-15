@@ -28,12 +28,6 @@ public:
     SyclDevice(SyclDevice&&) = delete;
     SyclDevice& operator=(SyclDevice&&) = delete;
 
-    static void create(::TF_Device* handle)
-    {
-        auto* device = new SyclDevice{SyclOpsTable::getInstance()};
-        SyclHandle::attach(handle, *device);
-    }
-
     void bind(const sycl::device& device, int device_index)
     {
         m_device = device;
@@ -47,23 +41,23 @@ public:
         delete this;
     }
 
-    void get_numa_node(int32_t* out_numa_node) noexcept override
+    void get_numa_node(std::int32_t& out_numa_node) noexcept override
     {
-        *out_numa_node = -1;
+        out_numa_node = -1;
     }
 
-    void get_memory_bandwidth(int64_t* out_bandwidth) noexcept override
+    void get_memory_bandwidth(std::int64_t& out_bandwidth) noexcept override
     {
         const auto bus_bits = static_cast<int64_t>(m_properties.memory_bus_width);
         const auto clock_khz = static_cast<int64_t>(m_properties.memory_clock_rate);
-        *out_bandwidth = bus_bits / 8 * clock_khz * 1'000 * 2;
+        out_bandwidth = bus_bits / 8 * clock_khz * 1'000 * 2;
     }
 
-    void get_gflops(double* out_gflops) noexcept override
+    void get_gflops(double& out_gflops) noexcept override
     {
         const double lanes = static_cast<double>(m_properties.gpu_eu_count) *
                              static_cast<double>(m_properties.gpu_eu_simd_width);
-        *out_gflops = lanes * 2.0 * static_cast<double>(m_properties.max_clock_frequency) / 1000.0;
+        out_gflops = lanes * 2.0 * static_cast<double>(m_properties.max_clock_frequency) / 1000.0;
     }
 
     void get_hardware_name(const ice::sonic::String& out_name) noexcept override
@@ -116,7 +110,7 @@ public:
     }
 
 private:
-    static int32_t resolve_global_index(const sycl::device& device)
+    int32_t resolve_global_index(const sycl::device& device) const
     {
         const auto all_devices = sycl::device::get_devices();
         const auto found = std::ranges::find(all_devices, device);
@@ -126,7 +120,7 @@ private:
     }
 
     template<std::size_t Extent>
-    static void copy_bounded(const std::string& source, char (&destination)[Extent]) noexcept
+    void copy_bounded(const std::string& source, char (&destination)[Extent]) const noexcept
     {
         const std::size_t count = std::min(source.size(), Extent - 1);
         std::copy_n(source.data(), count, destination);
@@ -139,7 +133,7 @@ private:
         return m_device.has(aspect) ? m_device.get_info<Info>() : fallback;
     }
 
-    static uint32_t fp_config_bits(const std::vector<sycl::info::fp_config>& configs)
+    uint32_t fp_config_bits(const std::vector<sycl::info::fp_config>& configs) const
     {
         uint32_t bits = 0;
         for (const auto config: configs) {

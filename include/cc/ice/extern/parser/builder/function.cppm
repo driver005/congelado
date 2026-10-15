@@ -56,13 +56,13 @@ public:
     virtual void
     get_name(const ice::sonic::String& out_name, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void
-    get_parameter_count(int* out_count, const ice::sonic::Status& out_status) noexcept = 0;
+    get_parameter_count(int& out_count, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_parameter(
         int index,
         const ice::sonic::ParserParameter& out_parameter,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
-    virtual void get_block_count(int* out_count, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void get_block_count(int& out_count, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_block(
         int index,
         const ice::sonic::ParserBlock& out_block,
@@ -97,7 +97,7 @@ public:
             {
                 auto& self = ParserFunction::from_handle(function);
                 self.get_parameter_count(
-                    out_count,
+                    *out_count,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -119,7 +119,7 @@ public:
             {
                 auto& self = ParserFunction::from_handle(function);
                 self.get_block_count(
-                    out_count,
+                    *out_count,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },

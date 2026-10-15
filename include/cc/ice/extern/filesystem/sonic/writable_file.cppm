@@ -81,9 +81,9 @@ public:
         m_ops->append(get_handle(), buffer.get_handle(), out_status.get_handle());
     }
 
-    void tell(int64_t* out_position, const ice::sonic::Status& out_status) const noexcept
+    void tell(std::int64_t& out_position, const ice::sonic::Status& out_status) const noexcept
     {
-        m_ops->tell(get_handle(), out_position, out_status.get_handle());
+        m_ops->tell(get_handle(), &out_position, out_status.get_handle());
     }
 
     void flush(const ice::sonic::Status& out_status) const noexcept

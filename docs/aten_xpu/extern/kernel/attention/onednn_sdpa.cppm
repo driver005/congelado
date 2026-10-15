@@ -9,7 +9,7 @@ export module aten_xpu_extern_kernel:attention_onednn_sdpa;
 
 import std;
 import aten_xpu_intern;
-import :onednn_engine_cache;
+import :onednn_runtime;
 import :onednn_memory_layout;
 
 export namespace aten_xpu {
@@ -20,9 +20,12 @@ public:
     using Entry =
         std::pair<dnnl::graph::compiled_partition, std::vector<dnnl::graph::logical_tensor>>;
 
-    SyclOnednnSdpa() = delete;
+    explicit SyclOnednnSdpa(SyclOnednnRuntime& runtime) noexcept :
+        m_runtime{runtime}
+    {
+    }
 
-    static sycl::event
+    sycl::event
     run(sycl::queue& queue,
         const SyclTensor& query,
         const SyclTensor& key,
@@ -31,15 +34,15 @@ public:
         SyclTensor& output,
         float scale)
     {
-        auto& engine = SyclEngineCache::getInstance().getEngine(queue);
-        auto& stream = SyclEngineCache::getInstance().getStream(queue);
+        auto& engine = m_runtime.getEngines().getEngine(queue);
+        auto& stream = m_runtime.getEngines().getStream(queue);
         const auto type = to_graph_type(query.getDtype());
         const auto key_text = cache_key(query, key, mask, type);
 
-        auto found = s_cache.find(key_text);
-        if (found == s_cache.end()) {
+        auto found = m_cache.find(key_text);
+        if (found == m_cache.end()) {
             found =
-                s_cache.emplace(key_text, compile(engine, query, key, value, mask, output, type))
+                m_cache.emplace(key_text, compile(engine, query, key, value, mask, output, type))
                     .first;
         }
         auto& [partition, inputs] = found->second;
@@ -70,18 +73,21 @@ public:
     }
 
 private:
-    static constexpr std::size_t k_query_id = 0;
-    static constexpr std::size_t k_key_id = 1;
-    static constexpr std::size_t k_scores_id = 2;
-    static constexpr std::size_t k_scale_id = 3;
-    static constexpr std::size_t k_scaled_id = 4;
-    static constexpr std::size_t k_mask_id = 5;
-    static constexpr std::size_t k_masked_id = 6;
-    static constexpr std::size_t k_probabilities_id = 7;
-    static constexpr std::size_t k_value_id = 8;
-    static constexpr std::size_t k_output_id = 9;
+    enum Identifier : std::size_t
+    {
+        k_query_id = 0,
+        k_key_id = 1,
+        k_scores_id = 2,
+        k_scale_id = 3,
+        k_scaled_id = 4,
+        k_mask_id = 5,
+        k_masked_id = 6,
+        k_probabilities_id = 7,
+        k_value_id = 8,
+        k_output_id = 9
+    };
 
-    static dnnl::graph::logical_tensor::data_type to_graph_type(TFDataTypeEnum dtype) noexcept
+    dnnl::graph::logical_tensor::data_type to_graph_type(TFDataTypeEnum dtype) const noexcept
     {
         using data_type = dnnl::graph::logical_tensor::data_type;
         switch (dtype) {
@@ -94,11 +100,11 @@ private:
         }
     }
 
-    static dnnl::graph::logical_tensor tensor_of(
+    dnnl::graph::logical_tensor tensor_of(
         std::size_t identifier,
         const std::vector<int64_t>& dims,
         dnnl::graph::logical_tensor::data_type type
-    )
+    ) const
     {
         return dnnl::graph::logical_tensor{
             identifier,
@@ -108,7 +114,7 @@ private:
         };
     }
 
-    static Entry compile(
+    Entry compile(
         dnnl::engine& engine,
         const SyclTensor& query,
         const SyclTensor& key,
@@ -116,7 +122,7 @@ private:
         std::optional<std::reference_wrapper<const SyclTensor>> mask,
         const SyclTensor& output,
         dnnl::graph::logical_tensor::data_type type
-    )
+    ) const
     {
         using graph_op = dnnl::graph::op;
         using float_type = dnnl::graph::logical_tensor::data_type;
@@ -197,12 +203,12 @@ private:
         return Entry{std::move(compiled), std::move(inputs)};
     }
 
-    static std::string cache_key(
+    std::string cache_key(
         const SyclTensor& query,
         const SyclTensor& key,
         std::optional<std::reference_wrapper<const SyclTensor>> mask,
         dnnl::graph::logical_tensor::data_type type
-    )
+    ) const
     {
         std::string text = std::format("t{}", static_cast<int>(type));
         for (const auto* dims: {&query.getDims(), &key.getDims()}) {
@@ -218,7 +224,8 @@ private:
         return text;
     }
 
-    static inline std::map<std::string, Entry> s_cache;
+    SyclOnednnRuntime& m_runtime;
+    std::map<std::string, Entry> m_cache;
 };
 
 } // namespace aten_xpu

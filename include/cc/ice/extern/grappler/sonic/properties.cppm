@@ -92,28 +92,28 @@ public:
 
     void get_input_properties_size(
         const ice::sonic::String& name,
-        int* out_num_values,
+        int& out_num_values,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_input_properties_size(
             get_handle(),
             name.get_handle(),
-            out_num_values,
+            &out_num_values,
             out_status.get_handle()
         );
     }
 
     void get_output_properties_size(
         const ice::sonic::String& name,
-        int* out_num_values,
+        int& out_num_values,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_output_properties_size(
             get_handle(),
             name.get_handle(),
-            out_num_values,
+            &out_num_values,
             out_status.get_handle()
         );
     }

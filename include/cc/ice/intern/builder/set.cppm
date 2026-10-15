@@ -49,8 +49,8 @@ public:
     ) noexcept = 0;
     virtual void erase(const void* key, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void
-    contains(const void* key, int* out_found, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void size(size_t* out_size) noexcept = 0;
+    contains(const void* key, int& out_found, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void size(std::size_t& out_size) noexcept = 0;
     virtual void for_each(TF_SetVisitor visitor, void* capture) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_Set*)) noexcept
@@ -99,7 +99,7 @@ public:
                 auto& self = Set::from_handle(set);
                 self.contains(
                     key,
-                    out_found,
+                    *out_found,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -107,7 +107,7 @@ public:
                 [](const ::TF_Set* set, size_t* out_size) noexcept
             {
                 auto& self = Set::from_handle(set);
-                self.size(out_size);
+                self.size(*out_size);
             },
             .for_each =
                 [](const ::TF_Set* set, TF_SetVisitor visitor, void* capture) noexcept

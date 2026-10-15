@@ -68,19 +68,19 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void get_priority(int32_t* out_priority) const noexcept
+    void get_priority(std::int32_t& out_priority) const noexcept
     {
-        m_ops->get_priority(get_handle(), out_priority);
+        m_ops->get_priority(get_handle(), &out_priority);
     }
 
-    void get_device_index(int* out_device_index) const noexcept
+    void get_device_index(int& out_device_index) const noexcept
     {
-        m_ops->get_device_index(get_handle(), out_device_index);
+        m_ops->get_device_index(get_handle(), &out_device_index);
     }
 
-    void query(_Bool* out_idle, const ice::sonic::Status& out_status) const noexcept
+    void query(bool& out_idle, const ice::sonic::Status& out_status) const noexcept
     {
-        m_ops->query(get_handle(), out_idle, out_status.get_handle());
+        m_ops->query(get_handle(), &out_idle, out_status.get_handle());
     }
 
     void synchronize(const ice::sonic::Status& out_status) const noexcept
@@ -89,11 +89,11 @@ public:
     }
 
     void get_capture_status(
-        ::TF_CaptureStatus* out_capture_status,
+        ::TF_CaptureStatus& out_capture_status,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->get_capture_status(get_handle(), out_capture_status, out_status.get_handle());
+        m_ops->get_capture_status(get_handle(), &out_capture_status, out_status.get_handle());
     }
 
     void get_native_handle(void** out_handle) const noexcept

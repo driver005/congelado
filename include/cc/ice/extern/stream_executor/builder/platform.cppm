@@ -51,7 +51,7 @@ public:
     virtual ~Platform() = default;
     virtual void destroy() noexcept = 0;
     virtual void
-    get_device_count(int* out_device_count, const ice::sonic::Status& out_status) noexcept = 0;
+    get_device_count(int& out_device_count, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void create_device_internal(
         const ice::sonic::Device& device,
         const ice::sonic::Status& out_status
@@ -63,18 +63,18 @@ public:
     ) noexcept = 0;
     virtual void destroy_executor_internal(const ice::sonic::Executor& executor) noexcept = 0;
     virtual void
-    get_current_device(int* out_device_index, const ice::sonic::Status& out_status) noexcept = 0;
+    get_current_device(int& out_device_index, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void
     set_current_device(int device_index, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_device_for_pointer(
         const void* pointer,
-        int* out_device_index,
+        int& out_device_index,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void can_access_peer(
         int device_index,
         int peer_device_index,
-        _Bool* out_can_access,
+        bool& out_can_access,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_native_handle(void** out_handle) noexcept = 0;
@@ -96,7 +96,7 @@ public:
             {
                 auto& self = Platform::from_handle(platform);
                 self.get_device_count(
-                    out_device_count,
+                    *out_device_count,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -141,7 +141,7 @@ public:
             {
                 auto& self = Platform::from_handle(platform);
                 self.get_current_device(
-                    out_device_index,
+                    *out_device_index,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -163,7 +163,7 @@ public:
                 auto& self = Platform::from_handle(platform);
                 self.get_device_for_pointer(
                     pointer,
-                    out_device_index,
+                    *out_device_index,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -178,7 +178,7 @@ public:
                 self.can_access_peer(
                     device_index,
                     peer_device_index,
-                    out_can_access,
+                    *out_can_access,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },

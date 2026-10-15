@@ -65,9 +65,9 @@ public:
     virtual void destroy() noexcept = 0;
     virtual void device_memory_usage(
         const ice::sonic::Device& device,
-        int64_t* out_free,
-        int64_t* out_total,
-        _Bool* out_success
+        std::int64_t& out_free,
+        std::int64_t& out_total,
+        bool& out_success
     ) noexcept = 0;
     virtual void create_stream_internal(
         const ice::sonic::Device& device,
@@ -101,7 +101,7 @@ public:
     virtual void get_event_status(
         const ice::sonic::Device& device,
         const ice::sonic::Event& event,
-        ::TF_EventStatus* out_event_status
+        ::TF_EventStatus& out_event_status
     ) noexcept = 0;
     virtual void record_event(
         const ice::sonic::Device& device,
@@ -223,7 +223,7 @@ public:
         const ice::sonic::Stream& stream,
         TF_StatusCallbackFn callback_fn,
         void* callback_arg,
-        _Bool* out_success
+        bool& out_success
     ) noexcept = 0;
     virtual void create_stream_with_options(
         const ice::sonic::Device& device,
@@ -314,9 +314,9 @@ public:
                 auto& self = Executor::from_handle(executor);
                 self.device_memory_usage(
                     self.wrap(std::type_identity<ice::sonic::Device>{}, device),
-                    out_free,
-                    out_total,
-                    out_success
+                    *out_free,
+                    *out_total,
+                    *out_success
                 );
             },
             .create_stream_internal =
@@ -401,7 +401,7 @@ public:
                 self.get_event_status(
                     self.wrap(std::type_identity<ice::sonic::Device>{}, device),
                     self.wrap(std::type_identity<ice::sonic::Event>{}, event),
-                    out_event_status
+                    *out_event_status
                 );
             },
             .record_event =
@@ -698,7 +698,7 @@ public:
                     self.wrap(std::type_identity<ice::sonic::Stream>{}, stream),
                     callback_fn,
                     callback_arg,
-                    out_success
+                    *out_success
                 );
             },
             .create_stream_with_options =

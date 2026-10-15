@@ -24,12 +24,12 @@ import aten_xpu_extern_kernel;
 
 export namespace aten_xpu {
 
+inline constexpr std::string_view k_plugin_name = "aten_xpu";
+inline constexpr std::string_view k_plugin_version = "0.1.0";
+
 class SyclPluginRegistry
 {
 public:
-    static constexpr std::string_view k_name = "aten_xpu";
-    static constexpr std::string_view k_version = "0.1.0";
-
     SyclPluginRegistry(const SyclPluginRegistry&) = delete;
     SyclPluginRegistry& operator=(const SyclPluginRegistry&) = delete;
     SyclPluginRegistry(SyclPluginRegistry&&) = delete;
@@ -134,21 +134,111 @@ private:
 
     void load_plugin_ops()
     {
-        m_platform.get_generic_vtable(&SyclPlatform::create);
-        m_device.get_generic_vtable(&SyclDevice::create);
-        m_executor.get_generic_vtable(&SyclExecutor::create);
-        m_stream.get_generic_vtable(&SyclStream::create);
-        m_event.get_generic_vtable(&SyclEvent::create);
-        m_timer.get_generic_vtable(&SyclTimer::create);
-        m_allocator.get_generic_vtable(&SyclAllocator::create);
-        m_mem_pool.get_generic_vtable(&SyclMemPool::create);
-        m_memory.get_generic_vtable(&SyclMemory::create);
-        m_stream_executor.get_generic_vtable(&SyclStreamExecutor::create);
-        m_random_generator.get_generic_vtable(&SyclRandomGenerator::create);
-        m_tensor.get_generic_vtable(&SyclTensor::create);
-        m_device_graph.get_generic_vtable(&SyclDeviceGraph::create);
-        m_grappler.get_generic_vtable(&SyclGrappler::create);
-        m_optimizer.get_generic_vtable(&SyclGrapplerOptimizer::create);
+        m_platform.get_generic_vtable(
+            [](::TF_Platform* handle)
+            {
+                auto* object = new SyclPlatform{SyclOpsTable::getInstance()};
+                handle->plugin_data = object->get_handle().plugin_data;
+            }
+        );
+        m_device.get_generic_vtable(
+            [](::TF_Device* handle)
+            {
+                auto* object = new SyclDevice{SyclOpsTable::getInstance()};
+                handle->plugin_data = object->get_handle().plugin_data;
+            }
+        );
+        m_executor.get_generic_vtable(
+            [](::TF_Executor* handle)
+            {
+                auto* object = new SyclExecutor{SyclOpsTable::getInstance()};
+                handle->plugin_data = object->get_handle().plugin_data;
+            }
+        );
+        m_stream.get_generic_vtable(
+            [](::TF_Stream* handle)
+            {
+                auto* object = new SyclStream{SyclOpsTable::getInstance()};
+                handle->plugin_data = object->get_handle().plugin_data;
+            }
+        );
+        m_event.get_generic_vtable(
+            [](::TF_Event* handle)
+            {
+                auto* object = new SyclEvent{SyclOpsTable::getInstance()};
+                handle->plugin_data = object->get_handle().plugin_data;
+            }
+        );
+        m_timer.get_generic_vtable(
+            [](::TF_Timer* handle)
+            {
+                auto* object = new SyclTimer{};
+                handle->plugin_data = object->get_handle().plugin_data;
+            }
+        );
+        m_allocator.get_generic_vtable(
+            [](::TF_Allocator* handle)
+            {
+                auto* object = new SyclAllocator{SyclOpsTable::getInstance()};
+                handle->plugin_data = object->get_handle().plugin_data;
+            }
+        );
+        m_mem_pool.get_generic_vtable(
+            [](::TF_MemPool* handle)
+            {
+                auto* object = new SyclMemPool{SyclOpsTable::getInstance()};
+                handle->plugin_data = object->get_handle().plugin_data;
+            }
+        );
+        m_memory.get_generic_vtable(
+            [](::TF_Memory* handle)
+            {
+                auto* object = new SyclMemory{SyclOpsTable::getInstance()};
+                handle->plugin_data = object->get_handle().plugin_data;
+            }
+        );
+        m_stream_executor.get_generic_vtable(
+            [](::TF_StreamExecutor* handle)
+            {
+                auto* object = new SyclStreamExecutor{SyclOpsTable::getInstance()};
+                handle->plugin_data = object->get_handle().plugin_data;
+            }
+        );
+        m_random_generator.get_generic_vtable(
+            [](::TF_RandomGenerator* handle)
+            {
+                auto* object = new SyclRandomGenerator{SyclOpsTable::getInstance()};
+                handle->plugin_data = object->get_handle().plugin_data;
+            }
+        );
+        m_tensor.get_generic_vtable(
+            [](::TF_Tensor* handle)
+            {
+                auto* object = new SyclTensor{SyclOpsTable::getInstance()};
+                handle->plugin_data = object->get_handle().plugin_data;
+            }
+        );
+        m_device_graph.get_generic_vtable(
+            [](::TFGrapplerDeviceGraph* handle)
+            {
+                auto* object = new SyclDeviceGraph{SyclOpsTable::getInstance()};
+                handle->plugin_data = object->get_handle().plugin_data;
+            }
+        );
+        m_grappler.get_generic_vtable(
+            [](::TF_Grappler* handle)
+            {
+                auto* object = new SyclGrappler{SyclOpsTable::getInstance()};
+                handle->plugin_data = object->get_handle().plugin_data;
+            }
+        );
+        m_optimizer.get_generic_vtable(
+            [](::TFGrapplerOptimizer* handle)
+            {
+                auto* object = new SyclGrapplerOptimizer{SyclOpsTable::getInstance()};
+                handle->plugin_data = object->get_handle().plugin_data;
+            }
+        );
 
         m_ops.setDeviceOps(&m_device.get_vtable());
         m_ops.setExecutorOps(&m_executor.get_vtable());
@@ -159,10 +249,12 @@ private:
         m_ops.setMemPoolOps(&m_mem_pool.get_vtable());
         m_ops.setRandomGeneratorOps(&m_random_generator.get_vtable());
         m_ops.setTensorOps(&m_tensor.get_vtable());
+        m_ops.setKernelRuntime(&m_kernel_runtime);
         m_ops.setDeviceGraphOps(&m_device_graph.get_vtable());
 
         if (m_platform.getDeviceCount() > 0) {
-            SyclTensor::setPlacement(m_platform.getContext(), m_platform.getNativeDevice(0), 0);
+            m_ops.getPlacement()
+                .setPlacement(m_platform.getContext(), m_platform.getNativeDevice(0), 0);
         }
     }
 
@@ -170,34 +262,32 @@ private:
     {
         SyclKernelRegistrar registrar{m_ops};
         for (const auto type: {TF_FLOAT, TF_HALF, TF_BFLOAT16}) {
-            registrar.add<SyclAddmmKernel>(SyclAddmmKernel::k_name, type);
-            registrar.add<SyclBmmKernel>(SyclBmmKernel::k_name, type);
-            registrar.add<SyclBaddbmmKernel>(SyclBaddbmmKernel::k_name, type);
-            registrar.add<SyclAddmvKernel>(SyclAddmvKernel::k_name, type);
-            registrar.add<SyclLinearKernel>(SyclLinearKernel::k_name, type);
-            registrar.add<SyclConvolutionKernel>(SyclConvolutionKernel::k_name, type);
-            registrar.add<SyclConvolutionBackwardKernel>(
-                SyclConvolutionBackwardKernel::k_name,
-                type
-            );
-            registrar.add<SyclDeconvolutionKernel>(SyclDeconvolutionKernel::k_name, type);
-            registrar.add<SyclWeightOnlyMatmulKernel>(SyclWeightOnlyMatmulKernel::k_name, type);
-            registrar.add<SyclSdpaKernel>(SyclSdpaKernel::k_name, type);
-            registrar.add<SyclSdpaBackwardKernel>(SyclSdpaBackwardKernel::k_name, type);
-            registrar.add<SyclLstmKernel>(SyclLstmKernel::k_name, type);
+            registrar.add<SyclAddmmKernel>(k_addmm_kernel_name, type);
+            registrar.add<SyclBmmKernel>(k_bmm_kernel_name, type);
+            registrar.add<SyclBaddbmmKernel>(k_baddbmm_kernel_name, type);
+            registrar.add<SyclAddmvKernel>(k_addmv_kernel_name, type);
+            registrar.add<SyclLinearKernel>(k_linear_kernel_name, type);
+            registrar.add<SyclConvolutionKernel>(k_convolution_kernel_name, type);
+            registrar.add<SyclConvolutionBackwardKernel>(k_convolution_backward_kernel_name, type);
+            registrar.add<SyclDeconvolutionKernel>(k_deconvolution_kernel_name, type);
+            registrar.add<SyclWeightOnlyMatmulKernel>(k_weight_only_matmul_kernel_name, type);
+            registrar.add<SyclSdpaKernel>(k_sdpa_kernel_name, type);
+            registrar.add<SyclSdpaBackwardKernel>(k_sdpa_backward_kernel_name, type);
+            registrar.add<SyclLstmKernel>(k_lstm_kernel_name, type);
         }
         for (const auto type: {TF_QINT8, TF_QUINT8}) {
-            registrar.add<SyclInt8MatmulKernel>(SyclInt8MatmulKernel::k_name, type);
+            registrar.add<SyclInt8MatmulKernel>(k_int8_matmul_kernel_name, type);
             registrar.add<SyclInt8MatmulKernel>("QuantizedLinear", type);
-            registrar.add<SyclInt8ConvolutionKernel>(SyclInt8ConvolutionKernel::k_name, type);
+            registrar.add<SyclInt8ConvolutionKernel>(k_int8_convolution_kernel_name, type);
         }
         for (const auto type: {TF_FLOAT8_E4M3FN, TF_FLOAT8_E5M2}) {
-            registrar.add<SyclScaledMatmulKernel>(SyclScaledMatmulKernel::k_name, type);
+            registrar.add<SyclScaledMatmulKernel>(k_scaled_matmul_kernel_name, type);
         }
         m_kernel_count = registrar.getRegisteredCount();
     }
 
     SyclOpsTable& m_ops;
+    SyclKernelRuntime m_kernel_runtime;
     std::array<void*, 6> m_host_contexts{};
     bool m_initialized{false};
     std::size_t m_kernel_count{0};

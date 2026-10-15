@@ -45,7 +45,7 @@ public:
     virtual void destroy() noexcept = 0;
     virtual void elapsed_time(
         const ice::sonic::Event& end,
-        float* out_milliseconds,
+        float& out_milliseconds,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void
@@ -73,7 +73,7 @@ public:
                 auto& self = Event::from_handle(start);
                 self.elapsed_time(
                     self.wrap(std::type_identity<ice::sonic::Event>{}, end),
-                    out_milliseconds,
+                    *out_milliseconds,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },

@@ -22,8 +22,12 @@ public:
         unsupported
     };
 
-    static Kind
-    detect(const SyclTensor& scale, int64_t rows, int64_t inner, bool is_left_operand) noexcept
+    Kind detect(
+        const SyclTensor& scale,
+        int64_t rows,
+        int64_t inner,
+        bool is_left_operand
+    ) const noexcept
     {
         const auto count = scale.element_count();
         const auto outer = is_left_operand ? rows : inner;
@@ -46,8 +50,12 @@ public:
         return Kind::unsupported;
     }
 
-    static void
-    apply(dnnl::primitive_attr& attributes, int argument, Kind kind, bool is_left_operand)
+    void apply(
+        dnnl::primitive_attr& attributes,
+        int argument,
+        Kind kind,
+        bool is_left_operand
+    ) const
     {
         const int outer_mask = is_left_operand ? 1 << 0 : 1 << 1;
         switch (kind) {
@@ -86,7 +94,7 @@ public:
         }
     }
 
-    static bool compatible(Kind left, Kind right) noexcept
+    bool compatible(Kind left, Kind right) const noexcept
     {
         if (left == Kind::unsupported || right == Kind::unsupported) {
             return false;
@@ -98,12 +106,12 @@ public:
     }
 
 private:
-    static int64_t ceil_div(int64_t value, int64_t divisor) noexcept
+    int64_t ceil_div(int64_t value, int64_t divisor) const noexcept
     {
         return (value + divisor - 1) / divisor;
     }
 
-    static dnnl::memory::dims group_dims(int64_t outer, int64_t reduction, bool is_left_operand)
+    dnnl::memory::dims group_dims(int64_t outer, int64_t reduction, bool is_left_operand) const
     {
         return is_left_operand ? dnnl::memory::dims{outer, reduction}
                                : dnnl::memory::dims{reduction, outer};

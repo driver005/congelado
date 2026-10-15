@@ -77,11 +77,11 @@ public:
         uint64_t offset,
         size_t n,
         char* buffer,
-        int64_t* out_bytes_read,
+        std::int64_t& out_bytes_read,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->read(get_handle(), offset, n, buffer, out_bytes_read, out_status.get_handle());
+        m_ops->read(get_handle(), offset, n, buffer, &out_bytes_read, out_status.get_handle());
     }
 };
 

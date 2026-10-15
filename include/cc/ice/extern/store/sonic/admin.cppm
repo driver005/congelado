@@ -68,9 +68,9 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void is_connected(int* out_connected) const noexcept
+    void is_connected(int& out_connected) const noexcept
     {
-        m_ops->is_connected(get_handle(), out_connected);
+        m_ops->is_connected(get_handle(), &out_connected);
     }
 
     void backup(

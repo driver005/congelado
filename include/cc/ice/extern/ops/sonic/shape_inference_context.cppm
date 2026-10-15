@@ -74,9 +74,9 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void num_inputs(int64_t* out_num) const noexcept
+    void num_inputs(std::int64_t& out_num) const noexcept
     {
-        m_ops->num_inputs(get_handle(), out_num);
+        m_ops->num_inputs(get_handle(), &out_num);
     }
 
     void get_input(
@@ -109,22 +109,26 @@ public:
 
     void get_attr_type(
         const ice::sonic::String& attr_name,
-        ::TFDataTypeEnum* out_val,
+        ::TFDataTypeEnum& out_val,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops
-            ->get_attr_type(get_handle(), attr_name.get_handle(), out_val, out_status.get_handle());
+        m_ops->get_attr_type(
+            get_handle(),
+            attr_name.get_handle(),
+            &out_val,
+            out_status.get_handle()
+        );
     }
 
-    void rank(const ice::sonic::ShapeHandle& handle, int64_t* out_rank) const noexcept
+    void rank(const ice::sonic::ShapeHandle& handle, std::int64_t& out_rank) const noexcept
     {
-        m_ops->rank(get_handle(), handle.get_handle(), out_rank);
+        m_ops->rank(get_handle(), handle.get_handle(), &out_rank);
     }
 
-    void rank_known(const ice::sonic::ShapeHandle& handle, int* out_known) const noexcept
+    void rank_known(const ice::sonic::ShapeHandle& handle, int& out_known) const noexcept
     {
-        m_ops->rank_known(get_handle(), handle.get_handle(), out_known);
+        m_ops->rank_known(get_handle(), handle.get_handle(), &out_known);
     }
 
     void with_rank(

@@ -69,14 +69,14 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void num_inputs(int* out_num) const noexcept
+    void num_inputs(int& out_num) const noexcept
     {
-        m_ops->num_inputs(get_handle(), out_num);
+        m_ops->num_inputs(get_handle(), &out_num);
     }
 
-    void num_outputs(int* out_num) const noexcept
+    void num_outputs(int& out_num) const noexcept
     {
-        m_ops->num_outputs(get_handle(), out_num);
+        m_ops->num_outputs(get_handle(), &out_num);
     }
 
     void get_input(
@@ -93,9 +93,9 @@ public:
         m_ops->input_range(get_handle(), name.get_handle(), out_args);
     }
 
-    void input_datatype(int index, ::TFDataTypeEnum* out_type) const noexcept
+    void input_datatype(int index, ::TFDataTypeEnum& out_type) const noexcept
     {
-        m_ops->input_datatype(get_handle(), index, out_type);
+        m_ops->input_datatype(get_handle(), index, &out_type);
     }
 
     void set_output(
@@ -159,52 +159,52 @@ public:
         m_ops->failure(get_handle(), out_status.get_handle());
     }
 
-    void expected_output_datatype(int i, ::TFDataTypeEnum* out_type) const noexcept
+    void expected_output_datatype(int i, ::TFDataTypeEnum& out_type) const noexcept
     {
-        m_ops->expected_output_datatype(get_handle(), i, out_type);
+        m_ops->expected_output_datatype(get_handle(), i, &out_type);
     }
 
     void is_host_memory_input(
         int i,
-        _Bool* out_is_host,
+        bool& out_is_host,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->is_host_memory_input(get_handle(), i, out_is_host, out_status.get_handle());
+        m_ops->is_host_memory_input(get_handle(), i, &out_is_host, out_status.get_handle());
     }
 
     void is_host_memory_output(
         int i,
-        _Bool* out_is_host,
+        bool& out_is_host,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->is_host_memory_output(get_handle(), i, out_is_host, out_status.get_handle());
+        m_ops->is_host_memory_output(get_handle(), i, &out_is_host, out_status.get_handle());
     }
 
-    void step_id(int64_t* out_id) const noexcept
+    void step_id(std::int64_t& out_id) const noexcept
     {
-        m_ops->step_id(get_handle(), out_id);
+        m_ops->step_id(get_handle(), &out_id);
     }
 
-    void get_frame_id(uint64_t* out_id) const noexcept
+    void get_frame_id(std::uint64_t& out_id) const noexcept
     {
-        m_ops->get_frame_id(get_handle(), out_id);
+        m_ops->get_frame_id(get_handle(), &out_id);
     }
 
-    void get_iter_id(int64_t* out_id) const noexcept
+    void get_iter_id(std::int64_t& out_id) const noexcept
     {
-        m_ops->get_iter_id(get_handle(), out_id);
+        m_ops->get_iter_id(get_handle(), &out_id);
     }
 
-    void get_step_id(int64_t* out_id) const noexcept
+    void get_step_id(std::int64_t& out_id) const noexcept
     {
-        m_ops->get_step_id(get_handle(), out_id);
+        m_ops->get_step_id(get_handle(), &out_id);
     }
 
-    void get_device_id(int* out_id) const noexcept
+    void get_device_id(int& out_id) const noexcept
     {
-        m_ops->get_device_id(get_handle(), out_id);
+        m_ops->get_device_id(get_handle(), &out_id);
     }
 
     void get_device_name(const ice::sonic::String& out_name) const noexcept
@@ -212,9 +212,9 @@ public:
         m_ops->get_device_name(get_handle(), out_name.get_handle());
     }
 
-    void get_graph_def_version(int* out_version) const noexcept
+    void get_graph_def_version(int& out_version) const noexcept
     {
-        m_ops->get_graph_def_version(get_handle(), out_version);
+        m_ops->get_graph_def_version(get_handle(), &out_version);
     }
 
     void get_op_kernel_name(const ice::sonic::String& out_name) const noexcept
@@ -463,9 +463,9 @@ public:
         m_ops->forward_ref_input_to_ref_output(get_handle(), input_index, output_index);
     }
 
-    void is_ref_input(int i, _Bool* out_is_ref, const ice::sonic::Status& out_status) const noexcept
+    void is_ref_input(int i, bool& out_is_ref, const ice::sonic::Status& out_status) const noexcept
     {
-        m_ops->is_ref_input(get_handle(), i, out_is_ref, out_status.get_handle());
+        m_ops->is_ref_input(get_handle(), i, &out_is_ref, out_status.get_handle());
     }
 
     void get_input_by_name(

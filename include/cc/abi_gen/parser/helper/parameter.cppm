@@ -54,6 +54,12 @@ public:
         m_pointee_name = std::move(pointee_name);
     }
 
+    Parameter& add_scalar_pointer(bool scalar_pointer) noexcept
+    {
+        m_scalar_pointer = scalar_pointer;
+        return *this;
+    }
+
     void set_name(std::string&& name) noexcept
     {
         m_name = std::move(name);
@@ -115,10 +121,41 @@ public:
         return m_name;
     }
 
+    // True for `out_*` pointers to a non-const arithmetic or enum value (not char, not a record,
+    // not a pointer to pointer). Whether it is really a single value and not an array is decided
+    // against the whole slot by the emitter.
+    bool is_scalar_out() const noexcept
+    {
+        return m_scalar_pointer && m_name.starts_with("out_");
+    }
+
+    // C++ spelling of the pointee for the reference form of a scalar out parameter.
+    // Example: "int32_t" -> "std::int32_t", "_Bool" -> "bool", "TFDataTypeEnum" -> "::TFDataTypeEnum"
+    std::string get_value_type() const
+    {
+        static constexpr std::array<std::string_view, 12> k_std_names{
+            "int8_t", "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t",
+            "uint32_t", "uint64_t", "intptr_t", "uintptr_t", "size_t", "ptrdiff_t"
+        };
+
+        if (m_pointee_name == "_Bool") {
+            return "bool";
+        }
+        if (std::ranges::find(k_std_names, std::string_view{m_pointee_name}) != k_std_names.end()) {
+            return "std::" + m_pointee_name;
+        }
+        if (!m_pointee_name.empty() && std::isupper(static_cast<unsigned char>(m_pointee_name.front()))) {
+            return "::" + m_pointee_name;
+        }
+
+        return m_pointee_name;
+    }
+
 private:
     std::string m_type;
     std::string m_pointee_name;
     std::string m_name;
+    bool m_scalar_pointer{false};
 };
 
 } // namespace cc_abi_gen::parser::helper

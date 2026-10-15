@@ -44,13 +44,13 @@ public:
             // Gets the data type of the parameter at the requested index.
             clang::QualType parameter_type = function_type->getParamType(index);
 
-            parameters.emplace_back(
-                helper::Parameter{
-                    parameter_type.getAsString(),
-                    resolve_pointee_name(parameter_type),
-                    resolve_parameter_name(function_loc, index)
-                }
-            );
+            helper::Parameter parameter{
+                parameter_type.getAsString(),
+                resolve_pointee_name(parameter_type),
+                resolve_parameter_name(function_loc, index)
+            };
+            parameter.add_scalar_pointer(is_scalar_pointer(parameter_type));
+            parameters.emplace_back(std::move(parameter));
         }
 
         return Slot{
@@ -63,6 +63,21 @@ public:
     }
 
 private:
+    // Non-const pointer to a number, bool or enum (char excluded).
+    static bool is_scalar_pointer(clang::QualType parameter_type) noexcept
+    {
+        if (!parameter_type->isPointerType()) {
+            return false;
+        }
+
+        clang::QualType pointee_type = parameter_type->getPointeeType();
+        if (pointee_type.isConstQualified() || pointee_type->isAnyCharacterType()) {
+            return false;
+        }
+
+        return pointee_type->isArithmeticType() || pointee_type->isEnumeralType();
+    }
+
     // Bare pointee type name, read structurally off clang's QualType instead of guessed back out of
     // a formatted type string. Empty for void* and for non-pointer parameters.
     std::string resolve_pointee_name(clang::QualType parameter_type) noexcept

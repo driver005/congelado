@@ -75,9 +75,9 @@ public:
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    void datatype_size(TFDataTypeEnum dt, size_t* out_size) const noexcept
+    void datatype_size(TFDataTypeEnum dt, std::size_t& out_size) const noexcept
     {
-        m_ops->datatype_size(get_handle(), dt, out_size);
+        m_ops->datatype_size(get_handle(), dt, &out_size);
     }
 };
 

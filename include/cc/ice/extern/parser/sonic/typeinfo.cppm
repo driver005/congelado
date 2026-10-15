@@ -68,18 +68,18 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void get_dtype(int* out_dtype, const ice::sonic::Status& out_status) const noexcept
+    void get_dtype(int& out_dtype, const ice::sonic::Status& out_status) const noexcept
     {
-        m_ops->get_dtype(get_handle(), out_dtype, out_status.get_handle());
+        m_ops->get_dtype(get_handle(), &out_dtype, out_status.get_handle());
     }
 
     void get_shape(
         int64_t** out_dims,
-        int* out_num_dims,
+        int& out_num_dims,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->get_shape(get_handle(), out_dims, out_num_dims, out_status.get_handle());
+        m_ops->get_shape(get_handle(), out_dims, &out_num_dims, out_status.get_handle());
     }
 };
 

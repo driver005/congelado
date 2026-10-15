@@ -41,12 +41,12 @@ public:
 
     virtual ~Stream() = default;
     virtual void destroy() noexcept = 0;
-    virtual void get_priority(int32_t* out_priority) noexcept = 0;
-    virtual void get_device_index(int* out_device_index) noexcept = 0;
-    virtual void query(_Bool* out_idle, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void get_priority(std::int32_t& out_priority) noexcept = 0;
+    virtual void get_device_index(int& out_device_index) noexcept = 0;
+    virtual void query(bool& out_idle, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void synchronize(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_capture_status(
-        ::TF_CaptureStatus* out_capture_status,
+        ::TF_CaptureStatus& out_capture_status,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_native_handle(void** out_handle) noexcept = 0;
@@ -67,20 +67,20 @@ public:
                 [](::TF_Stream* stream, int32_t* out_priority) noexcept
             {
                 auto& self = Stream::from_handle(stream);
-                self.get_priority(out_priority);
+                self.get_priority(*out_priority);
             },
             .get_device_index =
                 [](::TF_Stream* stream, int* out_device_index) noexcept
             {
                 auto& self = Stream::from_handle(stream);
-                self.get_device_index(out_device_index);
+                self.get_device_index(*out_device_index);
             },
             .query =
                 [](::TF_Stream* stream, _Bool* out_idle, ::TF_Status* out_status) noexcept
             {
                 auto& self = Stream::from_handle(stream);
                 self.query(
-                    out_idle,
+                    *out_idle,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -97,7 +97,7 @@ public:
             {
                 auto& self = Stream::from_handle(stream);
                 self.get_capture_status(
-                    out_capture_status,
+                    *out_capture_status,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },

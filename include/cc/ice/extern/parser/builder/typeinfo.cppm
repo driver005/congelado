@@ -41,10 +41,10 @@ public:
 
     virtual ~ParserTypeInfo() = default;
     virtual void destroy() noexcept = 0;
-    virtual void get_dtype(int* out_dtype, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void get_dtype(int& out_dtype, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_shape(
         int64_t** out_dims,
-        int* out_num_dims,
+        int& out_num_dims,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
 
@@ -65,7 +65,7 @@ public:
             {
                 auto& self = ParserTypeInfo::from_handle(typeinfo);
                 self.get_dtype(
-                    out_dtype,
+                    *out_dtype,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -78,7 +78,7 @@ public:
                 auto& self = ParserTypeInfo::from_handle(typeinfo);
                 self.get_shape(
                     out_dims,
-                    out_num_dims,
+                    *out_num_dims,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },

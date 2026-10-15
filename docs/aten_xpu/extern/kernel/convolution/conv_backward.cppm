@@ -16,14 +16,14 @@ import :onednn_convolution_primitive;
 
 export namespace aten_xpu {
 
+inline constexpr std::string_view k_convolution_backward_kernel_name = "ConvolutionBackward";
+
 class SyclConvolutionBackwardKernel : public SyclKernel<SyclConvolutionBackwardKernel>
 {
 public:
-    static constexpr std::string_view k_name = "ConvolutionBackward";
-
     SyclConvolutionBackwardKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
-        SyclKernel<SyclConvolutionBackwardKernel>{ops},
-        m_geometry{SyclConvolutionGeometry::from_construction(construction)},
+        SyclKernel<SyclConvolutionBackwardKernel>{ops, k_convolution_backward_kernel_name},
+        m_geometry{SyclConvolutionGeometry{construction}},
         m_input_gradient{construction.getBool("input_gradient", true)},
         m_weight_gradient{construction.getBool("weight_gradient", true)},
         m_bias_gradient{construction.getBool("bias_gradient", true)}
@@ -49,7 +49,7 @@ public:
                 context.propagate();
                 return;
             }
-            SyclConvolutionPrimitive::backward_data(
+            getRuntime().getConvolution().backward_data(
                 queue->get(),
                 gradient_output->get(),
                 weight->get(),
@@ -74,7 +74,7 @@ public:
                     return;
                 }
             }
-            SyclConvolutionPrimitive::backward_weights(
+            getRuntime().getConvolution().backward_weights(
                 queue->get(),
                 source->get(),
                 gradient_output->get(),

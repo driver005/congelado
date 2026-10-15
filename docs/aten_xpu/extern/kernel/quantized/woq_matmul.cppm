@@ -17,13 +17,13 @@ import :onednn_primitive_executor;
 
 export namespace aten_xpu {
 
+inline constexpr std::string_view k_weight_only_matmul_kernel_name = "WeightOnlyQuantizedMatMul";
+
 class SyclWeightOnlyMatmulKernel : public SyclKernel<SyclWeightOnlyMatmulKernel>
 {
 public:
-    static constexpr std::string_view k_name = "WeightOnlyQuantizedMatMul";
-
     SyclWeightOnlyMatmulKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
-        SyclKernel<SyclWeightOnlyMatmulKernel>{ops},
+        SyclKernel<SyclWeightOnlyMatmulKernel>{ops, k_weight_only_matmul_kernel_name},
         m_group_size{construction.getInt64("group_size", 128)},
         m_symmetric{construction.getBool("symmetric", false)}
     {
@@ -57,8 +57,7 @@ public:
             return;
         }
 
-        const auto activation_type =
-            SyclOnednnLayout::data_type(activation->get().getDtype()).value();
+        const auto activation_type = m_layout.data_type(activation->get().getDtype()).value();
         const dnnl::memory::desc activation_desc{
             {rows, inner},
             activation_type,
@@ -88,7 +87,7 @@ public:
             bias ? dnnl::memory::desc{{1, columns}, activation_type, dnnl::memory::format_tag::ab}
                  : dnnl::memory::desc{};
 
-        auto attributes = SyclPrimitiveExecutor::user_scratchpad_attributes();
+        auto attributes = getRuntime().getOnednn().user_scratchpad_attributes();
         attributes.set_scales(DNNL_ARG_WEIGHTS, 0b11, {m_group_size, 1}, activation_type);
         if (zero_point) {
             attributes.set_zero_points(
@@ -100,7 +99,7 @@ public:
         }
         attributes.set_fpmath_mode(dnnl::fpmath_mode::any, true);
 
-        SyclPrimitiveExecutor executor{queue->get()};
+        auto executor = getRuntime().getOnednn().make_executor(queue->get());
         const auto primitive_desc =
             bias
                 ? dnnl::matmul::
@@ -137,6 +136,7 @@ private:
     int64_t m_group_size;
     bool m_symmetric;
     std::vector<int64_t> m_scratch_dims;
+    SyclOnednnLayout m_layout;
 };
 
 } // namespace aten_xpu

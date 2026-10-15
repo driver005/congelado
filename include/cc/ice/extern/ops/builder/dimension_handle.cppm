@@ -39,8 +39,8 @@ public:
 
     virtual ~DimensionHandle() = default;
     virtual void destroy() noexcept = 0;
-    virtual void value_known(int* out_known) noexcept = 0;
-    virtual void value(int64_t* out_value) noexcept = 0;
+    virtual void value_known(int& out_known) noexcept = 0;
+    virtual void value(std::int64_t& out_value) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_DimensionHandle*)) noexcept
     {
@@ -58,13 +58,13 @@ public:
                 [](::TF_DimensionHandle* dim_handle, int* out_known) noexcept
             {
                 auto& self = DimensionHandle::from_handle(dim_handle);
-                self.value_known(out_known);
+                self.value_known(*out_known);
             },
             .value =
                 [](::TF_DimensionHandle* dim_handle, int64_t* out_value) noexcept
             {
                 auto& self = DimensionHandle::from_handle(dim_handle);
-                self.value(out_value);
+                self.value(*out_value);
             },
 
         };

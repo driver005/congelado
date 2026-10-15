@@ -86,9 +86,9 @@ public:
         m_ops->get_op_type(get_handle(), out_op_type.get_handle(), out_status.get_handle());
     }
 
-    void get_attribute_count(int* out_count, const ice::sonic::Status& out_status) const noexcept
+    void get_attribute_count(int& out_count, const ice::sonic::Status& out_status) const noexcept
     {
-        m_ops->get_attribute_count(get_handle(), out_count, out_status.get_handle());
+        m_ops->get_attribute_count(get_handle(), &out_count, out_status.get_handle());
     }
 
     void get_attribute(

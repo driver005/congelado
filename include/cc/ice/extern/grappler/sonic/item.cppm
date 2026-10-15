@@ -69,15 +69,15 @@ public:
     }
 
     void get_nodes_to_preserve_size(
-        int* out_num_values,
-        size_t* out_storage_size,
+        int& out_num_values,
+        std::size_t& out_storage_size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_nodes_to_preserve_size(
             get_handle(),
-            out_num_values,
-            out_storage_size,
+            &out_num_values,
+            &out_storage_size,
             out_status.get_handle()
         );
     }
@@ -103,15 +103,15 @@ public:
     }
 
     void get_fetch_nodes_size(
-        int* out_num_values,
-        size_t* out_storage_size,
+        int& out_num_values,
+        std::size_t& out_storage_size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_fetch_nodes_size(
             get_handle(),
-            out_num_values,
-            out_storage_size,
+            &out_num_values,
+            &out_storage_size,
             out_status.get_handle()
         );
     }

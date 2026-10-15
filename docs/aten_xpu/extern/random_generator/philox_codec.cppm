@@ -11,9 +11,7 @@ export namespace aten_xpu {
 class SyclPhiloxCodec
 {
 public:
-    SyclPhiloxCodec() = delete;
-
-    static std::pair<uint64_t, uint64_t> unpack(const TF_PhiloxState& state) noexcept
+    std::pair<uint64_t, uint64_t> unpack(const TF_PhiloxState& state) const noexcept
     {
         if (state.captured) {
             return {

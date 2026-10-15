@@ -21,7 +21,7 @@ docs/aten_xpu/
 │   │                         host_cache, pluggable_allocator}
 │   ├── random_generator/     random_generator, philox_state, philox_codec
 │   ├── grappler/             grappler, device_graph, capture_status, optimizer
-│   ├── kernel/               kernel (SyclKernel<Derived> : TF_KernelOps), registrar,
+│   ├── kernel/               kernel (SyclKernel<Derived> : ice::builder::Kernel), registrar,
 │   │                         context/, onednn/, matmul/, linear/, convolution/,
 │   │                         quantized/, scaled/, attention/, recurrent/
 │   └── registration/         SyclPluginRegistry (vtables, host ops, kernel registration)
@@ -30,8 +30,8 @@ docs/aten_xpu/
 
 ## Lifecycle
 
-- The host calls a vtable's `create` slot. The plugin allocates the concrete `Sycl*` object and `SyclHandle::attach` stores it in `plugin_data`. `destroy` deletes the object.
-- `create_*_internal(parent, handle)` binds an object that already exists (for example `SyclStream::bind`). Generated wrappers copy the `{plugin_data}` handle, so `SyclHandle::resolve<T>` finds the same object.
+- The host calls a vtable's `create` slot. The plugin allocates the concrete `Sycl*` object and `create` stores `plugin_data` from the new object in `plugin_data`. `destroy` deletes the object.
+- `create_*_internal(parent, handle)` binds an object that already exists (for example `SyclStream::bind`). Generated wrappers copy the `{plugin_data}` handle, so `T::from_handle` finds the same object.
 - Pool and current-stream slots (`get_stream_from_pool`, `get_current_stream`, `get_default_random_generator`) bind the caller's handle to shared state, such as a shared queue or a shared Philox state. They never swap `plugin_data`.
 - `SyclOpsTable` holds two kinds of ops tables: host tables (status, string, buffer, kernel context/construction, grappler item) and the plugin's own vtables. `SyclPluginRegistry::initialize` fills it.
 

@@ -42,7 +42,7 @@ public:
     virtual ~MemPool() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_id(::TF_PoolId* out_pool_id) noexcept = 0;
-    virtual void use_count(int* out_count) noexcept = 0;
+    virtual void use_count(int& out_count) noexcept = 0;
     virtual void begin_allocate_to_pool(
         TF_StreamFilterFn stream_filter,
         void* filter_data,
@@ -75,7 +75,7 @@ public:
                 [](::TF_MemPool* pool, int* out_count) noexcept
             {
                 auto& self = MemPool::from_handle(pool);
-                self.use_count(out_count);
+                self.use_count(*out_count);
             },
             .begin_allocate_to_pool =
                 [](::TF_MemPool* pool,

@@ -14,9 +14,7 @@ export namespace aten_xpu {
 class SyclOnednnLayout
 {
 public:
-    SyclOnednnLayout() = delete;
-
-    static std::optional<dnnl::memory::data_type> data_type(TFDataTypeEnum dtype) noexcept
+    std::optional<dnnl::memory::data_type> data_type(TFDataTypeEnum dtype) const noexcept
     {
         using data_type_t = dnnl::memory::data_type;
         switch (dtype) {
@@ -47,7 +45,7 @@ public:
         }
     }
 
-    static dnnl::memory::desc desc(const SyclTensor& tensor)
+    dnnl::memory::desc desc(const SyclTensor& tensor) const
     {
         const auto type = data_type(tensor.getDtype()).value_or(dnnl::memory::data_type::f32);
         return dnnl::memory::desc{
@@ -57,7 +55,7 @@ public:
         };
     }
 
-    static dnnl::memory::desc desc_as(const SyclTensor& tensor, dnnl::memory::data_type type)
+    dnnl::memory::desc desc_as(const SyclTensor& tensor, dnnl::memory::data_type type) const
     {
         return dnnl::memory::desc{
             dnnl::memory::dims(tensor.getDims().begin(), tensor.getDims().end()),
@@ -66,7 +64,7 @@ public:
         };
     }
 
-    static dnnl::memory::desc any_desc(const dnnl::memory::desc& desc)
+    dnnl::memory::desc any_desc(const dnnl::memory::desc& desc) const
     {
         return dnnl::memory::desc{
             desc.get_dims(),
@@ -75,7 +73,7 @@ public:
         };
     }
 
-    static dnnl::memory::format_tag default_format(int rank, bool channels_last = false) noexcept
+    dnnl::memory::format_tag default_format(int rank, bool channels_last = false) const noexcept
     {
         using tag = dnnl::memory::format_tag;
         switch (rank) {
@@ -96,7 +94,7 @@ public:
         }
     }
 
-    static bool is_channels_last(const SyclTensor& tensor) noexcept
+    bool is_channels_last(const SyclTensor& tensor) const noexcept
     {
         const auto& dims = tensor.getDims();
         const auto& strides = tensor.getStrides();
@@ -106,7 +104,7 @@ public:
         return strides[1] == 1 && strides.back() == dims[1];
     }
 
-    static bool is_matmul_compatible(const SyclTensor& tensor) noexcept
+    bool is_matmul_compatible(const SyclTensor& tensor) const noexcept
     {
         const auto& dims = tensor.getDims();
         const auto& strides = tensor.getStrides();
@@ -122,12 +120,12 @@ public:
         return row_major || column_major;
     }
 
-    static bool is_64_bytes_aligned(const SyclTensor& tensor) noexcept
+    bool is_64_bytes_aligned(const SyclTensor& tensor) const noexcept
     {
         return reinterpret_cast<std::uintptr_t>(tensor.getData()) % 64 == 0;
     }
 
-    static dnnl::memory::desc bias_desc(const SyclTensor& bias, int spatial_rank)
+    dnnl::memory::desc bias_desc(const SyclTensor& bias, int spatial_rank) const
     {
         const auto channels = bias.getDims().empty() ? int64_t{1} : bias.getDims().front();
         dnnl::memory::dims dims{1, channels};
@@ -139,8 +137,8 @@ public:
         };
     }
 
-    static dnnl::memory::dims
-    padding_right(std::span<const int64_t> padding, std::span<const int64_t> output_padding)
+    dnnl::memory::dims
+    padding_right(std::span<const int64_t> padding, std::span<const int64_t> output_padding) const
     {
         dnnl::memory::dims result(padding.begin(), padding.end());
         for (std::size_t index = 0; index < output_padding.size() && index < result.size();
@@ -150,7 +148,7 @@ public:
         return result;
     }
 
-    static dnnl::memory::dims dilation(std::span<const int64_t> dilation)
+    dnnl::memory::dims dilation(std::span<const int64_t> dilation) const
     {
         dnnl::memory::dims result(dilation.begin(), dilation.end());
         for (auto& value: result) {

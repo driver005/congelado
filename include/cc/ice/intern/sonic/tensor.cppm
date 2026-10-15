@@ -96,29 +96,29 @@ public:
         m_ops->delete_tensor(get_handle());
     }
 
-    void tensor_type(::TFDataTypeEnum* out_dtype) const noexcept
+    void tensor_type(::TFDataTypeEnum& out_dtype) const noexcept
     {
-        m_ops->tensor_type(get_handle(), out_dtype);
+        m_ops->tensor_type(get_handle(), &out_dtype);
     }
 
-    void num_dims(int* out_num_dims) const noexcept
+    void num_dims(int& out_num_dims) const noexcept
     {
-        m_ops->num_dims(get_handle(), out_num_dims);
+        m_ops->num_dims(get_handle(), &out_num_dims);
     }
 
-    void dim(int dim_index, int64_t* out_dim) const noexcept
+    void dim(int dim_index, std::int64_t& out_dim) const noexcept
     {
-        m_ops->dim(get_handle(), dim_index, out_dim);
+        m_ops->dim(get_handle(), dim_index, &out_dim);
     }
 
-    void tensor_element_count(int64_t* out_count) const noexcept
+    void tensor_element_count(std::int64_t& out_count) const noexcept
     {
-        m_ops->tensor_element_count(get_handle(), out_count);
+        m_ops->tensor_element_count(get_handle(), &out_count);
     }
 
-    void tensor_byte_size(size_t* out_byte_size) const noexcept
+    void tensor_byte_size(std::size_t& out_byte_size) const noexcept
     {
-        m_ops->tensor_byte_size(get_handle(), out_byte_size);
+        m_ops->tensor_byte_size(get_handle(), &out_byte_size);
     }
 
     void tensor_data(void** out_data) const noexcept
@@ -154,9 +154,9 @@ public:
         m_ops->set_strides(get_handle(), strides, num_strides);
     }
 
-    void stride(int dim_index, int64_t* out_stride) const noexcept
+    void stride(int dim_index, std::int64_t& out_stride) const noexcept
     {
-        m_ops->stride(get_handle(), dim_index, out_stride);
+        m_ops->stride(get_handle(), dim_index, &out_stride);
     }
 
     void set_storage_offset(int64_t offset_elements) const noexcept
@@ -164,9 +164,9 @@ public:
         m_ops->set_storage_offset(get_handle(), offset_elements);
     }
 
-    void storage_offset(int64_t* out_offset_elements) const noexcept
+    void storage_offset(std::int64_t& out_offset_elements) const noexcept
     {
-        m_ops->storage_offset(get_handle(), out_offset_elements);
+        m_ops->storage_offset(get_handle(), &out_offset_elements);
     }
 
     void set_device_index(int device_index) const noexcept
@@ -174,9 +174,9 @@ public:
         m_ops->set_device_index(get_handle(), device_index);
     }
 
-    void get_device_index(int* out_device_index) const noexcept
+    void get_device_index(int& out_device_index) const noexcept
     {
-        m_ops->get_device_index(get_handle(), out_device_index);
+        m_ops->get_device_index(get_handle(), &out_device_index);
     }
 
     void tensor_view(

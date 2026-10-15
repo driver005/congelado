@@ -39,7 +39,7 @@ public:
 
     virtual ~Timer() = default;
     virtual void destroy() noexcept = 0;
-    virtual void nanoseconds(uint64_t* out_nanoseconds) noexcept = 0;
+    virtual void nanoseconds(std::uint64_t& out_nanoseconds) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_Timer*)) noexcept
     {
@@ -57,7 +57,7 @@ public:
                 [](::TF_Timer* timer, uint64_t* out_nanoseconds) noexcept
             {
                 auto& self = Timer::from_handle(timer);
-                self.nanoseconds(out_nanoseconds);
+                self.nanoseconds(*out_nanoseconds);
             },
 
         };

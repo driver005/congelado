@@ -44,8 +44,8 @@ public:
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void set_dims(const int64_t* dims, int num_dims) noexcept = 0;
     virtual void delete_shape() noexcept = 0;
-    virtual void shape_num_dims(int* out_num_dims) noexcept = 0;
-    virtual void shape_dim(int index, int64_t* out_dim) noexcept = 0;
+    virtual void shape_num_dims(int& out_num_dims) noexcept = 0;
+    virtual void shape_dim(int index, std::int64_t& out_dim) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_Shape*)) noexcept
     {
@@ -81,13 +81,13 @@ public:
                 [](const ::TF_Shape* shape, int* out_num_dims) noexcept
             {
                 auto& self = Shape::from_handle(shape);
-                self.shape_num_dims(out_num_dims);
+                self.shape_num_dims(*out_num_dims);
             },
             .shape_dim =
                 [](const ::TF_Shape* shape, int index, int64_t* out_dim) noexcept
             {
                 auto& self = Shape::from_handle(shape);
-                self.shape_dim(index, out_dim);
+                self.shape_dim(index, *out_dim);
             },
 
         };

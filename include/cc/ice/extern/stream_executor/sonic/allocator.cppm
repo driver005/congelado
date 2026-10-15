@@ -102,15 +102,15 @@ public:
         m_ops->record_stream(get_handle(), memory, stream.get_handle(), out_status.get_handle());
     }
 
-    void owns_pointer(const void* pointer, _Bool* out_owns) const noexcept
+    void owns_pointer(const void* pointer, bool& out_owns) const noexcept
     {
-        m_ops->owns_pointer(get_handle(), pointer, out_owns);
+        m_ops->owns_pointer(get_handle(), pointer, &out_owns);
     }
 
     void get_base_allocation(
         const void* pointer,
         void** out_base,
-        uint64_t* out_size,
+        std::uint64_t& out_size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -118,7 +118,7 @@ public:
             get_handle(),
             pointer,
             out_base,
-            out_size,
+            &out_size,
             out_status.get_handle()
         );
     }
@@ -133,9 +133,9 @@ public:
         m_ops->set_memory_fraction(get_handle(), fraction, out_status.get_handle());
     }
 
-    void get_memory_fraction(double* out_fraction) const noexcept
+    void get_memory_fraction(double& out_fraction) const noexcept
     {
-        m_ops->get_memory_fraction(get_handle(), out_fraction);
+        m_ops->get_memory_fraction(get_handle(), &out_fraction);
     }
 
     void set_option(
@@ -149,16 +149,16 @@ public:
 
     void get_option(
         TF_AllocatorOption option,
-        int64_t* out_value,
+        std::int64_t& out_value,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->get_option(get_handle(), option, out_value, out_status.get_handle());
+        m_ops->get_option(get_handle(), option, &out_value, out_status.get_handle());
     }
 
-    void get_stats(::TF_AllocatorStats* out_stats, _Bool* out_success) const noexcept
+    void get_stats(::TF_AllocatorStats* out_stats, bool& out_success) const noexcept
     {
-        m_ops->get_stats(get_handle(), out_stats, out_success);
+        m_ops->get_stats(get_handle(), out_stats, &out_success);
     }
 
     void reset_accumulated_stats() const noexcept

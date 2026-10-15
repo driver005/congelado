@@ -13,35 +13,22 @@ import aten_xpu_intern;
 
 export namespace aten_xpu {
 
-class SyclStream : public ice::builder::Stream
+class SyclQueueFactory
 {
 public:
-    explicit SyclStream(const SyclOpsTable& ops) noexcept :
-        ice::builder::Stream{ops.getStatusOps()},
+    explicit SyclQueueFactory(const SyclOpsTable& ops) noexcept :
         m_status{ops}
     {
     }
 
-    ~SyclStream() override = default;
-    SyclStream(const SyclStream&) = delete;
-    SyclStream& operator=(const SyclStream&) = delete;
-    SyclStream(SyclStream&&) = delete;
-    SyclStream& operator=(SyclStream&&) = delete;
-
-    static void create(::TF_Stream* handle)
-    {
-        auto* stream = new SyclStream{SyclOpsTable::getInstance()};
-        SyclHandle::attach(handle, *stream);
-    }
-
-    static std::shared_ptr<sycl::queue> create_queue(
+    std::shared_ptr<sycl::queue> create_queue(
         const sycl::context& context,
         const sycl::device& device,
         int32_t priority,
         const std::shared_ptr<std::string>& async_error
-    )
+    ) const
     {
-        auto handler = SyclStatus::make_async_handler(async_error);
+        auto handler = m_status.make_async_handler(async_error);
         if (priority < 0) {
             return std::make_shared<sycl::queue>(
                 context,
@@ -72,6 +59,25 @@ public:
         );
     }
 
+private:
+    SyclStatus m_status;
+};
+
+class SyclStream : public ice::builder::Stream
+{
+public:
+    explicit SyclStream(const SyclOpsTable& ops) noexcept :
+        ice::builder::Stream{ops.getStatusOps()},
+        m_status{ops}
+    {
+    }
+
+    ~SyclStream() override = default;
+    SyclStream(const SyclStream&) = delete;
+    SyclStream& operator=(const SyclStream&) = delete;
+    SyclStream(SyclStream&&) = delete;
+    SyclStream& operator=(SyclStream&&) = delete;
+
     void bind(
         std::shared_ptr<sycl::queue> queue,
         std::shared_ptr<std::string> async_error,
@@ -96,23 +102,23 @@ public:
         delete this;
     }
 
-    void get_priority(int32_t* out_priority) noexcept override
+    void get_priority(std::int32_t& out_priority) noexcept override
     {
-        *out_priority = m_priority;
+        out_priority = m_priority;
     }
 
-    void get_device_index(int* out_device_index) noexcept override
+    void get_device_index(int& out_device_index) noexcept override
     {
-        *out_device_index = m_device_index;
+        out_device_index = m_device_index;
     }
 
-    void query(_Bool* out_idle, const ice::sonic::Status& out_status) noexcept override
+    void query(bool& out_idle, const ice::sonic::Status& out_status) noexcept override
     {
         if (!m_queue) {
             m_status.fail(out_status, TF_FAILED_PRECONDITION, "stream is not bound");
             return;
         }
-        *out_idle = m_queue->ext_oneapi_empty();
+        out_idle = m_queue->ext_oneapi_empty();
     }
 
     void synchronize(const ice::sonic::Status& out_status) noexcept override
@@ -130,7 +136,7 @@ public:
     }
 
     void get_capture_status(
-        TF_CaptureStatus* out_capture_status,
+        ::TF_CaptureStatus& out_capture_status,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -138,7 +144,7 @@ public:
         const bool recording =
             m_queue && m_queue->ext_oneapi_get_state() ==
                            sycl::ext::oneapi::experimental::queue_state::recording;
-        *out_capture_status =
+        out_capture_status =
             recording || m_capturing ? TF_CAPTURE_STATUS_ACTIVE : TF_CAPTURE_STATUS_NONE;
     }
 

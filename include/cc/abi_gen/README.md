@@ -87,6 +87,7 @@ nothing in the runtime owns a plugin object.
 - A builder class holds the ops of the domains it wraps (`m_<Dependency>_ops`), is built with `X{deps_ops...}` and
   gets `get_generic_vtable(create)`: the plugin passes its `create` function (the one slot that cannot be dispatched
   through `from_handle`). `register_ops(registry, type, provider)` puts the ops table into the registry.
+- A scalar `out_*` pointer (number, bool or enum) is a reference in the C++ layer (`std::int32_t& out_x`), the C slot keeps the pointer. A slot that also has a length/capacity parameter (`num_*`, `max_*`, `*_size`, ...) keeps the pointer because it is an array.
 - The String, Status and registry backends are provided by plugins; without them nothing works.
 
 A folder under `include/c/` becomes one C++ module, so keep the C headers acyclic at folder level: two folders

@@ -61,7 +61,7 @@ public:
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void get_bind_host(const ice::sonic::String& out_host) noexcept = 0;
-    virtual void get_bind_port(uint16_t* out_port) noexcept = 0;
+    virtual void get_bind_port(std::uint16_t& out_port) noexcept = 0;
     virtual void get_tls_cert(const ice::sonic::String& out_cert) noexcept = 0;
     virtual void get_tls_key(const ice::sonic::String& out_key) noexcept = 0;
     virtual void set_request_handler(TFServerRequestHandler handler, void* user_data) noexcept = 0;
@@ -71,11 +71,11 @@ public:
     virtual void stop(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void stop_accepting(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void resume_accepting(const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void is_running(int* out_running) noexcept = 0;
-    virtual void is_idle(int* out_idle) noexcept = 0;
+    virtual void is_running(int& out_running) noexcept = 0;
+    virtual void is_idle(int& out_idle) noexcept = 0;
     virtual void
     set_max_connections(size_t max_connections, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void get_max_connections(size_t* out_max_connections) noexcept = 0;
+    virtual void get_max_connections(std::size_t& out_max_connections) noexcept = 0;
     virtual void find_connection(
         const ice::sonic::String& connection_id,
         const ice::sonic::ServerConnection& out_connection,
@@ -89,7 +89,7 @@ public:
         const ice::sonic::Vector& out_connections,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
-    virtual void get_connection_count(size_t* out_count) noexcept = 0;
+    virtual void get_connection_count(std::size_t& out_count) noexcept = 0;
     virtual void
     get_stats(const ice::sonic::Map& out_stats, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void register_extension(
@@ -139,7 +139,7 @@ public:
                 [](::TF_Server* server, uint16_t* out_port) noexcept
             {
                 auto& self = Server::from_handle(server);
-                self.get_bind_port(out_port);
+                self.get_bind_port(*out_port);
             },
             .get_tls_cert =
                 [](::TF_Server* server, ::TF_String* out_cert) noexcept
@@ -203,13 +203,13 @@ public:
                 [](::TF_Server* server, int* out_running) noexcept
             {
                 auto& self = Server::from_handle(server);
-                self.is_running(out_running);
+                self.is_running(*out_running);
             },
             .is_idle =
                 [](::TF_Server* server, int* out_idle) noexcept
             {
                 auto& self = Server::from_handle(server);
-                self.is_idle(out_idle);
+                self.is_idle(*out_idle);
             },
             .set_max_connections =
                 [](::TF_Server* server, size_t max_connections, ::TF_Status* out_status) noexcept
@@ -224,7 +224,7 @@ public:
                 [](::TF_Server* server, size_t* out_max_connections) noexcept
             {
                 auto& self = Server::from_handle(server);
-                self.get_max_connections(out_max_connections);
+                self.get_max_connections(*out_max_connections);
             },
             .find_connection =
                 [](::TF_Server* server,
@@ -263,7 +263,7 @@ public:
                 [](::TF_Server* server, size_t* out_count) noexcept
             {
                 auto& self = Server::from_handle(server);
-                self.get_connection_count(out_count);
+                self.get_connection_count(*out_count);
             },
             .get_stats =
                 [](::TF_Server* server, ::TF_Map* out_stats, ::TF_Status* out_status) noexcept

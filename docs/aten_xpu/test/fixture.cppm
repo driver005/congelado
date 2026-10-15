@@ -27,7 +27,7 @@ protected:
         m_status->create();
         m_platform.emplace(&registry.getPlatformOps());
         m_platform->create();
-        m_platform->get_device_count(&m_device_count, *m_status);
+        m_platform->get_device_count(m_device_count, *m_status);
         if (m_device_count == 0) {
             GTEST_SKIP() << "no XPU device available";
         }
@@ -94,7 +94,7 @@ protected:
     bool ok() const noexcept
     {
         TF_Code code = TF_OK;
-        m_status->get_code(&code);
+        m_status->get_code(code);
         return code == TF_OK;
     }
 

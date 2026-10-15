@@ -18,15 +18,19 @@ import :onednn_primitive_executor;
 
 export namespace aten_xpu {
 
+inline constexpr std::string_view k_lstm_kernel_name = "LSTM";
+
 class SyclLstmKernel : public SyclKernel<SyclLstmKernel>
 {
 public:
-    static constexpr std::string_view k_name = "LSTM";
-    static constexpr int k_tensors_per_direction = 3;
-    static constexpr int k_first_weight = 3;
+    enum Layout : int
+    {
+        k_tensors_per_direction = 3,
+        k_first_weight = 3
+    };
 
     SyclLstmKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
-        SyclKernel<SyclLstmKernel>{ops},
+        SyclKernel<SyclLstmKernel>{ops, k_lstm_kernel_name},
         m_layers{construction.getInt64("num_layers", 1)},
         m_directions{construction.getBool("bidirectional", false) ? 2 : 1}
     {
@@ -134,7 +138,7 @@ private:
             return std::nullopt;
         }
 
-        const auto item = SyclTensor::element_size(dtype);
+        const auto item = m_datatype.element_size(dtype);
         for (int64_t direction = 0; direction < m_directions; ++direction) {
             const int base =
                 k_first_weight +
@@ -152,13 +156,13 @@ private:
         return PackedWeights{weights_layer->get(), weights_iter->get(), bias->get()};
     }
 
-    static void copy_slice(
+    void copy_slice(
         sycl::queue& queue,
         SyclTensor& destination,
         int64_t slot,
         const SyclTensor& source,
         std::size_t item
-    )
+    ) const
     {
         const auto bytes = static_cast<std::size_t>(source.element_count()) * item;
         queue.memcpy(
@@ -186,7 +190,7 @@ private:
     )
     {
         using tag = dnnl::memory::format_tag;
-        const auto type = SyclOnednnLayout::data_type(dtype).value();
+        const auto type = m_layout.data_type(dtype).value();
         const auto direction = m_directions == 2 ? dnnl::rnn_direction::bidirectional_concat
                                                  : dnnl::rnn_direction::unidirectional_left2right;
 
@@ -209,9 +213,9 @@ private:
             tag::tnc
         };
 
-        SyclPrimitiveExecutor executor{queue};
-        const auto weights_layer_any = SyclOnednnLayout::any_desc(weights_layer);
-        const auto weights_iter_any = SyclOnednnLayout::any_desc(weights_iter);
+        auto executor = getRuntime().getOnednn().make_executor(queue);
+        const auto weights_layer_any = m_layout.any_desc(weights_layer);
+        const auto weights_iter_any = m_layout.any_desc(weights_iter);
         const dnnl::lstm_forward::primitive_desc primitive_desc{
             executor.getEngine(),
             dnnl::prop_kind::forward_inference,
@@ -225,11 +229,11 @@ private:
             destination_layer,
             state,
             state,
-            SyclPrimitiveExecutor::user_scratchpad_attributes()
+            getRuntime().getOnednn().user_scratchpad_attributes()
         };
 
         const auto state_offset = static_cast<std::size_t>(layer * m_directions * batch * hidden) *
-                                  SyclTensor::element_size(dtype);
+                                  m_datatype.element_size(dtype);
         executor.addArgument(DNNL_ARG_SRC_LAYER, source_layer, layer_input);
         executor.addArgument(
             DNNL_ARG_SRC_ITER,
@@ -285,7 +289,7 @@ private:
             executor.addArgument(argument, plain, weights.getData());
             return;
         }
-        auto& stream = SyclEngineCache::getInstance().getStream(queue);
+        auto& stream = getRuntime().getOnednn().getEngines().getStream(queue);
         dnnl::memory source{plain, executor.getEngine(), weights.getData()};
         dnnl::memory target{expected, executor.getEngine()};
         dnnl::reorder{source, target}.execute(stream, source, target);
@@ -295,6 +299,8 @@ private:
     int64_t m_layers;
     int64_t m_directions;
     std::vector<int64_t> m_scratch_dims;
+    SyclOnednnLayout m_layout;
+    SyclDataType m_datatype;
 };
 
 } // namespace aten_xpu

@@ -11,44 +11,54 @@ export namespace aten_xpu {
 class SyclPostOp
 {
 public:
-    static SyclPostOp eltwise(float scale, float alpha, float beta, dnnl::algorithm algorithm)
+    explicit SyclPostOp(dnnl::primitive::kind kind) noexcept :
+        m_kind{kind}
     {
-        SyclPostOp post_op{dnnl::primitive::kind::eltwise};
-        post_op.m_scale = scale;
-        post_op.m_alpha = alpha;
-        post_op.m_beta = beta;
-        post_op.m_algorithm = algorithm;
-        return post_op;
     }
 
-    static SyclPostOp sum(float scale, int64_t zero_point)
+    void setScale(float scale) noexcept
     {
-        SyclPostOp post_op{dnnl::primitive::kind::sum};
-        post_op.m_scale = scale;
-        post_op.m_zero_point = zero_point;
-        return post_op;
+        m_scale = scale;
     }
 
-    static SyclPostOp binary(
-        dnnl::algorithm algorithm,
-        const void* data,
-        const dnnl::memory::desc& desc,
-        const dnnl::memory::desc& expected
-    )
+    void setAlpha(float alpha) noexcept
     {
-        SyclPostOp post_op{dnnl::primitive::kind::binary};
-        post_op.m_algorithm = algorithm;
-        post_op.m_binary_data = data;
-        post_op.m_desc = desc;
-        post_op.m_expected_desc = expected;
-        return post_op;
+        m_alpha = alpha;
     }
 
-    static SyclPostOp prelu(int mask)
+    void setBeta(float beta) noexcept
     {
-        SyclPostOp post_op{dnnl::primitive::kind::prelu};
-        post_op.m_mask = mask;
-        return post_op;
+        m_beta = beta;
+    }
+
+    void setZeroPoint(int64_t zero_point) noexcept
+    {
+        m_zero_point = zero_point;
+    }
+
+    void setMask(int mask) noexcept
+    {
+        m_mask = mask;
+    }
+
+    void setAlgorithm(dnnl::algorithm algorithm) noexcept
+    {
+        m_algorithm = algorithm;
+    }
+
+    void setBinaryData(const void* data) noexcept
+    {
+        m_binary_data = data;
+    }
+
+    void setDesc(const dnnl::memory::desc& desc)
+    {
+        m_desc = desc;
+    }
+
+    void setExpectedDesc(const dnnl::memory::desc& expected)
+    {
+        m_expected_desc = expected;
     }
 
     dnnl::primitive::kind getKind() const noexcept
@@ -102,11 +112,6 @@ public:
     }
 
 private:
-    explicit SyclPostOp(dnnl::primitive::kind kind) noexcept :
-        m_kind{kind}
-    {
-    }
-
     dnnl::primitive::kind m_kind;
     float m_scale{1.0F};
     float m_alpha{0.0F};

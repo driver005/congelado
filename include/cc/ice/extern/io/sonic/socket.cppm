@@ -307,57 +307,57 @@ public:
         m_ops->shutdown(get_handle(), how, out_status.get_handle());
     }
 
-    void get_status(int* out_status) const noexcept
+    void get_status(int& out_status) const noexcept
     {
-        m_ops->get_status(get_handle(), out_status);
+        m_ops->get_status(get_handle(), &out_status);
     }
 
-    void get_error_code(int* out_error_code) const noexcept
+    void get_error_code(int& out_error_code) const noexcept
     {
-        m_ops->get_error_code(get_handle(), out_error_code);
+        m_ops->get_error_code(get_handle(), &out_error_code);
     }
 
     void get_local_endpoint(
         const ice::sonic::String& out_host,
-        uint16_t* out_port,
+        std::uint16_t& out_port,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_local_endpoint(
             get_handle(),
             out_host.get_handle(),
-            out_port,
+            &out_port,
             out_status.get_handle()
         );
     }
 
     void get_remote_endpoint(
         const ice::sonic::String& out_host,
-        uint16_t* out_port,
+        std::uint16_t& out_port,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_remote_endpoint(
             get_handle(),
             out_host.get_handle(),
-            out_port,
+            &out_port,
             out_status.get_handle()
         );
     }
 
-    void get_protocol(::TFSocketProtocol* out_protocol) const noexcept
+    void get_protocol(::TFSocketProtocol& out_protocol) const noexcept
     {
-        m_ops->get_protocol(get_handle(), out_protocol);
+        m_ops->get_protocol(get_handle(), &out_protocol);
     }
 
-    void get_fd(intptr_t* out_fd) const noexcept
+    void get_fd(std::intptr_t& out_fd) const noexcept
     {
-        m_ops->get_fd(get_handle(), out_fd);
+        m_ops->get_fd(get_handle(), &out_fd);
     }
 
-    void is_valid(int* out_valid) const noexcept
+    void is_valid(int& out_valid) const noexcept
     {
-        m_ops->is_valid(get_handle(), out_valid);
+        m_ops->is_valid(get_handle(), &out_valid);
     }
 };
 

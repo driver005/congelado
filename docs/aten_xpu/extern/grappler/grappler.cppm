@@ -34,12 +34,6 @@ public:
     SyclGrappler(SyclGrappler&&) = delete;
     SyclGrappler& operator=(SyclGrappler&&) = delete;
 
-    static void create(::TF_Grappler* handle)
-    {
-        auto* grappler = new SyclGrappler{SyclOpsTable::getInstance()};
-        SyclHandle::attach(handle, *grappler);
-    }
-
     void destroy() noexcept override
     {
         delete this;
@@ -58,20 +52,23 @@ public:
     ) noexcept override
     {
         static_cast<void>(out_status);
-        auto& sycl_device = SyclHandle::resolve<SyclDevice>(device);
-        auto& sycl_executor = SyclHandle::resolve<SyclExecutor>(executor);
-        SyclHandle::resolve<SyclDeviceGraph>(out_graph).bind(
-            sycl_executor.getDefaultGeneratorState(sycl_device.getDeviceIndex()),
-            sycl_device.getNativeDevice(),
-            sycl_device.getDeviceIndex()
-        );
+        auto& sycl_device = static_cast<SyclDevice&>(SyclDevice::from_handle(device.get_handle()));
+        auto& sycl_executor =
+            static_cast<SyclExecutor&>(SyclExecutor::from_handle(executor.get_handle()));
+        static_cast<SyclDeviceGraph&>(SyclDeviceGraph::from_handle(out_graph.get_handle()))
+            .bind(
+                sycl_executor.getDefaultGeneratorState(sycl_device.getDeviceIndex()),
+                sycl_device.getNativeDevice(),
+                sycl_device.getDeviceIndex()
+            );
     }
 
     void destroy_device_graph_internal(
         const ice::sonic::GrapplerDeviceGraph& graph
     ) noexcept override
     {
-        auto& device_graph = SyclHandle::resolve<SyclDeviceGraph>(graph);
+        auto& device_graph =
+            static_cast<SyclDeviceGraph&>(SyclDeviceGraph::from_handle(graph.get_handle()));
         ice::sonic::Status ignored{m_status.getOps().getStatusOps()};
         device_graph.reset(ignored);
     }

@@ -12,26 +12,28 @@ class SyclGuardTest : public SyclTestFixture
 
 TEST_F(SyclGuardTest, RestoresOriginalDevice)
 {
-    auto& platform = SyclHandle::resolve<SyclPlatform>(getPlatform());
+    auto& platform =
+        static_cast<SyclPlatform&>(SyclPlatform::from_handle(getPlatform().get_handle()));
     const int target = getDeviceCount() - 1;
     {
         SyclDeviceGuard guard{platform, target};
         int current = -1;
-        getPlatform().get_current_device(&current, getStatus());
+        getPlatform().get_current_device(current, getStatus());
         EXPECT_EQ(current, target);
         EXPECT_EQ(guard.getOriginalIndex(), 0);
     }
     int restored = -1;
-    getPlatform().get_current_device(&restored, getStatus());
+    getPlatform().get_current_device(restored, getStatus());
     EXPECT_EQ(restored, 0);
 }
 
 TEST_F(SyclGuardTest, InvalidIndexIsIgnored)
 {
-    auto& platform = SyclHandle::resolve<SyclPlatform>(getPlatform());
+    auto& platform =
+        static_cast<SyclPlatform&>(SyclPlatform::from_handle(getPlatform().get_handle()));
     SyclDeviceGuard guard{platform, getDeviceCount() + 4};
     int current = -1;
-    getPlatform().get_current_device(&current, getStatus());
+    getPlatform().get_current_device(current, getStatus());
     EXPECT_EQ(current, 0);
 }
 

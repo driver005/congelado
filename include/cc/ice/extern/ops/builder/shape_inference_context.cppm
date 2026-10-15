@@ -53,7 +53,7 @@ public:
 
     virtual ~ShapeInferenceContext() = default;
     virtual void destroy() noexcept = 0;
-    virtual void num_inputs(int64_t* out_num) noexcept = 0;
+    virtual void num_inputs(std::int64_t& out_num) noexcept = 0;
     virtual void get_input(
         int i,
         const ice::sonic::ShapeHandle& handle,
@@ -68,11 +68,11 @@ public:
     virtual void vector_from_size(size_t size, const ice::sonic::ShapeHandle& handle) noexcept = 0;
     virtual void get_attr_type(
         const ice::sonic::String& attr_name,
-        ::TFDataTypeEnum* out_val,
+        ::TFDataTypeEnum& out_val,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
-    virtual void rank(const ice::sonic::ShapeHandle& handle, int64_t* out_rank) noexcept = 0;
-    virtual void rank_known(const ice::sonic::ShapeHandle& handle, int* out_known) noexcept = 0;
+    virtual void rank(const ice::sonic::ShapeHandle& handle, std::int64_t& out_rank) noexcept = 0;
+    virtual void rank_known(const ice::sonic::ShapeHandle& handle, int& out_known) noexcept = 0;
     virtual void with_rank(
         const ice::sonic::ShapeHandle& handle,
         int64_t rank,
@@ -126,7 +126,7 @@ public:
                 [](::TF_ShapeInferenceContext* ctx, int64_t* out_num) noexcept
             {
                 auto& self = ShapeInferenceContext::from_handle(ctx);
-                self.num_inputs(out_num);
+                self.num_inputs(*out_num);
             },
             .get_input =
                 [](::TF_ShapeInferenceContext* ctx,
@@ -178,7 +178,7 @@ public:
                 auto& self = ShapeInferenceContext::from_handle(ctx);
                 self.get_attr_type(
                     self.wrap(std::type_identity<ice::sonic::String>{}, attr_name),
-                    out_val,
+                    *out_val,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -190,7 +190,7 @@ public:
                 auto& self = ShapeInferenceContext::from_handle(ctx);
                 self.rank(
                     self.wrap(std::type_identity<ice::sonic::ShapeHandle>{}, handle),
-                    out_rank
+                    *out_rank
                 );
             },
             .rank_known =
@@ -201,7 +201,7 @@ public:
                 auto& self = ShapeInferenceContext::from_handle(ctx);
                 self.rank_known(
                     self.wrap(std::type_identity<ice::sonic::ShapeHandle>{}, handle),
-                    out_known
+                    *out_known
                 );
             },
             .with_rank =

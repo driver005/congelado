@@ -52,7 +52,7 @@ public:
     virtual void destroy() noexcept = 0;
     virtual void
     get_name(const ice::sonic::String& out_name, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void get_node_count(int* out_count, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void get_node_count(int& out_count, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_node(
         int index,
         const ice::sonic::ParserNode& out_node,
@@ -85,7 +85,7 @@ public:
             {
                 auto& self = ParserBlock::from_handle(block);
                 self.get_node_count(
-                    out_count,
+                    *out_count,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },

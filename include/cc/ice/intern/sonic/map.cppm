@@ -92,16 +92,16 @@ public:
 
     void contains(
         const void* key,
-        int* out_found,
+        int& out_found,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->contains(get_handle(), key, out_found, out_status.get_handle());
+        m_ops->contains(get_handle(), key, &out_found, out_status.get_handle());
     }
 
-    void size(size_t* out_size) const noexcept
+    void size(std::size_t& out_size) const noexcept
     {
-        m_ops->size(get_handle(), out_size);
+        m_ops->size(get_handle(), &out_size);
     }
 
     void for_each(TF_MapVisitor visitor, void* capture) const noexcept

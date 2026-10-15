@@ -16,21 +16,21 @@ import :onednn_convolution_primitive;
 
 export namespace aten_xpu {
 
+inline constexpr std::string_view k_deconvolution_kernel_name = "Conv2DBackpropInputTransposed";
+
 class SyclDeconvolutionKernel : public SyclKernel<SyclDeconvolutionKernel>
 {
 public:
-    static constexpr std::string_view k_name = "Conv2DBackpropInputTransposed";
-
     SyclDeconvolutionKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
-        SyclKernel<SyclDeconvolutionKernel>{ops},
-        m_geometry{SyclConvolutionGeometry::from_construction(construction)},
+        SyclKernel<SyclDeconvolutionKernel>{ops, k_deconvolution_kernel_name},
+        m_geometry{SyclConvolutionGeometry{construction}},
         m_unary{construction.getString("unary", "none")},
         m_algorithm{construction.getString("algorithm", "none")},
         m_binary{construction.getString("binary", "none")}
     {
         m_scalar_count = construction.getFloatList("scalars", m_scalars);
         if (m_unary == "none") {
-            m_unary = SyclFusion::activation_name(construction.getInt64("activation", 0));
+            m_unary = m_fusion.activation_name(construction.getInt64("activation", 0));
         }
     }
 
@@ -61,7 +61,7 @@ public:
             context.fail(TF_INVALID_ARGUMENT, "unsupported convolution post op");
             return;
         }
-        SyclConvolutionPrimitive::deconvolution(
+        getRuntime().getConvolution().deconvolution(
             queue->get(),
             source->get(),
             weight->get(),
@@ -81,9 +81,9 @@ private:
     {
         const auto scalars = std::span<const float>{m_scalars}.first(m_scalar_count);
         if (m_binary == "none") {
-            return SyclFusion::add_unary(attributes, m_unary, scalars, m_algorithm);
+            return m_fusion.add_unary(attributes, m_unary, scalars, m_algorithm);
         }
-        return SyclFusion::add_binary_then_unary(
+        return m_fusion.add_binary_then_unary(
             attributes,
             m_binary == "add" ? "add" : "sum",
             1.0F,
@@ -103,6 +103,7 @@ private:
     std::array<float, 4> m_scalars{};
     std::size_t m_scalar_count{0};
     std::vector<int64_t> m_scratch_dims;
+    SyclFusion m_fusion;
 };
 
 } // namespace aten_xpu

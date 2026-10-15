@@ -89,11 +89,11 @@ public:
     void hash_combine(
         size_t seed,
         size_t value,
-        size_t* out_hash,
+        std::size_t& out_hash,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->hash_combine(get_handle(), seed, value, out_hash, out_status.get_handle());
+        m_ops->hash_combine(get_handle(), seed, value, &out_hash, out_status.get_handle());
     }
 };
 

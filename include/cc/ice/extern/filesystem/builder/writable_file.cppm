@@ -49,7 +49,8 @@ public:
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void
     append(const ice::sonic::String& buffer, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void tell(int64_t* out_position, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void
+    tell(std::int64_t& out_position, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void flush(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void sync(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void close(const ice::sonic::Status& out_status) noexcept = 0;
@@ -88,7 +89,7 @@ public:
             {
                 auto& self = WritableFile::from_handle(file);
                 self.tell(
-                    out_position,
+                    *out_position,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },

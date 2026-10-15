@@ -21,22 +21,26 @@ import :onednn_quantization;
 
 export namespace aten_xpu {
 
+inline constexpr std::string_view k_int8_matmul_kernel_name = "QuantizedMatMul";
+
 class SyclInt8MatmulKernel : public SyclKernel<SyclInt8MatmulKernel>
 {
 public:
-    static constexpr std::string_view k_name = "QuantizedMatMul";
-    static constexpr int k_source = 0;
-    static constexpr int k_weight = 1;
-    static constexpr int k_source_scale = 2;
-    static constexpr int k_source_zero_point = 3;
-    static constexpr int k_weight_scale = 4;
-    static constexpr int k_output_scale = 5;
-    static constexpr int k_output_zero_point = 6;
-    static constexpr int k_bias = 7;
-    static constexpr int k_other = 8;
+    enum Operand : int
+    {
+        k_source = 0,
+        k_weight = 1,
+        k_source_scale = 2,
+        k_source_zero_point = 3,
+        k_weight_scale = 4,
+        k_output_scale = 5,
+        k_output_zero_point = 6,
+        k_bias = 7,
+        k_other = 8
+    };
 
     SyclInt8MatmulKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
-        SyclKernel<SyclInt8MatmulKernel>{ops},
+        SyclKernel<SyclInt8MatmulKernel>{ops, k_int8_matmul_kernel_name},
         m_output_type{construction.getType("output_dtype", TF_QINT8)},
         m_weight_transposed{construction.getBool("weight_transposed", false)},
         m_unary{construction.getString("unary", "none")},
@@ -81,7 +85,7 @@ public:
 
         SyclPostOpAttributes post_ops;
         const auto scalars = std::span<const float>{m_scalars}.first(m_scalar_count);
-        if (!SyclFusion::add_binary_then_unary(
+        if (!m_fusion.add_binary_then_unary(
                 post_ops,
                 m_binary,
                 m_other_scale,
@@ -109,30 +113,30 @@ public:
 
         const dnnl::memory::desc source_desc{
             {rows, inner},
-            SyclOnednnLayout::data_type(source->get().getDtype()).value(),
+            m_layout.data_type(source->get().getDtype()).value(),
             dnnl::memory::format_tag::ab
         };
-        const auto weight_type = SyclOnednnLayout::data_type(weight->get().getDtype()).value();
+        const auto weight_type = m_layout.data_type(weight->get().getDtype()).value();
         const dnnl::memory::desc weight_desc =
             m_weight_transposed
                 ? dnnl::memory::desc{{inner, columns}, weight_type, dnnl::memory::format_tag::ba}
                 : dnnl::memory::desc{{inner, columns}, weight_type, dnnl::memory::format_tag::ab};
         const dnnl::memory::desc output_desc{
             {rows, columns},
-            SyclOnednnLayout::data_type(m_output_type).value(),
+            m_layout.data_type(m_output_type).value(),
             dnnl::memory::format_tag::ab
         };
         const auto bias_desc =
             bias
                 ? dnnl::memory::
-                      desc{{1, columns}, SyclOnednnLayout::data_type(bias->get().getDtype()).value(), dnnl::memory::format_tag::ab}
+                      desc{{1, columns}, m_layout.data_type(bias->get().getDtype()).value(), dnnl::memory::format_tag::ab}
                 : dnnl::memory::desc{};
 
-        auto attributes = SyclPrimitiveExecutor::user_scratchpad_attributes();
+        auto attributes = getRuntime().getOnednn().user_scratchpad_attributes();
         quantization.apply(attributes);
         post_ops.apply(attributes);
 
-        SyclPrimitiveExecutor executor{queue->get()};
+        auto executor = getRuntime().getOnednn().make_executor(queue->get());
         const auto primitive_desc =
             bias
                 ? dnnl::matmul::
@@ -156,8 +160,8 @@ public:
     }
 
 private:
-    static std::optional<std::reference_wrapper<SyclTensor>>
-    optional_input(SyclKernelContext& context, int index)
+    std::optional<std::reference_wrapper<SyclTensor>>
+    optional_input(SyclKernelContext& context, int index) const
     {
         return context.getInputCount() > index ? context.getInput(index) : std::nullopt;
     }
@@ -172,6 +176,8 @@ private:
     std::array<float, 4> m_scalars{};
     std::size_t m_scalar_count{0};
     std::vector<int64_t> m_scratch_dims;
+    SyclOnednnLayout m_layout;
+    SyclFusion m_fusion;
 };
 
 } // namespace aten_xpu

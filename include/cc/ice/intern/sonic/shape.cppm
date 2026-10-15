@@ -85,14 +85,14 @@ public:
         m_ops->delete_shape(get_handle());
     }
 
-    void shape_num_dims(int* out_num_dims) const noexcept
+    void shape_num_dims(int& out_num_dims) const noexcept
     {
-        m_ops->shape_num_dims(get_handle(), out_num_dims);
+        m_ops->shape_num_dims(get_handle(), &out_num_dims);
     }
 
-    void shape_dim(int index, int64_t* out_dim) const noexcept
+    void shape_dim(int index, std::int64_t& out_dim) const noexcept
     {
-        m_ops->shape_dim(get_handle(), index, out_dim);
+        m_ops->shape_dim(get_handle(), index, &out_dim);
     }
 };
 

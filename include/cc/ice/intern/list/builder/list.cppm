@@ -54,7 +54,7 @@ public:
     ) noexcept = 0;
     virtual void erase(::TFListNode* node) noexcept = 0;
     virtual void for_each(TF_ListVisitor visitor, void* capture) noexcept = 0;
-    virtual void size(size_t* out_size) noexcept = 0;
+    virtual void size(std::size_t& out_size) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_List*)) noexcept
     {
@@ -116,7 +116,7 @@ public:
                 [](const ::TF_List* list, size_t* out_size) noexcept
             {
                 auto& self = List::from_handle(list);
-                self.size(out_size);
+                self.size(*out_size);
             },
 
         };

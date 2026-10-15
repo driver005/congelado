@@ -39,9 +39,9 @@ public:
 
     virtual ~Duration() = default;
     virtual void destroy() noexcept = 0;
-    virtual void get_ticks(int64_t* out_ticks) noexcept = 0;
-    virtual void get_ratio_num(int64_t* out_num) noexcept = 0;
-    virtual void get_ratio_den(int64_t* out_den) noexcept = 0;
+    virtual void get_ticks(std::int64_t& out_ticks) noexcept = 0;
+    virtual void get_ratio_num(std::int64_t& out_num) noexcept = 0;
+    virtual void get_ratio_den(std::int64_t& out_den) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_Duration*)) noexcept
     {
@@ -59,19 +59,19 @@ public:
                 [](const ::TF_Duration* duration, int64_t* out_ticks) noexcept
             {
                 auto& self = Duration::from_handle(duration);
-                self.get_ticks(out_ticks);
+                self.get_ticks(*out_ticks);
             },
             .get_ratio_num =
                 [](const ::TF_Duration* duration, int64_t* out_num) noexcept
             {
                 auto& self = Duration::from_handle(duration);
-                self.get_ratio_num(out_num);
+                self.get_ratio_num(*out_num);
             },
             .get_ratio_den =
                 [](const ::TF_Duration* duration, int64_t* out_den) noexcept
             {
                 auto& self = Duration::from_handle(duration);
-                self.get_ratio_den(out_den);
+                self.get_ratio_den(*out_den);
             },
 
         };

@@ -50,7 +50,7 @@ public:
     virtual void get_description(const ice::sonic::String& out_description) noexcept = 0;
     virtual void get_full_type(const ice::sonic::String& out_full_type) noexcept = 0;
     virtual void get_base_type(const ice::sonic::String& out_base_type) noexcept = 0;
-    virtual void is_list(int* out_is_list) noexcept = 0;
+    virtual void is_list(int& out_is_list) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TFGeneratorAttribute*)) noexcept
     {
@@ -130,7 +130,7 @@ public:
                 [](::TFGeneratorAttribute* attr_context, int* out_is_list) noexcept
             {
                 auto& self = GeneratorAttribute::from_handle(attr_context);
-                self.is_list(out_is_list);
+                self.is_list(*out_is_list);
             },
 
         };

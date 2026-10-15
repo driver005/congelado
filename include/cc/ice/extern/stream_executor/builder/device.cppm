@@ -43,9 +43,9 @@ public:
 
     virtual ~Device() = default;
     virtual void destroy() noexcept = 0;
-    virtual void get_numa_node(int32_t* out_numa_node) noexcept = 0;
-    virtual void get_memory_bandwidth(int64_t* out_bandwidth) noexcept = 0;
-    virtual void get_gflops(double* out_gflops) noexcept = 0;
+    virtual void get_numa_node(std::int32_t& out_numa_node) noexcept = 0;
+    virtual void get_memory_bandwidth(std::int64_t& out_bandwidth) noexcept = 0;
+    virtual void get_gflops(double& out_gflops) noexcept = 0;
     virtual void get_hardware_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void get_device_vendor(const ice::sonic::String& out_vendor) noexcept = 0;
     virtual void get_pci_bus_id(const ice::sonic::String& out_pci_bus_id) noexcept = 0;
@@ -71,19 +71,19 @@ public:
                 [](::TF_Device* device, int32_t* out_numa_node) noexcept
             {
                 auto& self = Device::from_handle(device);
-                self.get_numa_node(out_numa_node);
+                self.get_numa_node(*out_numa_node);
             },
             .get_memory_bandwidth =
                 [](::TF_Device* device, int64_t* out_bandwidth) noexcept
             {
                 auto& self = Device::from_handle(device);
-                self.get_memory_bandwidth(out_bandwidth);
+                self.get_memory_bandwidth(*out_bandwidth);
             },
             .get_gflops =
                 [](::TF_Device* device, double* out_gflops) noexcept
             {
                 auto& self = Device::from_handle(device);
-                self.get_gflops(out_gflops);
+                self.get_gflops(*out_gflops);
             },
             .get_hardware_name =
                 [](::TF_Device* device, ::TF_String* out_name) noexcept

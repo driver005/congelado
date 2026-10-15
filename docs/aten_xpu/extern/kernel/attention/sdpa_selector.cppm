@@ -19,18 +19,19 @@ public:
         invalid
     };
 
-    static constexpr int64_t k_max_head_dim = 256;
+    enum Limits : int64_t
+    {
+        k_max_head_dim = 256
+    };
 
-    SyclSdpaSelector() = delete;
-
-    static Backend choose(
+    Backend choose(
         const SyclTensor& query,
         const SyclTensor& key,
         const SyclTensor& value,
         std::optional<std::reference_wrapper<const SyclTensor>> mask,
         float dropout,
         bool is_causal
-    )
+    ) const
     {
         if (!valid_shapes(query, key, value)) {
             return Backend::invalid;
@@ -55,8 +56,11 @@ public:
         return Backend::fused;
     }
 
-    static bool
-    valid_shapes(const SyclTensor& query, const SyclTensor& key, const SyclTensor& value) noexcept
+    bool valid_shapes(
+        const SyclTensor& query,
+        const SyclTensor& key,
+        const SyclTensor& value
+    ) const noexcept
     {
         if (query.getDims().size() != 4 || key.getDims().size() != 4 ||
             value.getDims().size() != 4) {
@@ -73,7 +77,7 @@ public:
     }
 
 private:
-    static bool supported_dtype(TFDataTypeEnum dtype) noexcept
+    bool supported_dtype(TFDataTypeEnum dtype) const noexcept
     {
         return dtype == TF_HALF || dtype == TF_BFLOAT16 || dtype == TF_FLOAT;
     }

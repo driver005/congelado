@@ -15,11 +15,11 @@ class SyclDeviceTest : public SyclTestFixture
 TEST_F(SyclDeviceTest, CurrentDeviceRoundTrip)
 {
     int current = -1;
-    getPlatform().get_current_device(&current, getStatus());
+    getPlatform().get_current_device(current, getStatus());
     EXPECT_EQ(current, 0);
 
     getPlatform().set_current_device(getDeviceCount() - 1, getStatus());
-    getPlatform().get_current_device(&current, getStatus());
+    getPlatform().get_current_device(current, getStatus());
     EXPECT_EQ(current, getDeviceCount() - 1);
     getPlatform().set_current_device(0, getStatus());
     EXPECT_TRUE(ok());
@@ -44,7 +44,7 @@ TEST_F(SyclDeviceTest, PointerGetDevice)
     ASSERT_TRUE(ok());
 
     int owner = -1;
-    getPlatform().get_device_for_pointer(memory.opaque, &owner, getStatus());
+    getPlatform().get_device_for_pointer(memory.opaque, owner, getStatus());
     EXPECT_EQ(owner, 0);
 
     allocator.deallocate(&memory);

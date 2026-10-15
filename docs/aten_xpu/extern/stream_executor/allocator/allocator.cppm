@@ -26,13 +26,16 @@ export namespace aten_xpu {
 class SyclAllocator : public ice::builder::Allocator
 {
 public:
-    static constexpr std::size_t k_min_block_size = 512;
-    static constexpr std::size_t k_small_size = 1U << 20U;
-    static constexpr std::size_t k_small_buffer = 2U << 20U;
-    static constexpr std::size_t k_min_large_alloc = 10U << 20U;
-    static constexpr std::size_t k_round_large = 2U << 20U;
-    static constexpr std::size_t k_large_segment = 20U << 20U;
-    static constexpr std::size_t k_large_buffer = 20U << 20U;
+    enum Limits : std::size_t
+    {
+        k_min_block_size = 512,
+        k_small_size = 1U << 20U,
+        k_small_buffer = 2U << 20U,
+        k_min_large_alloc = 10U << 20U,
+        k_round_large = 2U << 20U,
+        k_large_segment = 20U << 20U,
+        k_large_buffer = 20U << 20U
+    };
 
     using PeerAccessCallback = std::function<bool(int, int)>;
     using Kind = SyclAllocatorStats::Kind;
@@ -60,12 +63,6 @@ public:
     SyclAllocator& operator=(const SyclAllocator&) = delete;
     SyclAllocator(SyclAllocator&&) = delete;
     SyclAllocator& operator=(SyclAllocator&&) = delete;
-
-    static void create(::TF_Allocator* handle)
-    {
-        auto* allocator = new SyclAllocator{SyclOpsTable::getInstance()};
-        SyclHandle::attach(handle, *allocator);
-    }
 
     void bind(
         const sycl::context& context,
@@ -182,15 +179,15 @@ public:
         }
     }
 
-    void owns_pointer(const void* pointer, _Bool* out_owns) noexcept override
+    void owns_pointer(const void* pointer, bool& out_owns) noexcept override
     {
-        *out_owns = find_allocated_block(pointer) != nullptr || m_host_cache->owns(pointer);
+        out_owns = find_allocated_block(pointer) != nullptr || m_host_cache->owns(pointer);
     }
 
     void get_base_allocation(
         const void* pointer,
         void** out_base,
-        uint64_t* out_size,
+        std::uint64_t& out_size,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -208,7 +205,7 @@ public:
         for (; block != nullptr; block = block->getNext()) {
             total += block->getSize();
         }
-        *out_size = total;
+        out_size = total;
     }
 
     void empty_cache(const ice::sonic::Status& out_status) noexcept override
@@ -240,9 +237,9 @@ public:
         m_stats.setBytesLimit(static_cast<int64_t>(m_allowed_maximum));
     }
 
-    void get_memory_fraction(double* out_fraction) noexcept override
+    void get_memory_fraction(double& out_fraction) noexcept override
     {
-        *out_fraction = m_memory_fraction;
+        out_fraction = m_memory_fraction;
     }
 
     void set_option(
@@ -277,39 +274,39 @@ public:
 
     void get_option(
         TF_AllocatorOption option,
-        int64_t* out_value,
+        std::int64_t& out_value,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
         switch (option) {
             case TF_ALLOCATOR_OPTION_EXPANDABLE_SEGMENTS:
-                *out_value = m_use_expandable ? 1 : 0;
+                out_value = m_use_expandable ? 1 : 0;
                 return;
             case TF_ALLOCATOR_OPTION_NO_SPLIT:
-                *out_value = m_no_split ? 1 : 0;
+                out_value = m_no_split ? 1 : 0;
                 return;
             case TF_ALLOCATOR_OPTION_USE_ON_OOM:
-                *out_value = m_use_on_oom ? 1 : 0;
+                out_value = m_use_on_oom ? 1 : 0;
                 return;
             case TF_ALLOCATOR_OPTION_MAX_SPLIT_SIZE:
-                *out_value = m_max_split_size == std::numeric_limits<std::size_t>::max()
-                                 ? -1
-                                 : static_cast<int64_t>(m_max_split_size);
+                out_value = m_max_split_size == std::numeric_limits<std::size_t>::max()
+                                ? -1
+                                : static_cast<int64_t>(m_max_split_size);
                 return;
             case TF_ALLOCATOR_OPTION_GARBAGE_COLLECTION_THRESHOLD:
-                *out_value = static_cast<int64_t>(m_garbage_collection_threshold * 100.0);
+                out_value = static_cast<int64_t>(m_garbage_collection_threshold * 100.0);
                 return;
             case TF_ALLOCATOR_OPTION_ROUND_UP_POWER2_DIVISIONS:
-                *out_value = static_cast<int64_t>(m_round_up_power2_divisions);
+                out_value = static_cast<int64_t>(m_round_up_power2_divisions);
                 return;
         }
         m_status.fail(out_status, TF_INVALID_ARGUMENT, "unknown allocator option");
     }
 
-    void get_stats(TF_AllocatorStats* out_stats, _Bool* out_success) noexcept override
+    void get_stats(TF_AllocatorStats* out_stats, bool& out_success) noexcept override
     {
         m_stats.fill(*out_stats, static_cast<int64_t>(largest_free_block()));
-        *out_success = true;
+        out_success = true;
     }
 
     void reset_accumulated_stats() noexcept override
@@ -381,14 +378,14 @@ public:
             return;
         }
 
-        auto& pool = SyclHandle::resolve<SyclMemPool>(out_pool);
+        auto& pool = static_cast<SyclMemPool&>(SyclMemPool::from_handle(out_pool.get_handle()));
         pool.bind(assigned, is_user_created);
         m_registered_pools.emplace_back(pool);
     }
 
     void destroy_mem_pool_internal(const ice::sonic::MemPool& pool) noexcept override
     {
-        auto& target = SyclHandle::resolve<SyclMemPool>(pool);
+        auto& target = static_cast<SyclMemPool&>(SyclMemPool::from_handle(pool.get_handle()));
         try {
             release_cached_blocks(target.getPoolId());
         } catch (const sycl::exception&) {
@@ -499,7 +496,8 @@ private:
         if (stream.get_handle()->plugin_data == nullptr) {
             return *m_default_queue;
         }
-        return SyclHandle::resolve<SyclStream>(stream).getNativeQueue();
+        return static_cast<SyclStream&>(SyclStream::from_handle(stream.get_handle()))
+            .getNativeQueue();
     }
 
     std::optional<std::reference_wrapper<SyclMemPool>> find_pool(const TF_PoolId& pool_id)
@@ -691,7 +689,7 @@ private:
             }
         }
 
-        const auto segment_size = pool.getIsSmall() ? k_small_buffer : k_large_segment;
+        const std::size_t segment_size = pool.getIsSmall() ? k_small_buffer : k_large_segment;
         auto& segment = *m_expandable_segments.emplace_back(
             std::make_unique<SyclExpandableSegment>(m_context, m_device, segment_size)
         );
@@ -1183,7 +1181,7 @@ private:
         return k_min_block_size * ((size + k_min_block_size - 1) / k_min_block_size);
     }
 
-    static std::size_t round_up_power2_division(std::size_t size, std::size_t divisions) noexcept
+    std::size_t round_up_power2_division(std::size_t size, std::size_t divisions) const noexcept
     {
         if (std::has_single_bit(size)) {
             return size;
@@ -1197,7 +1195,7 @@ private:
         return rounded_floor == size ? size : rounded_floor + division;
     }
 
-    static std::size_t segment_size_for(std::size_t size) noexcept
+    std::size_t segment_size_for(std::size_t size) const noexcept
     {
         if (size <= k_small_size) {
             return k_small_buffer;
@@ -1208,7 +1206,7 @@ private:
         return k_round_large * ((size + k_round_large - 1) / k_round_large);
     }
 
-    static bool same_pool(const TF_PoolId& left, const TF_PoolId& right) noexcept
+    bool same_pool(const TF_PoolId& left, const TF_PoolId& right) const noexcept
     {
         return left.first == right.first && left.second == right.second;
     }

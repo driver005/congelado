@@ -646,7 +646,7 @@ private:
         }
         m_writer += *ms_result;
 
-        auto parameters_list = write_cpp_parameter_list(slot.extract_parameters());
+        auto parameters_list = write_cpp_parameter_list(slot);
         if (!parameters_list.has_value()) {
             return parameters_list;
         }
@@ -678,11 +678,23 @@ private:
     }
 
     std::expected<void, std::string>
-    write_cpp_parameter_list(std::span<const parser::helper::Parameter> parameters)
+    write_cpp_parameter_list(const parser::slot::Slot& slot)
     {
-        for (auto&& [index, parameter]: parameters | std::views::enumerate) {
+        for (auto&& [index, parameter]: slot.extract_parameters() | std::views::enumerate) {
             if (index != 0) {
                 m_writer += ", ";
+            }
+
+            if (is_reference_parameter(slot, parameter)) {
+                auto reference_result = helper::format_parameter(
+                    parameter.get_value_type() + "&",
+                    parameter.get_name()
+                );
+                if (!reference_result) {
+                    return std::unexpected(reference_result.error());
+                }
+                m_writer += *reference_result;
+                continue;
             }
 
             auto model = parameter.has_pointee()
@@ -712,6 +724,35 @@ private:
         return {};
     }
 
+    // A scalar `out_*` pointer becomes a reference in the C++ layer, unless the slot also carries a
+    // length/capacity parameter, which marks the pointer as the start of an array.
+    bool is_reference_parameter(
+        const parser::slot::Slot& slot,
+        const parser::helper::Parameter& parameter
+    ) const noexcept
+    {
+        if (!parameter.is_scalar_out()) {
+            return false;
+        }
+
+        static constexpr std::array<std::string_view, 6> k_length_words{
+            "num", "count", "capacity", "size", "max", "len"
+        };
+
+        for (const parser::helper::Parameter& candidate: slot.extract_parameters()) {
+            if (candidate.get_type().contains('*') || candidate.get_name().starts_with("out_")) {
+                continue;
+            }
+            for (const std::string_view word: k_length_words) {
+                if (candidate.get_name().contains(word)) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
     std::expected<void, std::string>
     write_call_arguments(const parser::slot::Slot& slot, const Mode& mode)
     {
@@ -720,6 +761,12 @@ private:
         for (auto&& [index, parameter]: middle | std::views::enumerate) {
             if (index != 0) {
                 m_writer += ", ";
+            }
+
+            if (is_reference_parameter(slot, parameter)) {
+                m_writer += mode == Mode::Builder ? "*" : "&";
+                m_writer += parameter.get_name();
+                continue;
             }
 
             auto model = parameter.has_pointee()

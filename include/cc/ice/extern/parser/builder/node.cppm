@@ -60,7 +60,7 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void
-    get_attribute_count(int* out_count, const ice::sonic::Status& out_status) noexcept = 0;
+    get_attribute_count(int& out_count, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_attribute(
         int index,
         const ice::sonic::ParserAttribute& out_attribute,
@@ -106,7 +106,7 @@ public:
             {
                 auto& self = ParserNode::from_handle(node);
                 self.get_attribute_count(
-                    out_count,
+                    *out_count,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },

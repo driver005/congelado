@@ -53,7 +53,7 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void
-    get_line_number(int* out_line_number, const ice::sonic::Status& out_status) noexcept = 0;
+    get_line_number(int& out_line_number, const ice::sonic::Status& out_status) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TFParserDefinition*)) noexcept
     {
@@ -96,7 +96,7 @@ public:
             {
                 auto& self = ParserDefinition::from_handle(definition);
                 self.get_line_number(
-                    out_line_number,
+                    *out_line_number,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },

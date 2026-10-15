@@ -15,13 +15,15 @@ import :onednn_memory_layout;
 import :onednn_post_op_attributes;
 import :onednn_matmul_primitive;
 import :onednn_primitive_executor;
+import :runtime;
 
 export namespace aten_xpu {
 
 class SyclSdpaMath
 {
 public:
-    explicit SyclSdpaMath(SyclKernelContext& context, sycl::queue& queue) :
+    SyclSdpaMath(SyclKernelRuntime& runtime, SyclKernelContext& context, sycl::queue& queue) :
+        m_runtime{runtime},
         m_context{context},
         m_queue{queue}
     {
@@ -77,19 +79,12 @@ public:
         } else if (is_causal) {
             score_ops.addBinary(dnnl::algorithm::binary_add, causal_mask(), true);
         }
-        SyclMatmulPrimitive::run(
-            m_queue,
-            query_view,
-            key_view,
-            std::nullopt,
-            scores->get(),
-            score_ops,
-            true
-        );
+        m_runtime.getMatmul()
+            .run(m_queue, query_view, key_view, std::nullopt, scores->get(), score_ops, true);
         softmax_forward(scores->get());
 
         auto& probabilities = probabilities_as(scores->get(), query.getDtype());
-        SyclMatmulPrimitive::run(
+        m_runtime.getMatmul().run(
             m_queue,
             probabilities,
             value_view,
@@ -127,7 +122,7 @@ public:
 
         auto& probabilities_typed =
             probabilities_as(const_cast<SyclTensor&>(probabilities), query.getDtype());
-        SyclMatmulPrimitive::run(
+        m_runtime.getMatmul().run(
             m_queue,
             transpose(probabilities_typed),
             gradient_output_view,
@@ -142,7 +137,7 @@ public:
         if (!gradient_probabilities || !gradient_scores) {
             return;
         }
-        SyclMatmulPrimitive::run(
+        m_runtime.getMatmul().run(
             m_queue,
             gradient_output_view,
             value_view,
@@ -156,7 +151,7 @@ public:
         auto& gradient_scores_typed = probabilities_as(gradient_scores->get(), query.getDtype());
         SyclPostOpAttributes scale_ops;
         scale_ops.addEltwise(1.0F, scale, 0.0F, dnnl::algorithm::eltwise_linear);
-        SyclMatmulPrimitive::run(
+        m_runtime.getMatmul().run(
             m_queue,
             gradient_scores_typed,
             key_view,
@@ -164,7 +159,7 @@ public:
             gradient_query_view,
             scale_ops
         );
-        SyclMatmulPrimitive::run(
+        m_runtime.getMatmul().run(
             m_queue,
             transpose(gradient_scores_typed),
             query_view,
@@ -188,7 +183,7 @@ private:
 
     SyclTensor& remember(::TF_Tensor* handle)
     {
-        auto& view = SyclHandle::resolve_raw<SyclTensor>(handle);
+        auto& view = static_cast<SyclTensor&>(SyclTensor::from_handle(handle));
         m_views.emplace_back(view);
         return view;
     }
@@ -288,9 +283,9 @@ private:
         if (!converted) {
             throw std::runtime_error{"failed to allocate probabilities"};
         }
-        SyclPrimitiveExecutor executor{m_queue};
-        const auto source_desc = SyclOnednnLayout::desc(scores);
-        const auto destination_desc = SyclOnednnLayout::desc(converted->get());
+        auto executor = m_runtime.getOnednn().make_executor(m_queue);
+        const auto source_desc = m_layout.desc(scores);
+        const auto destination_desc = m_layout.desc(converted->get());
         const dnnl::reorder::primitive_desc primitive_desc{
             executor.getEngine(),
             source_desc,
@@ -305,8 +300,8 @@ private:
 
     void softmax_forward(SyclTensor& scores)
     {
-        SyclPrimitiveExecutor executor{m_queue};
-        const auto desc = SyclOnednnLayout::desc(scores);
+        auto executor = m_runtime.getOnednn().make_executor(m_queue);
+        const auto desc = m_layout.desc(scores);
         const dnnl::softmax_forward::primitive_desc primitive_desc{
             executor.getEngine(),
             dnnl::prop_kind::forward_training,
@@ -314,7 +309,7 @@ private:
             desc,
             desc,
             2,
-            SyclPrimitiveExecutor::user_scratchpad_attributes()
+            m_runtime.getOnednn().user_scratchpad_attributes()
         };
         executor.addArgument(DNNL_ARG_SRC, desc, scores.getData());
         executor.addArgument(DNNL_ARG_DST, desc, scores.getData());
@@ -327,8 +322,8 @@ private:
         SyclTensor& gradient_scores
     )
     {
-        SyclPrimitiveExecutor executor{m_queue};
-        const auto desc = SyclOnednnLayout::desc(probabilities);
+        auto executor = m_runtime.getOnednn().make_executor(m_queue);
+        const auto desc = m_layout.desc(probabilities);
         const dnnl::softmax_forward::primitive_desc hint{
             executor.getEngine(),
             dnnl::prop_kind::forward_training,
@@ -345,7 +340,7 @@ private:
             desc,
             2,
             hint,
-            SyclPrimitiveExecutor::user_scratchpad_attributes()
+            m_runtime.getOnednn().user_scratchpad_attributes()
         };
         executor.addArgument(DNNL_ARG_DST, desc, probabilities.getData());
         executor.addArgument(DNNL_ARG_DIFF_DST, desc, gradient_probabilities.getData());
@@ -353,6 +348,7 @@ private:
         executor.execute(dnnl::softmax_backward{primitive_desc}, primitive_desc);
     }
 
+    SyclKernelRuntime& m_runtime;
     SyclKernelContext& m_context;
     sycl::queue& m_queue;
     std::vector<std::reference_wrapper<SyclTensor>> m_views;
@@ -361,6 +357,7 @@ private:
     int64_t m_query_length{0};
     int64_t m_key_length{0};
     int64_t m_head_dim{0};
+    SyclOnednnLayout m_layout;
 };
 
 } // namespace aten_xpu

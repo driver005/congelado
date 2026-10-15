@@ -15,13 +15,13 @@ import :onednn_matmul_primitive;
 
 export namespace aten_xpu {
 
+inline constexpr std::string_view k_addmv_kernel_name = "Addmv";
+
 class SyclAddmvKernel : public SyclKernel<SyclAddmvKernel>
 {
 public:
-    static constexpr std::string_view k_name = "Addmv";
-
     SyclAddmvKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
-        SyclKernel<SyclAddmvKernel>{ops},
+        SyclKernel<SyclAddmvKernel>{ops, k_addmv_kernel_name},
         m_alpha{construction.getFloat("alpha", 1.0F)},
         m_beta{construction.getFloat("beta", 1.0F)},
         m_activation{construction.getInt64("activation", 0)}
@@ -45,13 +45,13 @@ public:
         auto output = context.allocateOutput(0, matrix->get().getDtype(), m_scratch_dims);
         if (output) {
             auto& output_column = as_column(output->get(), context);
-            SyclMatmulPrimitive::run(
+            getRuntime().getMatmul().run(
                 queue->get(),
                 matrix->get(),
                 column,
                 std::nullopt,
                 output_column,
-                SyclScaledAdd::build(m_alpha, m_beta, addend_column, m_activation)
+                m_scaled_add.build(m_alpha, m_beta, addend_column, m_activation)
             );
             output_column.destroy();
         }
@@ -61,7 +61,7 @@ public:
     }
 
 private:
-    static SyclTensor& as_column(SyclTensor& vector, SyclKernelContext& context)
+    SyclTensor& as_column(SyclTensor& vector, SyclKernelContext& context) const
     {
         const std::array<int64_t, 2> dims{vector.element_count(), 1};
         const std::array<int64_t, 2> strides{
@@ -77,13 +77,14 @@ private:
             &handle,
             context.getStatus()
         );
-        return SyclHandle::resolve_raw<SyclTensor>(handle);
+        return static_cast<SyclTensor&>(SyclTensor::from_handle(handle));
     }
 
     float m_alpha;
     float m_beta;
     int64_t m_activation;
     std::vector<int64_t> m_scratch_dims;
+    SyclScaledAdd m_scaled_add;
 };
 
 } // namespace aten_xpu

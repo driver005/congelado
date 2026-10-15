@@ -37,7 +37,7 @@ TEST_F(SyclEventTest, RecordAndQuery)
     getExecutor().block_host_for_event(getDevice(), event, getStatus());
 
     TF_EventStatus status = TF_EVENT_PENDING;
-    getExecutor().get_event_status(getDevice(), event, &status);
+    getExecutor().get_event_status(getDevice(), event, status);
     EXPECT_EQ(status, TF_EVENT_COMPLETE);
     EXPECT_TRUE(ok());
 
@@ -54,7 +54,7 @@ TEST_F(SyclEventTest, ElapsedTimeNeedsTiming)
     getExecutor().record_event(getDevice(), stream, stop, getStatus());
 
     float milliseconds = -1.0F;
-    start.elapsed_time(stop, &milliseconds, getStatus());
+    start.elapsed_time(stop, milliseconds, getStatus());
     EXPECT_TRUE(ok());
     EXPECT_GE(milliseconds, 0.0F);
 

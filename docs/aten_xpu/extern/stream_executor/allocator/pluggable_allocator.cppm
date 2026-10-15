@@ -113,15 +113,15 @@ public:
         }
     }
 
-    void owns_pointer(const void* pointer, _Bool* out_owns) noexcept override
+    void owns_pointer(const void* pointer, bool& out_owns) noexcept override
     {
-        *out_owns = m_metadata.contains(const_cast<void*>(pointer));
+        out_owns = m_metadata.contains(const_cast<void*>(pointer));
     }
 
     void get_base_allocation(
         const void* pointer,
         void** out_base,
-        uint64_t* out_size,
+        std::uint64_t& out_size,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -131,7 +131,7 @@ public:
             return;
         }
         *out_base = found->first;
-        *out_size = found->second.first;
+        out_size = found->second.first;
     }
 
     void empty_cache(const ice::sonic::Status& out_status) noexcept override
@@ -148,9 +148,9 @@ public:
         m_status.fail_unimplemented(out_status, "set_memory_fraction");
     }
 
-    void get_memory_fraction(double* out_fraction) noexcept override
+    void get_memory_fraction(double& out_fraction) noexcept override
     {
-        *out_fraction = 1.0;
+        out_fraction = 1.0;
     }
 
     void set_option(
@@ -166,7 +166,7 @@ public:
 
     void get_option(
         TF_AllocatorOption option,
-        int64_t* out_value,
+        std::int64_t& out_value,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -175,10 +175,10 @@ public:
         m_status.fail_unimplemented(out_status, "get_option");
     }
 
-    void get_stats(TF_AllocatorStats* out_stats, _Bool* out_success) noexcept override
+    void get_stats(TF_AllocatorStats* out_stats, bool& out_success) noexcept override
     {
         static_cast<void>(out_stats);
-        *out_success = false;
+        out_success = false;
     }
 
     void reset_accumulated_stats() noexcept override {}
@@ -265,7 +265,8 @@ private:
         if (stream.get_handle()->plugin_data == nullptr) {
             return m_default_queue ? &m_default_queue->get() : nullptr;
         }
-        return &SyclHandle::resolve<SyclStream>(stream).getNativeQueue();
+        return &static_cast<SyclStream&>(SyclStream::from_handle(stream.get_handle()))
+                    .getNativeQueue();
     }
 
     SyclStatus m_status;

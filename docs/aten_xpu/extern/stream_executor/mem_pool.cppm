@@ -30,12 +30,6 @@ public:
     SyclMemPool(SyclMemPool&&) = delete;
     SyclMemPool& operator=(SyclMemPool&&) = delete;
 
-    static void create(::TF_MemPool* handle)
-    {
-        auto* pool = new SyclMemPool{SyclOpsTable::getInstance()};
-        SyclHandle::attach(handle, *pool);
-    }
-
     void setNoSplit(bool no_split) noexcept
     {
         m_no_split = no_split;
@@ -90,9 +84,9 @@ public:
         *out_pool_id = m_pool_id;
     }
 
-    void use_count(int* out_count) noexcept override
+    void use_count(int& out_count) noexcept override
     {
-        *out_count = m_use_count;
+        out_count = m_use_count;
     }
 
     void begin_allocate_to_pool(

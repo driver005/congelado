@@ -98,9 +98,9 @@ public:
         m_ops->get_description(get_handle(), out_description.get_handle());
     }
 
-    void get_position(int* out_position) const noexcept
+    void get_position(int& out_position) const noexcept
     {
-        m_ops->get_position(get_handle(), out_position);
+        m_ops->get_position(get_handle(), &out_position);
     }
 
     void get_type(const ice::sonic::TypeInfo& out_type) const noexcept

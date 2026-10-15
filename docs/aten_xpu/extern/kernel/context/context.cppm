@@ -40,7 +40,7 @@ public:
     int getInputCount() const noexcept
     {
         int count = 0;
-        m_context.num_inputs(&count);
+        m_context.num_inputs(count);
         return count;
     }
 
@@ -54,7 +54,7 @@ public:
         if (!ok() || handle == nullptr) {
             return std::nullopt;
         }
-        return SyclHandle::resolve_raw<SyclTensor>(handle);
+        return static_cast<SyclTensor&>(SyclTensor::from_handle(handle));
     }
 
     std::optional<std::reference_wrapper<SyclTensor>>
@@ -63,7 +63,7 @@ public:
         ::TF_Tensor* handle = nullptr;
         const auto elements =
             std::accumulate(dims.begin(), dims.end(), int64_t{1}, std::multiplies<>{});
-        const auto bytes = static_cast<std::size_t>(elements) * SyclTensor::element_size(dtype);
+        const auto bytes = static_cast<std::size_t>(elements) * m_datatype.element_size(dtype);
         m_context.allocate_output(
             index,
             dtype,
@@ -76,7 +76,7 @@ public:
         if (!ok() || handle == nullptr) {
             return std::nullopt;
         }
-        return SyclHandle::resolve_raw<SyclTensor>(handle);
+        return static_cast<SyclTensor&>(SyclTensor::from_handle(handle));
     }
 
     std::optional<std::reference_wrapper<SyclTensor>>
@@ -94,7 +94,7 @@ public:
         if (!ok() || handle == nullptr) {
             return std::nullopt;
         }
-        return SyclHandle::resolve_raw<SyclTensor>(handle);
+        return static_cast<SyclTensor&>(SyclTensor::from_handle(handle));
     }
 
     std::optional<std::reference_wrapper<sycl::queue>> getQueue()
@@ -104,13 +104,13 @@ public:
         if (!ok() || stream == nullptr) {
             return std::nullopt;
         }
-        return SyclHandle::resolve_raw<SyclStream>(stream).getNativeQueue();
+        return static_cast<SyclStream&>(SyclStream::from_handle(stream)).getNativeQueue();
     }
 
     int getDeviceId() const noexcept
     {
         int device = 0;
-        m_context.get_device_id(&device);
+        m_context.get_device_id(device);
         return device;
     }
 
@@ -122,7 +122,7 @@ public:
     bool ok() const noexcept
     {
         TF_Code code = TF_OK;
-        m_status.get_code(&code);
+        m_status.get_code(code);
         return code == TF_OK;
     }
 
@@ -149,6 +149,7 @@ private:
     SyclStatus m_helper;
     ice::sonic::OpKernelContext m_context;
     ice::sonic::Status m_status;
+    SyclDataType m_datatype;
 };
 
 } // namespace aten_xpu

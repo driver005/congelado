@@ -82,7 +82,7 @@ public:
         m_scratch_text += "],\"trace\":[";
         bool first_entry = true;
         trace.for_each(
-            [this, &first_entry](const SyclAllocatorTrace::Entry& entry)
+            [this, &trace, &first_entry](const SyclAllocatorTrace::Entry& entry)
             {
                 const auto& [action, address, size, queue, pool] = entry;
                 m_scratch_text += first_entry ? "" : ",";
@@ -90,7 +90,7 @@ public:
                 m_scratch_text += std::format(
                     "{{\"action\":\"{}\",\"address\":{},\"size\":{},\"stream\":{},\"pool\":[{},{}]}"
                     "}",
-                    SyclAllocatorTrace::action_name(action),
+                    trace.action_name(action),
                     address,
                     size,
                     reinterpret_cast<std::uintptr_t>(queue),

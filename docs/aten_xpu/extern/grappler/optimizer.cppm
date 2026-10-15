@@ -33,12 +33,6 @@ public:
     SyclGrapplerOptimizer(SyclGrapplerOptimizer&&) = delete;
     SyclGrapplerOptimizer& operator=(SyclGrapplerOptimizer&&) = delete;
 
-    static void create(::TFGrapplerOptimizer* handle)
-    {
-        auto* optimizer = new SyclGrapplerOptimizer{SyclOpsTable::getInstance()};
-        SyclHandle::attach(handle, *optimizer);
-    }
-
     void destroy() noexcept override
     {
         delete this;
@@ -82,9 +76,9 @@ private:
         int count = 0;
         std::size_t storage_size = 0;
         if (fetch_nodes) {
-            item.get_fetch_nodes_size(&count, &storage_size, status);
+            item.get_fetch_nodes_size(count, storage_size, status);
         } else {
-            item.get_nodes_to_preserve_size(&count, &storage_size, status);
+            item.get_nodes_to_preserve_size(count, storage_size, status);
         }
         if (count <= 0) {
             return;
@@ -118,12 +112,12 @@ private:
         }
     }
 
-    static bool is_fusable_producer(const std::string& op) noexcept
+    bool is_fusable_producer(const std::string& op) const noexcept
     {
         return op == "Conv2D" || op == "Addmm" || op == "Bmm" || op == "MatMul";
     }
 
-    static int count_consumers(const tensorflow::GraphDef& graph, const std::string& output)
+    int count_consumers(const tensorflow::GraphDef& graph, const std::string& output) const
     {
         int count = 0;
         for (const auto& node: graph.node()) {
@@ -132,8 +126,8 @@ private:
         return count;
     }
 
-    static const tensorflow::NodeDef*
-    find_node(const tensorflow::GraphDef& graph, const std::string& name)
+    const tensorflow::NodeDef*
+    find_node(const tensorflow::GraphDef& graph, const std::string& name) const
     {
         const auto found = std::ranges::find_if(
             graph.node(),
@@ -145,8 +139,8 @@ private:
         return found == graph.node().end() ? nullptr : &*found;
     }
 
-    static const tensorflow::NodeDef*
-    find_relu_consumer(const tensorflow::GraphDef& graph, const std::string& output)
+    const tensorflow::NodeDef*
+    find_relu_consumer(const tensorflow::GraphDef& graph, const std::string& output) const
     {
         const auto found = std::ranges::find_if(
             graph.node(),

@@ -15,13 +15,13 @@ import :onednn_matmul_primitive;
 
 export namespace aten_xpu {
 
+inline constexpr std::string_view k_bmm_kernel_name = "BatchMatMul";
+
 class SyclBmmKernel : public SyclKernel<SyclBmmKernel>
 {
 public:
-    static constexpr std::string_view k_name = "BatchMatMul";
-
     SyclBmmKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
-        SyclKernel<SyclBmmKernel>{ops},
+        SyclKernel<SyclBmmKernel>{ops, k_bmm_kernel_name},
         m_alpha{construction.getFloat("alpha", 1.0F)},
         m_beta{construction.getFloat("beta", 0.0F)},
         m_activation{construction.getInt64("activation", 0)}
@@ -46,13 +46,13 @@ public:
             context.propagate();
             return;
         }
-        SyclMatmulPrimitive::run(
+        getRuntime().getMatmul().run(
             queue->get(),
             first->get(),
             second->get(),
             std::nullopt,
             output->get(),
-            SyclScaledAdd::build(m_alpha, m_beta, std::nullopt, m_activation)
+            m_scaled_add.build(m_alpha, m_beta, std::nullopt, m_activation)
         );
     }
 
@@ -61,6 +61,7 @@ private:
     float m_beta;
     int64_t m_activation;
     std::vector<int64_t> m_scratch_dims;
+    SyclScaledAdd m_scaled_add;
 };
 
 } // namespace aten_xpu

@@ -70,14 +70,14 @@ public:
 
     void elapsed_time(
         const ice::sonic::Event& end,
-        float* out_milliseconds,
+        float& out_milliseconds,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->elapsed_time(
             get_handle(),
             end.get_handle(),
-            out_milliseconds,
+            &out_milliseconds,
             out_status.get_handle()
         );
     }

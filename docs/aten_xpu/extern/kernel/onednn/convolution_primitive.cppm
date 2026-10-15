@@ -10,6 +10,7 @@ import aten_xpu_intern;
 import :onednn_memory_layout;
 import :onednn_post_op_attributes;
 import :onednn_primitive_executor;
+import :onednn_runtime;
 import :onednn_convolution_geometry;
 
 export namespace aten_xpu {
@@ -17,9 +18,12 @@ export namespace aten_xpu {
 class SyclConvolutionPrimitive
 {
 public:
-    SyclConvolutionPrimitive() = delete;
+    explicit SyclConvolutionPrimitive(SyclOnednnRuntime& runtime) noexcept :
+        m_runtime{runtime}
+    {
+    }
 
-    static sycl::event forward(
+    sycl::event forward(
         sycl::queue& queue,
         const SyclTensor& source,
         const SyclTensor& weight,
@@ -29,13 +33,13 @@ public:
         const SyclPostOpAttributes& post_ops
     )
     {
-        SyclPrimitiveExecutor executor{queue};
-        const auto source_desc = SyclOnednnLayout::desc(source);
+        auto executor = m_runtime.make_executor(queue);
+        const auto source_desc = m_layout.desc(source);
         const auto weight_desc = convolution_weight_desc(weight, geometry.getGroups());
-        const auto destination_desc = SyclOnednnLayout::desc(destination);
+        const auto destination_desc = m_layout.desc(destination);
         const auto bias_desc = bias ? vector_desc(bias->get()) : dnnl::memory::desc{};
 
-        auto attributes = SyclPrimitiveExecutor::user_scratchpad_attributes();
+        auto attributes = m_runtime.user_scratchpad_attributes();
         post_ops.apply(attributes);
         const dnnl::convolution_forward::primitive_desc primitive_desc{
             executor.getEngine(),
@@ -62,7 +66,7 @@ public:
         return executor.execute(dnnl::convolution_forward{primitive_desc}, primitive_desc);
     }
 
-    static sycl::event backward_data(
+    sycl::event backward_data(
         sycl::queue& queue,
         const SyclTensor& gradient_output,
         const SyclTensor& weight,
@@ -70,10 +74,10 @@ public:
         const SyclConvolutionGeometry& geometry
     )
     {
-        SyclPrimitiveExecutor executor{queue};
-        const auto gradient_input_desc = SyclOnednnLayout::desc(gradient_input);
+        auto executor = m_runtime.make_executor(queue);
+        const auto gradient_input_desc = m_layout.desc(gradient_input);
         const auto weight_desc = convolution_weight_desc(weight, geometry.getGroups());
-        const auto gradient_output_desc = SyclOnednnLayout::desc(gradient_output);
+        const auto gradient_output_desc = m_layout.desc(gradient_output);
 
         const dnnl::convolution_forward::primitive_desc hint{
             executor.getEngine(),
@@ -98,7 +102,7 @@ public:
             geometry.getPaddingLeft(),
             geometry.getPaddingRight(),
             hint,
-            SyclPrimitiveExecutor::user_scratchpad_attributes()
+            m_runtime.user_scratchpad_attributes()
         };
 
         executor.addArgument(DNNL_ARG_DIFF_DST, gradient_output_desc, gradient_output.getData());
@@ -107,7 +111,7 @@ public:
         return executor.execute(dnnl::convolution_backward_data{primitive_desc}, primitive_desc);
     }
 
-    static sycl::event backward_weights(
+    sycl::event backward_weights(
         sycl::queue& queue,
         const SyclTensor& source,
         const SyclTensor& gradient_output,
@@ -116,11 +120,11 @@ public:
         const SyclConvolutionGeometry& geometry
     )
     {
-        SyclPrimitiveExecutor executor{queue};
-        const auto source_desc = SyclOnednnLayout::desc(source);
+        auto executor = m_runtime.make_executor(queue);
+        const auto source_desc = m_layout.desc(source);
         const auto gradient_weight_desc =
             convolution_weight_desc(gradient_weight, geometry.getGroups());
-        const auto gradient_output_desc = SyclOnednnLayout::desc(gradient_output);
+        const auto gradient_output_desc = m_layout.desc(gradient_output);
         const auto gradient_bias_desc =
             gradient_bias ? vector_desc(gradient_bias->get()) : dnnl::memory::desc{};
 
@@ -149,7 +153,7 @@ public:
             geometry.getPaddingLeft(),
             geometry.getPaddingRight(),
             hint,
-            SyclPrimitiveExecutor::user_scratchpad_attributes()
+            m_runtime.user_scratchpad_attributes()
         };
 
         executor.addArgument(DNNL_ARG_SRC, source_desc, source.getData());
@@ -166,7 +170,7 @@ public:
         return executor.execute(dnnl::convolution_backward_weights{primitive_desc}, primitive_desc);
     }
 
-    static sycl::event deconvolution(
+    sycl::event deconvolution(
         sycl::queue& queue,
         const SyclTensor& source,
         const SyclTensor& weight,
@@ -176,13 +180,13 @@ public:
         const SyclPostOpAttributes& post_ops
     )
     {
-        SyclPrimitiveExecutor executor{queue};
-        const auto source_desc = SyclOnednnLayout::desc(source);
+        auto executor = m_runtime.make_executor(queue);
+        const auto source_desc = m_layout.desc(source);
         const auto weight_desc = deconvolution_weight_desc(weight, geometry.getGroups());
-        const auto destination_desc = SyclOnednnLayout::desc(destination);
+        const auto destination_desc = m_layout.desc(destination);
         const auto bias_desc = bias ? vector_desc(bias->get()) : dnnl::memory::desc{};
 
-        auto attributes = SyclPrimitiveExecutor::user_scratchpad_attributes();
+        auto attributes = m_runtime.user_scratchpad_attributes();
         post_ops.apply(attributes);
         const dnnl::deconvolution_forward::primitive_desc primitive_desc{
             executor.getEngine(),
@@ -209,14 +213,14 @@ public:
         return executor.execute(dnnl::deconvolution_forward{primitive_desc}, primitive_desc);
     }
 
-    static dnnl::memory::desc convolution_weight_desc(const SyclTensor& weight, int64_t groups)
+    dnnl::memory::desc convolution_weight_desc(const SyclTensor& weight, int64_t groups) const
     {
         const auto type =
-            SyclOnednnLayout::data_type(weight.getDtype()).value_or(dnnl::memory::data_type::f32);
+            m_layout.data_type(weight.getDtype()).value_or(dnnl::memory::data_type::f32);
         const auto& dims = weight.getDims();
         const auto& strides = weight.getStrides();
         if (groups == 1) {
-            return SyclOnednnLayout::desc_as(weight, type);
+            return m_layout.desc_as(weight, type);
         }
 
         dnnl::memory::dims grouped_dims{groups, dims[0] / groups};
@@ -226,10 +230,10 @@ public:
         return dnnl::memory::desc{grouped_dims, type, grouped_strides};
     }
 
-    static dnnl::memory::desc deconvolution_weight_desc(const SyclTensor& weight, int64_t groups)
+    dnnl::memory::desc deconvolution_weight_desc(const SyclTensor& weight, int64_t groups) const
     {
         const auto type =
-            SyclOnednnLayout::data_type(weight.getDtype()).value_or(dnnl::memory::data_type::f32);
+            m_layout.data_type(weight.getDtype()).value_or(dnnl::memory::data_type::f32);
         const auto& dims = weight.getDims();
         const auto& strides = weight.getStrides();
         const auto input_per_group = dims[0] / groups;
@@ -250,12 +254,15 @@ public:
     }
 
 private:
-    static dnnl::memory::desc vector_desc(const SyclTensor& tensor)
+    dnnl::memory::desc vector_desc(const SyclTensor& tensor) const
     {
         const auto type =
-            SyclOnednnLayout::data_type(tensor.getDtype()).value_or(dnnl::memory::data_type::f32);
+            m_layout.data_type(tensor.getDtype()).value_or(dnnl::memory::data_type::f32);
         return dnnl::memory::desc{{tensor.element_count()}, type, dnnl::memory::format_tag::x};
     }
+
+    SyclOnednnRuntime& m_runtime;
+    SyclOnednnLayout m_layout;
 };
 
 } // namespace aten_xpu

@@ -210,9 +210,9 @@ public:
         m_ops->set_body(get_handle(), data, length, out_status.get_handle());
     }
 
-    void get_body(const void** out_data, size_t* out_length) const noexcept
+    void get_body(const void** out_data, std::size_t& out_length) const noexcept
     {
-        m_ops->get_body(get_handle(), out_data, out_length);
+        m_ops->get_body(get_handle(), out_data, &out_length);
     }
 
     void set_content_type(
@@ -299,9 +299,9 @@ public:
         m_ops->set_timeout(get_handle(), timeout_ms, out_status.get_handle());
     }
 
-    void get_timeout(int64_t* out_timeout_ms) const noexcept
+    void get_timeout(std::int64_t& out_timeout_ms) const noexcept
     {
-        m_ops->get_timeout(get_handle(), out_timeout_ms);
+        m_ops->get_timeout(get_handle(), &out_timeout_ms);
     }
 
     void set_stream_id(uint32_t stream_id, const ice::sonic::Status& out_status) const noexcept
@@ -309,9 +309,9 @@ public:
         m_ops->set_stream_id(get_handle(), stream_id, out_status.get_handle());
     }
 
-    void get_stream_id(uint32_t* out_stream_id) const noexcept
+    void get_stream_id(std::uint32_t& out_stream_id) const noexcept
     {
-        m_ops->get_stream_id(get_handle(), out_stream_id);
+        m_ops->get_stream_id(get_handle(), &out_stream_id);
     }
 };
 

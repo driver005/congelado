@@ -28,12 +28,6 @@ public:
     SyclEvent(SyclEvent&&) = delete;
     SyclEvent& operator=(SyclEvent&&) = delete;
 
-    static void create(::TF_Event* handle)
-    {
-        auto* event = new SyclEvent{SyclOpsTable::getInstance()};
-        SyclHandle::attach(handle, *event);
-    }
-
     void bind(const TF_EventOptions& options, int device_index) noexcept
     {
         m_enable_timing = options.enable_timing;
@@ -83,11 +77,11 @@ public:
 
     void elapsed_time(
         const ice::sonic::Event& end,
-        float* out_milliseconds,
+        float& out_milliseconds,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-        auto& end_event = SyclHandle::resolve<SyclEvent>(end);
+        auto& end_event = static_cast<SyclEvent&>(SyclEvent::from_handle(end.get_handle()));
         if (!m_enable_timing || !end_event.m_enable_timing) {
             m_status.fail(out_status, TF_FAILED_PRECONDITION, "both events need enable_timing");
             return;
@@ -104,7 +98,7 @@ public:
                 m_event->get_profiling_info<sycl::info::event_profiling::command_end>();
             const auto end_nanoseconds =
                 end_event.m_event->get_profiling_info<sycl::info::event_profiling::command_end>();
-            *out_milliseconds = static_cast<float>(end_nanoseconds - start_nanoseconds) / 1.0e6F;
+            out_milliseconds = static_cast<float>(end_nanoseconds - start_nanoseconds) / 1.0e6F;
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
         }

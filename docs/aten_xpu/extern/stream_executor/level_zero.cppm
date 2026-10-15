@@ -27,12 +27,6 @@ public:
     SyclLevelZero(SyclLevelZero&&) = delete;
     SyclLevelZero& operator=(SyclLevelZero&&) = delete;
 
-    static SyclLevelZero& getInstance()
-    {
-        static SyclLevelZero instance;
-        return instance;
-    }
-
     std::optional<ze_device_handle_t>
     query_allocation_device(const sycl::context& context, const void* pointer)
     {

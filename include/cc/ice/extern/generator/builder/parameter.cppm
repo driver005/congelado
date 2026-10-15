@@ -52,7 +52,7 @@ public:
     virtual void set_description(const ice::sonic::String& description) noexcept = 0;
     virtual void set_position(int position) noexcept = 0;
     virtual void get_description(const ice::sonic::String& out_description) noexcept = 0;
-    virtual void get_position(int* out_position) noexcept = 0;
+    virtual void get_position(int& out_position) noexcept = 0;
     virtual void get_type(const ice::sonic::TypeInfo& out_type) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TFGeneratorParameter*)) noexcept
@@ -105,7 +105,7 @@ public:
                 [](::TFGeneratorParameter* param_context, int* out_position) noexcept
             {
                 auto& self = GeneratorParameter::from_handle(param_context);
-                self.get_position(out_position);
+                self.get_position(*out_position);
             },
             .get_type =
                 [](::TFGeneratorParameter* param_context, ::TF_TypeInfo* out_type) noexcept

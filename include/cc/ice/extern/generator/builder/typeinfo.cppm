@@ -47,9 +47,9 @@ public:
     virtual void set_read_only(_Bool read_only) noexcept = 0;
     virtual void set_list(_Bool is_list) noexcept = 0;
     virtual void get_type_attr_name(const ice::sonic::String& out_type_attr_name) noexcept = 0;
-    virtual void get_data_type(int* out_data_type) noexcept = 0;
-    virtual void is_read_only(int* out_is_read_only) noexcept = 0;
-    virtual void is_list(int* out_is_list) noexcept = 0;
+    virtual void get_data_type(int& out_data_type) noexcept = 0;
+    virtual void is_read_only(int& out_is_read_only) noexcept = 0;
+    virtual void is_list(int& out_is_list) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_TypeInfo*)) noexcept
     {
@@ -107,19 +107,19 @@ public:
                 [](::TF_TypeInfo* type_context, int* out_data_type) noexcept
             {
                 auto& self = TypeInfo::from_handle(type_context);
-                self.get_data_type(out_data_type);
+                self.get_data_type(*out_data_type);
             },
             .is_read_only =
                 [](::TF_TypeInfo* type_context, int* out_is_read_only) noexcept
             {
                 auto& self = TypeInfo::from_handle(type_context);
-                self.is_read_only(out_is_read_only);
+                self.is_read_only(*out_is_read_only);
             },
             .is_list =
                 [](::TF_TypeInfo* type_context, int* out_is_list) noexcept
             {
                 auto& self = TypeInfo::from_handle(type_context);
-                self.is_list(out_is_list);
+                self.is_list(*out_is_list);
             },
 
         };

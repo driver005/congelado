@@ -20,6 +20,9 @@ module;
 export module aten_xpu_intern:ops_table;
 
 import std;
+import :placement;
+import :graph_state;
+import :shared_state;
 
 export namespace aten_xpu {
 
@@ -106,10 +109,36 @@ public:
         m_device_graph_ops = ops;
     }
 
+    // Entry point for the C ABI `create` slots, which carry no context pointer.
     static SyclOpsTable& getInstance() noexcept
     {
         static SyclOpsTable instance;
         return instance;
+    }
+
+    SyclTensorPlacement& getPlacement() noexcept
+    {
+        return m_placement;
+    }
+
+    const SyclTensorPlacement& getPlacement() const noexcept
+    {
+        return m_placement;
+    }
+
+    SyclGraphState& getGraphState() const noexcept
+    {
+        return m_graph_state;
+    }
+
+    void setKernelRuntime(SyclSharedState* runtime) noexcept
+    {
+        m_kernel_runtime = runtime;
+    }
+
+    SyclSharedState* getKernelRuntime() const noexcept
+    {
+        return m_kernel_runtime;
     }
 
     const ::TF_StatusOps* getStatusOps() const noexcept
@@ -209,6 +238,9 @@ private:
     const ::TFGrapplerDeviceGraphOps* m_device_graph_ops{nullptr};
     const ::TF_OpKernelContextOps* m_kernel_context_ops{nullptr};
     const ::TF_OpKernelConstructionOps* m_kernel_construction_ops{nullptr};
+    SyclTensorPlacement m_placement;
+    mutable SyclGraphState m_graph_state;
+    SyclSharedState* m_kernel_runtime{nullptr};
 };
 
 } // namespace aten_xpu

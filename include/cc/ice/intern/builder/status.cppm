@@ -48,7 +48,7 @@ public:
     virtual void for_each_payload(TF_PayloadVisitor visitor, void* capture) noexcept = 0;
     virtual void
     set_status_from_io_error(int error_code, const ice::sonic::String& context) noexcept = 0;
-    virtual void get_code(::TF_Code* out_code) noexcept = 0;
+    virtual void get_code(::TF_Code& out_code) noexcept = 0;
     virtual void message(const ice::sonic::String& out_message) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_Status*)) noexcept
@@ -103,7 +103,7 @@ public:
                 [](const ::TF_Status* s, ::TF_Code* out_code) noexcept
             {
                 auto& self = Status::from_handle(s);
-                self.get_code(out_code);
+                self.get_code(*out_code);
             },
             .message =
                 [](const ::TF_Status* s, ::TF_String* out_message) noexcept

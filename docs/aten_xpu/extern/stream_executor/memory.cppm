@@ -26,12 +26,6 @@ public:
     SyclMemory(SyclMemory&&) = delete;
     SyclMemory& operator=(SyclMemory&&) = delete;
 
-    static void create(::TF_Memory* handle)
-    {
-        auto* memory = new SyclMemory{SyclOpsTable::getInstance()};
-        SyclHandle::attach(handle, *memory);
-    }
-
     void destroy() noexcept override
     {
         delete this;

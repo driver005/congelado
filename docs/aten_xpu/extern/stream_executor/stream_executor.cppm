@@ -26,12 +26,6 @@ public:
     SyclStreamExecutor(SyclStreamExecutor&&) = delete;
     SyclStreamExecutor& operator=(SyclStreamExecutor&&) = delete;
 
-    static void create(::TF_StreamExecutor* handle)
-    {
-        auto* stream_executor = new SyclStreamExecutor{SyclOpsTable::getInstance()};
-        SyclHandle::attach(handle, *stream_executor);
-    }
-
     void destroy() noexcept override
     {
         delete this;

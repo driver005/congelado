@@ -18,13 +18,13 @@ import :scaled_scaling_recipe;
 
 export namespace aten_xpu {
 
+inline constexpr std::string_view k_scaled_matmul_kernel_name = "ScaledMatMul";
+
 class SyclScaledMatmulKernel : public SyclKernel<SyclScaledMatmulKernel>
 {
 public:
-    static constexpr std::string_view k_name = "ScaledMatMul";
-
     SyclScaledMatmulKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
-        SyclKernel<SyclScaledMatmulKernel>{ops},
+        SyclKernel<SyclScaledMatmulKernel>{ops, k_scaled_matmul_kernel_name},
         m_output_type{construction.getType("output_dtype", TF_BFLOAT16)},
         m_use_fast_accumulation{construction.getBool("use_fast_accum", false)}
     {
@@ -46,10 +46,9 @@ public:
         const int64_t rows = left->get().getDims()[0];
         const int64_t inner = left->get().getDims()[1];
         const int64_t columns = right->get().getDims()[1];
-        const auto left_kind = SyclScalingRecipe::detect(left_scale->get(), rows, inner, true);
-        const auto right_kind =
-            SyclScalingRecipe::detect(right_scale->get(), inner, columns, false);
-        if (!SyclScalingRecipe::compatible(left_kind, right_kind)) {
+        const auto left_kind = m_scaling_recipe.detect(left_scale->get(), rows, inner, true);
+        const auto right_kind = m_scaling_recipe.detect(right_scale->get(), inner, columns, false);
+        if (!m_scaling_recipe.compatible(left_kind, right_kind)) {
             context.fail(TF_INVALID_ARGUMENT, "unsupported scaled_mm scaling recipe combination");
             return;
         }
@@ -61,23 +60,23 @@ public:
             return;
         }
 
-        const auto left_desc = SyclOnednnLayout::desc(left->get());
-        const auto right_desc = SyclOnednnLayout::desc(right->get());
-        const auto output_desc = SyclOnednnLayout::desc(output->get());
+        const auto left_desc = m_layout.desc(left->get());
+        const auto right_desc = m_layout.desc(right->get());
+        const auto output_desc = m_layout.desc(output->get());
         const auto bias_desc =
             bias
                 ? dnnl::memory::
-                      desc{{1, columns}, SyclOnednnLayout::data_type(bias->get().getDtype()).value(), dnnl::memory::format_tag::ab}
+                      desc{{1, columns}, m_layout.data_type(bias->get().getDtype()).value(), dnnl::memory::format_tag::ab}
                 : dnnl::memory::desc{};
 
-        auto attributes = SyclPrimitiveExecutor::user_scratchpad_attributes();
-        SyclScalingRecipe::apply(attributes, DNNL_ARG_SRC, left_kind, true);
-        SyclScalingRecipe::apply(attributes, DNNL_ARG_WEIGHTS, right_kind, false);
+        auto attributes = getRuntime().getOnednn().user_scratchpad_attributes();
+        m_scaling_recipe.apply(attributes, DNNL_ARG_SRC, left_kind, true);
+        m_scaling_recipe.apply(attributes, DNNL_ARG_WEIGHTS, right_kind, false);
         if (m_use_fast_accumulation) {
             attributes.set_accumulation_mode(dnnl::accumulation_mode::relaxed);
         }
 
-        SyclPrimitiveExecutor executor{queue->get()};
+        auto executor = getRuntime().getOnednn().make_executor(queue->get());
         const auto primitive_desc =
             bias
                 ? dnnl::matmul::
@@ -94,12 +93,12 @@ public:
         executor.addArgument(DNNL_ARG_DST, output_desc, output->get().getData());
         executor.addArgument(
             DNNL_ARG_ATTR_SCALES | DNNL_ARG_SRC,
-            SyclOnednnLayout::desc(left_scale->get()),
+            m_layout.desc(left_scale->get()),
             left_scale->get().getData()
         );
         executor.addArgument(
             DNNL_ARG_ATTR_SCALES | DNNL_ARG_WEIGHTS,
-            SyclOnednnLayout::desc(right_scale->get()),
+            m_layout.desc(right_scale->get()),
             right_scale->get().getData()
         );
         if (bias) {
@@ -112,6 +111,8 @@ private:
     TFDataTypeEnum m_output_type;
     bool m_use_fast_accumulation;
     std::vector<int64_t> m_scratch_dims;
+    SyclOnednnLayout m_layout;
+    SyclScalingRecipe m_scaling_recipe;
 };
 
 } // namespace aten_xpu

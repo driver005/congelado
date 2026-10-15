@@ -78,9 +78,9 @@ public:
         m_ops->get_name(get_handle(), out_name.get_handle(), out_status.get_handle());
     }
 
-    void get_parameter_count(int* out_count, const ice::sonic::Status& out_status) const noexcept
+    void get_parameter_count(int& out_count, const ice::sonic::Status& out_status) const noexcept
     {
-        m_ops->get_parameter_count(get_handle(), out_count, out_status.get_handle());
+        m_ops->get_parameter_count(get_handle(), &out_count, out_status.get_handle());
     }
 
     void get_parameter(
@@ -97,9 +97,9 @@ public:
         );
     }
 
-    void get_block_count(int* out_count, const ice::sonic::Status& out_status) const noexcept
+    void get_block_count(int& out_count, const ice::sonic::Status& out_status) const noexcept
     {
-        m_ops->get_block_count(get_handle(), out_count, out_status.get_handle());
+        m_ops->get_block_count(get_handle(), &out_count, out_status.get_handle());
     }
 
     void get_block(

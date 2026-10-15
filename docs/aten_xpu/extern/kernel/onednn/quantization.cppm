@@ -84,11 +84,12 @@ public:
     }
 
 private:
-    static void
-    add(SyclPrimitiveExecutor& executor,
+    void add(
+        SyclPrimitiveExecutor& executor,
         int argument,
         const std::optional<std::reference_wrapper<const SyclTensor>>& tensor,
-        dnnl::memory::data_type type)
+        dnnl::memory::data_type type
+    ) const
     {
         if (!tensor) {
             return;

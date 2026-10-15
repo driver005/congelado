@@ -68,9 +68,9 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void nanoseconds(uint64_t* out_nanoseconds) const noexcept
+    void nanoseconds(std::uint64_t& out_nanoseconds) const noexcept
     {
-        m_ops->nanoseconds(get_handle(), out_nanoseconds);
+        m_ops->nanoseconds(get_handle(), &out_nanoseconds);
     }
 };
 

@@ -29,7 +29,7 @@ protected:
     {
         TF_AllocatorStats result{};
         _Bool success = false;
-        allocator.get_stats(&result, &success);
+        allocator.get_stats(&result, success);
         return result;
     }
 };
@@ -80,7 +80,7 @@ TEST_F(SyclCachingAllocatorTest, NoSplitKeepsBlocksWhole)
     auto memory = allocate(allocator, stream, 1'024);
     uint64_t size = 0;
     void* base = nullptr;
-    allocator.get_base_allocation(memory.opaque, &base, &size, getStatus());
+    allocator.get_base_allocation(memory.opaque, &base, size, getStatus());
     EXPECT_EQ(base, memory.opaque);
     EXPECT_EQ(size, 2U << 20U);
     allocator.deallocate(&memory);

@@ -12,26 +12,29 @@ export namespace aten_xpu {
 class SyclConvolutionGeometry
 {
 public:
-    static constexpr std::size_t k_max_spatial_rank = 3;
-
-    static SyclConvolutionGeometry from_construction(SyclKernelConstruction& construction)
+    enum Limits : std::size_t
     {
-        SyclConvolutionGeometry geometry;
+        k_max_spatial_rank = 3
+    };
+
+    SyclConvolutionGeometry() = default;
+
+    explicit SyclConvolutionGeometry(SyclKernelConstruction& construction)
+    {
         std::array<int64_t, k_max_spatial_rank> values{};
         if (const auto count = construction.getInt64List("stride", values); count > 0) {
-            geometry.setStride(std::span<const int64_t>{values}.first(count));
+            setStride(std::span<const int64_t>{values}.first(count));
         }
         if (const auto count = construction.getInt64List("padding", values); count > 0) {
-            geometry.setPadding(std::span<const int64_t>{values}.first(count));
+            setPadding(std::span<const int64_t>{values}.first(count));
         }
         if (const auto count = construction.getInt64List("output_padding", values); count > 0) {
-            geometry.setOutputPadding(std::span<const int64_t>{values}.first(count));
+            setOutputPadding(std::span<const int64_t>{values}.first(count));
         }
         if (const auto count = construction.getInt64List("dilation", values); count > 0) {
-            geometry.setDilation(std::span<const int64_t>{values}.first(count));
+            setDilation(std::span<const int64_t>{values}.first(count));
         }
-        geometry.setGroups(construction.getInt64("groups", 1));
-        return geometry;
+        setGroups(construction.getInt64("groups", 1));
     }
 
     void setStride(std::span<const int64_t> stride)

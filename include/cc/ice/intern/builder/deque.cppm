@@ -48,7 +48,7 @@ public:
     virtual void pop_back() noexcept = 0;
     virtual void
     get(size_t index, const void** out_value, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void size(size_t* out_size) noexcept = 0;
+    virtual void size(std::size_t& out_size) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_Deque*)) noexcept
     {
@@ -109,7 +109,7 @@ public:
                 [](const ::TF_Deque* deque, size_t* out_size) noexcept
             {
                 auto& self = Deque::from_handle(deque);
-                self.size(out_size);
+                self.size(*out_size);
             },
 
         };

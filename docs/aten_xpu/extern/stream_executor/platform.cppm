@@ -17,6 +17,9 @@ import :level_zero;
 
 export namespace aten_xpu {
 
+// Per calling thread, as the C header documents for get/set_current_device.
+inline thread_local int t_current_device_index = 0;
+
 class SyclPlatform : public ice::builder::Platform
 {
 public:
@@ -33,24 +36,18 @@ public:
     SyclPlatform(SyclPlatform&&) = delete;
     SyclPlatform& operator=(SyclPlatform&&) = delete;
 
-    static void create(::TF_Platform* handle)
-    {
-        auto* platform = new SyclPlatform{SyclOpsTable::getInstance()};
-        SyclHandle::attach(handle, *platform);
-    }
-
     void destroy() noexcept override
     {
         delete this;
     }
 
     void get_device_count(
-        int* out_device_count,
+        int& out_device_count,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
         static_cast<void>(out_status);
-        *out_device_count = static_cast<int>(m_native_devices.size());
+        out_device_count = static_cast<int>(m_native_devices.size());
     }
 
     void create_device_internal(
@@ -66,10 +63,8 @@ public:
         const auto index = m_next_device_index % m_native_devices.size();
         ++m_next_device_index;
         try {
-            SyclHandle::resolve<SyclDevice>(device).bind(
-                m_native_devices[index],
-                static_cast<int>(index)
-            );
+            static_cast<SyclDevice&>(SyclDevice::from_handle(device.get_handle()))
+                .bind(m_native_devices[index], static_cast<int>(index));
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
         }
@@ -86,27 +81,28 @@ public:
     ) noexcept override
     {
         static_cast<void>(out_status);
-        SyclHandle::resolve<SyclExecutor>(executor).bind(
-            m_context,
-            [this](int device_index, int peer_device_index)
-            {
-                return enable_peer_access(device_index, peer_device_index);
-            }
-        );
+        static_cast<SyclExecutor&>(SyclExecutor::from_handle(executor.get_handle()))
+            .bind(
+                m_context,
+                [this](int device_index, int peer_device_index)
+                {
+                    return enable_peer_access(device_index, peer_device_index);
+                }
+            );
     }
 
     void destroy_executor_internal(const ice::sonic::Executor& executor) noexcept override
     {
-        SyclHandle::resolve<SyclExecutor>(executor).release();
+        static_cast<SyclExecutor&>(SyclExecutor::from_handle(executor.get_handle())).release();
     }
 
     void get_current_device(
-        int* out_device_index,
+        int& out_device_index,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
         static_cast<void>(out_status);
-        *out_device_index = s_current_device_index;
+        out_device_index = t_current_device_index;
     }
 
     void set_current_device(
@@ -118,12 +114,12 @@ public:
             m_status.fail(out_status, TF_OUT_OF_RANGE, "device index out of range");
             return;
         }
-        s_current_device_index = device_index;
+        t_current_device_index = device_index;
     }
 
     void get_device_for_pointer(
         const void* pointer,
-        int* out_device_index,
+        int& out_device_index,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -132,13 +128,13 @@ public:
             m_status.fail(out_status, TF_NOT_FOUND, "pointer does not belong to this platform");
             return;
         }
-        *out_device_index = *index;
+        out_device_index = *index;
     }
 
     void can_access_peer(
         int device_index,
         int peer_device_index,
-        _Bool* out_can_access,
+        bool& out_can_access,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -149,7 +145,7 @@ public:
 
         const auto index = static_cast<std::size_t>(device_index);
         const auto peer_index = static_cast<std::size_t>(peer_device_index);
-        *out_can_access = m_peer_access.can_access(
+        out_can_access = m_peer_access.can_access(
             m_native_devices[index],
             index,
             m_native_devices[peer_index],
@@ -164,9 +160,9 @@ public:
 
     int exchange_device(int device_index)
     {
-        const int previous = s_current_device_index;
+        const int previous = t_current_device_index;
         if (device_index != previous && is_valid_index(device_index)) {
-            s_current_device_index = device_index;
+            t_current_device_index = device_index;
         }
         return previous;
     }
@@ -214,8 +210,7 @@ private:
                 return static_cast<int>(std::distance(m_native_devices.begin(), found));
             }
         } catch (const sycl::exception&) {
-            const auto native =
-                SyclLevelZero::getInstance().query_allocation_device(m_context, pointer);
+            const auto native = m_level_zero.query_allocation_device(m_context, pointer);
             if (!native) {
                 return std::nullopt;
             }
@@ -230,19 +225,19 @@ private:
         return std::nullopt;
     }
 
-    static bool is_integrated(const sycl::device& device)
+    bool is_integrated(const sycl::device& device) const
     {
         return device.has(sycl::aspect::ext_oneapi_is_integrated_gpu);
     }
 
-    static bool has_gpu(const sycl::platform& platform, bool want_integrated)
+    bool has_gpu(const sycl::platform& platform, bool want_integrated) const
     {
         if (platform.get_backend() != sycl::backend::ext_oneapi_level_zero) {
             return false;
         }
         return std::ranges::any_of(
             platform.get_devices(),
-            [want_integrated](const sycl::device& device)
+            [this, want_integrated](const sycl::device& device)
             {
                 return device.is_gpu() && is_integrated(device) == want_integrated;
             }
@@ -288,11 +283,7 @@ private:
     sycl::context m_context;
     SyclPeerAccess m_peer_access;
     std::size_t m_next_device_index{0};
-
-    // Per calling thread, as the C header documents for get/set_current_device.
-    static thread_local int s_current_device_index;
+    mutable SyclLevelZero m_level_zero;
 };
-
-inline thread_local int SyclPlatform::s_current_device_index = 0;
 
 } // namespace aten_xpu

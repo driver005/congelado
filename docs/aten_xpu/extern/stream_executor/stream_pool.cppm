@@ -12,11 +12,15 @@ export namespace aten_xpu {
 class SyclStreamPool
 {
 public:
-    static constexpr std::size_t k_streams_per_priority = 32;
-    static constexpr std::size_t k_priority_count = 3;
+    enum Limits : std::size_t
+    {
+        k_streams_per_priority = 32,
+        k_priority_count = 3
+    };
 
     void acquire_into(
         SyclStream& stream,
+        const SyclQueueFactory& queues,
         const sycl::context& context,
         const sycl::device& device,
         int device_index,
@@ -24,7 +28,7 @@ public:
     )
     {
         const auto slot = slot_index(device_index, priority);
-        ensure_filled(slot, context, device, priority);
+        ensure_filled(slot, queues, context, device, priority);
 
         auto& counter = m_counters[slot];
         const auto position = counter % k_streams_per_priority;
@@ -46,7 +50,7 @@ public:
         }
     }
 
-    static std::size_t priority_level(int32_t priority) noexcept
+    std::size_t priority_level(int32_t priority) const noexcept
     {
         if (priority < 0) {
             return 2;
@@ -72,6 +76,7 @@ private:
 
     void ensure_filled(
         std::size_t slot,
+        const SyclQueueFactory& queues,
         const sycl::context& context,
         const sycl::device& device,
         int32_t priority
@@ -85,7 +90,7 @@ private:
         m_async_errors[slot].reserve(k_streams_per_priority);
         for (std::size_t index = 0; index < k_streams_per_priority; ++index) {
             auto sink = std::make_shared<std::string>();
-            m_queues[slot].push_back(SyclStream::create_queue(context, device, priority, sink));
+            m_queues[slot].push_back(queues.create_queue(context, device, priority, sink));
             m_async_errors[slot].push_back(std::move(sink));
         }
     }

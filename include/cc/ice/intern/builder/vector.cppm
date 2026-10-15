@@ -47,8 +47,8 @@ public:
     get(size_t index, const void** out_value, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void
     set(size_t index, const void* value, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void size(size_t* out_size) noexcept = 0;
-    virtual void capacity(size_t* out_capacity) noexcept = 0;
+    virtual void size(std::size_t& out_size) noexcept = 0;
+    virtual void capacity(std::size_t& out_capacity) noexcept = 0;
     virtual void reserve(size_t new_capacity, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void data(void** out_data) noexcept = 0;
 
@@ -106,13 +106,13 @@ public:
                 [](const ::TF_Vector* vector, size_t* out_size) noexcept
             {
                 auto& self = Vector::from_handle(vector);
-                self.size(out_size);
+                self.size(*out_size);
             },
             .capacity =
                 [](const ::TF_Vector* vector, size_t* out_capacity) noexcept
             {
                 auto& self = Vector::from_handle(vector);
-                self.capacity(out_capacity);
+                self.capacity(*out_capacity);
             },
             .reserve =
                 [](::TF_Vector* vector, size_t new_capacity, ::TF_Status* out_status) noexcept

@@ -23,21 +23,15 @@ public:
     SyclTimer(SyclTimer&&) = delete;
     SyclTimer& operator=(SyclTimer&&) = delete;
 
-    static void create(::TF_Timer* handle)
-    {
-        auto* timer = new SyclTimer{};
-        SyclHandle::attach(handle, *timer);
-    }
-
     void destroy() noexcept override
     {
         delete this;
     }
 
-    void nanoseconds(uint64_t* out_nanoseconds) noexcept override
+    void nanoseconds(std::uint64_t& out_nanoseconds) noexcept override
     {
         if (!m_start || !m_stop) {
-            *out_nanoseconds = 0;
+            out_nanoseconds = 0;
             return;
         }
 
@@ -46,7 +40,7 @@ public:
             m_start->get_profiling_info<sycl::info::event_profiling::command_end>();
         const auto stop_nanoseconds =
             m_stop->get_profiling_info<sycl::info::event_profiling::command_end>();
-        *out_nanoseconds =
+        out_nanoseconds =
             stop_nanoseconds > start_nanoseconds ? stop_nanoseconds - start_nanoseconds : 0;
     }
 

@@ -11,13 +11,16 @@ import :onednn_engine_cache;
 
 export namespace aten_xpu {
 
+// One scratchpad per queue for each calling thread.
+inline thread_local std::map<const sycl::queue*, std::pair<void*, std::size_t>> t_scratchpads;
+
 class SyclPrimitiveExecutor
 {
 public:
-    explicit SyclPrimitiveExecutor(sycl::queue& queue) :
+    SyclPrimitiveExecutor(sycl::queue& queue, SyclEngineCache& engines) :
         m_queue{queue},
-        m_engine{SyclEngineCache::getInstance().getEngine(queue)},
-        m_stream{SyclEngineCache::getInstance().getStream(queue)}
+        m_engine{engines.getEngine(queue)},
+        m_stream{engines.getStream(queue)}
     {
     }
 
@@ -56,17 +59,10 @@ public:
         return dnnl::sycl_interop::execute(primitive, m_stream, m_arguments);
     }
 
-    static dnnl::primitive_attr user_scratchpad_attributes()
-    {
-        dnnl::primitive_attr attributes;
-        attributes.set_scratchpad_mode(dnnl::scratchpad_mode::user);
-        return attributes;
-    }
-
 private:
     void* acquire_scratchpad(std::size_t size)
     {
-        auto& [pointer, capacity] = s_scratchpads[&m_queue];
+        auto& [pointer, capacity] = t_scratchpads[&m_queue];
         if (capacity < size) {
             if (pointer != nullptr) {
                 m_queue.wait();
@@ -82,11 +78,6 @@ private:
     dnnl::engine& m_engine;
     dnnl::stream& m_stream;
     std::unordered_map<int, dnnl::memory> m_arguments;
-
-    static thread_local std::map<const sycl::queue*, std::pair<void*, std::size_t>> s_scratchpads;
 };
-
-inline thread_local std::map<const sycl::queue*, std::pair<void*, std::size_t>>
-    SyclPrimitiveExecutor::s_scratchpads;
 
 } // namespace aten_xpu

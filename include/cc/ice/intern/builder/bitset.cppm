@@ -44,10 +44,10 @@ public:
     virtual void set(size_t index) noexcept = 0;
     virtual void clear(size_t index) noexcept = 0;
     virtual void
-    test(size_t index, int* out_result, const ice::sonic::Status& out_status) noexcept = 0;
+    test(size_t index, int& out_result, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void flip(size_t index, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void count(size_t* out_count) noexcept = 0;
-    virtual void size(size_t* out_size) noexcept = 0;
+    virtual void count(std::size_t& out_count) noexcept = 0;
+    virtual void size(std::size_t& out_size) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_BitSet*)) noexcept
     {
@@ -82,7 +82,7 @@ public:
                 auto& self = BitSet::from_handle(bitset);
                 self.test(
                     index,
-                    out_result,
+                    *out_result,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -96,13 +96,13 @@ public:
                 [](const ::TF_BitSet* bitset, size_t* out_count) noexcept
             {
                 auto& self = BitSet::from_handle(bitset);
-                self.count(out_count);
+                self.count(*out_count);
             },
             .size =
                 [](const ::TF_BitSet* bitset, size_t* out_size) noexcept
             {
                 auto& self = BitSet::from_handle(bitset);
-                self.size(out_size);
+                self.size(*out_size);
             },
 
         };

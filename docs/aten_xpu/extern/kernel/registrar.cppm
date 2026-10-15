@@ -1,6 +1,8 @@
 module;
 
 #include "include/c/extern/kernel/builder.h"
+#include "include/c/extern/kernel/construction.h"
+#include "include/c/extern/kernel/context.h"
 
 export module aten_xpu_extern_kernel:registrar;
 
@@ -8,6 +10,8 @@ import std;
 import cc_ice_intern_sonic;
 import cc_ice_extern_kernel_sonic;
 import aten_xpu_intern;
+import :context;
+import :construction;
 
 export namespace aten_xpu {
 
@@ -47,15 +51,40 @@ public:
         ::TF_KernelBuilderOps* builder_ops = nullptr;
         ::TF_KernelBuilder handle{};
         assign(m_scratch_first, op_name);
-        assign(m_scratch_second, k_device_type);
+        assign(m_scratch_second, m_device_type);
         create_kernel_builder(
             &builder_ops,
             &handle.plugin_data,
             m_scratch_first.get_handle(),
             m_scratch_second.get_handle(),
-            &Kernel::create_kernel,
-            &Kernel::compute_kernel,
-            &Kernel::delete_kernel,
+            [](::TF_OpKernelConstruction* raw_construction, void** out_plugin_data)
+            {
+                SyclKernelConstruction construction{raw_construction};
+                auto* kernel = new Kernel{SyclOpsTable::getInstance(), construction};
+                if (!construction.ok()) {
+                    delete kernel;
+                    *out_plugin_data = nullptr;
+                    return;
+                }
+                *out_plugin_data = kernel;
+            },
+            [](void* plugin_data, ::TF_OpKernelContext* raw_context)
+            {
+                SyclKernelContext context{raw_context};
+                if (plugin_data == nullptr) {
+                    context.fail(TF_FAILED_PRECONDITION, "kernel construction failed");
+                    return;
+                }
+                try {
+                    static_cast<Kernel*>(plugin_data)->compute(context);
+                } catch (const std::exception& error) {
+                    context.fail_from(error);
+                }
+            },
+            [](void* plugin_data)
+            {
+                delete static_cast<Kernel*>(plugin_data);
+            },
             m_status.get_handle()
         );
         if (!ok()) {
@@ -84,7 +113,7 @@ public:
     bool ok() const noexcept
     {
         TF_Code code = TF_OK;
-        m_status.get_code(&code);
+        m_status.get_code(code);
         return code == TF_OK;
     }
 
@@ -99,14 +128,13 @@ public:
     }
 
 private:
-    static constexpr std::string_view k_device_type = "XPU";
-
-    static void assign(const ice::sonic::String& target, std::string_view value)
+    void assign(const ice::sonic::String& target, std::string_view value) const
     {
         target.copy(value.data(), value.size());
     }
 
     const SyclOpsTable& m_ops;
+    std::string_view m_device_type{"XPU"};
     SyclStatus m_helper;
     ice::sonic::Status m_status;
     ice::sonic::String m_scratch_first;

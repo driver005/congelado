@@ -12,8 +12,8 @@ export namespace aten_xpu {
 class SyclBlockPool
 {
 public:
-    using SizeOrderedSet = std::set<SyclBlock*, decltype(&SyclBlock::compare_size)>;
-    using AddressOrderedSet = std::set<SyclBlock*, decltype(&SyclBlock::compare_address)>;
+    using SizeOrderedSet = std::set<SyclBlock*, SyclBlockSizeLess>;
+    using AddressOrderedSet = std::set<SyclBlock*, SyclBlockAddressLess>;
 
     SyclBlockPool(bool is_small, TF_PoolId owner) noexcept :
         m_is_small{is_small},
@@ -105,8 +105,8 @@ private:
     bool m_is_small;
     TF_PoolId m_owner;
     int m_allocation_count{0};
-    SizeOrderedSet m_blocks{&SyclBlock::compare_size};
-    AddressOrderedSet m_unmapped{&SyclBlock::compare_address};
+    SizeOrderedSet m_blocks;
+    AddressOrderedSet m_unmapped;
 };
 
 } // namespace aten_xpu

@@ -66,17 +66,17 @@ public:
         const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
-    virtual void owns_pointer(const void* pointer, _Bool* out_owns) noexcept = 0;
+    virtual void owns_pointer(const void* pointer, bool& out_owns) noexcept = 0;
     virtual void get_base_allocation(
         const void* pointer,
         void** out_base,
-        uint64_t* out_size,
+        std::uint64_t& out_size,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void empty_cache(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void
     set_memory_fraction(double fraction, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void get_memory_fraction(double* out_fraction) noexcept = 0;
+    virtual void get_memory_fraction(double& out_fraction) noexcept = 0;
     virtual void set_option(
         TF_AllocatorOption option,
         int64_t value,
@@ -84,10 +84,10 @@ public:
     ) noexcept = 0;
     virtual void get_option(
         TF_AllocatorOption option,
-        int64_t* out_value,
+        std::int64_t& out_value,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
-    virtual void get_stats(::TF_AllocatorStats* out_stats, _Bool* out_success) noexcept = 0;
+    virtual void get_stats(::TF_AllocatorStats* out_stats, bool& out_success) noexcept = 0;
     virtual void reset_accumulated_stats() noexcept = 0;
     virtual void reset_peak_stats() noexcept = 0;
     virtual void get_snapshot(
@@ -170,7 +170,7 @@ public:
                 [](::TF_Allocator* allocator, const void* pointer, _Bool* out_owns) noexcept
             {
                 auto& self = Allocator::from_handle(allocator);
-                self.owns_pointer(pointer, out_owns);
+                self.owns_pointer(pointer, *out_owns);
             },
             .get_base_allocation =
                 [](::TF_Allocator* allocator,
@@ -183,7 +183,7 @@ public:
                 self.get_base_allocation(
                     pointer,
                     out_base,
-                    out_size,
+                    *out_size,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -206,7 +206,7 @@ public:
                 [](::TF_Allocator* allocator, double* out_fraction) noexcept
             {
                 auto& self = Allocator::from_handle(allocator);
-                self.get_memory_fraction(out_fraction);
+                self.get_memory_fraction(*out_fraction);
             },
             .set_option =
                 [](::TF_Allocator* allocator,
@@ -230,7 +230,7 @@ public:
                 auto& self = Allocator::from_handle(allocator);
                 self.get_option(
                     option,
-                    out_value,
+                    *out_value,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -240,7 +240,7 @@ public:
                    _Bool* out_success) noexcept
             {
                 auto& self = Allocator::from_handle(allocator);
-                self.get_stats(out_stats, out_success);
+                self.get_stats(out_stats, *out_success);
             },
             .reset_accumulated_stats =
                 [](::TF_Allocator* allocator) noexcept

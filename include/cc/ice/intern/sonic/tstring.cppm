@@ -58,19 +58,19 @@ public:
         m_ops->get_data_pointer(get_handle(), out_data);
     }
 
-    void get_type(::TFTStringType* out_type) const noexcept
+    void get_type(::TFTStringType& out_type) const noexcept
     {
-        m_ops->get_type(get_handle(), out_type);
+        m_ops->get_type(get_handle(), &out_type);
     }
 
-    void get_size(size_t* out_size) const noexcept
+    void get_size(std::size_t& out_size) const noexcept
     {
-        m_ops->get_size(get_handle(), out_size);
+        m_ops->get_size(get_handle(), &out_size);
     }
 
-    void get_capacity(size_t* out_capacity) const noexcept
+    void get_capacity(std::size_t& out_capacity) const noexcept
     {
-        m_ops->get_capacity(get_handle(), out_capacity);
+        m_ops->get_capacity(get_handle(), &out_capacity);
     }
 
     void dealloc() const noexcept

@@ -56,33 +56,33 @@ public:
     ) noexcept = 0;
     virtual void get_attr_size(
         const ice::sonic::String& attr_name,
-        int32_t* out_list_size,
-        int32_t* out_total_size,
+        std::int32_t& out_list_size,
+        std::int32_t& out_total_size,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_attr_type(
         const ice::sonic::String& attr_name,
-        ::TFDataTypeEnum* out_val,
+        ::TFDataTypeEnum& out_val,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_attr_int32(
         const ice::sonic::String& attr_name,
-        int32_t* out_val,
+        std::int32_t& out_val,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_attr_int64(
         const ice::sonic::String& attr_name,
-        int64_t* out_val,
+        std::int64_t& out_val,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_attr_float(
         const ice::sonic::String& attr_name,
-        float* out_val,
+        float& out_val,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_attr_bool(
         const ice::sonic::String& attr_name,
-        _Bool* out_val,
+        bool& out_val,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_attr_string(
@@ -147,7 +147,7 @@ public:
     ) noexcept = 0;
     virtual void has_attr(
         const ice::sonic::String& attr_name,
-        _Bool* out_has_attr,
+        bool& out_has_attr,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
@@ -197,8 +197,8 @@ public:
                 auto& self = OpKernelConstruction::from_handle(ctx);
                 self.get_attr_size(
                     self.wrap(std::type_identity<ice::sonic::String>{}, attr_name),
-                    out_list_size,
-                    out_total_size,
+                    *out_list_size,
+                    *out_total_size,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -211,7 +211,7 @@ public:
                 auto& self = OpKernelConstruction::from_handle(ctx);
                 self.get_attr_type(
                     self.wrap(std::type_identity<ice::sonic::String>{}, attr_name),
-                    out_val,
+                    *out_val,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -224,7 +224,7 @@ public:
                 auto& self = OpKernelConstruction::from_handle(ctx);
                 self.get_attr_int32(
                     self.wrap(std::type_identity<ice::sonic::String>{}, attr_name),
-                    out_val,
+                    *out_val,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -237,7 +237,7 @@ public:
                 auto& self = OpKernelConstruction::from_handle(ctx);
                 self.get_attr_int64(
                     self.wrap(std::type_identity<ice::sonic::String>{}, attr_name),
-                    out_val,
+                    *out_val,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -250,7 +250,7 @@ public:
                 auto& self = OpKernelConstruction::from_handle(ctx);
                 self.get_attr_float(
                     self.wrap(std::type_identity<ice::sonic::String>{}, attr_name),
-                    out_val,
+                    *out_val,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -263,7 +263,7 @@ public:
                 auto& self = OpKernelConstruction::from_handle(ctx);
                 self.get_attr_bool(
                     self.wrap(std::type_identity<ice::sonic::String>{}, attr_name),
-                    out_val,
+                    *out_val,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -426,7 +426,7 @@ public:
                 auto& self = OpKernelConstruction::from_handle(ctx);
                 self.has_attr(
                     self.wrap(std::type_identity<ice::sonic::String>{}, attr_name),
-                    out_has_attr,
+                    *out_has_attr,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },

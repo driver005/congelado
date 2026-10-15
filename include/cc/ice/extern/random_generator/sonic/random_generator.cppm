@@ -73,14 +73,14 @@ public:
         m_ops->set_seed(get_handle(), seed);
     }
 
-    void get_seed(uint64_t* out_seed) const noexcept
+    void get_seed(std::uint64_t& out_seed) const noexcept
     {
-        m_ops->get_seed(get_handle(), out_seed);
+        m_ops->get_seed(get_handle(), &out_seed);
     }
 
-    void reseed_nondeterministic(uint64_t* out_seed) const noexcept
+    void reseed_nondeterministic(std::uint64_t& out_seed) const noexcept
     {
-        m_ops->reseed_nondeterministic(get_handle(), out_seed);
+        m_ops->reseed_nondeterministic(get_handle(), &out_seed);
     }
 
     void set_offset(uint64_t offset) const noexcept
@@ -88,9 +88,9 @@ public:
         m_ops->set_offset(get_handle(), offset);
     }
 
-    void get_offset(uint64_t* out_offset) const noexcept
+    void get_offset(std::uint64_t& out_offset) const noexcept
     {
-        m_ops->get_offset(get_handle(), out_offset);
+        m_ops->get_offset(get_handle(), &out_offset);
     }
 
     void set_state(
@@ -133,23 +133,23 @@ public:
 
     void philox_engine_inputs(
         uint64_t increment,
-        uint64_t* out_seed,
-        uint64_t* out_offset,
+        std::uint64_t& out_seed,
+        std::uint64_t& out_offset,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->philox_engine_inputs(
             get_handle(),
             increment,
-            out_seed,
-            out_offset,
+            &out_seed,
+            &out_offset,
             out_status.get_handle()
         );
     }
 
-    void get_device_index(int* out_device_index) const noexcept
+    void get_device_index(int& out_device_index) const noexcept
     {
-        m_ops->get_device_index(get_handle(), out_device_index);
+        m_ops->get_device_index(get_handle(), &out_device_index);
     }
 
     void clone(

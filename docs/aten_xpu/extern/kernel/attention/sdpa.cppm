@@ -17,13 +17,13 @@ import :attention_onednn_sdpa;
 
 export namespace aten_xpu {
 
+inline constexpr std::string_view k_sdpa_kernel_name = "ScaledDotProductAttention";
+
 class SyclSdpaKernel : public SyclKernel<SyclSdpaKernel>
 {
 public:
-    static constexpr std::string_view k_name = "ScaledDotProductAttention";
-
     SyclSdpaKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
-        SyclKernel<SyclSdpaKernel>{ops},
+        SyclKernel<SyclSdpaKernel>{ops, k_sdpa_kernel_name},
         m_scale{construction.getFloat("scale", 0.0F)},
         m_dropout{construction.getFloat("dropout", 0.0F)},
         m_is_causal{construction.getBool("is_causal", false)},
@@ -49,15 +49,9 @@ public:
             mask_input ? std::optional<std::reference_wrapper<const SyclTensor>>{mask_input->get()}
                        : std::nullopt;
 
-        auto backend = SyclSdpaSelector::choose(
-            query->get(),
-            key->get(),
-            value->get(),
-            mask,
-            m_dropout,
-            m_is_causal
-        );
-        if (backend == SyclSdpaSelector::Backend::invalid) {
+        auto backend =
+            m_selector.choose(query->get(), key->get(), value->get(), mask, m_dropout, m_is_causal);
+        if (backend == m_selector.Backend::invalid) {
             context.fail(
                 TF_INVALID_ARGUMENT,
                 "attention expects [batch, heads, length, head_dim] inputs"
@@ -65,7 +59,7 @@ public:
             return;
         }
         if (m_return_probabilities) {
-            backend = SyclSdpaSelector::Backend::math;
+            backend = m_selector.Backend::math;
         }
 
         m_scratch_dims.assign(query->get().getDims().begin(), query->get().getDims().end());
@@ -79,8 +73,8 @@ public:
         const float scale = m_scale > 0.0F
                                 ? m_scale
                                 : 1.0F / std::sqrt(static_cast<float>(query->get().getDims()[3]));
-        if (backend == SyclSdpaSelector::Backend::fused) {
-            SyclOnednnSdpa::run(
+        if (backend == m_selector.Backend::fused) {
+            getRuntime().getSdpa().run(
                 queue->get(),
                 query->get(),
                 key->get(),
@@ -92,7 +86,7 @@ public:
             return;
         }
 
-        SyclSdpaMath math{context, queue->get()};
+        SyclSdpaMath math{getRuntime(), context, queue->get()};
         auto probabilities = math.forward(
             query->get(),
             key->get(),
@@ -124,6 +118,7 @@ private:
     bool m_is_causal;
     bool m_return_probabilities;
     std::vector<int64_t> m_scratch_dims;
+    SyclSdpaSelector m_selector;
 };
 
 } // namespace aten_xpu

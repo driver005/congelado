@@ -165,25 +165,6 @@ public:
         m_next = after;
     }
 
-    static bool compare_size(const SyclBlock* left, const SyclBlock* right) noexcept
-    {
-        if (left->m_queue != right->m_queue) {
-            return std::less<>{}(left->m_queue, right->m_queue);
-        }
-        if (left->m_size != right->m_size) {
-            return left->m_size < right->m_size;
-        }
-        return std::less<>{}(left->m_pointer, right->m_pointer);
-    }
-
-    static bool compare_address(const SyclBlock* left, const SyclBlock* right) noexcept
-    {
-        if (left->m_queue != right->m_queue) {
-            return std::less<>{}(left->m_queue, right->m_queue);
-        }
-        return std::less<>{}(left->m_pointer, right->m_pointer);
-    }
-
 private:
     sycl::queue* m_queue{nullptr};
     std::size_t m_size{0};
@@ -197,6 +178,33 @@ private:
     int m_event_count{0};
     SyclExpandableSegment* m_expandable_segment{nullptr};
     std::set<sycl::queue*> m_stream_uses;
+};
+
+class SyclBlockSizeLess
+{
+public:
+    bool operator()(const SyclBlock* left, const SyclBlock* right) const noexcept
+    {
+        if (left->getQueue() != right->getQueue()) {
+            return std::less<>{}(left->getQueue(), right->getQueue());
+        }
+        if (left->getSize() != right->getSize()) {
+            return left->getSize() < right->getSize();
+        }
+        return std::less<>{}(left->getPointer(), right->getPointer());
+    }
+};
+
+class SyclBlockAddressLess
+{
+public:
+    bool operator()(const SyclBlock* left, const SyclBlock* right) const noexcept
+    {
+        if (left->getQueue() != right->getQueue()) {
+            return std::less<>{}(left->getQueue(), right->getQueue());
+        }
+        return std::less<>{}(left->getPointer(), right->getPointer());
+    }
 };
 
 } // namespace aten_xpu

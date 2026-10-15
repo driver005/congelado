@@ -22,23 +22,27 @@ import :onednn_convolution_primitive;
 
 export namespace aten_xpu {
 
+inline constexpr std::string_view k_int8_convolution_kernel_name = "QuantizedConv2D";
+
 class SyclInt8ConvolutionKernel : public SyclKernel<SyclInt8ConvolutionKernel>
 {
 public:
-    static constexpr std::string_view k_name = "QuantizedConv2D";
-    static constexpr int k_source = 0;
-    static constexpr int k_weight = 1;
-    static constexpr int k_source_scale = 2;
-    static constexpr int k_source_zero_point = 3;
-    static constexpr int k_weight_scale = 4;
-    static constexpr int k_output_scale = 5;
-    static constexpr int k_output_zero_point = 6;
-    static constexpr int k_bias = 7;
-    static constexpr int k_accumulator = 8;
+    enum Operand : int
+    {
+        k_source = 0,
+        k_weight = 1,
+        k_source_scale = 2,
+        k_source_zero_point = 3,
+        k_weight_scale = 4,
+        k_output_scale = 5,
+        k_output_zero_point = 6,
+        k_bias = 7,
+        k_accumulator = 8
+    };
 
     SyclInt8ConvolutionKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
-        SyclKernel<SyclInt8ConvolutionKernel>{ops},
-        m_geometry{SyclConvolutionGeometry::from_construction(construction)},
+        SyclKernel<SyclInt8ConvolutionKernel>{ops, k_int8_convolution_kernel_name},
+        m_geometry{SyclConvolutionGeometry{construction}},
         m_output_type{construction.getType("output_dtype", TF_QINT8)},
         m_unary{construction.getString("unary", "none")},
         m_algorithm{construction.getString("algorithm", "none")},
@@ -84,7 +88,7 @@ public:
 
         SyclPostOpAttributes post_ops;
         const auto scalars = std::span<const float>{m_scalars}.first(m_scalar_count);
-        if (!SyclFusion::add_binary_then_unary(
+        if (!m_fusion.add_binary_then_unary(
                 post_ops,
                 m_binary,
                 m_accumulator_scale,
@@ -111,20 +115,20 @@ public:
             quantization.setDestinationZeroPoint(output_zero_point->get());
         }
 
-        SyclPrimitiveExecutor executor{queue->get()};
-        const auto source_desc = SyclOnednnLayout::desc(source->get());
-        const auto weight_desc = SyclConvolutionPrimitive::convolution_weight_desc(
+        auto executor = getRuntime().getOnednn().make_executor(queue->get());
+        const auto source_desc = m_layout.desc(source->get());
+        const auto weight_desc = getRuntime().getConvolution().convolution_weight_desc(
             weight->get(),
             m_geometry.getGroups()
         );
-        const auto output_desc = SyclOnednnLayout::desc(output->get());
+        const auto output_desc = m_layout.desc(output->get());
         const auto bias_desc =
             bias
                 ? dnnl::memory::
                       desc{{bias->get().element_count()}, dnnl::memory::data_type::f32, dnnl::memory::format_tag::x}
                 : dnnl::memory::desc{};
 
-        auto attributes = SyclPrimitiveExecutor::user_scratchpad_attributes();
+        auto attributes = getRuntime().getOnednn().user_scratchpad_attributes();
         quantization.apply(attributes);
         post_ops.apply(attributes);
         const dnnl::convolution_forward::primitive_desc primitive_desc{
@@ -154,8 +158,8 @@ public:
     }
 
 private:
-    static std::optional<std::reference_wrapper<SyclTensor>>
-    optional_input(SyclKernelContext& context, int index)
+    std::optional<std::reference_wrapper<SyclTensor>>
+    optional_input(SyclKernelContext& context, int index) const
     {
         return context.getInputCount() > index ? context.getInput(index) : std::nullopt;
     }
@@ -170,6 +174,8 @@ private:
     std::array<float, 4> m_scalars{};
     std::size_t m_scalar_count{0};
     std::vector<int64_t> m_scratch_dims;
+    SyclOnednnLayout m_layout;
+    SyclFusion m_fusion;
 };
 
 } // namespace aten_xpu

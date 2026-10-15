@@ -42,8 +42,8 @@ extern "C"
     {
         auto& registry = aten_xpu::SyclPluginRegistry::getInstance();
         registry.initialize();
-        plugin_info->name = aten_xpu::SyclPluginRegistry::k_name.data();
-        plugin_info->version = aten_xpu::SyclPluginRegistry::k_version.data();
+        plugin_info->name = aten_xpu::k_plugin_name.data();
+        plugin_info->version = aten_xpu::k_plugin_version.data();
     }
 
     ATEN_XPU_EXPORT_OPS(platform, TF_PlatformOps, &registry.getPlatformOps())

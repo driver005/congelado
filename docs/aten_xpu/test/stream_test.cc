@@ -17,7 +17,7 @@ TEST_F(SyclStreamTest, PriorityIsKept)
     for (const int32_t priority: {-1, 0, 1}) {
         auto stream = make_stream(priority);
         int32_t reported = 2;
-        stream.get_priority(&reported);
+        stream.get_priority(reported);
         EXPECT_EQ(reported, priority);
         release_stream(stream);
     }
@@ -28,7 +28,7 @@ TEST_F(SyclStreamTest, QueryAndSynchronize)
     auto stream = make_stream();
     stream.synchronize(getStatus());
     _Bool idle = false;
-    stream.query(&idle, getStatus());
+    stream.query(idle, getStatus());
     EXPECT_TRUE(ok());
     EXPECT_TRUE(idle);
     release_stream(stream);

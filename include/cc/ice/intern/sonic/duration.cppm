@@ -70,19 +70,19 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void get_ticks(int64_t* out_ticks) const noexcept
+    void get_ticks(std::int64_t& out_ticks) const noexcept
     {
-        m_ops->get_ticks(get_handle(), out_ticks);
+        m_ops->get_ticks(get_handle(), &out_ticks);
     }
 
-    void get_ratio_num(int64_t* out_num) const noexcept
+    void get_ratio_num(std::int64_t& out_num) const noexcept
     {
-        m_ops->get_ratio_num(get_handle(), out_num);
+        m_ops->get_ratio_num(get_handle(), &out_num);
     }
 
-    void get_ratio_den(int64_t* out_den) const noexcept
+    void get_ratio_den(std::int64_t& out_den) const noexcept
     {
-        m_ops->get_ratio_den(get_handle(), out_den);
+        m_ops->get_ratio_den(get_handle(), &out_den);
     }
 };
 

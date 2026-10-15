@@ -84,9 +84,9 @@ public:
         m_ops->get_source_file(get_handle(), out_source_file.get_handle(), out_status.get_handle());
     }
 
-    void get_line_number(int* out_line_number, const ice::sonic::Status& out_status) const noexcept
+    void get_line_number(int& out_line_number, const ice::sonic::Status& out_status) const noexcept
     {
-        m_ops->get_line_number(get_handle(), out_line_number, out_status.get_handle());
+        m_ops->get_line_number(get_handle(), &out_line_number, out_status.get_handle());
     }
 };
 

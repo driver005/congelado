@@ -14,14 +14,12 @@ export namespace aten_xpu {
 class SyclScaledAdd
 {
 public:
-    SyclScaledAdd() = delete;
-
-    static SyclPostOpAttributes build(
+    SyclPostOpAttributes build(
         float alpha,
         float beta,
         std::optional<std::reference_wrapper<const SyclTensor>> addend,
         int64_t activation
-    )
+    ) const
     {
         SyclPostOpAttributes attributes;
         const bool with_addend = addend.has_value() && beta != 0.0F;
@@ -38,9 +36,12 @@ public:
                 attributes.addEltwise(1.0F, beta, 0.0F, dnnl::algorithm::eltwise_linear);
             }
         }
-        SyclFusion::add_unary(attributes, SyclFusion::activation_name(activation), {}, "none");
+        m_fusion.add_unary(attributes, m_fusion.activation_name(activation), {}, "none");
         return attributes;
     }
+
+private:
+    SyclFusion m_fusion;
 };
 
 } // namespace aten_xpu

@@ -11,8 +11,11 @@ export namespace aten_xpu {
 class SyclPhiloxState
 {
 public:
-    static constexpr uint64_t k_round_size = 4;
-    static constexpr uint64_t k_default_seed = 67'280'421'310'721ULL;
+    enum Defaults : uint64_t
+    {
+        k_round_size = 4,
+        k_default_seed = 67'280'421'310'721ULL
+    };
 
     explicit SyclPhiloxState(
         uint64_t seed,

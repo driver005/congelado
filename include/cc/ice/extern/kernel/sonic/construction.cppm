@@ -87,80 +87,88 @@ public:
 
     void get_attr_size(
         const ice::sonic::String& attr_name,
-        int32_t* out_list_size,
-        int32_t* out_total_size,
+        std::int32_t& out_list_size,
+        std::int32_t& out_total_size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_attr_size(
             get_handle(),
             attr_name.get_handle(),
-            out_list_size,
-            out_total_size,
+            &out_list_size,
+            &out_total_size,
             out_status.get_handle()
         );
     }
 
     void get_attr_type(
         const ice::sonic::String& attr_name,
-        ::TFDataTypeEnum* out_val,
+        ::TFDataTypeEnum& out_val,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops
-            ->get_attr_type(get_handle(), attr_name.get_handle(), out_val, out_status.get_handle());
+        m_ops->get_attr_type(
+            get_handle(),
+            attr_name.get_handle(),
+            &out_val,
+            out_status.get_handle()
+        );
     }
 
     void get_attr_int32(
         const ice::sonic::String& attr_name,
-        int32_t* out_val,
+        std::int32_t& out_val,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_attr_int32(
             get_handle(),
             attr_name.get_handle(),
-            out_val,
+            &out_val,
             out_status.get_handle()
         );
     }
 
     void get_attr_int64(
         const ice::sonic::String& attr_name,
-        int64_t* out_val,
+        std::int64_t& out_val,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_attr_int64(
             get_handle(),
             attr_name.get_handle(),
-            out_val,
+            &out_val,
             out_status.get_handle()
         );
     }
 
     void get_attr_float(
         const ice::sonic::String& attr_name,
-        float* out_val,
+        float& out_val,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_attr_float(
             get_handle(),
             attr_name.get_handle(),
-            out_val,
+            &out_val,
             out_status.get_handle()
         );
     }
 
     void get_attr_bool(
         const ice::sonic::String& attr_name,
-        _Bool* out_val,
+        bool& out_val,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops
-            ->get_attr_bool(get_handle(), attr_name.get_handle(), out_val, out_status.get_handle());
+        m_ops->get_attr_bool(
+            get_handle(),
+            attr_name.get_handle(),
+            &out_val,
+            out_status.get_handle()
+        );
     }
 
     void get_attr_string(
@@ -325,12 +333,16 @@ public:
 
     void has_attr(
         const ice::sonic::String& attr_name,
-        _Bool* out_has_attr,
+        bool& out_has_attr,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops
-            ->has_attr(get_handle(), attr_name.get_handle(), out_has_attr, out_status.get_handle());
+        m_ops->has_attr(
+            get_handle(),
+            attr_name.get_handle(),
+            &out_has_attr,
+            out_status.get_handle()
+        );
     }
 
     void get_name(const ice::sonic::String& out_name) const noexcept

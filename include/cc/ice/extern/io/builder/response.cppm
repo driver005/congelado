@@ -54,7 +54,7 @@ public:
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void set_status(int32_t status_code, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void get_status(int32_t* out_status_code) noexcept = 0;
+    virtual void get_status(std::int32_t& out_status_code) noexcept = 0;
     virtual void get_status_text(const ice::sonic::String& out_status_text) noexcept = 0;
     virtual void set_header(
         const ice::sonic::String& name,
@@ -78,9 +78,9 @@ public:
     ) noexcept = 0;
     virtual void
     set_body(const void* data, size_t length, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void get_body(const void** out_data, size_t* out_length) noexcept = 0;
+    virtual void get_body(const void** out_data, std::size_t& out_length) noexcept = 0;
     virtual void set_keep_alive(int enabled, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void is_keep_alive(int* out_keep_alive) noexcept = 0;
+    virtual void is_keep_alive(int& out_keep_alive) noexcept = 0;
     virtual void set_cookie(
         const ice::sonic::String& name,
         const ice::sonic::String& value,
@@ -92,18 +92,18 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_content_type(const ice::sonic::String& out_content_type) noexcept = 0;
-    virtual void get_content_length(int64_t* out_length) noexcept = 0;
+    virtual void get_content_length(std::int64_t& out_length) noexcept = 0;
     virtual void get_location(const ice::sonic::String& out_location) noexcept = 0;
     virtual void get_etag(const ice::sonic::String& out_etag) noexcept = 0;
     virtual void get_date(const ice::sonic::String& out_date) noexcept = 0;
     virtual void get_server(const ice::sonic::String& out_server) noexcept = 0;
     virtual void get_cache_control(const ice::sonic::String& out_cache_control) noexcept = 0;
     virtual void get_last_modified(const ice::sonic::String& out_last_modified) noexcept = 0;
-    virtual void is_informational(int* out_result) noexcept = 0;
-    virtual void is_success(int* out_result) noexcept = 0;
-    virtual void is_redirection(int* out_result) noexcept = 0;
-    virtual void is_client_error(int* out_result) noexcept = 0;
-    virtual void is_server_error(int* out_result) noexcept = 0;
+    virtual void is_informational(int& out_result) noexcept = 0;
+    virtual void is_success(int& out_result) noexcept = 0;
+    virtual void is_redirection(int& out_result) noexcept = 0;
+    virtual void is_client_error(int& out_result) noexcept = 0;
+    virtual void is_server_error(int& out_result) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_Response*)) noexcept
     {
@@ -136,7 +136,7 @@ public:
                 [](::TF_Response* response, int32_t* out_status_code) noexcept
             {
                 auto& self = Response::from_handle(response);
-                self.get_status(out_status_code);
+                self.get_status(*out_status_code);
             },
             .get_status_text =
                 [](::TF_Response* response, ::TF_String* out_status_text) noexcept
@@ -220,7 +220,7 @@ public:
                 [](::TF_Response* response, const void** out_data, size_t* out_length) noexcept
             {
                 auto& self = Response::from_handle(response);
-                self.get_body(out_data, out_length);
+                self.get_body(out_data, *out_length);
             },
             .set_keep_alive =
                 [](::TF_Response* response, int enabled, ::TF_Status* out_status) noexcept
@@ -235,7 +235,7 @@ public:
                 [](::TF_Response* response, int* out_keep_alive) noexcept
             {
                 auto& self = Response::from_handle(response);
-                self.is_keep_alive(out_keep_alive);
+                self.is_keep_alive(*out_keep_alive);
             },
             .set_cookie =
                 [](::TF_Response* response,
@@ -275,7 +275,7 @@ public:
                 [](::TF_Response* response, int64_t* out_length) noexcept
             {
                 auto& self = Response::from_handle(response);
-                self.get_content_length(out_length);
+                self.get_content_length(*out_length);
             },
             .get_location =
                 [](::TF_Response* response, ::TF_String* out_location) noexcept
@@ -323,31 +323,31 @@ public:
                 [](::TF_Response* response, int* out_result) noexcept
             {
                 auto& self = Response::from_handle(response);
-                self.is_informational(out_result);
+                self.is_informational(*out_result);
             },
             .is_success =
                 [](::TF_Response* response, int* out_result) noexcept
             {
                 auto& self = Response::from_handle(response);
-                self.is_success(out_result);
+                self.is_success(*out_result);
             },
             .is_redirection =
                 [](::TF_Response* response, int* out_result) noexcept
             {
                 auto& self = Response::from_handle(response);
-                self.is_redirection(out_result);
+                self.is_redirection(*out_result);
             },
             .is_client_error =
                 [](::TF_Response* response, int* out_result) noexcept
             {
                 auto& self = Response::from_handle(response);
-                self.is_client_error(out_result);
+                self.is_client_error(*out_result);
             },
             .is_server_error =
                 [](::TF_Response* response, int* out_result) noexcept
             {
                 auto& self = Response::from_handle(response);
-                self.is_server_error(out_result);
+                self.is_server_error(*out_result);
             },
 
         };

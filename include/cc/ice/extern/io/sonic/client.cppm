@@ -111,14 +111,17 @@ public:
         m_ops->on_disconnect(get_handle(), handler, user_data);
     }
 
-    void is_connected(int* out_connected) const noexcept
+    void is_connected(int& out_connected) const noexcept
     {
-        m_ops->is_connected(get_handle(), out_connected);
+        m_ops->is_connected(get_handle(), &out_connected);
     }
 
-    void get_remote_endpoint(const ice::sonic::String& out_host, uint16_t* out_port) const noexcept
+    void get_remote_endpoint(
+        const ice::sonic::String& out_host,
+        std::uint16_t& out_port
+    ) const noexcept
     {
-        m_ops->get_remote_endpoint(get_handle(), out_host.get_handle(), out_port);
+        m_ops->get_remote_endpoint(get_handle(), out_host.get_handle(), &out_port);
     }
 
     void set_keep_alive(int enabled, const ice::sonic::Status& out_status) const noexcept
@@ -126,9 +129,9 @@ public:
         m_ops->set_keep_alive(get_handle(), enabled, out_status.get_handle());
     }
 
-    void is_keep_alive(int* out_keep_alive) const noexcept
+    void is_keep_alive(int& out_keep_alive) const noexcept
     {
-        m_ops->is_keep_alive(get_handle(), out_keep_alive);
+        m_ops->is_keep_alive(get_handle(), &out_keep_alive);
     }
 
     void create_request(
@@ -192,9 +195,9 @@ public:
         );
     }
 
-    void get_pending_request_count(size_t* out_count) const noexcept
+    void get_pending_request_count(std::size_t& out_count) const noexcept
     {
-        m_ops->get_pending_request_count(get_handle(), out_count);
+        m_ops->get_pending_request_count(get_handle(), &out_count);
     }
 
     void ping(

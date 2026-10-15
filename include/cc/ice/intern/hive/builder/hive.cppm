@@ -53,7 +53,7 @@ public:
         const void** out_value,
         const ice::sonic::Status& out_status) noexcept = 0;
     virtual void for_each(TF_HiveVisitor visitor, void* capture) noexcept = 0;
-    virtual void size(size_t* out_size) noexcept = 0;
+    virtual void size(std::size_t& out_size) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_Hive*)) noexcept
     {
@@ -115,7 +115,7 @@ public:
                 [](const ::TF_Hive* hive, size_t* out_size) noexcept
             {
                 auto& self = Hive::from_handle(hive);
-                self.size(out_size);
+                self.size(*out_size);
             },
 
         };

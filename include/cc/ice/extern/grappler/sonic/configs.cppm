@@ -68,9 +68,9 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void get_optimization_level(::TFGrapplerOptimizationLevel* out_level) const noexcept
+    void get_optimization_level(::TFGrapplerOptimizationLevel& out_level) const noexcept
     {
-        m_ops->get_optimization_level(get_handle(), out_level);
+        m_ops->get_optimization_level(get_handle(), &out_level);
     }
 
     void set_optimization_level(TFGrapplerOptimizationLevel level) const noexcept

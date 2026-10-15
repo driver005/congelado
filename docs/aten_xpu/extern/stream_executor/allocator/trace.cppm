@@ -82,7 +82,7 @@ public:
         }
     }
 
-    static std::string_view action_name(Action action) noexcept
+    std::string_view action_name(Action action) const noexcept
     {
         switch (action) {
             case Action::alloc:

@@ -117,9 +117,9 @@ public:
         m_ops->get_base_type(get_handle(), out_base_type.get_handle());
     }
 
-    void is_list(int* out_is_list) const noexcept
+    void is_list(int& out_is_list) const noexcept
     {
-        m_ops->is_list(get_handle(), out_is_list);
+        m_ops->is_list(get_handle(), &out_is_list);
     }
 };
 

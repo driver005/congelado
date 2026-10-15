@@ -135,21 +135,21 @@ public:
     virtual void
     set_receive_timeout(int64_t timeout_ms, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void shutdown(int how, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void get_status(int* out_status) noexcept = 0;
-    virtual void get_error_code(int* out_error_code) noexcept = 0;
+    virtual void get_status(int& out_status) noexcept = 0;
+    virtual void get_error_code(int& out_error_code) noexcept = 0;
     virtual void get_local_endpoint(
         const ice::sonic::String& out_host,
-        uint16_t* out_port,
+        std::uint16_t& out_port,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_remote_endpoint(
         const ice::sonic::String& out_host,
-        uint16_t* out_port,
+        std::uint16_t& out_port,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
-    virtual void get_protocol(::TFSocketProtocol* out_protocol) noexcept = 0;
-    virtual void get_fd(intptr_t* out_fd) noexcept = 0;
-    virtual void is_valid(int* out_valid) noexcept = 0;
+    virtual void get_protocol(::TFSocketProtocol& out_protocol) noexcept = 0;
+    virtual void get_fd(std::intptr_t& out_fd) noexcept = 0;
+    virtual void is_valid(int& out_valid) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_Socket*)) noexcept
     {
@@ -449,13 +449,13 @@ public:
                 [](::TF_Socket* socket, int* out_status) noexcept
             {
                 auto& self = Socket::from_handle(socket);
-                self.get_status(out_status);
+                self.get_status(*out_status);
             },
             .get_error_code =
                 [](::TF_Socket* socket, int* out_error_code) noexcept
             {
                 auto& self = Socket::from_handle(socket);
-                self.get_error_code(out_error_code);
+                self.get_error_code(*out_error_code);
             },
             .get_local_endpoint =
                 [](::TF_Socket* socket,
@@ -466,7 +466,7 @@ public:
                 auto& self = Socket::from_handle(socket);
                 self.get_local_endpoint(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_host),
-                    out_port,
+                    *out_port,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -479,7 +479,7 @@ public:
                 auto& self = Socket::from_handle(socket);
                 self.get_remote_endpoint(
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_host),
-                    out_port,
+                    *out_port,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -487,19 +487,19 @@ public:
                 [](::TF_Socket* socket, ::TFSocketProtocol* out_protocol) noexcept
             {
                 auto& self = Socket::from_handle(socket);
-                self.get_protocol(out_protocol);
+                self.get_protocol(*out_protocol);
             },
             .get_fd =
                 [](::TF_Socket* socket, intptr_t* out_fd) noexcept
             {
                 auto& self = Socket::from_handle(socket);
-                self.get_fd(out_fd);
+                self.get_fd(*out_fd);
             },
             .is_valid =
                 [](::TF_Socket* socket, int* out_valid) noexcept
             {
                 auto& self = Socket::from_handle(socket);
-                self.is_valid(out_valid);
+                self.is_valid(*out_valid);
             },
 
         };

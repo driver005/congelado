@@ -95,9 +95,9 @@ public:
         m_ops->set_status_from_io_error(get_handle(), error_code, context.get_handle());
     }
 
-    void get_code(::TF_Code* out_code) const noexcept
+    void get_code(::TF_Code& out_code) const noexcept
     {
-        m_ops->get_code(get_handle(), out_code);
+        m_ops->get_code(get_handle(), &out_code);
     }
 
     void message(const ice::sonic::String& out_message) const noexcept

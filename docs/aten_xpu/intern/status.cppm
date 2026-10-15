@@ -49,7 +49,7 @@ public:
         target.copy(source.data(), source.size());
     }
 
-    static sycl::async_handler make_async_handler(std::shared_ptr<std::string> sink)
+    sycl::async_handler make_async_handler(std::shared_ptr<std::string> sink) const
     {
         return [sink = std::move(sink)](const sycl::exception_list& errors)
         {

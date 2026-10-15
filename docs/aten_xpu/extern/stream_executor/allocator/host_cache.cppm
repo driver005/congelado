@@ -11,7 +11,10 @@ export namespace aten_xpu {
 class SyclHostCache
 {
 public:
-    static constexpr std::size_t k_host_alignment = 512;
+    enum Alignment : std::size_t
+    {
+        k_host_alignment = 512
+    };
 
     explicit SyclHostCache(const sycl::context& context) :
         m_context{context}
@@ -32,7 +35,7 @@ public:
     {
         process_events();
 
-        const auto rounded = std::bit_ceil(std::max(size, k_host_alignment));
+        const auto rounded = std::bit_ceil(std::max<std::size_t>(size, k_host_alignment));
         auto& bucket = m_free[rounded];
         if (!bucket.empty()) {
             void* pointer = bucket.back();

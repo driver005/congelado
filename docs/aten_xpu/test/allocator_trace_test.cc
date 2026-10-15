@@ -18,12 +18,14 @@ TEST_F(SyclAllocatorTraceTest, TrackAllocateAndFree)
     auto stream = make_stream();
     auto allocator = make_allocator();
     std::map<SyclAllocatorTrace::Action, int> seen;
-    SyclHandle::resolve<SyclAllocator>(allocator).getTrace().addTracker(
-        [&seen](const SyclAllocatorTrace::Entry& entry)
-        {
-            ++seen[std::get<0>(entry)];
-        }
-    );
+    static_cast<SyclAllocator&>(SyclAllocator::from_handle(allocator.get_handle()))
+        .getTrace()
+        .addTracker(
+            [&seen](const SyclAllocatorTrace::Entry& entry)
+            {
+                ++seen[std::get<0>(entry)];
+            }
+        );
 
     TF_DeviceMemoryBase memory{};
     allocator.allocate(1'024, TF_MEMORY_SPACE_DEVICE, stream, &memory, getStatus());

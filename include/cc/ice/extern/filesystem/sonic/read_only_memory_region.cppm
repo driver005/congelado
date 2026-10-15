@@ -82,9 +82,9 @@ public:
         m_ops->data(get_handle(), out_data);
     }
 
-    void length(uint64_t* out_length) const noexcept
+    void length(std::uint64_t& out_length) const noexcept
     {
-        m_ops->length(get_handle(), out_length);
+        m_ops->length(get_handle(), &out_length);
     }
 };
 

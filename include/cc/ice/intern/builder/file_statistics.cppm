@@ -42,11 +42,11 @@ public:
     virtual ~FileStatistics() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
-    virtual void is_directory(int* out_is_directory) noexcept = 0;
+    virtual void is_directory(int& out_is_directory) noexcept = 0;
     virtual void set_is_directory(int is_directory) noexcept = 0;
-    virtual void length(int64_t* out_length) noexcept = 0;
+    virtual void length(std::int64_t& out_length) noexcept = 0;
     virtual void set_length(int64_t length) noexcept = 0;
-    virtual void mtime_nsec(int64_t* out_mtime_nsec) noexcept = 0;
+    virtual void mtime_nsec(std::int64_t& out_mtime_nsec) noexcept = 0;
     virtual void set_mtime_nsec(int64_t mtime_nsec) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_FileStatistics*)) noexcept
@@ -71,7 +71,7 @@ public:
                 [](const ::TF_FileStatistics* stats, int* out_is_directory) noexcept
             {
                 auto& self = FileStatistics::from_handle(stats);
-                self.is_directory(out_is_directory);
+                self.is_directory(*out_is_directory);
             },
             .set_is_directory =
                 [](::TF_FileStatistics* stats, int is_directory) noexcept
@@ -83,7 +83,7 @@ public:
                 [](const ::TF_FileStatistics* stats, int64_t* out_length) noexcept
             {
                 auto& self = FileStatistics::from_handle(stats);
-                self.length(out_length);
+                self.length(*out_length);
             },
             .set_length =
                 [](::TF_FileStatistics* stats, int64_t length) noexcept
@@ -95,7 +95,7 @@ public:
                 [](const ::TF_FileStatistics* stats, int64_t* out_mtime_nsec) noexcept
             {
                 auto& self = FileStatistics::from_handle(stats);
-                self.mtime_nsec(out_mtime_nsec);
+                self.mtime_nsec(*out_mtime_nsec);
             },
             .set_mtime_nsec =
                 [](::TF_FileStatistics* stats, int64_t mtime_nsec) noexcept

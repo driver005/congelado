@@ -39,7 +39,7 @@ public:
     bool has_attribute(std::string_view name)
     {
         _Bool found = false;
-        m_construction.has_attr(name_of(name), &found, m_status);
+        m_construction.has_attr(name_of(name), found, m_status);
         return found;
     }
 
@@ -49,7 +49,7 @@ public:
             return fallback;
         }
         int64_t value = fallback;
-        m_construction.get_attr_int64(name_of(name), &value, m_status);
+        m_construction.get_attr_int64(name_of(name), value, m_status);
         return value;
     }
 
@@ -59,7 +59,7 @@ public:
             return fallback;
         }
         float value = fallback;
-        m_construction.get_attr_float(name_of(name), &value, m_status);
+        m_construction.get_attr_float(name_of(name), value, m_status);
         return value;
     }
 
@@ -69,7 +69,7 @@ public:
             return fallback;
         }
         _Bool value = fallback;
-        m_construction.get_attr_bool(name_of(name), &value, m_status);
+        m_construction.get_attr_bool(name_of(name), value, m_status);
         return value;
     }
 
@@ -79,7 +79,7 @@ public:
             return fallback;
         }
         TFDataTypeEnum value = fallback;
-        m_construction.get_attr_type(name_of(name), &value, m_status);
+        m_construction.get_attr_type(name_of(name), value, m_status);
         return value;
     }
 
@@ -90,7 +90,7 @@ public:
         }
         int32_t list_size = 0;
         int32_t total_size = 0;
-        m_construction.get_attr_size(name_of(name), &list_size, &total_size, m_status);
+        m_construction.get_attr_size(name_of(name), list_size, total_size, m_status);
         const auto count =
             std::min(out_values.size(), static_cast<std::size_t>(std::max(list_size, 0)));
         m_construction.get_attr_int64_list(
@@ -109,7 +109,7 @@ public:
         }
         int32_t list_size = 0;
         int32_t total_size = 0;
-        m_construction.get_attr_size(name_of(name), &list_size, &total_size, m_status);
+        m_construction.get_attr_size(name_of(name), list_size, total_size, m_status);
         const auto count =
             std::min(out_values.size(), static_cast<std::size_t>(std::max(list_size, 0)));
         m_construction.get_attr_float_list(
@@ -132,7 +132,7 @@ public:
         const char* data = nullptr;
         std::size_t size = 0;
         value.get_data_pointer(&data);
-        value.get_size(&size);
+        value.get_size(size);
         std::string result{data, size};
         value.destroy();
         return result;
@@ -141,7 +141,7 @@ public:
     bool ok() const noexcept
     {
         TF_Code code = TF_OK;
-        m_status.get_code(&code);
+        m_status.get_code(code);
         return code == TF_OK;
     }
 

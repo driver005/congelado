@@ -20,6 +20,12 @@ import :allocator;
 
 export namespace aten_xpu {
 
+using SyclCurrentStream =
+    std::tuple<std::shared_ptr<sycl::queue>, std::shared_ptr<std::string>, int32_t>;
+
+// Per calling thread, as the C header documents for get/set_current_stream.
+inline thread_local std::vector<SyclCurrentStream> t_current_streams;
+
 class SyclExecutor : public ice::builder::Executor
 {
 public:
@@ -35,7 +41,8 @@ public:
             ops.getStreamOps(),
             ops.getTimerOps()
         },
-        m_status{ops}
+        m_status{ops},
+        m_queue_factory{ops}
     {
     }
 
@@ -44,12 +51,6 @@ public:
     SyclExecutor& operator=(const SyclExecutor&) = delete;
     SyclExecutor(SyclExecutor&&) = delete;
     SyclExecutor& operator=(SyclExecutor&&) = delete;
-
-    static void create(::TF_Executor* handle)
-    {
-        auto* executor = new SyclExecutor{SyclOpsTable::getInstance()};
-        SyclHandle::attach(handle, *executor);
-    }
 
     void bind(const sycl::context& context, PeerAccessCallback enable_peer)
     {
@@ -71,20 +72,20 @@ public:
 
     void device_memory_usage(
         const ice::sonic::Device& device,
-        int64_t* out_free,
-        int64_t* out_total,
-        _Bool* out_success
+        std::int64_t& out_free,
+        std::int64_t& out_total,
+        bool& out_success
     ) noexcept override
     {
         const auto& native = native_device(device);
-        *out_total = static_cast<int64_t>(native.get_info<sycl::info::device::global_mem_size>());
+        out_total = static_cast<int64_t>(native.get_info<sycl::info::device::global_mem_size>());
         if (!native.has(sycl::aspect::ext_intel_free_memory)) {
-            *out_success = false;
+            out_success = false;
             return;
         }
-        *out_free =
+        out_free =
             static_cast<int64_t>(native.get_info<sycl::ext::intel::info::device::free_memory>());
-        *out_success = true;
+        out_success = true;
     }
 
     void create_stream_internal(
@@ -102,7 +103,7 @@ public:
     ) noexcept override
     {
         static_cast<void>(device);
-        SyclHandle::resolve<SyclStream>(stream).release();
+        static_cast<SyclStream&>(SyclStream::from_handle(stream.get_handle())).release();
     }
 
     void create_stream_dependency(
@@ -128,7 +129,8 @@ public:
     ) noexcept override
     {
         static_cast<void>(device);
-        const auto& error = SyclHandle::resolve<SyclStream>(stream).getAsyncError();
+        const auto& error =
+            static_cast<SyclStream&>(SyclStream::from_handle(stream.get_handle())).getAsyncError();
         if (!error.empty()) {
             m_status.fail(out_status, TF_INTERNAL, error);
         }
@@ -142,7 +144,8 @@ public:
     {
         static_cast<void>(out_status);
         const TF_EventOptions options{.struct_size = sizeof(TF_EventOptions)};
-        SyclHandle::resolve<SyclEvent>(event).bind(options, device_index(device));
+        static_cast<SyclEvent&>(SyclEvent::from_handle(event.get_handle()))
+            .bind(options, device_index(device));
     }
 
     void destroy_event_internal(
@@ -157,16 +160,17 @@ public:
     void get_event_status(
         const ice::sonic::Device& device,
         const ice::sonic::Event& event,
-        TF_EventStatus* out_event_status
+        ::TF_EventStatus& out_event_status
     ) noexcept override
     {
         static_cast<void>(device);
         try {
-            *out_event_status = SyclHandle::resolve<SyclEvent>(event).is_complete()
-                                    ? TF_EVENT_COMPLETE
-                                    : TF_EVENT_PENDING;
+            out_event_status =
+                static_cast<SyclEvent&>(SyclEvent::from_handle(event.get_handle())).is_complete()
+                    ? TF_EVENT_COMPLETE
+                    : TF_EVENT_PENDING;
         } catch (const sycl::exception&) {
-            *out_event_status = TF_EVENT_ERROR;
+            out_event_status = TF_EVENT_ERROR;
         }
     }
 
@@ -177,7 +181,7 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-        auto& target = SyclHandle::resolve<SyclEvent>(event);
+        auto& target = static_cast<SyclEvent&>(SyclEvent::from_handle(event.get_handle()));
         if (target.getDeviceIndex() != -1 && target.getDeviceIndex() != device_index(device)) {
             m_status.fail(out_status, TF_INVALID_ARGUMENT, "event device does not match stream");
             return;
@@ -198,7 +202,8 @@ public:
     ) noexcept override
     {
         static_cast<void>(device);
-        const auto& native = SyclHandle::resolve<SyclEvent>(event).getNativeEvent();
+        const auto& native =
+            static_cast<SyclEvent&>(SyclEvent::from_handle(event.get_handle())).getNativeEvent();
         if (!native) {
             return;
         }
@@ -239,9 +244,8 @@ public:
     {
         static_cast<void>(device);
         try {
-            SyclHandle::resolve<SyclTimer>(timer).setStartEvent(
-                queue_of(stream).ext_oneapi_submit_barrier()
-            );
+            static_cast<SyclTimer&>(SyclTimer::from_handle(timer.get_handle()))
+                .setStartEvent(queue_of(stream).ext_oneapi_submit_barrier());
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
         }
@@ -256,9 +260,8 @@ public:
     {
         static_cast<void>(device);
         try {
-            SyclHandle::resolve<SyclTimer>(timer).setStopEvent(
-                queue_of(stream).ext_oneapi_submit_barrier()
-            );
+            static_cast<SyclTimer&>(SyclTimer::from_handle(timer.get_handle()))
+                .setStopEvent(queue_of(stream).ext_oneapi_submit_barrier());
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
         }
@@ -343,7 +346,8 @@ public:
     ) noexcept override
     {
         static_cast<void>(device);
-        const auto& native = SyclHandle::resolve<SyclEvent>(event).getNativeEvent();
+        const auto& native =
+            static_cast<SyclEvent&>(SyclEvent::from_handle(event.get_handle())).getNativeEvent();
         if (!native) {
             return;
         }
@@ -432,7 +436,7 @@ public:
         const ice::sonic::Stream& stream,
         TF_StatusCallbackFn callback_fn,
         void* callback_arg,
-        _Bool* out_success
+        bool& out_success
     ) noexcept override
     {
         static_cast<void>(device);
@@ -452,9 +456,9 @@ public:
                     );
                 }
             );
-            *out_success = true;
+            out_success = true;
         } catch (const sycl::exception&) {
-            *out_success = false;
+            out_success = false;
         }
     }
 
@@ -477,7 +481,8 @@ public:
     {
         try {
             m_stream_pool.acquire_into(
-                SyclHandle::resolve<SyclStream>(out_stream),
+                static_cast<SyclStream&>(SyclStream::from_handle(out_stream.get_handle())),
+                m_queue_factory,
                 m_context,
                 native_device(device),
                 device_index(device),
@@ -494,7 +499,7 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-        auto& target = SyclHandle::resolve<SyclStream>(out_stream);
+        auto& target = static_cast<SyclStream&>(SyclStream::from_handle(out_stream.get_handle()));
         auto& [queue, async_error, priority] = current_stream_slot(device_index(device));
         if (!queue) {
             get_stream_from_pool(device, 0, out_stream, out_status);
@@ -513,11 +518,11 @@ public:
     ) noexcept override
     {
         static_cast<void>(out_status);
-        auto& source = SyclHandle::resolve<SyclStream>(stream);
+        auto& source = static_cast<SyclStream&>(SyclStream::from_handle(stream.get_handle()));
         auto& [queue, async_error, priority] = current_stream_slot(device_index(device));
         queue = source.getSharedQueue();
         async_error = source.getSharedAsyncError();
-        source.get_priority(&priority);
+        source.get_priority(priority);
     }
 
     void create_stream_from_native(
@@ -532,7 +537,7 @@ public:
             m_status.fail(out_status, TF_INVALID_ARGUMENT, "external queue must be in-order");
             return;
         }
-        SyclHandle::resolve<SyclStream>(out_stream)
+        static_cast<SyclStream&>(SyclStream::from_handle(out_stream.get_handle()))
             .bind(
                 std::make_shared<sycl::queue>(*native),
                 std::make_shared<std::string>(),
@@ -552,7 +557,8 @@ public:
             m_status.fail(out_status, TF_INVALID_ARGUMENT, "ipc events cannot enable timing");
             return;
         }
-        SyclHandle::resolve<SyclEvent>(out_event).bind(*options, device_index(device));
+        static_cast<SyclEvent&>(SyclEvent::from_handle(out_event.get_handle()))
+            .bind(*options, device_index(device));
     }
 
     void create_event_from_ipc_internal(
@@ -563,7 +569,7 @@ public:
     ) noexcept override
     {
         try {
-            SyclHandle::resolve<SyclEvent>(out_event)
+            static_cast<SyclEvent&>(SyclEvent::from_handle(out_event.get_handle()))
                 .bind_from_ipc(*handle, m_context, native_device(device), device_index(device));
         } catch (const std::exception& error) {
             m_status.fail(out_status, TF_INTERNAL, error.what());
@@ -577,7 +583,7 @@ public:
     ) noexcept override
     {
         try {
-            SyclHandle::resolve<SyclAllocator>(out_allocator)
+            static_cast<SyclAllocator&>(SyclAllocator::from_handle(out_allocator.get_handle()))
                 .bind(m_context, native_device(device), device_index(device), m_enable_peer);
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
@@ -590,7 +596,7 @@ public:
     ) noexcept override
     {
         static_cast<void>(device);
-        SyclHandle::resolve<SyclAllocator>(allocator).release();
+        static_cast<SyclAllocator&>(SyclAllocator::from_handle(allocator.get_handle())).release();
     }
 
     void create_random_generator_internal(
@@ -601,7 +607,9 @@ public:
     ) noexcept override
     {
         static_cast<void>(out_status);
-        SyclHandle::resolve<SyclRandomGenerator>(out_generator)
+        static_cast<SyclRandomGenerator&>(
+            SyclRandomGenerator::from_handle(out_generator.get_handle())
+        )
             .bind(std::make_shared<SyclPhiloxState>(seed), device_index(device));
     }
 
@@ -611,7 +619,8 @@ public:
     ) noexcept override
     {
         static_cast<void>(device);
-        SyclHandle::resolve<SyclRandomGenerator>(generator).release();
+        static_cast<SyclRandomGenerator&>(SyclRandomGenerator::from_handle(generator.get_handle()))
+            .release();
     }
 
     void get_default_random_generator(
@@ -621,14 +630,13 @@ public:
     ) noexcept override
     {
         static_cast<void>(out_status);
-        SyclHandle::resolve<SyclRandomGenerator>(out_generator)
+        static_cast<SyclRandomGenerator&>(
+            SyclRandomGenerator::from_handle(out_generator.get_handle())
+        )
             .bind(getDefaultGeneratorState(device_index(device)), device_index(device));
     }
 
-    void get_native_handle(
-        const ice::sonic::Device& device,
-        void** out_handle
-    ) noexcept override
+    void get_native_handle(const ice::sonic::Device& device, void** out_handle) noexcept override
     {
         static_cast<void>(device);
         *out_handle = &m_context;
@@ -653,31 +661,33 @@ public:
     }
 
 private:
-    using CurrentStream =
-        std::tuple<std::shared_ptr<sycl::queue>, std::shared_ptr<std::string>, int32_t>;
+    using CurrentStream = SyclCurrentStream;
 
-    static CurrentStream& current_stream_slot(int device_index)
+    CurrentStream& current_stream_slot(int device_index) const
     {
         const auto index = static_cast<std::size_t>(device_index);
-        if (index >= s_current_streams.size()) {
-            s_current_streams.resize(index + 1);
+        if (index >= t_current_streams.size()) {
+            t_current_streams.resize(index + 1);
         }
-        return s_current_streams[index];
+        return t_current_streams[index];
     }
 
-    static const sycl::device& native_device(const ice::sonic::Device& device)
+    const sycl::device& native_device(const ice::sonic::Device& device) const
     {
-        return SyclHandle::resolve<SyclDevice>(device).getNativeDevice();
+        return static_cast<SyclDevice&>(SyclDevice::from_handle(device.get_handle()))
+            .getNativeDevice();
     }
 
-    static int device_index(const ice::sonic::Device& device)
+    int device_index(const ice::sonic::Device& device) const
     {
-        return SyclHandle::resolve<SyclDevice>(device).getDeviceIndex();
+        return static_cast<SyclDevice&>(SyclDevice::from_handle(device.get_handle()))
+            .getDeviceIndex();
     }
 
-    static sycl::queue& queue_of(const ice::sonic::Stream& stream)
+    sycl::queue& queue_of(const ice::sonic::Stream& stream) const
     {
-        return SyclHandle::resolve<SyclStream>(stream).getNativeQueue();
+        return static_cast<SyclStream&>(SyclStream::from_handle(stream.get_handle()))
+            .getNativeQueue();
     }
 
     void bind_new_stream(
@@ -689,9 +699,10 @@ private:
     {
         try {
             auto sink = std::make_shared<std::string>();
-            auto queue = SyclStream::create_queue(m_context, native_device(device), priority, sink);
+            auto queue =
+                m_queue_factory.create_queue(m_context, native_device(device), priority, sink);
             m_owned_queues.emplace_back(device_index(device), queue);
-            SyclHandle::resolve<SyclStream>(stream)
+            static_cast<SyclStream&>(SyclStream::from_handle(stream.get_handle()))
                 .bind(std::move(queue), std::move(sink), device_index(device), priority);
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
@@ -747,16 +758,12 @@ private:
     }
 
     SyclStatus m_status;
+    SyclQueueFactory m_queue_factory;
     sycl::context m_context;
     PeerAccessCallback m_enable_peer;
     SyclStreamPool m_stream_pool;
     std::vector<std::pair<int, std::shared_ptr<sycl::queue>>> m_owned_queues;
     std::vector<std::shared_ptr<SyclPhiloxState>> m_default_generators;
-
-    // Per calling thread, as the C header documents for get/set_current_stream.
-    static thread_local std::vector<CurrentStream> s_current_streams;
 };
-
-inline thread_local std::vector<SyclExecutor::CurrentStream> SyclExecutor::s_current_streams;
 
 } // namespace aten_xpu

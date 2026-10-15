@@ -44,7 +44,7 @@ public:
     virtual void destroy() noexcept = 0;
     virtual void
     get(size_t index, const void** out_value, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void size(size_t* out_size) noexcept = 0;
+    virtual void size(std::size_t& out_size) noexcept = 0;
     virtual void data(void** out_data) noexcept = 0;
     virtual void subspan(
         size_t offset,
@@ -82,7 +82,7 @@ public:
                 [](const ::TF_Span* span, size_t* out_size) noexcept
             {
                 auto& self = Span::from_handle(span);
-                self.size(out_size);
+                self.size(*out_size);
             },
             .data =
                 [](const ::TF_Span* span, void** out_data) noexcept

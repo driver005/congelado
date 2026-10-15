@@ -39,8 +39,8 @@ public:
 
     virtual ~Complex() = default;
     virtual void destroy() noexcept = 0;
-    virtual void get_real(double* out_real) noexcept = 0;
-    virtual void get_imag(double* out_imag) noexcept = 0;
+    virtual void get_real(double& out_real) noexcept = 0;
+    virtual void get_imag(double& out_imag) noexcept = 0;
     virtual void set_real(double real) noexcept = 0;
     virtual void set_imag(double imag) noexcept = 0;
 
@@ -60,13 +60,13 @@ public:
                 [](const ::TF_Complex* complex_value, double* out_real) noexcept
             {
                 auto& self = Complex::from_handle(complex_value);
-                self.get_real(out_real);
+                self.get_real(*out_real);
             },
             .get_imag =
                 [](const ::TF_Complex* complex_value, double* out_imag) noexcept
             {
                 auto& self = Complex::from_handle(complex_value);
-                self.get_imag(out_imag);
+                self.get_imag(*out_imag);
             },
             .set_real =
                 [](::TF_Complex* complex_value, double real) noexcept

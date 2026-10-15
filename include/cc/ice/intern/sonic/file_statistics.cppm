@@ -75,9 +75,9 @@ public:
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    void is_directory(int* out_is_directory) const noexcept
+    void is_directory(int& out_is_directory) const noexcept
     {
-        m_ops->is_directory(get_handle(), out_is_directory);
+        m_ops->is_directory(get_handle(), &out_is_directory);
     }
 
     void set_is_directory(int is_directory) const noexcept
@@ -85,9 +85,9 @@ public:
         m_ops->set_is_directory(get_handle(), is_directory);
     }
 
-    void length(int64_t* out_length) const noexcept
+    void length(std::int64_t& out_length) const noexcept
     {
-        m_ops->length(get_handle(), out_length);
+        m_ops->length(get_handle(), &out_length);
     }
 
     void set_length(int64_t length) const noexcept
@@ -95,9 +95,9 @@ public:
         m_ops->set_length(get_handle(), length);
     }
 
-    void mtime_nsec(int64_t* out_mtime_nsec) const noexcept
+    void mtime_nsec(std::int64_t& out_mtime_nsec) const noexcept
     {
-        m_ops->mtime_nsec(get_handle(), out_mtime_nsec);
+        m_ops->mtime_nsec(get_handle(), &out_mtime_nsec);
     }
 
     void set_mtime_nsec(int64_t mtime_nsec) const noexcept

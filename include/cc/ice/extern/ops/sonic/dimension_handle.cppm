@@ -68,14 +68,14 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void value_known(int* out_known) const noexcept
+    void value_known(int& out_known) const noexcept
     {
-        m_ops->value_known(get_handle(), out_known);
+        m_ops->value_known(get_handle(), &out_known);
     }
 
-    void value(int64_t* out_value) const noexcept
+    void value(std::int64_t& out_value) const noexcept
     {
-        m_ops->value(get_handle(), out_value);
+        m_ops->value(get_handle(), &out_value);
     }
 };
 

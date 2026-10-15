@@ -25,44 +25,40 @@ public:
     SyclPostOpAttributes&
     addSum(float scale, float sum_quantization_scale = 1.0F, int64_t zero_point = 0)
     {
-        m_post_ops.push_back(SyclPostOp::sum(scale * sum_quantization_scale, zero_point));
+        m_post_ops.push_back(make_sum(scale * sum_quantization_scale, zero_point));
         return *this;
     }
 
     SyclPostOpAttributes&
     addEltwise(float scale, float alpha, float beta, dnnl::algorithm algorithm)
     {
-        m_post_ops.push_back(SyclPostOp::eltwise(scale, alpha, beta, algorithm));
+        m_post_ops.push_back(make_eltwise(scale, alpha, beta, algorithm));
         return *this;
     }
 
     SyclPostOpAttributes&
     addBinary(dnnl::algorithm algorithm, const SyclTensor& other, bool for_matmul)
     {
-        const auto desc = SyclOnednnLayout::desc(other);
-        m_post_ops.push_back(
-            SyclPostOp::binary(
-                algorithm,
-                other.getData(),
-                desc,
-                for_matmul ? desc : SyclOnednnLayout::any_desc(desc)
-            )
-        );
+        const auto desc = m_layout.desc(other);
+        m_post_ops.push_back(make_binary(
+            algorithm,
+            other.getData(),
+            desc,
+            for_matmul ? desc : m_layout.any_desc(desc)
+        ));
         return *this;
     }
 
     SyclPostOpAttributes& addBias(const SyclTensor& bias, int spatial_rank)
     {
-        const auto desc = SyclOnednnLayout::bias_desc(bias, spatial_rank);
-        m_post_ops.push_back(
-            SyclPostOp::binary(dnnl::algorithm::binary_add, bias.getData(), desc, desc)
-        );
+        const auto desc = m_layout.bias_desc(bias, spatial_rank);
+        m_post_ops.push_back(make_binary(dnnl::algorithm::binary_add, bias.getData(), desc, desc));
         return *this;
     }
 
     SyclPostOpAttributes& addPrelu(int mask)
     {
-        m_post_ops.push_back(SyclPostOp::prelu(mask));
+        m_post_ops.push_back(make_prelu(mask));
         return *this;
     }
 
@@ -159,6 +155,47 @@ public:
     }
 
 private:
+    SyclPostOp make_eltwise(float scale, float alpha, float beta, dnnl::algorithm algorithm) const
+    {
+        SyclPostOp post_op{dnnl::primitive::kind::eltwise};
+        post_op.setScale(scale);
+        post_op.setAlpha(alpha);
+        post_op.setBeta(beta);
+        post_op.setAlgorithm(algorithm);
+        return post_op;
+    }
+
+    SyclPostOp make_sum(float scale, int64_t zero_point) const
+    {
+        SyclPostOp post_op{dnnl::primitive::kind::sum};
+        post_op.setScale(scale);
+        post_op.setZeroPoint(zero_point);
+        return post_op;
+    }
+
+    SyclPostOp make_binary(
+        dnnl::algorithm algorithm,
+        const void* data,
+        const dnnl::memory::desc& desc,
+        const dnnl::memory::desc& expected
+    ) const
+    {
+        SyclPostOp post_op{dnnl::primitive::kind::binary};
+        post_op.setAlgorithm(algorithm);
+        post_op.setBinaryData(data);
+        post_op.setDesc(desc);
+        post_op.setExpectedDesc(expected);
+        return post_op;
+    }
+
+    SyclPostOp make_prelu(int mask) const
+    {
+        SyclPostOp post_op{dnnl::primitive::kind::prelu};
+        post_op.setMask(mask);
+        return post_op;
+    }
+
+    SyclOnednnLayout m_layout;
     float m_quantization_scale{1.0F};
     int64_t m_quantization_zero_point{0};
     std::vector<SyclPostOp> m_post_ops;

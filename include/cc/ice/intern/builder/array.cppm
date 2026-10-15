@@ -47,7 +47,7 @@ public:
     get(size_t index, const void** out_value, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void
     set(size_t index, const void* value, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void size(size_t* out_size) noexcept = 0;
+    virtual void size(std::size_t& out_size) noexcept = 0;
     virtual void data(void** out_data) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_Array*)) noexcept
@@ -104,7 +104,7 @@ public:
                 [](const ::TF_Array* array, size_t* out_size) noexcept
             {
                 auto& self = Array::from_handle(array);
-                self.size(out_size);
+                self.size(*out_size);
             },
             .data =
                 [](::TF_Array* array, void** out_data) noexcept

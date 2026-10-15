@@ -43,7 +43,7 @@ public:
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void data(const void** out_data) noexcept = 0;
-    virtual void length(uint64_t* out_length) noexcept = 0;
+    virtual void length(std::uint64_t& out_length) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_ReadOnlyMemoryRegion*)) noexcept
     {
@@ -73,7 +73,7 @@ public:
                 [](::TF_ReadOnlyMemoryRegion* region, uint64_t* out_length) noexcept
             {
                 auto& self = ReadOnlyMemoryRegion::from_handle(region);
-                self.length(out_length);
+                self.length(*out_length);
             },
 
         };

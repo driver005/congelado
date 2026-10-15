@@ -95,14 +95,14 @@ public:
         m_ops->set(get_handle(), index, value, out_status.get_handle());
     }
 
-    void size(size_t* out_size) const noexcept
+    void size(std::size_t& out_size) const noexcept
     {
-        m_ops->size(get_handle(), out_size);
+        m_ops->size(get_handle(), &out_size);
     }
 
-    void capacity(size_t* out_capacity) const noexcept
+    void capacity(std::size_t& out_capacity) const noexcept
     {
-        m_ops->capacity(get_handle(), out_capacity);
+        m_ops->capacity(get_handle(), &out_capacity);
     }
 
     void reserve(size_t new_capacity, const ice::sonic::Status& out_status) const noexcept

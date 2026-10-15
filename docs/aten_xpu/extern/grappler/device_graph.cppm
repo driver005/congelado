@@ -31,7 +31,8 @@ public:
             ops.getStreamOps(),
             ops.getStringOps()
         },
-        m_status{ops}
+        m_status{ops},
+        m_graph_state{ops.getGraphState()}
     {
     }
 
@@ -40,12 +41,6 @@ public:
     SyclDeviceGraph& operator=(const SyclDeviceGraph&) = delete;
     SyclDeviceGraph(SyclDeviceGraph&&) = delete;
     SyclDeviceGraph& operator=(SyclDeviceGraph&&) = delete;
-
-    static void create(::TFGrapplerDeviceGraph* handle)
-    {
-        auto* graph = new SyclDeviceGraph{SyclOpsTable::getInstance()};
-        SyclHandle::attach(handle, *graph);
-    }
 
     void bind(
         std::shared_ptr<SyclPhiloxState> default_generator,
@@ -56,7 +51,10 @@ public:
         m_default_generator = std::move(default_generator);
         m_device = device;
         m_device_index = device_index;
-        m_pool_id = TF_PoolId{.first = static_cast<int64_t>(++s_graph_pool_sequence), .second = 0};
+        m_pool_id = TF_PoolId{
+            .first = static_cast<int64_t>(m_graph_state.next_pool_sequence()),
+            .second = 0
+        };
     }
 
     void destroy() noexcept override
@@ -78,7 +76,8 @@ public:
             return;
         }
 
-        auto& stream = SyclHandle::resolve<SyclStream>(capture_stream);
+        auto& stream =
+            static_cast<SyclStream&>(SyclStream::from_handle(capture_stream.get_handle()));
         m_capture_stream = stream.getSharedQueue();
         if (pool_id != nullptr && (pool_id->first != 0 || pool_id->second != 0)) {
             m_pool_id = *pool_id;
@@ -119,7 +118,7 @@ public:
                 increment = state->capture_epilogue();
             }
             m_capture_ended = true;
-            if (!s_debug_mode) {
+            if (!m_graph_state.getDebugMode()) {
                 instantiate(out_status);
             }
         } catch (const sycl::exception& error) {
@@ -190,8 +189,10 @@ public:
     ) noexcept override
     {
         try {
-            const auto& state =
-                SyclHandle::resolve<SyclRandomGenerator>(generator).getSharedState();
+            const auto& state = static_cast<SyclRandomGenerator&>(
+                                    SyclRandomGenerator::from_handle(generator.get_handle())
+            )
+                                    .getSharedState();
             state->register_graph(this);
             m_generator_states.try_emplace(state, 0);
         } catch (const std::logic_error& error) {
@@ -205,8 +206,10 @@ public:
     ) noexcept override
     {
         try {
-            const auto& state =
-                SyclHandle::resolve<SyclRandomGenerator>(generator).getSharedState();
+            const auto& state = static_cast<SyclRandomGenerator&>(
+                                    SyclRandomGenerator::from_handle(generator.get_handle())
+            )
+                                    .getSharedState();
             state->unregister_graph(this);
             m_generator_states.erase(state);
         } catch (const std::logic_error& error) {
@@ -216,7 +219,7 @@ public:
 
     void enable_debug_mode() noexcept override
     {
-        s_debug_mode = true;
+        m_graph_state.setDebugMode(true);
     }
 
     void debug_dump(
@@ -227,7 +230,7 @@ public:
         const char* data = nullptr;
         std::size_t size = 0;
         path.get_data_pointer(&data);
-        path.get_size(&size);
+        path.get_size(size);
         const std::string target(data, size);
         if (!target.ends_with(".dot")) {
             m_status.fail(out_status, TF_INVALID_ARGUMENT, "debug path must end with .dot");
@@ -264,6 +267,7 @@ private:
     }
 
     SyclStatus m_status;
+    SyclGraphState& m_graph_state;
     sycl::device m_device;
     int m_device_index{0};
     TF_PoolId m_pool_id{};
@@ -274,9 +278,6 @@ private:
     std::optional<ModifiableGraph> m_graph;
     std::optional<ExecutableGraph> m_graph_exec;
     bool m_capture_ended{false};
-
-    static inline bool s_debug_mode{false};
-    static inline std::uint64_t s_graph_pool_sequence{0};
 };
 
 } // namespace aten_xpu

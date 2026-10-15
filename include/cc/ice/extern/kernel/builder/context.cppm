@@ -56,13 +56,13 @@ public:
 
     virtual ~OpKernelContext() = default;
     virtual void destroy() noexcept = 0;
-    virtual void num_inputs(int* out_num) noexcept = 0;
-    virtual void num_outputs(int* out_num) noexcept = 0;
+    virtual void num_inputs(int& out_num) noexcept = 0;
+    virtual void num_outputs(int& out_num) noexcept = 0;
     virtual void
     get_input(int i, ::TF_Tensor** out_tensor, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void
     input_range(const ice::sonic::String& name, ::TF_InputRange_Args* out_args) noexcept = 0;
-    virtual void input_datatype(int index, ::TFDataTypeEnum* out_type) noexcept = 0;
+    virtual void input_datatype(int index, ::TFDataTypeEnum& out_type) noexcept = 0;
     virtual void set_output(
         int i,
         const ice::sonic::Tensor& tensor,
@@ -87,24 +87,24 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void failure(const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void expected_output_datatype(int i, ::TFDataTypeEnum* out_type) noexcept = 0;
+    virtual void expected_output_datatype(int i, ::TFDataTypeEnum& out_type) noexcept = 0;
     virtual void is_host_memory_input(
         int i,
-        _Bool* out_is_host,
+        bool& out_is_host,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void is_host_memory_output(
         int i,
-        _Bool* out_is_host,
+        bool& out_is_host,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
-    virtual void step_id(int64_t* out_id) noexcept = 0;
-    virtual void get_frame_id(uint64_t* out_id) noexcept = 0;
-    virtual void get_iter_id(int64_t* out_id) noexcept = 0;
-    virtual void get_step_id(int64_t* out_id) noexcept = 0;
-    virtual void get_device_id(int* out_id) noexcept = 0;
+    virtual void step_id(std::int64_t& out_id) noexcept = 0;
+    virtual void get_frame_id(std::uint64_t& out_id) noexcept = 0;
+    virtual void get_iter_id(std::int64_t& out_id) noexcept = 0;
+    virtual void get_step_id(std::int64_t& out_id) noexcept = 0;
+    virtual void get_device_id(int& out_id) noexcept = 0;
     virtual void get_device_name(const ice::sonic::String& out_name) noexcept = 0;
-    virtual void get_graph_def_version(int* out_version) noexcept = 0;
+    virtual void get_graph_def_version(int& out_version) noexcept = 0;
     virtual void get_op_kernel_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void
     get_resource_mgr_default_container_name(const ice::sonic::String& out_name) noexcept = 0;
@@ -200,7 +200,7 @@ public:
     virtual void
     forward_ref_input_to_ref_output(int32_t input_index, int32_t output_index) noexcept = 0;
     virtual void
-    is_ref_input(int i, _Bool* out_is_ref, const ice::sonic::Status& out_status) noexcept = 0;
+    is_ref_input(int i, bool& out_is_ref, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_input_by_name(
         const ice::sonic::String& input_name,
         ::TF_Tensor** out_tensor,
@@ -238,13 +238,13 @@ public:
                 [](::TF_OpKernelContext* ctx, int* out_num) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
-                self.num_inputs(out_num);
+                self.num_inputs(*out_num);
             },
             .num_outputs =
                 [](::TF_OpKernelContext* ctx, int* out_num) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
-                self.num_outputs(out_num);
+                self.num_outputs(*out_num);
             },
             .get_input =
                 [](::TF_OpKernelContext* ctx,
@@ -274,7 +274,7 @@ public:
                 [](::TF_OpKernelContext* ctx, int index, ::TFDataTypeEnum* out_type) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
-                self.input_datatype(index, out_type);
+                self.input_datatype(index, *out_type);
             },
             .set_output =
                 [](::TF_OpKernelContext* ctx,
@@ -353,7 +353,7 @@ public:
                 [](::TF_OpKernelContext* ctx, int i, ::TFDataTypeEnum* out_type) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
-                self.expected_output_datatype(i, out_type);
+                self.expected_output_datatype(i, *out_type);
             },
             .is_host_memory_input =
                 [](::TF_OpKernelContext* ctx,
@@ -364,7 +364,7 @@ public:
                 auto& self = OpKernelContext::from_handle(ctx);
                 self.is_host_memory_input(
                     i,
-                    out_is_host,
+                    *out_is_host,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -377,7 +377,7 @@ public:
                 auto& self = OpKernelContext::from_handle(ctx);
                 self.is_host_memory_output(
                     i,
-                    out_is_host,
+                    *out_is_host,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -385,31 +385,31 @@ public:
                 [](::TF_OpKernelContext* ctx, int64_t* out_id) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
-                self.step_id(out_id);
+                self.step_id(*out_id);
             },
             .get_frame_id =
                 [](::TF_OpKernelContext* ctx, uint64_t* out_id) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
-                self.get_frame_id(out_id);
+                self.get_frame_id(*out_id);
             },
             .get_iter_id =
                 [](::TF_OpKernelContext* ctx, int64_t* out_id) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
-                self.get_iter_id(out_id);
+                self.get_iter_id(*out_id);
             },
             .get_step_id =
                 [](::TF_OpKernelContext* ctx, int64_t* out_id) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
-                self.get_step_id(out_id);
+                self.get_step_id(*out_id);
             },
             .get_device_id =
                 [](::TF_OpKernelContext* ctx, int* out_id) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
-                self.get_device_id(out_id);
+                self.get_device_id(*out_id);
             },
             .get_device_name =
                 [](::TF_OpKernelContext* ctx, ::TF_String* out_name) noexcept
@@ -421,7 +421,7 @@ public:
                 [](::TF_OpKernelContext* ctx, int* out_version) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
-                self.get_graph_def_version(out_version);
+                self.get_graph_def_version(*out_version);
             },
             .get_op_kernel_name =
                 [](::TF_OpKernelContext* ctx, ::TF_String* out_name) noexcept
@@ -677,7 +677,7 @@ public:
                 auto& self = OpKernelContext::from_handle(ctx);
                 self.is_ref_input(
                     i,
-                    out_is_ref,
+                    *out_is_ref,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },

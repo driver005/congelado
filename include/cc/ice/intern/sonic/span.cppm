@@ -80,9 +80,9 @@ public:
         m_ops->get(get_handle(), index, out_value, out_status.get_handle());
     }
 
-    void size(size_t* out_size) const noexcept
+    void size(std::size_t& out_size) const noexcept
     {
-        m_ops->size(get_handle(), out_size);
+        m_ops->size(get_handle(), &out_size);
     }
 
     void data(void** out_data) const noexcept

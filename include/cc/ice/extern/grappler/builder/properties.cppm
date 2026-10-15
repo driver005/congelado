@@ -55,12 +55,12 @@ public:
     ) noexcept = 0;
     virtual void get_input_properties_size(
         const ice::sonic::String& name,
-        int* out_num_values,
+        int& out_num_values,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_output_properties_size(
         const ice::sonic::String& name,
-        int* out_num_values,
+        int& out_num_values,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_input_properties(
@@ -114,7 +114,7 @@ public:
                 auto& self = GrapplerProperties::from_handle(props);
                 self.get_input_properties_size(
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
-                    out_num_values,
+                    *out_num_values,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -127,7 +127,7 @@ public:
                 auto& self = GrapplerProperties::from_handle(props);
                 self.get_output_properties_size(
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
-                    out_num_values,
+                    *out_num_values,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },

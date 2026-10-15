@@ -18,7 +18,10 @@ export namespace aten_xpu {
 class SyclRandomGenerator : public ice::builder::RandomGenerator
 {
 public:
-    static constexpr std::size_t k_state_bytes = 2 * sizeof(uint64_t);
+    enum Size : std::size_t
+    {
+        k_state_bytes = 2 * sizeof(uint64_t)
+    };
 
     explicit SyclRandomGenerator(const SyclOpsTable& ops) noexcept :
         ice::builder::RandomGenerator{
@@ -26,7 +29,8 @@ public:
             ops.getStatusOps(),
             ops.getTensorOps()
         },
-        m_status{ops}
+        m_status{ops},
+        m_factory{ops}
     {
     }
 
@@ -35,12 +39,6 @@ public:
     SyclRandomGenerator& operator=(const SyclRandomGenerator&) = delete;
     SyclRandomGenerator(SyclRandomGenerator&&) = delete;
     SyclRandomGenerator& operator=(SyclRandomGenerator&&) = delete;
-
-    static void create(::TF_RandomGenerator* handle)
-    {
-        auto* generator = new SyclRandomGenerator{SyclOpsTable::getInstance()};
-        SyclHandle::attach(handle, *generator);
-    }
 
     void bind(std::shared_ptr<SyclPhiloxState> state, int device_index) noexcept
     {
@@ -65,17 +63,17 @@ public:
         }
     }
 
-    void get_seed(uint64_t* out_seed) noexcept override
+    void get_seed(std::uint64_t& out_seed) noexcept override
     {
-        *out_seed = m_state->getSeed();
+        out_seed = m_state->getSeed();
     }
 
-    void reseed_nondeterministic(uint64_t* out_seed) noexcept override
+    void reseed_nondeterministic(std::uint64_t& out_seed) noexcept override
     {
         std::random_device entropy;
         const auto seed = (static_cast<uint64_t>(entropy()) << 32U) | entropy();
         m_state->setSeed(seed);
-        *out_seed = seed;
+        out_seed = seed;
     }
 
     void set_offset(uint64_t offset) noexcept override
@@ -85,9 +83,9 @@ public:
         }
     }
 
-    void get_offset(uint64_t* out_offset) noexcept override
+    void get_offset(std::uint64_t& out_offset) noexcept override
     {
-        *out_offset = m_state->getOffset();
+        out_offset = m_state->getOffset();
     }
 
     void set_state(
@@ -95,7 +93,7 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-        auto& tensor = SyclHandle::resolve<SyclTensor>(state);
+        auto& tensor = static_cast<SyclTensor&>(SyclTensor::from_handle(state.get_handle()));
         const auto bytes = tensor.getByteSize();
         if (bytes != k_state_bytes && bytes != sizeof(uint64_t)) {
             m_status.fail(out_status, TF_INVALID_ARGUMENT, "RNG state is wrong size");
@@ -122,15 +120,11 @@ public:
     {
         try {
             const std::array<int64_t, 1> dims{static_cast<int64_t>(k_state_bytes)};
-            auto* handle = SyclTensorFactory::empty(
-                dims,
-                TF_UINT8,
-                m_device_index,
-                TF_MEMORY_SPACE_HOST_PINNED
-            );
+            auto* handle =
+                m_factory.empty(dims, TF_UINT8, m_device_index, TF_MEMORY_SPACE_HOST_PINNED);
             const std::array<uint64_t, 2> values{m_state->getSeed(), m_state->getOffset()};
             std::memcpy(
-                SyclHandle::resolve_raw<SyclTensor>(handle).getData(),
+                static_cast<SyclTensor&>(SyclTensor::from_handle(handle)).getData(),
                 values.data(),
                 k_state_bytes
             );
@@ -146,7 +140,9 @@ public:
     ) noexcept override
     {
         static_cast<void>(out_status);
-        m_state = SyclHandle::resolve<SyclRandomGenerator>(other).m_state;
+        m_state =
+            static_cast<SyclRandomGenerator&>(SyclRandomGenerator::from_handle(other.get_handle()))
+                .m_state;
     }
 
     void graphsafe_get_state(
@@ -155,7 +151,8 @@ public:
     ) noexcept override
     {
         static_cast<void>(out_status);
-        SyclHandle::resolve<SyclRandomGenerator>(out_other).bind(m_state, m_device_index);
+        static_cast<SyclRandomGenerator&>(SyclRandomGenerator::from_handle(out_other.get_handle()))
+            .bind(m_state, m_device_index);
     }
 
     void philox_state(
@@ -183,8 +180,8 @@ public:
 
     void philox_engine_inputs(
         uint64_t increment,
-        uint64_t* out_seed,
-        uint64_t* out_offset,
+        std::uint64_t& out_seed,
+        std::uint64_t& out_offset,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -192,14 +189,14 @@ public:
             m_status.fail(out_status, TF_FAILED_PRECONDITION, "use philox_state while capturing");
             return;
         }
-        *out_seed = m_state->getSeed();
-        *out_offset = m_state->getOffset();
+        out_seed = m_state->getSeed();
+        out_offset = m_state->getOffset();
         m_state->increase(increment);
     }
 
-    void get_device_index(int* out_device_index) noexcept override
+    void get_device_index(int& out_device_index) noexcept override
     {
-        *out_device_index = m_device_index;
+        out_device_index = m_device_index;
     }
 
     void clone(
@@ -211,7 +208,8 @@ public:
             m_status.fail(out_status, TF_FAILED_PRECONDITION, "cannot clone while capturing");
             return;
         }
-        SyclHandle::resolve<SyclRandomGenerator>(out_clone).bind(m_state->clone(), m_device_index);
+        static_cast<SyclRandomGenerator&>(SyclRandomGenerator::from_handle(out_clone.get_handle()))
+            .bind(m_state->clone(), m_device_index);
     }
 
     SyclPhiloxState& getState() const noexcept
@@ -225,7 +223,7 @@ public:
     }
 
 private:
-    static void read_host(const SyclTensor& tensor, void* destination, std::size_t bytes)
+    void read_host(const SyclTensor& tensor, void* destination, std::size_t bytes) const
     {
         if (tensor.getMemorySpace() != TF_MEMORY_SPACE_DEVICE) {
             std::memcpy(destination, tensor.getData(), bytes);
@@ -236,6 +234,7 @@ private:
     }
 
     SyclStatus m_status;
+    SyclTensorFactory m_factory;
     std::shared_ptr<SyclPhiloxState> m_state;
     int m_device_index{0};
 };

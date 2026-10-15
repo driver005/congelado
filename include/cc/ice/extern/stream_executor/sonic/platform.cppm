@@ -71,11 +71,11 @@ public:
     }
 
     void get_device_count(
-        int* out_device_count,
+        int& out_device_count,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->get_device_count(get_handle(), out_device_count, out_status.get_handle());
+        m_ops->get_device_count(get_handle(), &out_device_count, out_status.get_handle());
     }
 
     void create_device_internal(
@@ -109,11 +109,11 @@ public:
     }
 
     void get_current_device(
-        int* out_device_index,
+        int& out_device_index,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->get_current_device(get_handle(), out_device_index, out_status.get_handle());
+        m_ops->get_current_device(get_handle(), &out_device_index, out_status.get_handle());
     }
 
     void set_current_device(int device_index, const ice::sonic::Status& out_status) const noexcept
@@ -123,14 +123,14 @@ public:
 
     void get_device_for_pointer(
         const void* pointer,
-        int* out_device_index,
+        int& out_device_index,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_device_for_pointer(
             get_handle(),
             pointer,
-            out_device_index,
+            &out_device_index,
             out_status.get_handle()
         );
     }
@@ -138,7 +138,7 @@ public:
     void can_access_peer(
         int device_index,
         int peer_device_index,
-        _Bool* out_can_access,
+        bool& out_can_access,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -146,7 +146,7 @@ public:
             get_handle(),
             device_index,
             peer_device_index,
-            out_can_access,
+            &out_can_access,
             out_status.get_handle()
         );
     }
