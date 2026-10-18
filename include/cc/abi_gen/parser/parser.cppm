@@ -227,7 +227,9 @@ private:
                 if (model.has_value()) {
                     nothing = false;
                     m_registry.get().append_model(std::move(*model));
-                } else if (auto value = m_value_visitor.traverse_record_decl(record_decl, header_path)) {
+                } else if (
+                    auto value = m_value_visitor.traverse_record_decl(record_decl, header_path)
+                ) {
                     nothing = false;
                     m_registry.get().append_value_model(std::move(*value));
                 }

@@ -1,10 +1,9 @@
 module;
 
+#include <cctype>
 #include <clang/AST/ASTContext.h>
 #include <clang/AST/Decl.h>
 #include <clang/AST/Type.h>
-
-#include <cctype>
 
 export module cc_abi_gen_parser:value_visitor;
 
@@ -90,7 +89,8 @@ public:
     }
 
 private:
-    // Members of unnamed struct or union type have no spellable C++ name; get_handle() reaches them.
+    // Members of unnamed struct or union type have no spellable C++ name; get_handle() reaches
+    // them.
     static bool has_anonymous_type(clang::QualType type)
     {
         const std::string spelling = type.getAsString();
@@ -116,12 +116,21 @@ private:
     static std::string spell(const std::string& type)
     {
         static constexpr std::array<std::string_view, 12> k_std_names{
-            "int8_t", "int16_t", "int32_t", "int64_t", "uint8_t", "uint16_t",
-            "uint32_t", "uint64_t", "intptr_t", "uintptr_t", "size_t", "ptrdiff_t"
+            "int8_t",
+            "int16_t",
+            "int32_t",
+            "int64_t",
+            "uint8_t",
+            "uint16_t",
+            "uint32_t",
+            "uint64_t",
+            "intptr_t",
+            "uintptr_t",
+            "size_t",
+            "ptrdiff_t"
         };
-        static constexpr std::array<std::string_view, 5> k_keywords{
-            "const", "struct", "enum", "union", "volatile"
-        };
+        static constexpr std::array<std::string_view, 5>
+            k_keywords{"const", "struct", "enum", "union", "volatile"};
 
         std::string result;
         std::size_t index = 0;
@@ -139,8 +148,9 @@ private:
             const std::string_view token{type.data() + index, end - index};
             if (std::ranges::find(k_std_names, token) != k_std_names.end()) {
                 result += "std::";
-            } else if (std::ranges::find(k_keywords, token) == k_keywords.end() &&
-                       token.starts_with("TF")) {
+            } else if (
+                std::ranges::find(k_keywords, token) == k_keywords.end() && token.starts_with("TF")
+            ) {
                 result += "::";
             }
             result += token;

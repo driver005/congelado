@@ -851,9 +851,8 @@ private:
     // A slot with a length or capacity parameter hands out arrays, which stay plain pointers.
     bool has_array(const parser::slot::Slot& slot) const noexcept
     {
-        static constexpr std::array<std::string_view, 5> k_length_words{
-            "num", "count", "capacity", "max", "len"
-        };
+        static constexpr std::array<std::string_view, 5>
+            k_length_words{"num", "count", "capacity", "max", "len"};
 
         for (const parser::helper::Parameter& candidate: slot.extract_parameters()) {
             if (candidate.get_type().contains('*') || candidate.get_name().starts_with("out_")) {
@@ -881,9 +880,8 @@ private:
         const parser::helper::Parameter& parameter
     ) const noexcept
     {
-        static constexpr std::array<std::string_view, 5> k_length_words{
-            "num", "count", "capacity", "max", "len"
-        };
+        static constexpr std::array<std::string_view, 5>
+            k_length_words{"num", "count", "capacity", "max", "len"};
 
         if (!parameter.is_element_pointer()) {
             return nullptr;
@@ -928,10 +926,8 @@ private:
     }
 
     // The array parameter whose element count `length` carries.
-    const parser::helper::Parameter& array_of(
-        const parser::slot::Slot& slot,
-        const parser::helper::Parameter& length
-    ) const noexcept
+    const parser::helper::Parameter&
+    array_of(const parser::slot::Slot& slot, const parser::helper::Parameter& length) const noexcept
     {
         const auto parameters = slot.extract_parameters();
 
@@ -982,10 +978,8 @@ private:
     }
 
     // The sonic argument for an element count: the smallest size of the vectors that share it.
-    std::string length_argument(
-        const parser::slot::Slot& slot,
-        const parser::helper::Parameter& length
-    ) const
+    std::string
+    length_argument(const parser::slot::Slot& slot, const parser::helper::Parameter& length) const
     {
         std::vector<std::string> sizes;
         for (const parser::helper::Parameter& candidate: slot.extract_parameters()) {
@@ -1006,10 +1000,8 @@ private:
         return std::format("static_cast<{}>({})", length.get_type(), size);
     }
 
-    ParameterUse classify(
-        const parser::slot::Slot& slot,
-        const parser::helper::Parameter& parameter
-    ) const
+    ParameterUse
+    classify(const parser::slot::Slot& slot, const parser::helper::Parameter& parameter) const
     {
         if (length_of(slot, parameter) != nullptr) {
             return parameter.is_const_pointee() ? ParameterUse::ArrayIn : ParameterUse::ArrayOut;
@@ -1157,7 +1149,12 @@ private:
             const auto value = find_value(parameter);
             const std::string name{parameter.get_name()};
             if (mode == Mode::Builder && use == ParameterUse::EnumOut) {
-                text += std::format("                {} wrapped_{}{{*{}}};\n", value_type(value->get()), name, name);
+                text += std::format(
+                    "                {} wrapped_{}{{*{}}};\n",
+                    value_type(value->get()),
+                    name,
+                    name
+                );
             } else if (mode == Mode::Builder) {
                 text += std::format(
                     "                std::optional<{0}> wrapped_{1};\n"
@@ -1168,7 +1165,11 @@ private:
                     name
                 );
             } else if (use == ParameterUse::EnumOut) {
-                text += std::format("                ::{} raw_{}{{}};\n", value->get().get_c_name(), name);
+                text += std::format(
+                    "                ::{} raw_{}{{}};\n",
+                    value->get().get_c_name(),
+                    name
+                );
             }
         }
 
@@ -1188,9 +1189,16 @@ private:
                 text += std::format("                *{0} = wrapped_{0}.get_value();\n", name);
             } else if (use == ParameterUse::EnumOut) {
                 const auto value = find_value(parameter);
-                text += std::format("                {} = {}{{raw_{}}};\n", name, value_type(value->get()), name);
-            } else if (use == ParameterUse::StructPointer && mode == Mode::Builder &&
-                       !parameter.is_const_pointee()) {
+                text += std::format(
+                    "                {} = {}{{raw_{}}};\n",
+                    name,
+                    value_type(value->get()),
+                    name
+                );
+            } else if (
+                use == ParameterUse::StructPointer && mode == Mode::Builder &&
+                !parameter.is_const_pointee()
+            ) {
                 text += std::format(
                     "                if ({0} != nullptr) {{\n"
                     "                    *{0} = *wrapped_{0}->get_handle();\n"
@@ -1204,9 +1212,8 @@ private:
     }
 
     // Value classes the parameters of a model depend on, once each.
-    std::vector<const parser::value::Model*> value_dependencies_of(
-        const parser::vtable::Model& model
-    ) const
+    std::vector<const parser::value::Model*>
+    value_dependencies_of(const parser::vtable::Model& model) const
     {
         std::map<std::string, const parser::value::Model*> unique;
         for (const parser::slot::Slot& slot: model.get_slots()) {
@@ -1532,8 +1539,8 @@ private:
 
     static bool is_runtime_root(const parser::vtable::Model& model) noexcept
     {
-        return model.get_struct_name() == RuntimeEmitter::k_string_struct
-               || model.get_struct_name() == RuntimeEmitter::k_registry_struct;
+        return model.get_struct_name() == RuntimeEmitter::k_string_struct ||
+               model.get_struct_name() == RuntimeEmitter::k_registry_struct;
     }
 
     // Empty for the String and registry roots in sonic mode: they cannot look themselves up.
@@ -1742,7 +1749,9 @@ private:
         auto string_model = m_registry.get().find(std::string{RuntimeEmitter::k_string_struct});
         auto registry_model = m_registry.get().find(std::string{RuntimeEmitter::k_registry_struct});
         if (!string_model.has_value() || !registry_model.has_value()) {
-            return std::unexpected("Runtime String or registry anchor is not part of the parsed headers");
+            return std::unexpected(
+                "Runtime String or registry anchor is not part of the parsed headers"
+            );
         }
 
         m_runtime_emitter.add_value("namespace_name", std::string{m_namespace_name})
