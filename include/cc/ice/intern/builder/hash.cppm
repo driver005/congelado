@@ -47,7 +47,7 @@ public:
     virtual void hash_bytes(
         const void* data,
         size_t size,
-        size_t* out_hash,
+        std::size_t& out_hash,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void hash_combine(
@@ -86,7 +86,7 @@ public:
                 self.hash_bytes(
                     data,
                     size,
-                    out_hash,
+                    *out_hash,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -112,13 +112,13 @@ public:
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     const ::TF_HashOps& get_vtable() const noexcept

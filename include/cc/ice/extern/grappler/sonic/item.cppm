@@ -25,25 +25,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     GrapplerItem(
         const ice::sonic::Registration& registry,
-        ::TFGrapplerItem* handle,
+        const ::TFGrapplerItem& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +53,7 @@ public:
     {
     }
 
-    GrapplerItem(const ::TFGrapplerItemOps* ops, ::TFGrapplerItem* handle) noexcept :
+    GrapplerItem(const ::TFGrapplerItemOps* ops, const ::TFGrapplerItem* handle) noexcept :
         Runtime(ops, handle)
     {
     }

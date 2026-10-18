@@ -8,6 +8,7 @@ module;
 export module aten_xpu_extern_kernel:recurrent_lstm;
 
 import std;
+import cc_ice_intern_sonic;
 import aten_xpu_intern;
 import :kernel;
 import :context;
@@ -50,7 +51,7 @@ public:
             k_first_weight + static_cast<int>(m_layers * m_directions) * k_tensors_per_direction;
         if (context.getInputCount() < expected_inputs) {
             context.fail(
-                TF_INVALID_ARGUMENT,
+                ice::sonic::Code::k_invalid_argument,
                 "LSTM expects w_ih, w_hh and bias per layer and direction"
             );
             return;
@@ -125,7 +126,7 @@ private:
         int64_t layer,
         int64_t input_size,
         int64_t hidden,
-        TFDataTypeEnum dtype
+        ice::sonic::DataTypeEnum dtype
     )
     {
         const std::array<int64_t, 2> layer_dims{m_directions, 4 * hidden * input_size};
@@ -179,7 +180,7 @@ private:
         int64_t batch,
         int64_t input_size,
         int64_t hidden,
-        TFDataTypeEnum dtype,
+        ice::sonic::DataTypeEnum dtype,
         const void* layer_input,
         const SyclTensor& initial_hidden,
         const SyclTensor& initial_cell,

@@ -25,25 +25,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Otel(
         const ice::sonic::Registration& registry,
-        ::TF_Otel* handle,
+        const ::TF_Otel& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +53,7 @@ public:
     {
     }
 
-    Otel(const ::TF_OtelOps* ops, ::TF_Otel* handle) noexcept :
+    Otel(const ::TF_OtelOps* ops, const ::TF_Otel* handle) noexcept :
         Runtime(ops, handle)
     {
     }

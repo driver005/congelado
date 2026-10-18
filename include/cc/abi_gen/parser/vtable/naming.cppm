@@ -51,4 +51,21 @@ std::string class_name(std::string_view struct_name)
     return name;
 }
 
+// "TF_PoolId" -> "PoolId"; "TFDataTypeEnum" -> "DataTypeEnum"; "TF_Code" -> "Code"
+std::string value_class_name(std::string_view c_name)
+{
+    std::string_view bare = c_name;
+    if (bare.starts_with("TF_")) {
+        bare.remove_prefix(3);
+    } else if (bare.starts_with("TF")) {
+        bare.remove_prefix(2);
+    }
+    std::string name{bare};
+    if (!name.empty()) {
+        name[0] = static_cast<char>(std::toupper(static_cast<unsigned char>(name[0])));
+    }
+
+    return name;
+}
+
 } // namespace cc_abi_gen::parser::vtable

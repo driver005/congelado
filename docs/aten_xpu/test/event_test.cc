@@ -18,12 +18,10 @@ protected:
     {
         ice::sonic::Event event{SyclOpsTable::getInstance().getEventOps()};
         event.create();
-        const TF_EventOptions options{
-            .struct_size = sizeof(TF_EventOptions),
-            .enable_timing = enable_timing,
-            .enable_ipc = enable_ipc,
-            .reusable = enable_ipc
-        };
+        ice::sonic::EventOptions options;
+        options.setEnableTiming(enable_timing);
+        options.setEnableIpc(enable_ipc);
+        options.setReusable(enable_ipc);
         getExecutor().create_event_with_options_internal(getDevice(), &options, event, getStatus());
         return event;
     }
@@ -36,9 +34,9 @@ TEST_F(SyclEventTest, RecordAndQuery)
     getExecutor().record_event(getDevice(), stream, event, getStatus());
     getExecutor().block_host_for_event(getDevice(), event, getStatus());
 
-    TF_EventStatus status = TF_EVENT_PENDING;
+    ice::sonic::EventStatus status{ice::sonic::EventStatus::k_pending};
     getExecutor().get_event_status(getDevice(), event, status);
-    EXPECT_EQ(status, TF_EVENT_COMPLETE);
+    EXPECT_EQ(status.get_value(), ice::sonic::EventStatus::k_complete);
     EXPECT_TRUE(ok());
 
     event.destroy();
@@ -74,7 +72,7 @@ TEST_F(SyclEventTest, IpcRoundTrip)
     auto stream = make_stream();
     auto event = make_event(false, true);
     getExecutor().record_event(getDevice(), stream, event, getStatus());
-    TF_IpcEventHandle handle{};
+    ice::sonic::IpcEventHandle handle;
     event.export_ipc(&handle, getStatus());
     ASSERT_TRUE(ok());
 

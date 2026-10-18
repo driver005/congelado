@@ -9,6 +9,7 @@ module;
 export module aten_xpu_extern_kernel:attention_sdpa_math;
 
 import std;
+import cc_ice_intern_sonic;
 import aten_xpu_intern;
 import :context;
 import :onednn_memory_layout;
@@ -62,7 +63,7 @@ public:
             m_groups * m_query_length,
             m_key_length
         };
-        auto scores = m_context.allocateTemp(TF_FLOAT, score_dims);
+        auto scores = m_context.allocateTemp(ice::sonic::DataTypeEnum::k_float, score_dims);
         if (!scores) {
             return std::nullopt;
         }
@@ -132,8 +133,10 @@ public:
         );
 
         const std::array<int64_t, 3> score_dims{m_batch_heads, m_query_length, m_key_length};
-        auto gradient_probabilities = m_context.allocateTemp(TF_FLOAT, score_dims);
-        auto gradient_scores = m_context.allocateTemp(TF_FLOAT, score_dims);
+        auto gradient_probabilities =
+            m_context.allocateTemp(ice::sonic::DataTypeEnum::k_float, score_dims);
+        auto gradient_scores =
+            m_context.allocateTemp(ice::sonic::DataTypeEnum::k_float, score_dims);
         if (!gradient_probabilities || !gradient_scores) {
             return;
         }
@@ -193,14 +196,8 @@ private:
         const std::array<int64_t, 3> dims{m_batch_heads, rows, columns};
         const std::array<int64_t, 3> strides{rows * columns, columns, 1};
         ::TF_Tensor* handle = nullptr;
-        const_cast<SyclTensor&>(tensor).tensor_view(
-            dims.data(),
-            3,
-            strides.data(),
-            tensor.getStorageOffset(),
-            &handle,
-            m_context.getStatus()
-        );
+        const_cast<SyclTensor&>(tensor)
+            .tensor_view(dims, strides, tensor.getStorageOffset(), &handle, m_context.getStatus());
         return remember(handle);
     }
 
@@ -212,9 +209,8 @@ private:
         const std::array<int64_t, 3> swapped_strides{strides[0], strides[2], strides[1]};
         ::TF_Tensor* handle = nullptr;
         const_cast<SyclTensor&>(tensor).tensor_view(
-            swapped_dims.data(),
-            3,
-            swapped_strides.data(),
+            swapped_dims,
+            swapped_strides,
             tensor.getStorageOffset(),
             &handle,
             m_context.getStatus()
@@ -240,9 +236,8 @@ private:
         };
         ::TF_Tensor* handle = nullptr;
         const_cast<SyclTensor&>(mask).tensor_view(
-            view_dims.data(),
-            3,
-            view_strides.data(),
+            view_dims,
+            view_strides,
             mask.getStorageOffset(),
             &handle,
             m_context.getStatus()
@@ -253,7 +248,7 @@ private:
     SyclTensor& causal_mask()
     {
         const std::array<int64_t, 3> dims{1, m_groups * m_query_length, m_key_length};
-        auto mask = m_context.allocateTemp(TF_FLOAT, dims);
+        auto mask = m_context.allocateTemp(ice::sonic::DataTypeEnum::k_float, dims);
         if (!mask) {
             throw std::runtime_error{"failed to allocate causal mask"};
         }
@@ -274,9 +269,9 @@ private:
         return mask->get();
     }
 
-    SyclTensor& probabilities_as(SyclTensor& scores, TFDataTypeEnum dtype)
+    SyclTensor& probabilities_as(SyclTensor& scores, ice::sonic::DataTypeEnum dtype)
     {
-        if (dtype == TF_FLOAT) {
+        if (dtype == ice::sonic::DataTypeEnum::k_float) {
             return scores;
         }
         auto converted = m_context.allocateTemp(dtype, scores.getDims());

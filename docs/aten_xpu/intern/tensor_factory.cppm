@@ -6,6 +6,8 @@ module;
 export module aten_xpu_intern:tensor_factory;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
+import cc_ice_intern_sonic;
 import :datatype;
 import :tensor;
 
@@ -21,9 +23,9 @@ public:
 
     ::TF_Tensor* empty(
         std::span<const int64_t> dims,
-        TFDataTypeEnum dtype,
+        ice::sonic::DataTypeEnum dtype,
         int device_index,
-        TF_MemorySpace memory_space
+        ice::sonic::MemorySpace memory_space
     )
     {
         auto* handle = new ::TF_Tensor{};
@@ -32,16 +34,16 @@ public:
         tensor.set_device_index(device_index);
         tensor.setMemorySpace(memory_space);
         tensor.set_dtype(dtype);
-        tensor.set_dims(dims.data(), static_cast<int>(dims.size()));
+        tensor.set_dims(dims);
         return handle;
     }
 
     ::TF_Tensor* empty_strided(
         std::span<const int64_t> dims,
         std::span<const int64_t> strides,
-        TFDataTypeEnum dtype,
+        ice::sonic::DataTypeEnum dtype,
         int device_index,
-        TF_MemorySpace memory_space
+        ice::sonic::MemorySpace memory_space
     )
     {
         auto* handle = new ::TF_Tensor{};
@@ -50,9 +52,9 @@ public:
         tensor.set_device_index(device_index);
         tensor.setMemorySpace(memory_space);
         tensor.set_dtype(dtype);
-        tensor.set_dims(dims.data(), static_cast<int>(dims.size()));
+        tensor.set_dims(dims);
         tensor.set_byte_size(storage_bytes(dims, strides, m_datatype.element_size(dtype)));
-        tensor.set_strides(strides.data(), static_cast<int>(strides.size()));
+        tensor.set_strides(strides);
         return handle;
     }
 

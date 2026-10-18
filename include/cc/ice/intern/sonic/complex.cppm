@@ -27,25 +27,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Complex(
         const ice::sonic::Registration& registry,
-        ::TF_Complex* handle,
+        const ::TF_Complex& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -55,7 +55,7 @@ public:
     {
     }
 
-    Complex(const ::TF_ComplexOps* ops, ::TF_Complex* handle) noexcept :
+    Complex(const ::TF_ComplexOps* ops, const ::TF_Complex* handle) noexcept :
         Runtime(ops, handle)
     {
     }

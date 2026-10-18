@@ -69,14 +69,7 @@ private:
             1
         };
         ::TF_Tensor* handle = nullptr;
-        vector.tensor_view(
-            dims.data(),
-            2,
-            strides.data(),
-            vector.getStorageOffset(),
-            &handle,
-            context.getStatus()
-        );
+        vector.tensor_view(dims, strides, vector.getStorageOffset(), &handle, context.getStatus());
         return static_cast<SyclTensor&>(SyclTensor::from_handle(handle));
     }
 

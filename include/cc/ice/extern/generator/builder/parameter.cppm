@@ -120,13 +120,13 @@ public:
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     ice::sonic::TypeInfo
     wrap(std::type_identity<ice::sonic::TypeInfo>, const ::TF_TypeInfo* handle) const noexcept
     {
-        return ice::sonic::TypeInfo{m_TypeInfo_ops, const_cast<::TF_TypeInfo*>(handle)};
+        return ice::sonic::TypeInfo{m_TypeInfo_ops, handle};
     }
 
     const ::TFGeneratorParameterOps& get_vtable() const noexcept

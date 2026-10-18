@@ -8,6 +8,7 @@ module;
 export module aten_xpu_extern_kernel:linear;
 
 import std;
+import cc_ice_intern_sonic;
 import aten_xpu_intern;
 import :kernel;
 import :context;
@@ -78,7 +79,7 @@ public:
                                ? m_fusion.add_unary(attributes, m_unary, scalars, m_algorithm)
                                : add_binary(attributes, other_matrix);
         if (!built) {
-            context.fail(TF_INVALID_ARGUMENT, "unsupported linear post op");
+            context.fail(ice::sonic::Code::k_invalid_argument, "unsupported linear post op");
         } else {
             getRuntime().getMatmul().run(
                 queue->get(),
@@ -134,14 +135,7 @@ private:
         const std::array<int64_t, 2> dims{rows, columns};
         const std::array<int64_t, 2> strides{columns, 1};
         ::TF_Tensor* handle = nullptr;
-        tensor.tensor_view(
-            dims.data(),
-            2,
-            strides.data(),
-            tensor.getStorageOffset(),
-            &handle,
-            context.getStatus()
-        );
+        tensor.tensor_view(dims, strides, tensor.getStorageOffset(), &handle, context.getStatus());
         return static_cast<SyclTensor&>(SyclTensor::from_handle(handle));
     }
 

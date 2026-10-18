@@ -8,6 +8,7 @@ module;
 export module aten_xpu_extern_kernel:scaled_scaled_mm;
 
 import std;
+import cc_ice_intern_sonic;
 import aten_xpu_intern;
 import :kernel;
 import :context;
@@ -25,7 +26,7 @@ class SyclScaledMatmulKernel : public SyclKernel<SyclScaledMatmulKernel>
 public:
     SyclScaledMatmulKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
         SyclKernel<SyclScaledMatmulKernel>{ops, k_scaled_matmul_kernel_name},
-        m_output_type{construction.getType("output_dtype", TF_BFLOAT16)},
+        m_output_type{construction.getType("output_dtype", ice::sonic::DataTypeEnum::k_bfloat16)},
         m_use_fast_accumulation{construction.getBool("use_fast_accum", false)}
     {
     }
@@ -49,7 +50,10 @@ public:
         const auto left_kind = m_scaling_recipe.detect(left_scale->get(), rows, inner, true);
         const auto right_kind = m_scaling_recipe.detect(right_scale->get(), inner, columns, false);
         if (!m_scaling_recipe.compatible(left_kind, right_kind)) {
-            context.fail(TF_INVALID_ARGUMENT, "unsupported scaled_mm scaling recipe combination");
+            context.fail(
+                ice::sonic::Code::k_invalid_argument,
+                "unsupported scaled_mm scaling recipe combination"
+            );
             return;
         }
 
@@ -108,7 +112,7 @@ public:
     }
 
 private:
-    TFDataTypeEnum m_output_type;
+    ice::sonic::DataTypeEnum m_output_type;
     bool m_use_fast_accumulation;
     std::vector<int64_t> m_scratch_dims;
     SyclOnednnLayout m_layout;

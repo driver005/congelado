@@ -4,6 +4,7 @@
 
 import std;
 import cc_ice_intern_sonic;
+import cc_ice_extern_stream_executor_sonic;
 import aten_xpu;
 import aten_xpu_test;
 
@@ -27,24 +28,24 @@ TEST_F(SyclDeviceTest, CurrentDeviceRoundTrip)
 
 TEST_F(SyclDeviceTest, DeviceProperties)
 {
-    TF_DeviceProperties properties{};
+    ice::sonic::DeviceProperties properties;
     getDevice().get_device_properties(&properties, getStatus());
     EXPECT_TRUE(ok());
-    EXPECT_GT(properties.global_mem_size, 0U);
-    EXPECT_GT(properties.max_compute_units, 0U);
-    EXPECT_GT(properties.num_sub_group_sizes, 0U);
+    EXPECT_GT(properties.getGlobalMemSize(), 0U);
+    EXPECT_GT(properties.getMaxComputeUnits(), 0U);
+    EXPECT_GT(properties.getNumSubGroupSizes(), 0U);
 }
 
 TEST_F(SyclDeviceTest, PointerGetDevice)
 {
     auto allocator = make_allocator();
-    TF_DeviceMemoryBase memory{};
+    ice::sonic::DeviceMemoryBase memory;
     ice::sonic::Stream no_stream{SyclOpsTable::getInstance().getStreamOps()};
-    allocator.allocate(1'024, TF_MEMORY_SPACE_DEVICE, no_stream, &memory, getStatus());
+    allocator.allocate(1'024, ice::sonic::MemorySpace::k_device, no_stream, &memory, getStatus());
     ASSERT_TRUE(ok());
 
     int owner = -1;
-    getPlatform().get_device_for_pointer(memory.opaque, owner, getStatus());
+    getPlatform().get_device_for_pointer(memory.getOpaque(), owner, getStatus());
     EXPECT_EQ(owner, 0);
 
     allocator.deallocate(&memory);

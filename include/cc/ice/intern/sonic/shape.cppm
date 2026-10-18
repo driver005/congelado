@@ -27,25 +27,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Shape(
         const ice::sonic::Registration& registry,
-        ::TF_Shape* handle,
+        const ::TF_Shape& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -55,7 +55,7 @@ public:
     {
     }
 
-    Shape(const ::TF_ShapeOps* ops, ::TF_Shape* handle) noexcept :
+    Shape(const ::TF_ShapeOps* ops, const ::TF_Shape* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -75,9 +75,9 @@ public:
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    void set_dims(const int64_t* dims, int num_dims) const noexcept
+    void set_dims(const std::vector<std::int64_t>& dims) const noexcept
     {
-        m_ops->set_dims(get_handle(), dims, num_dims);
+        m_ops->set_dims(get_handle(), dims.data(), static_cast<int>(dims.size()));
     }
 
     void delete_shape() const noexcept

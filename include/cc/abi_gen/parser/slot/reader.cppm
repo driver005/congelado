@@ -50,6 +50,7 @@ public:
                 resolve_parameter_name(function_loc, index)
             };
             parameter.add_scalar_pointer(is_scalar_pointer(parameter_type));
+            parameter.add_element_pointer(is_element_pointer(parameter_type));
             parameters.emplace_back(std::move(parameter));
         }
 
@@ -72,6 +73,22 @@ private:
 
         clang::QualType pointee_type = parameter_type->getPointeeType();
         if (pointee_type.isConstQualified() || pointee_type->isAnyCharacterType()) {
+            return false;
+        }
+
+        return pointee_type->isArithmeticType() || pointee_type->isEnumeralType();
+    }
+
+    // Pointer to numbers or enums, const or not. Characters and bool stay out: a char array is a
+    // string and std::vector<bool> has no data().
+    static bool is_element_pointer(clang::QualType parameter_type) noexcept
+    {
+        if (!parameter_type->isPointerType()) {
+            return false;
+        }
+
+        clang::QualType pointee_type = parameter_type->getPointeeType();
+        if (pointee_type->isAnyCharacterType() || pointee_type->isBooleanType()) {
             return false;
         }
 

@@ -18,6 +18,7 @@ congelado_module_library(
     visibility = ["//visibility:public"],
     deps = [
         "//include/c:tf_c_headers",
+        "//include/cc/ice/extern/filesystem/sonic:cc_ice_extern_filesystem_sonic",
         "//include/cc/ice/intern/sonic:cc_ice_intern_sonic",
     ],
 )

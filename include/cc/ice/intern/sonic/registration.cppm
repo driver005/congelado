@@ -23,7 +23,7 @@ public:
     {
     }
 
-    Registration(const ::TF_RegistrationOps* ops, ::TF_Registration* handle) noexcept :
+    Registration(const ::TF_RegistrationOps* ops, const ::TF_Registration* handle) noexcept :
         Runtime(ops, handle)
     {
     }

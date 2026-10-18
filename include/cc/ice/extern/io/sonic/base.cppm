@@ -12,5 +12,7 @@ export import :server;
 export import :request;
 export import :response;
 export import :connection;
+export import :socket_status;
+export import :socket_protocol;
 
 // clang-format on

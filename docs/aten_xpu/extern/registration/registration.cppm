@@ -16,6 +16,7 @@ module;
 export module aten_xpu_extern_registration:registration;
 
 import std;
+import cc_ice_intern_sonic;
 import aten_xpu_intern;
 import aten_xpu_extern_stream_executor;
 import aten_xpu_extern_random_generator;
@@ -261,7 +262,10 @@ private:
     void register_kernels()
     {
         SyclKernelRegistrar registrar{m_ops};
-        for (const auto type: {TF_FLOAT, TF_HALF, TF_BFLOAT16}) {
+        for (const auto type:
+             {ice::sonic::DataTypeEnum::k_float,
+              ice::sonic::DataTypeEnum::k_half,
+              ice::sonic::DataTypeEnum::k_bfloat16}) {
             registrar.add<SyclAddmmKernel>(k_addmm_kernel_name, type);
             registrar.add<SyclBmmKernel>(k_bmm_kernel_name, type);
             registrar.add<SyclBaddbmmKernel>(k_baddbmm_kernel_name, type);
@@ -275,12 +279,14 @@ private:
             registrar.add<SyclSdpaBackwardKernel>(k_sdpa_backward_kernel_name, type);
             registrar.add<SyclLstmKernel>(k_lstm_kernel_name, type);
         }
-        for (const auto type: {TF_QINT8, TF_QUINT8}) {
+        for (const auto type:
+             {ice::sonic::DataTypeEnum::k_qint8, ice::sonic::DataTypeEnum::k_quint8}) {
             registrar.add<SyclInt8MatmulKernel>(k_int8_matmul_kernel_name, type);
             registrar.add<SyclInt8MatmulKernel>("QuantizedLinear", type);
             registrar.add<SyclInt8ConvolutionKernel>(k_int8_convolution_kernel_name, type);
         }
-        for (const auto type: {TF_FLOAT8_E4M3FN, TF_FLOAT8_E5M2}) {
+        for (const auto type:
+             {ice::sonic::DataTypeEnum::k_float8_e4m3fn, ice::sonic::DataTypeEnum::k_float8_e5m2}) {
             registrar.add<SyclScaledMatmulKernel>(k_scaled_matmul_kernel_name, type);
         }
         m_kernel_count = registrar.getRegisteredCount();

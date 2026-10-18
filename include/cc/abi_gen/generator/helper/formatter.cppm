@@ -272,34 +272,36 @@ format_vtable_field_generic_start(std::string_view slot_name) noexcept
 inline std::expected<std::string, std::string> format_vtable_field_middle(
     std::string_view cc_class_name,
     std::string_view slot_name,
-    std::string_view self_param_name
+    std::string_view self_param_name,
+    std::string_view preamble
 ) noexcept
 {
     return cc::templating::TemplateRenderer::render_template(
         "vtable_field_middle",
         {{"class_name", std::string{cc_class_name}},
          {"slot_name", std::string{slot_name}},
-         {"self_param_name", std::string{self_param_name}}}
+         {"self_param_name", std::string{self_param_name}},
+         {"preamble", std::string{preamble}}}
     );
 }
 
-inline std::string format_vtable_field_end()
+inline std::string format_vtable_field_end(std::string_view epilogue)
 {
-    return "\n                );\n            },\n";
+    return std::format("\n                );\n{}            }},\n", epilogue);
 }
 
 inline std::expected<std::string, std::string>
-format_method_body_start(std::string_view method_name) noexcept
+format_method_body_start(std::string_view method_name, std::string_view preamble) noexcept
 {
     return cc::templating::TemplateRenderer::render_template(
         "method_body_start",
-        {{"method_name", std::string{method_name}}}
+        {{"method_name", std::string{method_name}}, {"preamble", std::string{preamble}}}
     );
 }
 
-inline std::string format_method_body_end()
+inline std::string format_method_body_end(std::string_view epilogue)
 {
-    return ");\n            }\n";
+    return std::format(");\n{}            }}\n", epilogue);
 }
 
 inline std::expected<std::string, std::string> format_base_module(

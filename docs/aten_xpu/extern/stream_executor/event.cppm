@@ -7,6 +7,7 @@ module;
 export module aten_xpu_extern_stream_executor:event;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
 import cc_ice_intern_sonic;
 import cc_ice_extern_stream_executor_builder;
 import aten_xpu_intern;
@@ -28,17 +29,17 @@ public:
     SyclEvent(SyclEvent&&) = delete;
     SyclEvent& operator=(SyclEvent&&) = delete;
 
-    void bind(const TF_EventOptions& options, int device_index) noexcept
+    void bind(const ice::sonic::EventOptions& options, int device_index) noexcept
     {
-        m_enable_timing = options.enable_timing;
-        m_enable_ipc = options.enable_ipc;
-        m_reusable = options.reusable || options.enable_ipc;
+        m_enable_timing = options.getEnableTiming();
+        m_enable_ipc = options.getEnableIpc();
+        m_reusable = options.getReusable() || options.getEnableIpc();
         m_device_index = device_index;
         m_event.reset();
     }
 
     void bind_from_ipc(
-        const TF_IpcEventHandle& handle,
+        const ice::sonic::IpcEventHandle& handle,
         const sycl::context& context,
         const sycl::device& device,
         int device_index
@@ -50,8 +51,8 @@ public:
             throw std::runtime_error{"device does not support IPC events"};
         }
 
-        const auto* bytes = reinterpret_cast<const std::byte*>(handle.data);
-        const ipc::handle_data_t handle_data(bytes, bytes + handle.data_size);
+        const auto* bytes = reinterpret_cast<const std::byte*>(handle.getData().data());
+        const ipc::handle_data_t handle_data(bytes, bytes + handle.getDataSize());
         m_event = sycl::event{ipc::event::open(handle_data, context)};
         m_enable_ipc = true;
         m_reusable = true;
@@ -83,11 +84,19 @@ public:
     {
         auto& end_event = static_cast<SyclEvent&>(SyclEvent::from_handle(end.get_handle()));
         if (!m_enable_timing || !end_event.m_enable_timing) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, "both events need enable_timing");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_failed_precondition,
+                "both events need enable_timing"
+            );
             return;
         }
         if (!m_event || !end_event.m_event) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, "both events must be recorded");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_failed_precondition,
+                "both events must be recorded"
+            );
             return;
         }
 
@@ -105,30 +114,42 @@ public:
     }
 
     void export_ipc(
-        TF_IpcEventHandle* out_handle,
+        ice::sonic::IpcEventHandle* out_handle,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
         namespace ipc = sycl::ext::oneapi::experimental::ipc;
 
         if (!m_enable_ipc || m_imported) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, "event was not created with ipc");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_failed_precondition,
+                "event was not created with ipc"
+            );
             return;
         }
         if (!m_event) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, "event must be recorded first");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_failed_precondition,
+                "event must be recorded first"
+            );
             return;
         }
 
         try {
             const auto handle_data = ipc::event::get(*m_event).data();
-            if (handle_data.size() > sizeof(out_handle->data)) {
-                m_status.fail(out_status, TF_OUT_OF_RANGE, "ipc handle exceeds 64 bytes");
+            if (handle_data.size() > out_handle->getData().size()) {
+                m_status.fail(
+                    out_status,
+                    ice::sonic::Code::k_out_of_range,
+                    "ipc handle exceeds 64 bytes"
+                );
                 return;
             }
-            out_handle->struct_size = sizeof(TF_IpcEventHandle);
-            std::memcpy(out_handle->data, handle_data.data(), handle_data.size());
-            out_handle->data_size = handle_data.size();
+            *out_handle = ice::sonic::IpcEventHandle{};
+            std::memcpy(out_handle->getData().data(), handle_data.data(), handle_data.size());
+            out_handle->setDataSize(handle_data.size());
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
         }

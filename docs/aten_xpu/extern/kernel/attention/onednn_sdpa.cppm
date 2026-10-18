@@ -8,6 +8,7 @@ module;
 export module aten_xpu_extern_kernel:attention_onednn_sdpa;
 
 import std;
+import cc_ice_intern_sonic;
 import aten_xpu_intern;
 import :onednn_runtime;
 import :onednn_memory_layout;
@@ -87,13 +88,14 @@ private:
         k_output_id = 9
     };
 
-    dnnl::graph::logical_tensor::data_type to_graph_type(TFDataTypeEnum dtype) const noexcept
+    dnnl::graph::logical_tensor::data_type
+    to_graph_type(ice::sonic::DataTypeEnum dtype) const noexcept
     {
         using data_type = dnnl::graph::logical_tensor::data_type;
         switch (dtype) {
-            case TF_HALF:
+            case ice::sonic::DataTypeEnum::k_half:
                 return data_type::f16;
-            case TF_BFLOAT16:
+            case ice::sonic::DataTypeEnum::k_bfloat16:
                 return data_type::bf16;
             default:
                 return data_type::f32;

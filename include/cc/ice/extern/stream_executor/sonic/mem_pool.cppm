@@ -11,6 +11,7 @@ module;
 export module cc_ice_extern_stream_executor_sonic:mem_pool;
 
 import std;
+import :pool_id;
 import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
@@ -25,25 +26,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     MemPool(
         const ice::sonic::Registration& registry,
-        ::TF_MemPool* handle,
+        const ::TF_MemPool& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +54,7 @@ public:
     {
     }
 
-    MemPool(const ::TF_MemPoolOps* ops, ::TF_MemPool* handle) noexcept :
+    MemPool(const ::TF_MemPoolOps* ops, const ::TF_MemPool* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -68,9 +69,9 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void get_id(::TF_PoolId* out_pool_id) const noexcept
+    void get_id(ice::sonic::PoolId* out_pool_id) const noexcept
     {
-        m_ops->get_id(get_handle(), out_pool_id);
+        m_ops->get_id(get_handle(), out_pool_id == nullptr ? nullptr : out_pool_id->get_handle());
     }
 
     void use_count(int& out_count) const noexcept

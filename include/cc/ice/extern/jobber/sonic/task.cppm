@@ -26,25 +26,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Task(
         const ice::sonic::Registration& registry,
-        ::TF_Task* handle,
+        const ::TF_Task& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -54,7 +54,7 @@ public:
     {
     }
 
-    Task(const ::TF_TaskOps* ops, ::TF_Task* handle) noexcept :
+    Task(const ::TF_TaskOps* ops, const ::TF_Task* handle) noexcept :
         Runtime(ops, handle)
     {
     }

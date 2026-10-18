@@ -5,6 +5,7 @@ module;
 export module aten_xpu_extern_kernel:convolution_conv;
 
 import std;
+import cc_ice_intern_sonic;
 import aten_xpu_intern;
 import :kernel;
 import :context;
@@ -57,7 +58,7 @@ public:
 
         SyclPostOpAttributes attributes;
         if (!build_post_ops(attributes, other)) {
-            context.fail(TF_INVALID_ARGUMENT, "unsupported convolution post op");
+            context.fail(ice::sonic::Code::k_invalid_argument, "unsupported convolution post op");
             return;
         }
         getRuntime().getConvolution().forward(

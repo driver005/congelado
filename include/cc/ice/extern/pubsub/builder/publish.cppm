@@ -153,19 +153,19 @@ public:
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     ice::sonic::Vector
     wrap(std::type_identity<ice::sonic::Vector>, const ::TF_Vector* handle) const noexcept
     {
-        return ice::sonic::Vector{m_Vector_ops, const_cast<::TF_Vector*>(handle)};
+        return ice::sonic::Vector{m_Vector_ops, handle};
     }
 
     const ::TFPubSubPublishOps& get_vtable() const noexcept

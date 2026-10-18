@@ -7,6 +7,8 @@ module;
 export module aten_xpu_extern_grappler:device_graph;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
+import cc_ice_extern_grappler_sonic;
 import cc_ice_intern_sonic;
 import cc_ice_extern_grappler_builder;
 import aten_xpu_intern;
@@ -51,10 +53,7 @@ public:
         m_default_generator = std::move(default_generator);
         m_device = device;
         m_device_index = device_index;
-        m_pool_id = TF_PoolId{
-            .first = static_cast<int64_t>(m_graph_state.next_pool_sequence()),
-            .second = 0
-        };
+        m_pool_id = ice::sonic::PoolId{static_cast<int64_t>(m_graph_state.next_pool_sequence()), 0};
     }
 
     void destroy() noexcept override
@@ -64,22 +63,25 @@ public:
 
     void capture_begin(
         const ice::sonic::Stream& capture_stream,
-        const TF_PoolId* pool_id,
-        TF_CaptureMode mode,
+        const ice::sonic::PoolId* pool_id,
+        ice::sonic::CaptureMode mode,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
         static_cast<void>(mode);
         if (m_graph_exec) {
-            m_status
-                .fail(out_status, TF_FAILED_PRECONDITION, "graph instance already owns a capture");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_failed_precondition,
+                "graph instance already owns a capture"
+            );
             return;
         }
 
         auto& stream =
             static_cast<SyclStream&>(SyclStream::from_handle(capture_stream.get_handle()));
         m_capture_stream = stream.getSharedQueue();
-        if (pool_id != nullptr && (pool_id->first != 0 || pool_id->second != 0)) {
+        if (pool_id != nullptr && (pool_id->getFirst() != 0 || pool_id->getSecond() != 0)) {
             m_pool_id = *pool_id;
         }
 
@@ -97,14 +99,18 @@ public:
             stream.setCapturing(true);
             m_capture_owner = stream;
         } catch (const std::exception& error) {
-            m_status.fail(out_status, TF_INTERNAL, error.what());
+            m_status.fail(out_status, ice::sonic::Code::k_internal, error.what());
         }
     }
 
     void capture_end(const ice::sonic::Status& out_status) noexcept override
     {
         if (!m_graph || !m_capture_stream) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, "capture_end without capture_begin");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_failed_precondition,
+                "capture_end without capture_begin"
+            );
             return;
         }
 
@@ -129,7 +135,11 @@ public:
     void instantiate(const ice::sonic::Status& out_status) noexcept override
     {
         if (!m_capture_ended || !m_graph) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, "instantiate before capture_end");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_failed_precondition,
+                "instantiate before capture_end"
+            );
             return;
         }
 
@@ -143,7 +153,11 @@ public:
     void replay(const ice::sonic::Status& out_status) noexcept override
     {
         if (!m_capture_ended) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, "replay without a capture");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_failed_precondition,
+                "replay without a capture"
+            );
             return;
         }
         if (!m_graph_exec) {
@@ -178,7 +192,7 @@ public:
         m_capture_ended = false;
     }
 
-    void get_pool(TF_PoolId* out_pool_id) noexcept override
+    void get_pool(ice::sonic::PoolId* out_pool_id) noexcept override
     {
         *out_pool_id = m_pool_id;
     }
@@ -196,7 +210,7 @@ public:
             state->register_graph(this);
             m_generator_states.try_emplace(state, 0);
         } catch (const std::logic_error& error) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, error.what());
+            m_status.fail(out_status, ice::sonic::Code::k_failed_precondition, error.what());
         }
     }
 
@@ -213,7 +227,7 @@ public:
             state->unregister_graph(this);
             m_generator_states.erase(state);
         } catch (const std::logic_error& error) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, error.what());
+            m_status.fail(out_status, ice::sonic::Code::k_failed_precondition, error.what());
         }
     }
 
@@ -233,11 +247,19 @@ public:
         path.get_size(size);
         const std::string target(data, size);
         if (!target.ends_with(".dot")) {
-            m_status.fail(out_status, TF_INVALID_ARGUMENT, "debug path must end with .dot");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_invalid_argument,
+                "debug path must end with .dot"
+            );
             return;
         }
         if (!m_graph) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, "no captured graph to dump");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_failed_precondition,
+                "no captured graph to dump"
+            );
             return;
         }
 
@@ -270,7 +292,7 @@ private:
     SyclGraphState& m_graph_state;
     sycl::device m_device;
     int m_device_index{0};
-    TF_PoolId m_pool_id{};
+    ice::sonic::PoolId m_pool_id{};
     std::shared_ptr<sycl::queue> m_capture_stream;
     std::optional<std::reference_wrapper<SyclStream>> m_capture_owner;
     std::shared_ptr<SyclPhiloxState> m_default_generator;

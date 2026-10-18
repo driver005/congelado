@@ -13,5 +13,7 @@ export import :job;
 export import :jobber;
 export import :options;
 export import :task;
+export import :job_status;
+export import :job_options;
 
 // clang-format on

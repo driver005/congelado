@@ -12,6 +12,7 @@ export module cc_ice_extern_jobber_sonic:options;
 
 import std;
 import :job;
+import :job_options;
 import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
@@ -26,25 +27,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Options(
         const ice::sonic::Registration& registry,
-        ::TF_Options* handle,
+        const ::TF_Options& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -54,7 +55,7 @@ public:
     {
     }
 
-    Options(const ::TF_OptionsOps* ops, ::TF_Options* handle) noexcept :
+    Options(const ::TF_OptionsOps* ops, const ::TF_Options* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -71,20 +72,30 @@ public:
 
     void get_options(
         const ice::sonic::Job& job,
-        ::TFJobOptions* out_options,
+        ice::sonic::JobOptions* out_options,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->get_options(get_handle(), job.get_handle(), out_options, out_status.get_handle());
+        m_ops->get_options(
+            get_handle(),
+            job.get_handle(),
+            out_options == nullptr ? nullptr : out_options->get_handle(),
+            out_status.get_handle()
+        );
     }
 
     void update_options(
         const ice::sonic::Job& job,
-        const ::TFJobOptions* new_options,
+        const ice::sonic::JobOptions* new_options,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->update_options(get_handle(), job.get_handle(), new_options, out_status.get_handle());
+        m_ops->update_options(
+            get_handle(),
+            job.get_handle(),
+            new_options == nullptr ? nullptr : new_options->get_handle(),
+            out_status.get_handle()
+        );
     }
 
     void set_priority(

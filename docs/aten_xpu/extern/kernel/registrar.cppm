@@ -45,7 +45,7 @@ public:
     template<typename Kernel>
     bool add(
         std::string_view op_name,
-        std::span<const std::pair<std::string_view, TFDataTypeEnum>> constraints
+        std::span<const std::pair<std::string_view, ice::sonic::DataTypeEnum>> constraints
     )
     {
         ::TF_KernelBuilderOps* builder_ops = nullptr;
@@ -72,7 +72,10 @@ public:
             {
                 SyclKernelContext context{raw_context};
                 if (plugin_data == nullptr) {
-                    context.fail(TF_FAILED_PRECONDITION, "kernel construction failed");
+                    context.fail(
+                        ice::sonic::Code::k_failed_precondition,
+                        "kernel construction failed"
+                    );
                     return;
                 }
                 try {
@@ -104,17 +107,19 @@ public:
     }
 
     template<typename Kernel>
-    bool add(std::string_view op_name, TFDataTypeEnum type)
+    bool add(std::string_view op_name, ice::sonic::DataTypeEnum type)
     {
-        const std::array<std::pair<std::string_view, TFDataTypeEnum>, 1> constraints{{{"T", type}}};
+        const std::array<std::pair<std::string_view, ice::sonic::DataTypeEnum>, 1> constraints{
+            {{"T", type}}
+        };
         return add<Kernel>(op_name, constraints);
     }
 
     bool ok() const noexcept
     {
-        TF_Code code = TF_OK;
+        ice::sonic::Code code{ice::sonic::Code::k_ok};
         m_status.get_code(code);
-        return code == TF_OK;
+        return code == ice::sonic::Code::k_ok;
     }
 
     std::size_t getRegisteredCount() const noexcept

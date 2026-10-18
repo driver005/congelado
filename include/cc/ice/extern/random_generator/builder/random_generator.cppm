@@ -68,7 +68,7 @@ public:
     ) noexcept = 0;
     virtual void philox_state(
         uint64_t increment,
-        ::TF_PhiloxState* out_state,
+        ice::sonic::PhiloxState* out_state,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void philox_engine_inputs(
@@ -176,11 +176,18 @@ public:
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = RandomGenerator::from_handle(generator);
+                std::optional<ice::sonic::PhiloxState> wrapped_out_state;
+                if (out_state != nullptr) {
+                    wrapped_out_state.emplace(*out_state);
+                }
                 self.philox_state(
                     increment,
-                    out_state,
+                    wrapped_out_state ? &*wrapped_out_state : nullptr,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
+                if (out_state != nullptr) {
+                    *out_state = *wrapped_out_state->get_handle();
+                }
             },
             .philox_engine_inputs =
                 [](::TF_RandomGenerator* generator,
@@ -223,22 +230,19 @@ public:
         const ::TF_RandomGenerator* handle
     ) const noexcept
     {
-        return ice::sonic::RandomGenerator{
-            m_RandomGenerator_ops,
-            const_cast<::TF_RandomGenerator*>(handle)
-        };
+        return ice::sonic::RandomGenerator{m_RandomGenerator_ops, handle};
     }
 
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     ice::sonic::Tensor
     wrap(std::type_identity<ice::sonic::Tensor>, const ::TF_Tensor* handle) const noexcept
     {
-        return ice::sonic::Tensor{m_Tensor_ops, const_cast<::TF_Tensor*>(handle)};
+        return ice::sonic::Tensor{m_Tensor_ops, handle};
     }
 
     const ::TF_RandomGeneratorOps& get_vtable() const noexcept

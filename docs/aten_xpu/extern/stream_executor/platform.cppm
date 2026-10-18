@@ -56,7 +56,7 @@ public:
     ) noexcept override
     {
         if (m_native_devices.empty()) {
-            m_status.fail(out_status, TF_NOT_FOUND, "no XPU device available");
+            m_status.fail(out_status, ice::sonic::Code::k_not_found, "no XPU device available");
             return;
         }
 
@@ -111,7 +111,8 @@ public:
     ) noexcept override
     {
         if (!is_valid_index(device_index)) {
-            m_status.fail(out_status, TF_OUT_OF_RANGE, "device index out of range");
+            m_status
+                .fail(out_status, ice::sonic::Code::k_out_of_range, "device index out of range");
             return;
         }
         t_current_device_index = device_index;
@@ -125,7 +126,11 @@ public:
     {
         const auto index = find_pointer_device(pointer);
         if (!index) {
-            m_status.fail(out_status, TF_NOT_FOUND, "pointer does not belong to this platform");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_not_found,
+                "pointer does not belong to this platform"
+            );
             return;
         }
         out_device_index = *index;
@@ -139,7 +144,8 @@ public:
     ) noexcept override
     {
         if (!is_valid_index(device_index) || !is_valid_index(peer_device_index)) {
-            m_status.fail(out_status, TF_OUT_OF_RANGE, "device index out of range");
+            m_status
+                .fail(out_status, ice::sonic::Code::k_out_of_range, "device index out of range");
             return;
         }
 

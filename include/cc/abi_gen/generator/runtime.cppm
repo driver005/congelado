@@ -114,6 +114,13 @@ public:
             }
         }
 
+        for (const auto& [c_name, value]: registry.get_value_models()) {
+            auto result = m_emitter.generate_value(m_repo_root, m_output_dir, value);
+            if (!result) {
+                return std::unexpected{std::move(result.error())};
+            }
+        }
+
         auto runtime = m_emitter.generate_runtime(m_repo_root, m_output_dir);
         if (!runtime) {
             return std::unexpected{std::move(runtime.error())};
@@ -151,6 +158,17 @@ public:
                 if (!*rendered) {
                     return false;
                 }
+            }
+        }
+
+        for (const auto& [c_name, value]: registry.get_value_models()) {
+            auto rendered = m_emitter.check_value(m_repo_root, m_output_dir, value);
+            if (!rendered) {
+                return std::unexpected{std::move(rendered.error())};
+            }
+
+            if (!*rendered) {
+                return false;
             }
         }
 

@@ -7,6 +7,7 @@ module;
 export module aten_xpu_extern_stream_executor:device;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
 import cc_ice_intern_sonic;
 import cc_ice_extern_stream_executor_builder;
 import aten_xpu_intern;
@@ -48,26 +49,27 @@ public:
 
     void get_memory_bandwidth(std::int64_t& out_bandwidth) noexcept override
     {
-        const auto bus_bits = static_cast<int64_t>(m_properties.memory_bus_width);
-        const auto clock_khz = static_cast<int64_t>(m_properties.memory_clock_rate);
+        const auto bus_bits = static_cast<int64_t>(m_properties.getMemoryBusWidth());
+        const auto clock_khz = static_cast<int64_t>(m_properties.getMemoryClockRate());
         out_bandwidth = bus_bits / 8 * clock_khz * 1'000 * 2;
     }
 
     void get_gflops(double& out_gflops) noexcept override
     {
-        const double lanes = static_cast<double>(m_properties.gpu_eu_count) *
-                             static_cast<double>(m_properties.gpu_eu_simd_width);
-        out_gflops = lanes * 2.0 * static_cast<double>(m_properties.max_clock_frequency) / 1000.0;
+        const double lanes = static_cast<double>(m_properties.getGpuEuCount()) *
+                             static_cast<double>(m_properties.getGpuEuSimdWidth());
+        out_gflops =
+            lanes * 2.0 * static_cast<double>(m_properties.getMaxClockFrequency()) / 1000.0;
     }
 
     void get_hardware_name(const ice::sonic::String& out_name) noexcept override
     {
-        m_status.copy_into(out_name, m_properties.name);
+        m_status.copy_into(out_name, m_properties.getName().data());
     }
 
     void get_device_vendor(const ice::sonic::String& out_vendor) noexcept override
     {
-        m_status.copy_into(out_vendor, m_properties.vendor);
+        m_status.copy_into(out_vendor, m_properties.getVendor().data());
     }
 
     void get_pci_bus_id(const ice::sonic::String& out_pci_bus_id) noexcept override
@@ -76,7 +78,7 @@ public:
     }
 
     void get_device_properties(
-        TF_DeviceProperties* out_properties,
+        ice::sonic::DeviceProperties* out_properties,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -104,7 +106,7 @@ public:
         return m_global_index;
     }
 
-    const TF_DeviceProperties& getProperties() const noexcept
+    const ice::sonic::DeviceProperties& getProperties() const noexcept
     {
         return m_properties;
     }
@@ -120,10 +122,10 @@ private:
     }
 
     template<std::size_t Extent>
-    void copy_bounded(const std::string& source, char (&destination)[Extent]) const noexcept
+    void copy_bounded(const std::string& source, std::span<char, Extent> destination) const noexcept
     {
         const std::size_t count = std::min(source.size(), Extent - 1);
-        std::copy_n(source.data(), count, destination);
+        std::copy_n(source.data(), count, destination.begin());
         destination[count] = '\0';
     }
 
@@ -148,124 +150,152 @@ private:
         namespace intel = sycl::ext::intel::info::device;
         namespace oneapi = sycl::ext::oneapi::experimental;
 
-        m_properties = TF_DeviceProperties{.struct_size = sizeof(TF_DeviceProperties)};
+        m_properties = ice::sonic::DeviceProperties{};
         auto& properties = m_properties;
 
-        copy_bounded(m_device.get_info<info::name>(), properties.name);
-        copy_bounded(m_device.get_info<info::vendor>(), properties.vendor);
-        copy_bounded(m_device.get_info<info::driver_version>(), properties.driver_version);
-        copy_bounded(m_device.get_info<info::version>(), properties.version);
+        copy_bounded(m_device.get_info<info::name>(), properties.getName());
+        copy_bounded(m_device.get_info<info::vendor>(), properties.getVendor());
+        copy_bounded(m_device.get_info<info::driver_version>(), properties.getDriverVersion());
+        copy_bounded(m_device.get_info<info::version>(), properties.getVersion());
 
-        properties.device_type = static_cast<int32_t>(m_device.get_info<info::device_type>());
-        properties.is_available = m_device.get_info<info::is_available>();
-        properties.architecture =
-            static_cast<int32_t>(m_device.get_info<oneapi::info::device::architecture>());
-
-        properties.global_mem_size = m_device.get_info<info::global_mem_size>();
-        properties.local_mem_size = m_device.get_info<info::local_mem_size>();
-        properties.max_mem_alloc_size = m_device.get_info<info::max_mem_alloc_size>();
-        properties.global_mem_cache_size = m_device.get_info<info::global_mem_cache_size>();
-        properties.global_mem_cache_line_size =
-            m_device.get_info<info::global_mem_cache_line_size>();
-        properties.global_mem_cache_type =
-            static_cast<uint32_t>(m_device.get_info<info::global_mem_cache_type>());
-        properties.local_mem_type =
-            static_cast<uint32_t>(m_device.get_info<info::local_mem_type>());
-        properties.mem_base_addr_align = m_device.get_info<info::mem_base_addr_align>();
-
-        properties.max_compute_units = m_device.get_info<info::max_compute_units>();
-        properties.max_work_item_dimensions = m_device.get_info<info::max_work_item_dimensions>();
-        properties.max_work_group_size =
-            static_cast<uint32_t>(m_device.get_info<info::max_work_group_size>());
-        properties.max_num_sub_groups = m_device.get_info<info::max_num_sub_groups>();
-        properties.max_clock_frequency = m_device.get_info<info::max_clock_frequency>();
-        properties.address_bits = m_device.get_info<info::address_bits>();
-        properties.max_parameter_size =
-            static_cast<uint32_t>(m_device.get_info<info::max_parameter_size>());
-        properties.partition_max_sub_devices = m_device.get_info<info::partition_max_sub_devices>();
-        properties.profiling_timer_resolution =
-            m_device.get_info<info::profiling_timer_resolution>();
-
-        properties.half_fp_config = fp_config_bits(m_device.get_info<info::half_fp_config>());
-        properties.single_fp_config = fp_config_bits(m_device.get_info<info::single_fp_config>());
-        properties.double_fp_config = fp_config_bits(m_device.get_info<info::double_fp_config>());
-
-        properties.preferred_vector_width_char =
-            m_device.get_info<info::preferred_vector_width_char>();
-        properties.preferred_vector_width_short =
-            m_device.get_info<info::preferred_vector_width_short>();
-        properties.preferred_vector_width_int =
-            m_device.get_info<info::preferred_vector_width_int>();
-        properties.preferred_vector_width_long =
-            m_device.get_info<info::preferred_vector_width_long>();
-        properties.preferred_vector_width_float =
-            m_device.get_info<info::preferred_vector_width_float>();
-        properties.preferred_vector_width_double =
-            m_device.get_info<info::preferred_vector_width_double>();
-        properties.preferred_vector_width_half =
-            m_device.get_info<info::preferred_vector_width_half>();
-        properties.native_vector_width_char = m_device.get_info<info::native_vector_width_char>();
-        properties.native_vector_width_short = m_device.get_info<info::native_vector_width_short>();
-        properties.native_vector_width_int = m_device.get_info<info::native_vector_width_int>();
-        properties.native_vector_width_long = m_device.get_info<info::native_vector_width_long>();
-        properties.native_vector_width_float = m_device.get_info<info::native_vector_width_float>();
-        properties.native_vector_width_double =
-            m_device.get_info<info::native_vector_width_double>();
-        properties.native_vector_width_half = m_device.get_info<info::native_vector_width_half>();
-
-        properties.gpu_eu_count =
-            query_intel<intel::gpu_eu_count>(sycl::aspect::ext_intel_gpu_eu_count, 512U);
-        properties.gpu_eu_count_per_subslice = query_intel<intel::gpu_eu_count_per_subslice>(
-            sycl::aspect::ext_intel_gpu_eu_count_per_subslice,
-            8U
+        properties.setDeviceType(static_cast<int32_t>(m_device.get_info<info::device_type>()));
+        properties.setIsAvailable(m_device.get_info<info::is_available>());
+        properties.setArchitecture(
+            static_cast<int32_t>(m_device.get_info<oneapi::info::device::architecture>())
         );
-        properties.gpu_eu_simd_width =
-            query_intel<intel::gpu_eu_simd_width>(sycl::aspect::ext_intel_gpu_eu_simd_width, 8U);
-        properties.gpu_hw_threads_per_eu = query_intel<intel::gpu_hw_threads_per_eu>(
-            sycl::aspect::ext_intel_gpu_hw_threads_per_eu,
-            8U
+
+        properties.setGlobalMemSize(m_device.get_info<info::global_mem_size>());
+        properties.setLocalMemSize(m_device.get_info<info::local_mem_size>());
+        properties.setMaxMemAllocSize(m_device.get_info<info::max_mem_alloc_size>());
+        properties.setGlobalMemCacheSize(m_device.get_info<info::global_mem_cache_size>());
+        properties.setGlobalMemCacheLineSize(m_device.get_info<info::global_mem_cache_line_size>());
+        properties.setGlobalMemCacheType(
+            static_cast<uint32_t>(m_device.get_info<info::global_mem_cache_type>())
         );
-        properties.device_id = static_cast<int32_t>(
-            query_intel<intel::device_id>(sycl::aspect::ext_intel_device_id, 0U)
+        properties.setLocalMemType(
+            static_cast<uint32_t>(m_device.get_info<info::local_mem_type>())
         );
-        properties.memory_clock_rate =
-            query_intel<intel::memory_clock_rate>(sycl::aspect::ext_intel_memory_clock_rate, 0U);
-        properties.memory_bus_width =
-            query_intel<intel::memory_bus_width>(sycl::aspect::ext_intel_memory_bus_width, 0U);
+        properties.setMemBaseAddrAlign(m_device.get_info<info::mem_base_addr_align>());
+
+        properties.setMaxComputeUnits(m_device.get_info<info::max_compute_units>());
+        properties.setMaxWorkItemDimensions(m_device.get_info<info::max_work_item_dimensions>());
+        properties.setMaxWorkGroupSize(
+            static_cast<uint32_t>(m_device.get_info<info::max_work_group_size>())
+        );
+        properties.setMaxNumSubGroups(m_device.get_info<info::max_num_sub_groups>());
+        properties.setMaxClockFrequency(m_device.get_info<info::max_clock_frequency>());
+        properties.setAddressBits(m_device.get_info<info::address_bits>());
+        properties.setMaxParameterSize(
+            static_cast<uint32_t>(m_device.get_info<info::max_parameter_size>())
+        );
+        properties.setPartitionMaxSubDevices(m_device.get_info<info::partition_max_sub_devices>());
+        properties.setProfilingTimerResolution(
+            m_device.get_info<info::profiling_timer_resolution>()
+        );
+
+        properties.setHalfFpConfig(fp_config_bits(m_device.get_info<info::half_fp_config>()));
+        properties.setSingleFpConfig(fp_config_bits(m_device.get_info<info::single_fp_config>()));
+        properties.setDoubleFpConfig(fp_config_bits(m_device.get_info<info::double_fp_config>()));
+
+        properties.setPreferredVectorWidthChar(
+            m_device.get_info<info::preferred_vector_width_char>()
+        );
+        properties.setPreferredVectorWidthShort(
+            m_device.get_info<info::preferred_vector_width_short>()
+        );
+        properties.setPreferredVectorWidthInt(
+            m_device.get_info<info::preferred_vector_width_int>()
+        );
+        properties.setPreferredVectorWidthLong(
+            m_device.get_info<info::preferred_vector_width_long>()
+        );
+        properties.setPreferredVectorWidthFloat(
+            m_device.get_info<info::preferred_vector_width_float>()
+        );
+        properties.setPreferredVectorWidthDouble(
+            m_device.get_info<info::preferred_vector_width_double>()
+        );
+        properties.setPreferredVectorWidthHalf(
+            m_device.get_info<info::preferred_vector_width_half>()
+        );
+        properties.setNativeVectorWidthChar(m_device.get_info<info::native_vector_width_char>());
+        properties.setNativeVectorWidthShort(m_device.get_info<info::native_vector_width_short>());
+        properties.setNativeVectorWidthInt(m_device.get_info<info::native_vector_width_int>());
+        properties.setNativeVectorWidthLong(m_device.get_info<info::native_vector_width_long>());
+        properties.setNativeVectorWidthFloat(m_device.get_info<info::native_vector_width_float>());
+        properties.setNativeVectorWidthDouble(
+            m_device.get_info<info::native_vector_width_double>()
+        );
+        properties.setNativeVectorWidthHalf(m_device.get_info<info::native_vector_width_half>());
+
+        properties.setGpuEuCount(
+            query_intel<intel::gpu_eu_count>(sycl::aspect::ext_intel_gpu_eu_count, 512U)
+        );
+        properties.setGpuEuCountPerSubslice(
+            query_intel<intel::gpu_eu_count_per_subslice>(
+                sycl::aspect::ext_intel_gpu_eu_count_per_subslice,
+                8U
+            )
+        );
+        properties.setGpuEuSimdWidth(
+            query_intel<intel::gpu_eu_simd_width>(sycl::aspect::ext_intel_gpu_eu_simd_width, 8U)
+        );
+        properties.setGpuHwThreadsPerEu(
+            query_intel<intel::gpu_hw_threads_per_eu>(
+                sycl::aspect::ext_intel_gpu_hw_threads_per_eu,
+                8U
+            )
+        );
+        properties.setDeviceId(
+            static_cast<int32_t>(
+                query_intel<intel::device_id>(sycl::aspect::ext_intel_device_id, 0U)
+            )
+        );
+        properties.setMemoryClockRate(
+            query_intel<intel::memory_clock_rate>(sycl::aspect::ext_intel_memory_clock_rate, 0U)
+        );
+        properties.setMemoryBusWidth(
+            query_intel<intel::memory_bus_width>(sycl::aspect::ext_intel_memory_bus_width, 0U)
+        );
 
         if (m_device.has(sycl::aspect::ext_intel_device_info_uuid)) {
             const auto uuid = m_device.get_info<intel::uuid>();
-            std::ranges::copy(uuid, std::begin(properties.uuid));
+            std::ranges::copy(uuid, properties.getUuid().begin());
         }
         if (m_device.has(sycl::aspect::ext_intel_pci_address)) {
             m_pci_bus_id = m_device.get_info<intel::pci_address>();
         }
 
-        properties.xe_stack_count = 1;
-        properties.xe_regions_per_stack = 1;
-        properties.xe_clusters_per_region = 1;
-        properties.xe_cores_per_cluster = 64;
-        properties.eus_per_xe_core = 8;
-        properties.max_lanes_per_hw_thread = 32;
+        properties.setXeStackCount(1);
+        properties.setXeRegionsPerStack(1);
+        properties.setXeClustersPerRegion(1);
+        properties.setXeCoresPerCluster(64);
+        properties.setEusPerXeCore(8);
+        properties.setMaxLanesPerHwThread(32);
 
         const auto sub_group_sizes = m_device.get_info<info::sub_group_sizes>();
-        properties.num_sub_group_sizes = static_cast<uint32_t>(
-            std::min(sub_group_sizes.size(), std::size(properties.sub_group_sizes))
+        properties.setNumSubGroupSizes(
+            static_cast<uint32_t>(
+                std::min(sub_group_sizes.size(), properties.getSubGroupSizes().size())
+            )
         );
-        for (uint32_t index = 0; index < properties.num_sub_group_sizes; ++index) {
-            properties.sub_group_sizes[index] = static_cast<uint32_t>(sub_group_sizes[index]);
+        for (uint32_t index = 0; index < properties.getNumSubGroupSizes(); ++index) {
+            properties.getSubGroupSizes()[index] = static_cast<uint32_t>(sub_group_sizes[index]);
         }
 
-        properties.has_fp16 = m_device.has(sycl::aspect::fp16);
-        properties.has_fp64 = m_device.has(sycl::aspect::fp64);
-        properties.has_atomic64 = m_device.has(sycl::aspect::atomic64);
-        properties.has_bfloat16_conversions =
-            m_device.has(sycl::aspect::ext_oneapi_bfloat16_math_functions);
-        properties.has_subgroup_matrix_multiply_accumulate =
-            m_device.has(sycl::aspect::ext_intel_matrix);
-        properties.has_subgroup_matrix_multiply_accumulate_tensor_float32 =
-            properties.has_subgroup_matrix_multiply_accumulate;
-        properties.has_subgroup_2d_block_io = m_device.has(sycl::aspect::ext_intel_matrix);
+        properties.setHasFp16(m_device.has(sycl::aspect::fp16));
+        properties.setHasFp64(m_device.has(sycl::aspect::fp64));
+        properties.setHasAtomic64(m_device.has(sycl::aspect::atomic64));
+        properties.setHasBfloat16Conversions(
+            m_device.has(sycl::aspect::ext_oneapi_bfloat16_math_functions)
+        );
+        properties.setHasSubgroupMatrixMultiplyAccumulate(
+            m_device.has(sycl::aspect::ext_intel_matrix)
+        );
+        properties.setHasSubgroupMatrixMultiplyAccumulateTensorFloat32(
+            properties.getHasSubgroupMatrixMultiplyAccumulate()
+        );
+        properties.setHasSubgroup2dBlockIo(m_device.has(sycl::aspect::ext_intel_matrix));
     }
 
     SyclStatus m_status;
@@ -273,7 +303,7 @@ private:
     int m_device_index{-1};
     int32_t m_global_index{-1};
     std::string m_pci_bus_id;
-    TF_DeviceProperties m_properties{};
+    ice::sonic::DeviceProperties m_properties;
 };
 
 } // namespace aten_xpu

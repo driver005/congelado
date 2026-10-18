@@ -40,8 +40,8 @@ public:
             reinterpret_cast<std::uintptr_t>(head.getQueue()),
             !pool.getIsSmall(),
             head.getExpandableSegment() != nullptr,
-            pool.getOwner().first,
-            pool.getOwner().second
+            pool.getOwner().getFirst(),
+            pool.getOwner().getSecond()
         );
 
         bool first_block = true;
@@ -94,8 +94,8 @@ public:
                     address,
                     size,
                     reinterpret_cast<std::uintptr_t>(queue),
-                    pool.first,
-                    pool.second
+                    pool.getFirst(),
+                    pool.getSecond()
                 );
             }
         );

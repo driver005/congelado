@@ -26,6 +26,11 @@ export import :time_point;
 export import :buffer;
 export import :hash;
 export import :bitset;
+export import :code;
+export import :t_string_type;
+export import :attr_type_enum;
+export import :data_type_enum;
+export import :shape_data;
 export import :runtime;
 
 // clang-format on

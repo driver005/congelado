@@ -7,6 +7,7 @@ module;
 export module aten_xpu_extern_kernel:attention_sdpa;
 
 import std;
+import cc_ice_intern_sonic;
 import aten_xpu_intern;
 import :kernel;
 import :context;
@@ -30,7 +31,10 @@ public:
         m_return_probabilities{construction.getBool("return_probabilities", false)}
     {
         if (m_dropout > 0.0F) {
-            construction.fail(TF_UNIMPLEMENTED, "attention dropout is not supported");
+            construction.fail(
+                ice::sonic::Code::k_unimplemented,
+                "attention dropout is not supported"
+            );
         }
     }
 
@@ -53,7 +57,7 @@ public:
             m_selector.choose(query->get(), key->get(), value->get(), mask, m_dropout, m_is_causal);
         if (backend == m_selector.Backend::invalid) {
             context.fail(
-                TF_INVALID_ARGUMENT,
+                ice::sonic::Code::k_invalid_argument,
                 "attention expects [batch, heads, length, head_dim] inputs"
             );
             return;
@@ -101,7 +105,11 @@ public:
             return;
         }
         if (m_return_probabilities) {
-            auto saved = context.allocateOutput(1, TF_FLOAT, probabilities->get().getDims());
+            auto saved = context.allocateOutput(
+                1,
+                ice::sonic::DataTypeEnum::k_float,
+                probabilities->get().getDims()
+            );
             if (saved) {
                 queue->get().memcpy(
                     saved->get().getData(),

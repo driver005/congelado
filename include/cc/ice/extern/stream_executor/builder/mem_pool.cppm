@@ -12,6 +12,7 @@ module;
 export module cc_ice_extern_stream_executor_builder:mem_pool;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
 import cc_ice_intern_sonic;
 
 export namespace ice::builder {
@@ -41,7 +42,7 @@ public:
 
     virtual ~MemPool() = default;
     virtual void destroy() noexcept = 0;
-    virtual void get_id(::TF_PoolId* out_pool_id) noexcept = 0;
+    virtual void get_id(ice::sonic::PoolId* out_pool_id) noexcept = 0;
     virtual void use_count(int& out_count) noexcept = 0;
     virtual void begin_allocate_to_pool(
         TF_StreamFilterFn stream_filter,
@@ -69,7 +70,14 @@ public:
                 [](::TF_MemPool* pool, ::TF_PoolId* out_pool_id) noexcept
             {
                 auto& self = MemPool::from_handle(pool);
-                self.get_id(out_pool_id);
+                std::optional<ice::sonic::PoolId> wrapped_out_pool_id;
+                if (out_pool_id != nullptr) {
+                    wrapped_out_pool_id.emplace(*out_pool_id);
+                }
+                self.get_id(wrapped_out_pool_id ? &*wrapped_out_pool_id : nullptr);
+                if (out_pool_id != nullptr) {
+                    *out_pool_id = *wrapped_out_pool_id->get_handle();
+                }
             },
             .use_count =
                 [](::TF_MemPool* pool, int* out_count) noexcept
@@ -120,7 +128,7 @@ public:
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     const ::TF_MemPoolOps& get_vtable() const noexcept

@@ -2,6 +2,7 @@ export module cc_abi_gen_parser:registry;
 
 import std;
 import :vtable_model;
+import :value_model;
 
 export namespace cc_abi_gen::parser {
 
@@ -68,6 +69,27 @@ public:
         m_known_models.insert({model.get_struct_name(), std::move(model)});
     }
 
+    void append_value_model(value::Model&& model) noexcept
+    {
+        m_value_models.insert({model.get_c_name(), std::move(model)});
+    }
+
+    // Plain C structs and enums, keyed by their C name.
+    const std::unordered_map<std::string, value::Model>& get_value_models() const noexcept
+    {
+        return m_value_models;
+    }
+
+    std::optional<std::reference_wrapper<const value::Model>>
+    find_value(const std::string& name) const
+    {
+        auto it = m_value_models.find(name);
+        if (it != m_value_models.end()) {
+            return std::cref(it->second);
+        }
+        return std::nullopt;
+    }
+
     const std::unordered_map<std::string, vtable::Model>& get_models() const noexcept
     {
         return m_known_models;
@@ -76,6 +98,7 @@ public:
 
 private:
     std::unordered_map<std::string, vtable::Model> m_known_models;
+    std::unordered_map<std::string, value::Model> m_value_models;
 };
 
 } // namespace cc_abi_gen::parser

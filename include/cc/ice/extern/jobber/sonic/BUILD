@@ -15,6 +15,8 @@ congelado_module_library(
         "jobber.cppm",
         "options.cppm",
         "task.cppm",
+        "job_status.cppm",
+        "job_options.cppm",
     ],
     primary_interface = "base.cppm",
     visibility = ["//visibility:public"],

@@ -7,6 +7,7 @@ module;
 export module aten_xpu_extern_stream_executor:allocator;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
 import cc_ice_intern_sonic;
 import cc_ice_extern_stream_executor_builder;
 import aten_xpu_intern;
@@ -49,8 +50,8 @@ public:
             ops.getStreamOps()
         },
         m_status{ops},
-        m_small_blocks{true, TF_PoolId{}},
-        m_large_blocks{false, TF_PoolId{}}
+        m_small_blocks{true, ice::sonic::PoolId{}},
+        m_large_blocks{false, ice::sonic::PoolId{}}
     {
     }
 
@@ -110,70 +111,75 @@ public:
 
     void allocate(
         uint64_t size,
-        TF_MemorySpace memory_space,
+        ice::sonic::MemorySpace memory_space,
         const ice::sonic::Stream& stream,
-        TF_DeviceMemoryBase* out_memory,
+        ice::sonic::DeviceMemoryBase* out_memory,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
         try {
-            *out_memory = TF_DeviceMemoryBase{.struct_size = sizeof(TF_DeviceMemoryBase)};
-            out_memory->size = size;
+            *out_memory = ice::sonic::DeviceMemoryBase{};
+            out_memory->setSize(size);
 
-            if (memory_space == TF_MEMORY_SPACE_HOST_PINNED) {
-                out_memory->opaque = m_host_cache->allocate(size);
-            } else if (memory_space == TF_MEMORY_SPACE_UNIFIED) {
-                out_memory->opaque =
-                    sycl::aligned_alloc_shared(k_min_block_size, size, m_device, m_context);
-                if (out_memory->opaque != nullptr) {
-                    m_unified.insert(out_memory->opaque);
+            if (memory_space == ice::sonic::MemorySpace::k_host_pinned) {
+                out_memory->setOpaque(m_host_cache->allocate(size));
+            } else if (memory_space == ice::sonic::MemorySpace::k_unified) {
+                out_memory->setOpaque(
+                    sycl::aligned_alloc_shared(k_min_block_size, size, m_device, m_context)
+                );
+                if (out_memory->getOpaque() != nullptr) {
+                    m_unified.insert(out_memory->getOpaque());
                 }
             } else if (auto* block = malloc(size, stream); block != nullptr) {
-                out_memory->opaque = block->getPointer();
-                out_memory->payload = reinterpret_cast<std::uintptr_t>(block);
+                out_memory->setOpaque(block->getPointer());
+                out_memory->setPayload(reinterpret_cast<std::uintptr_t>(block));
             }
 
-            if (out_memory->opaque == nullptr) {
+            if (out_memory->getOpaque() == nullptr) {
                 m_stats.record_out_of_memory();
-                m_trace.record(Action::out_of_memory, nullptr, size, nullptr, TF_PoolId{});
-                m_status.fail(out_status, TF_RESOURCE_EXHAUSTED, out_of_memory_message(size));
+                m_trace.record(Action::out_of_memory, nullptr, size, nullptr, ice::sonic::PoolId{});
+                m_status.fail(
+                    out_status,
+                    ice::sonic::Code::k_resource_exhausted,
+                    out_of_memory_message(size)
+                );
             }
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
         }
     }
 
-    void deallocate(TF_DeviceMemoryBase* memory) noexcept override
+    void deallocate(ice::sonic::DeviceMemoryBase* memory) noexcept override
     {
-        if (memory == nullptr || memory->opaque == nullptr) {
+        if (memory == nullptr || memory->getOpaque() == nullptr) {
             return;
         }
-
-        if (memory->payload != 0) {
-            free(reinterpret_cast<SyclBlock*>(memory->payload));
+        if (memory->getPayload() != 0) {
+            free(reinterpret_cast<SyclBlock*>(memory->getPayload()));
         } else if (
-            !m_host_cache->deallocate(memory->opaque) && m_unified.erase(memory->opaque) != 0
+            !m_host_cache->deallocate(memory->getOpaque()) &&
+            m_unified.erase(memory->getOpaque()) != 0
         ) {
-            sycl::free(memory->opaque, m_context);
+            sycl::free(memory->getOpaque(), m_context);
         }
-        memory->opaque = nullptr;
-        memory->payload = 0;
+        memory->setOpaque(nullptr);
+        memory->setPayload(0);
     }
 
     void record_stream(
-        const TF_DeviceMemoryBase* memory,
+        const ice::sonic::DeviceMemoryBase* memory,
         const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
         static_cast<void>(out_status);
         auto& queue = resolve_queue(stream);
-        if (memory->payload == 0) {
-            m_host_cache->record_stream(memory->opaque, queue);
+        if (memory->getPayload() == 0) {
+            m_host_cache->record_stream(memory->getOpaque(), queue);
             return;
         }
 
-        auto* block = reinterpret_cast<SyclBlock*>(memory->payload);
+        auto* block = reinterpret_cast<SyclBlock*>(memory->getPayload());
         if (block->getQueue() != &queue) {
             block->addStreamUse(&queue);
         }
@@ -193,7 +199,11 @@ public:
     {
         const auto* block = find_allocated_block(pointer);
         if (block == nullptr) {
-            m_status.fail(out_status, TF_NOT_FOUND, "pointer not owned by this allocator");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_not_found,
+                "pointer not owned by this allocator"
+            );
             return;
         }
 
@@ -224,7 +234,11 @@ public:
     ) noexcept override
     {
         if (fraction < 0.0 || fraction > 1.0) {
-            m_status.fail(out_status, TF_INVALID_ARGUMENT, "memory fraction must be in [0, 1]");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_invalid_argument,
+                "memory fraction must be in [0, 1]"
+            );
             return;
         }
 
@@ -243,67 +257,67 @@ public:
     }
 
     void set_option(
-        TF_AllocatorOption option,
+        ice::sonic::AllocatorOption option,
         int64_t value,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
         switch (option) {
-            case TF_ALLOCATOR_OPTION_EXPANDABLE_SEGMENTS:
+            case ice::sonic::AllocatorOption::k_expandable_segments:
                 m_use_expandable = value != 0;
                 return;
-            case TF_ALLOCATOR_OPTION_NO_SPLIT:
+            case ice::sonic::AllocatorOption::k_no_split:
                 m_no_split = value != 0;
                 return;
-            case TF_ALLOCATOR_OPTION_USE_ON_OOM:
+            case ice::sonic::AllocatorOption::k_use_on_oom:
                 m_use_on_oom = value != 0;
                 return;
-            case TF_ALLOCATOR_OPTION_MAX_SPLIT_SIZE:
+            case ice::sonic::AllocatorOption::k_max_split_size:
                 m_max_split_size = value <= 0 ? std::numeric_limits<std::size_t>::max()
                                               : static_cast<std::size_t>(value);
                 return;
-            case TF_ALLOCATOR_OPTION_GARBAGE_COLLECTION_THRESHOLD:
+            case ice::sonic::AllocatorOption::k_garbage_collection_threshold:
                 m_garbage_collection_threshold = static_cast<double>(value) / 100.0;
                 return;
-            case TF_ALLOCATOR_OPTION_ROUND_UP_POWER2_DIVISIONS:
+            case ice::sonic::AllocatorOption::k_round_up_power2_divisions:
                 m_round_up_power2_divisions = static_cast<std::size_t>(std::max<int64_t>(value, 0));
                 return;
         }
-        m_status.fail(out_status, TF_INVALID_ARGUMENT, "unknown allocator option");
+        m_status.fail(out_status, ice::sonic::Code::k_invalid_argument, "unknown allocator option");
     }
 
     void get_option(
-        TF_AllocatorOption option,
+        ice::sonic::AllocatorOption option,
         std::int64_t& out_value,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
         switch (option) {
-            case TF_ALLOCATOR_OPTION_EXPANDABLE_SEGMENTS:
+            case ice::sonic::AllocatorOption::k_expandable_segments:
                 out_value = m_use_expandable ? 1 : 0;
                 return;
-            case TF_ALLOCATOR_OPTION_NO_SPLIT:
+            case ice::sonic::AllocatorOption::k_no_split:
                 out_value = m_no_split ? 1 : 0;
                 return;
-            case TF_ALLOCATOR_OPTION_USE_ON_OOM:
+            case ice::sonic::AllocatorOption::k_use_on_oom:
                 out_value = m_use_on_oom ? 1 : 0;
                 return;
-            case TF_ALLOCATOR_OPTION_MAX_SPLIT_SIZE:
+            case ice::sonic::AllocatorOption::k_max_split_size:
                 out_value = m_max_split_size == std::numeric_limits<std::size_t>::max()
                                 ? -1
                                 : static_cast<int64_t>(m_max_split_size);
                 return;
-            case TF_ALLOCATOR_OPTION_GARBAGE_COLLECTION_THRESHOLD:
+            case ice::sonic::AllocatorOption::k_garbage_collection_threshold:
                 out_value = static_cast<int64_t>(m_garbage_collection_threshold * 100.0);
                 return;
-            case TF_ALLOCATOR_OPTION_ROUND_UP_POWER2_DIVISIONS:
+            case ice::sonic::AllocatorOption::k_round_up_power2_divisions:
                 out_value = static_cast<int64_t>(m_round_up_power2_divisions);
                 return;
         }
-        m_status.fail(out_status, TF_INVALID_ARGUMENT, "unknown allocator option");
+        m_status.fail(out_status, ice::sonic::Code::k_invalid_argument, "unknown allocator option");
     }
 
-    void get_stats(TF_AllocatorStats* out_stats, bool& out_success) noexcept override
+    void get_stats(ice::sonic::AllocatorStats* out_stats, bool& out_success) noexcept override
     {
         m_stats.fill(*out_stats, static_cast<int64_t>(largest_free_block()));
         out_success = true;
@@ -320,7 +334,7 @@ public:
     }
 
     void get_snapshot(
-        const TF_PoolId* pool_filter,
+        const ice::sonic::PoolId* pool_filter,
         const ice::sonic::Buffer& out_snapshot,
         const ice::sonic::Status& out_status
     ) noexcept override
@@ -341,36 +355,35 @@ public:
                 nullptr,
                 m_snapshot.getTotalActive(),
                 nullptr,
-                pool_filter == nullptr ? TF_PoolId{} : *pool_filter
+                pool_filter == nullptr ? ice::sonic::PoolId{} : *pool_filter
             );
             const auto text = m_snapshot.finish(m_trace);
             out_snapshot.assign_from_string(text.data(), text.size());
         } catch (const std::exception& error) {
-            m_status.fail(out_status, TF_INTERNAL, error.what());
+            m_status.fail(out_status, ice::sonic::Code::k_internal, error.what());
         }
     }
 
-    void generate_pool_id(TF_PoolId* out_pool_id) noexcept override
+    void generate_pool_id(ice::sonic::PoolId* out_pool_id) noexcept override
     {
-        *out_pool_id = TF_PoolId{.first = 0, .second = static_cast<int64_t>(++m_pool_sequence)};
+        *out_pool_id = ice::sonic::PoolId{0, static_cast<int64_t>(++m_pool_sequence)};
     }
 
     void create_mem_pool_internal(
-        const TF_PoolId* pool_id,
+        const ice::sonic::PoolId* pool_id,
         _Bool is_user_created,
         const ice::sonic::MemPool& out_pool,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
         static_cast<void>(out_status);
-        TF_PoolId assigned{};
+        ice::sonic::PoolId assigned{};
         if (pool_id != nullptr) {
             assigned = *pool_id;
         } else if (is_user_created) {
             generate_pool_id(&assigned);
         } else {
-            assigned =
-                TF_PoolId{.first = static_cast<int64_t>(++m_graph_pool_sequence), .second = 0};
+            assigned = ice::sonic::PoolId{static_cast<int64_t>(++m_graph_pool_sequence), 0};
         }
 
         if (auto existing = find_pool(assigned)) {
@@ -405,26 +418,38 @@ public:
     ) noexcept override
     {
         if (!m_enable_peer || !m_enable_peer(m_device_index, peer_device_index)) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, "peer access is not supported");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_failed_precondition,
+                "peer access is not supported"
+            );
             return;
         }
         m_peers.insert(peer_device_index);
     }
 
     void export_memory(
-        const TF_DeviceMemoryBase* memory,
-        TF_IpcMemoryHandle* out_handle,
+        const ice::sonic::DeviceMemoryBase* memory,
+        ice::sonic::IpcMemoryHandle* out_handle,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-        if (memory->payload == 0) {
-            m_status.fail(out_status, TF_INVALID_ARGUMENT, "only device memory can be exported");
+        if (memory->getPayload() == 0) {
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_invalid_argument,
+                "only device memory can be exported"
+            );
             return;
         }
 
-        const auto* block = reinterpret_cast<const SyclBlock*>(memory->payload);
+        const auto* block = reinterpret_cast<const SyclBlock*>(memory->getPayload());
         if (block->getExpandableSegment() != nullptr) {
-            m_status.fail(out_status, TF_UNIMPLEMENTED, "expandable segments cannot be shared");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_unimplemented,
+                "expandable segments cannot be shared"
+            );
             return;
         }
 
@@ -441,35 +466,39 @@ public:
                 *out_handle
             );
         } catch (const std::exception& error) {
-            m_status.fail(out_status, TF_INTERNAL, error.what());
+            m_status.fail(out_status, ice::sonic::Code::k_internal, error.what());
         }
     }
 
     void open_memory(
-        const TF_IpcMemoryHandle* handle,
-        TF_DeviceMemoryBase* out_memory,
+        const ice::sonic::IpcMemoryHandle* handle,
+        ice::sonic::DeviceMemoryBase* out_memory,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
         try {
-            *out_memory = TF_DeviceMemoryBase{.struct_size = sizeof(TF_DeviceMemoryBase)};
-            out_memory->opaque = m_ipc_memory->open(*handle);
-            out_memory->size = handle->allocation_size;
+            *out_memory = ice::sonic::DeviceMemoryBase{};
+            out_memory->setOpaque(m_ipc_memory->open(*handle));
+            out_memory->setSize(handle->getAllocationSize());
         } catch (const std::exception& error) {
-            m_status.fail(out_status, TF_INTERNAL, error.what());
+            m_status.fail(out_status, ice::sonic::Code::k_internal, error.what());
         }
     }
 
     void close_memory(
-        TF_DeviceMemoryBase* memory,
+        ice::sonic::DeviceMemoryBase* memory,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-        if (!m_ipc_memory->close(memory->opaque)) {
-            m_status.fail(out_status, TF_NOT_FOUND, "memory was not opened from an IPC handle");
+        if (!m_ipc_memory->close(memory->getOpaque())) {
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_not_found,
+                "memory was not opened from an IPC handle"
+            );
             return;
         }
-        memory->opaque = nullptr;
+        memory->setOpaque(nullptr);
     }
 
     void setCapturing(bool capturing) noexcept
@@ -500,7 +529,7 @@ private:
             .getNativeQueue();
     }
 
-    std::optional<std::reference_wrapper<SyclMemPool>> find_pool(const TF_PoolId& pool_id)
+    std::optional<std::reference_wrapper<SyclMemPool>> find_pool(const ice::sonic::PoolId& pool_id)
     {
         for (auto& pool: m_registered_pools) {
             if (same_pool(pool.get().getPoolId(), pool_id)) {
@@ -1006,7 +1035,7 @@ private:
         }
     }
 
-    void synchronize_and_free_events(std::optional<TF_PoolId> pool_id)
+    void synchronize_and_free_events(std::optional<ice::sonic::PoolId> pool_id)
     {
         insert_deferred_events();
         for (auto& [queue, pending]: m_events) {
@@ -1076,12 +1105,12 @@ private:
         }
     }
 
-    void release_cached_blocks(std::optional<TF_PoolId> pool_id)
+    void release_cached_blocks(std::optional<ice::sonic::PoolId> pool_id)
     {
         synchronize_and_free_events(pool_id);
         m_default_queue->wait_and_throw();
 
-        if (!pool_id || (pool_id->first == 0 && pool_id->second == 0)) {
+        if (!pool_id || (pool_id->getFirst() == 0 && pool_id->getSecond() == 0)) {
             release_blocks(m_large_blocks);
             release_blocks(m_small_blocks);
         }
@@ -1121,7 +1150,7 @@ private:
     }
 
     template<typename Visitor>
-    void for_each_block(const TF_PoolId* pool_filter, Visitor&& visitor)
+    void for_each_block(const ice::sonic::PoolId* pool_filter, Visitor&& visitor)
     {
         const auto visit_pool = [&visitor](SyclBlockPool& pool)
         {
@@ -1206,9 +1235,9 @@ private:
         return k_round_large * ((size + k_round_large - 1) / k_round_large);
     }
 
-    bool same_pool(const TF_PoolId& left, const TF_PoolId& right) const noexcept
+    bool same_pool(const ice::sonic::PoolId& left, const ice::sonic::PoolId& right) const noexcept
     {
-        return left.first == right.first && left.second == right.second;
+        return left.getFirst() == right.getFirst() && left.getSecond() == right.getSecond();
     }
 
     std::string out_of_memory_message(std::size_t size) const

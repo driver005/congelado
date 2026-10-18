@@ -7,6 +7,7 @@ module;
 export module aten_xpu_extern_kernel:attention_sdpa_backward;
 
 import std;
+import cc_ice_intern_sonic;
 import aten_xpu_intern;
 import :kernel;
 import :context;
@@ -41,7 +42,7 @@ public:
         }
         if (!m_selector.valid_shapes(query->get(), key->get(), value->get())) {
             context.fail(
-                TF_INVALID_ARGUMENT,
+                ice::sonic::Code::k_invalid_argument,
                 "attention expects [batch, heads, length, head_dim] inputs"
             );
             return;

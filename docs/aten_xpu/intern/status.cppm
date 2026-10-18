@@ -23,7 +23,7 @@ public:
 
     void fail(
         const ice::sonic::Status& status,
-        TF_Code code,
+        ice::sonic::Code code,
         std::string_view message
     ) const noexcept
     {
@@ -36,12 +36,12 @@ public:
 
     void fail_from(const ice::sonic::Status& status, const sycl::exception& error) const noexcept
     {
-        fail(status, TF_INTERNAL, error.what());
+        fail(status, ice::sonic::Code::k_internal, error.what());
     }
 
     void fail_unimplemented(const ice::sonic::Status& status, std::string_view slot) const noexcept
     {
-        fail(status, TF_UNIMPLEMENTED, slot);
+        fail(status, ice::sonic::Code::k_unimplemented, slot);
     }
 
     void copy_into(const ice::sonic::String& target, std::string_view source) const noexcept

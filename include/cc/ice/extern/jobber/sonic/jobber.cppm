@@ -25,25 +25,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Jobber(
         const ice::sonic::Registration& registry,
-        ::TF_Jobber* handle,
+        const ::TF_Jobber& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +53,7 @@ public:
     {
     }
 
-    Jobber(const ::TF_JobberOps* ops, ::TF_Jobber* handle) noexcept :
+    Jobber(const ::TF_JobberOps* ops, const ::TF_Jobber* handle) noexcept :
         Runtime(ops, handle)
     {
     }

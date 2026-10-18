@@ -11,6 +11,7 @@ module;
 export module cc_ice_extern_random_generator_sonic:random_generator;
 
 import std;
+import :philox_state;
 import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
@@ -25,25 +26,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     RandomGenerator(
         const ice::sonic::Registration& registry,
-        ::TF_RandomGenerator* handle,
+        const ::TF_RandomGenerator& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +54,8 @@ public:
     {
     }
 
-    RandomGenerator(const ::TF_RandomGeneratorOps* ops, ::TF_RandomGenerator* handle) noexcept :
+    RandomGenerator(const ::TF_RandomGeneratorOps* ops, const ::TF_RandomGenerator* handle) noexcept
+        :
         Runtime(ops, handle)
     {
     }
@@ -124,11 +126,16 @@ public:
 
     void philox_state(
         uint64_t increment,
-        ::TF_PhiloxState* out_state,
+        ice::sonic::PhiloxState* out_state,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->philox_state(get_handle(), increment, out_state, out_status.get_handle());
+        m_ops->philox_state(
+            get_handle(),
+            increment,
+            out_state == nullptr ? nullptr : out_state->get_handle(),
+            out_status.get_handle()
+        );
     }
 
     void philox_engine_inputs(

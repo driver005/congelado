@@ -7,6 +7,7 @@ module;
 
 #include "include/c/extern/kernel/construction.h"
 #include "include/c/intern/buffer.h"
+#include "include/c/intern/datatype.h"
 #include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
@@ -62,7 +63,7 @@ public:
     ) noexcept = 0;
     virtual void get_attr_type(
         const ice::sonic::String& attr_name,
-        ::TFDataTypeEnum& out_val,
+        ice::sonic::DataTypeEnum& out_val,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_attr_int32(
@@ -97,26 +98,22 @@ public:
     ) noexcept = 0;
     virtual void get_attr_type_list(
         const ice::sonic::String& attr_name,
-        ::TFDataTypeEnum* out_vals,
-        int max_vals,
+        std::span<::TFDataTypeEnum> out_vals,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_attr_int32_list(
         const ice::sonic::String& attr_name,
-        int32_t* out_vals,
-        int max_vals,
+        std::span<std::int32_t> out_vals,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_attr_int64_list(
         const ice::sonic::String& attr_name,
-        int64_t* out_vals,
-        int max_vals,
+        std::span<std::int64_t> out_vals,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_attr_float_list(
         const ice::sonic::String& attr_name,
-        float* out_vals,
-        int max_vals,
+        std::span<float> out_vals,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_attr_bool_list(
@@ -153,8 +150,7 @@ public:
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void get_attr_tensor_shape(
         const ice::sonic::String& attr_name,
-        int64_t* out_dims,
-        size_t num_dims,
+        std::span<std::int64_t> out_dims,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
 
@@ -209,11 +205,13 @@ public:
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = OpKernelConstruction::from_handle(ctx);
+                ice::sonic::DataTypeEnum wrapped_out_val{*out_val};
                 self.get_attr_type(
                     self.wrap(std::type_identity<ice::sonic::String>{}, attr_name),
-                    *out_val,
+                    wrapped_out_val,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
+                *out_val = wrapped_out_val.get_value();
             },
             .get_attr_int32 =
                 [](::TF_OpKernelConstruction* ctx,
@@ -303,8 +301,7 @@ public:
                 auto& self = OpKernelConstruction::from_handle(ctx);
                 self.get_attr_type_list(
                     self.wrap(std::type_identity<ice::sonic::String>{}, attr_name),
-                    out_vals,
-                    max_vals,
+                    std::span<::TFDataTypeEnum>{out_vals, static_cast<std::size_t>(max_vals)},
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -318,8 +315,7 @@ public:
                 auto& self = OpKernelConstruction::from_handle(ctx);
                 self.get_attr_int32_list(
                     self.wrap(std::type_identity<ice::sonic::String>{}, attr_name),
-                    out_vals,
-                    max_vals,
+                    std::span<std::int32_t>{out_vals, static_cast<std::size_t>(max_vals)},
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -333,8 +329,7 @@ public:
                 auto& self = OpKernelConstruction::from_handle(ctx);
                 self.get_attr_int64_list(
                     self.wrap(std::type_identity<ice::sonic::String>{}, attr_name),
-                    out_vals,
-                    max_vals,
+                    std::span<std::int64_t>{out_vals, static_cast<std::size_t>(max_vals)},
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -348,8 +343,7 @@ public:
                 auto& self = OpKernelConstruction::from_handle(ctx);
                 self.get_attr_float_list(
                     self.wrap(std::type_identity<ice::sonic::String>{}, attr_name),
-                    out_vals,
-                    max_vals,
+                    std::span<float>{out_vals, static_cast<std::size_t>(max_vals)},
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -446,8 +440,7 @@ public:
                 auto& self = OpKernelConstruction::from_handle(ctx);
                 self.get_attr_tensor_shape(
                     self.wrap(std::type_identity<ice::sonic::String>{}, attr_name),
-                    out_dims,
-                    num_dims,
+                    std::span<std::int64_t>{out_dims, static_cast<std::size_t>(num_dims)},
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -458,19 +451,19 @@ public:
     ice::sonic::Buffer
     wrap(std::type_identity<ice::sonic::Buffer>, const ::TF_Buffer* handle) const noexcept
     {
-        return ice::sonic::Buffer{m_Buffer_ops, const_cast<::TF_Buffer*>(handle)};
+        return ice::sonic::Buffer{m_Buffer_ops, handle};
     }
 
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     const ::TF_OpKernelConstructionOps& get_vtable() const noexcept

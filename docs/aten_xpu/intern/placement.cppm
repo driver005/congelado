@@ -7,14 +7,15 @@ module;
 export module aten_xpu_intern:placement;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
 
 export namespace aten_xpu {
 
 class SyclTensorPlacement
 {
 public:
-    using Allocate = std::function<void*(std::size_t, TF_MemorySpace)>;
-    using Deallocate = std::function<void(void*, TF_MemorySpace)>;
+    using Allocate = std::function<void*(std::size_t, ice::sonic::MemorySpace)>;
+    using Deallocate = std::function<void(void*, ice::sonic::MemorySpace)>;
 
     void setPlacement(const sycl::context& context, const sycl::device& device, int device_index)
     {
@@ -49,7 +50,7 @@ public:
         return m_device;
     }
 
-    void* allocate_storage(std::size_t size, TF_MemorySpace memory_space) const
+    void* allocate_storage(std::size_t size, ice::sonic::MemorySpace memory_space) const
     {
         if (m_allocate) {
             return m_allocate(size, memory_space);
@@ -58,16 +59,16 @@ public:
             return std::malloc(size);
         }
         switch (memory_space) {
-            case TF_MEMORY_SPACE_HOST_PINNED:
+            case ice::sonic::MemorySpace::k_host_pinned:
                 return sycl::malloc_host(size, *m_context);
-            case TF_MEMORY_SPACE_UNIFIED:
+            case ice::sonic::MemorySpace::k_unified:
                 return sycl::malloc_shared(size, *m_device, *m_context);
             default:
                 return sycl::malloc_device(size, *m_device, *m_context);
         }
     }
 
-    void deallocate_storage(void* storage, TF_MemorySpace memory_space) const
+    void deallocate_storage(void* storage, ice::sonic::MemorySpace memory_space) const
     {
         if (m_deallocate) {
             m_deallocate(storage, memory_space);

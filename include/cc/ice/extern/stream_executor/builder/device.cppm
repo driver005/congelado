@@ -13,6 +13,7 @@ module;
 export module cc_ice_extern_stream_executor_builder:device;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
 import cc_ice_intern_sonic;
 
 export namespace ice::builder {
@@ -50,7 +51,7 @@ public:
     virtual void get_device_vendor(const ice::sonic::String& out_vendor) noexcept = 0;
     virtual void get_pci_bus_id(const ice::sonic::String& out_pci_bus_id) noexcept = 0;
     virtual void get_device_properties(
-        ::TF_DeviceProperties* out_properties,
+        ice::sonic::DeviceProperties* out_properties,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_native_handle(void** out_handle) noexcept = 0;
@@ -115,10 +116,17 @@ public:
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = Device::from_handle(device);
+                std::optional<ice::sonic::DeviceProperties> wrapped_out_properties;
+                if (out_properties != nullptr) {
+                    wrapped_out_properties.emplace(*out_properties);
+                }
                 self.get_device_properties(
-                    out_properties,
+                    wrapped_out_properties ? &*wrapped_out_properties : nullptr,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
+                if (out_properties != nullptr) {
+                    *out_properties = *wrapped_out_properties->get_handle();
+                }
             },
             .get_native_handle =
                 [](::TF_Device* device, void** out_handle) noexcept
@@ -133,13 +141,13 @@ public:
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     const ::TF_DeviceOps& get_vtable() const noexcept

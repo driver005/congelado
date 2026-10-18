@@ -17,21 +17,21 @@ TEST_F(SyclAllocatorIpcTest, ShareOffsetSubAllocation)
 {
     auto stream = make_stream();
     auto allocator = make_allocator();
-    TF_DeviceMemoryBase first{};
-    TF_DeviceMemoryBase second{};
-    allocator.allocate(1'024, TF_MEMORY_SPACE_DEVICE, stream, &first, getStatus());
-    allocator.allocate(1'024, TF_MEMORY_SPACE_DEVICE, stream, &second, getStatus());
+    ice::sonic::DeviceMemoryBase first;
+    ice::sonic::DeviceMemoryBase second;
+    allocator.allocate(1'024, ice::sonic::MemorySpace::k_device, stream, &first, getStatus());
+    allocator.allocate(1'024, ice::sonic::MemorySpace::k_device, stream, &second, getStatus());
 
-    TF_IpcMemoryHandle handle{};
+    ice::sonic::IpcMemoryHandle handle;
     allocator.export_memory(&second, &handle, getStatus());
     if (!ok()) {
         GTEST_SKIP() << "IPC memory is not supported here";
     }
 
-    TF_DeviceMemoryBase opened{};
+    ice::sonic::DeviceMemoryBase opened;
     allocator.open_memory(&handle, &opened, getStatus());
     EXPECT_TRUE(ok());
-    EXPECT_NE(opened.opaque, nullptr);
+    EXPECT_NE(opened.getOpaque(), nullptr);
     allocator.close_memory(&opened, getStatus());
     EXPECT_TRUE(ok());
 
@@ -45,7 +45,8 @@ TEST_F(SyclAllocatorIpcTest, CloseUnknownPointerFails)
 {
     auto allocator = make_allocator();
     int marker = 0;
-    TF_DeviceMemoryBase memory{.struct_size = sizeof(TF_DeviceMemoryBase), .opaque = &marker};
+    ice::sonic::DeviceMemoryBase memory;
+    memory.setOpaque(&marker);
     allocator.close_memory(&memory, getStatus());
     EXPECT_FALSE(ok());
     release_allocator(allocator);

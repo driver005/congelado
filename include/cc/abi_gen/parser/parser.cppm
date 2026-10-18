@@ -14,6 +14,7 @@ import std;
 import :registry;
 import :vtable_model;
 import :vtable_ast_visitor;
+import :value_visitor;
 import :helper_include_finder;
 
 export namespace cc_abi_gen::parser {
@@ -226,6 +227,14 @@ private:
                 if (model.has_value()) {
                     nothing = false;
                     m_registry.get().append_model(std::move(*model));
+                } else if (auto value = m_value_visitor.traverse_record_decl(record_decl, header_path)) {
+                    nothing = false;
+                    m_registry.get().append_value_model(std::move(*value));
+                }
+            } else if (auto* enum_decl = clang::dyn_cast<clang::EnumDecl>(decl)) {
+                if (auto value = m_value_visitor.traverse_enum_decl(enum_decl, header_path)) {
+                    nothing = false;
+                    m_registry.get().append_value_model(std::move(*value));
                 }
             } else if (auto* spec_decl = clang::dyn_cast<clang::LinkageSpecDecl>(decl)) {
                 if (!collect_records(spec_decl, header_path, sm)) {
@@ -316,6 +325,7 @@ private:
     std::reference_wrapper<Registry> m_registry;
     helper::IncludeFinder m_include_finder{};
     vtable::AstVisitor m_visitor{};
+    value::Visitor m_value_visitor{};
     std::vector<std::string> m_system_arguments;
     std::string m_domain;
     std::string m_tool_name;

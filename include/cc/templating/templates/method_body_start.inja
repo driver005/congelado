@@ -1,4 +1,4 @@
 
             ) const noexcept
             {
-                m_ops->{{ method_name }}(get_handle()
+{{ preamble }}                m_ops->{{ method_name }}(get_handle()

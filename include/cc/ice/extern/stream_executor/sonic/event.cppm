@@ -11,6 +11,7 @@ module;
 export module cc_ice_extern_stream_executor_sonic:event;
 
 import std;
+import :ipc_event_handle;
 import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
@@ -25,25 +26,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Event(
         const ice::sonic::Registration& registry,
-        ::TF_Event* handle,
+        const ::TF_Event& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +54,7 @@ public:
     {
     }
 
-    Event(const ::TF_EventOps* ops, ::TF_Event* handle) noexcept :
+    Event(const ::TF_EventOps* ops, const ::TF_Event* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -83,11 +84,15 @@ public:
     }
 
     void export_ipc(
-        ::TF_IpcEventHandle* out_handle,
+        ice::sonic::IpcEventHandle* out_handle,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->export_ipc(get_handle(), out_handle, out_status.get_handle());
+        m_ops->export_ipc(
+            get_handle(),
+            out_handle == nullptr ? nullptr : out_handle->get_handle(),
+            out_status.get_handle()
+        );
     }
 
     void get_native_handle(void** out_handle) const noexcept

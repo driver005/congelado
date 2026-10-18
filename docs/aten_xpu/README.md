@@ -35,6 +35,14 @@ docs/aten_xpu/
 - Pool and current-stream slots (`get_stream_from_pool`, `get_current_stream`, `get_default_random_generator`) bind the caller's handle to shared state, such as a shared queue or a shared Philox state. They never swap `plugin_data`.
 - `SyclOpsTable` holds two kinds of ops tables: host tables (status, string, buffer, kernel context/construction, grappler item) and the plugin's own vtables. `SyclPluginRegistry::initialize` fills it.
 
+## Generated API conventions
+
+- Class names drop `TF_` and `Ops`: `ice::builder::Device`, `ice::sonic::Registration`.
+- Plain C structs and enums have value classes in `ice::sonic` (`PoolId`, `DeviceProperties`, `MemorySpace`, `Code`, ...). Struct parameters are `ice::sonic::T*` (NULL stays possible); enums go by value or as `X&` for `out_*`.
+- Scalar `out_*` parameters are references (`std::int32_t& out_x`).
+- Arrays: the implementer (`ice::builder`) gets `std::span` over the host's array, the caller (`ice::sonic`) passes a `std::vector`.
+- Nothing in the plugin is `static` except the two `getInstance()` entry points; `create` slots are lambdas in `SyclPluginRegistry`.
+
 ## Legacy mapping
 
 | Legacy | Now |

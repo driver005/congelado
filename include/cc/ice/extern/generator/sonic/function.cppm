@@ -30,25 +30,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     GeneratorFunction(
         const ice::sonic::Registration& registry,
-        ::TFGeneratorFunction* handle,
+        const ::TFGeneratorFunction& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -58,7 +58,10 @@ public:
     {
     }
 
-    GeneratorFunction(const ::TFGeneratorFunctionOps* ops, ::TFGeneratorFunction* handle) noexcept :
+    GeneratorFunction(
+        const ::TFGeneratorFunctionOps* ops,
+        const ::TFGeneratorFunction* handle
+    ) noexcept :
         Runtime(ops, handle)
     {
     }

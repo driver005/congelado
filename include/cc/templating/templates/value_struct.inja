@@ -1,0 +1,81 @@
+// GENERATED FILE — DO NOT EDIT BY HAND.
+// Produced by {{ folder_name }}_abi_gen from {{ header_path }}. Re-run
+// `bazel run //include/{{ folder_name }}/abi_gen:{{ folder_name }}_abi_gen -- generate --pilot` (or `make gen-{{ folder_name }}-abi`) to
+// regenerate; edits made directly to this file will be overwritten.
+
+module;
+
+#include "{{ header_path }}"
+
+export module {{ module_name }}:{{ partition }};
+
+import std;
+
+export namespace {{ namespace_name }}::sonic {
+
+class {{ class_name }}
+{
+public:
+    {{ class_name }}() noexcept
+    {
+{% if has_struct_size %}        m_value.struct_size = sizeof(::{{ c_name }});
+{% endif %}    }
+
+    explicit {{ class_name }}(const ::{{ c_name }}& value) noexcept :
+        m_value{value}
+    {
+    }
+{% if all_scalar %}
+    {% if length(fields) == 1 %}explicit {% endif %}{{ class_name }}({% for field in fields %}{{ field.type }} {{ field.name }}{% if not loop.is_last %}, {% endif %}{% endfor %}) noexcept
+    {
+{% if has_struct_size %}        m_value.struct_size = sizeof(::{{ c_name }});
+{% endif %}{% for field in fields %}        m_value.{{ field.name }} = {{ field.name }};
+{% endfor %}    }
+{% endif %}{% for field in fields %}
+{% if field.array %}
+    std::span<{{ field.type }}, {{ field.extent }}> get{{ field.camel }}() noexcept
+    {
+        return m_value.{{ field.name }};
+    }
+
+    std::span<const {{ field.type }}, {{ field.extent }}> get{{ field.camel }}() const noexcept
+    {
+        return m_value.{{ field.name }};
+    }
+{% else if field.record %}
+    {{ field.type }}& get{{ field.camel }}() noexcept
+    {
+        return m_value.{{ field.name }};
+    }
+
+    const {{ field.type }}& get{{ field.camel }}() const noexcept
+    {
+        return m_value.{{ field.name }};
+    }
+{% else %}
+    {{ field.type }} get{{ field.camel }}() const noexcept
+    {
+        return m_value.{{ field.name }};
+    }
+
+    void set{{ field.camel }}({{ field.type }} value) noexcept
+    {
+        m_value.{{ field.name }} = value;
+    }
+{% endif %}
+{% endfor %}
+    ::{{ c_name }}* get_handle() noexcept
+    {
+        return &m_value;
+    }
+
+    const ::{{ c_name }}* get_handle() const noexcept
+    {
+        return &m_value;
+    }
+
+private:
+    ::{{ c_name }} m_value{};
+};
+
+} // namespace {{ namespace_name }}::sonic

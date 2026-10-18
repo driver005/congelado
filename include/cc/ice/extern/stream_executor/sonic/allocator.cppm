@@ -6,12 +6,20 @@
 module;
 
 #include "include/c/extern/stream_executor/allocator.h"
+#include "include/c/extern/stream_executor/mem_pool.h"
+#include "include/c/extern/stream_executor/types.h"
 #include "include/c/intern/registration.h"
 
 export module cc_ice_extern_stream_executor_sonic:allocator;
 
 import std;
+import :allocator_option;
+import :allocator_stats;
+import :device_memory_base;
+import :ipc_memory_handle;
 import :mem_pool;
+import :memory_space;
+import :pool_id;
 import :stream;
 import cc_ice_intern_sonic;
 
@@ -27,25 +35,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Allocator(
         const ice::sonic::Registration& registry,
-        ::TF_Allocator* handle,
+        const ::TF_Allocator& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -55,7 +63,7 @@ public:
     {
     }
 
-    Allocator(const ::TF_AllocatorOps* ops, ::TF_Allocator* handle) noexcept :
+    Allocator(const ::TF_AllocatorOps* ops, const ::TF_Allocator* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -72,34 +80,39 @@ public:
 
     void allocate(
         uint64_t size,
-        TF_MemorySpace memory_space,
+        ice::sonic::MemorySpace memory_space,
         const ice::sonic::Stream& stream,
-        ::TF_DeviceMemoryBase* out_memory,
+        ice::sonic::DeviceMemoryBase* out_memory,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->allocate(
             get_handle(),
             size,
-            memory_space,
+            memory_space.get_value(),
             stream.get_handle(),
-            out_memory,
+            out_memory == nullptr ? nullptr : out_memory->get_handle(),
             out_status.get_handle()
         );
     }
 
-    void deallocate(::TF_DeviceMemoryBase* memory) const noexcept
+    void deallocate(ice::sonic::DeviceMemoryBase* memory) const noexcept
     {
-        m_ops->deallocate(get_handle(), memory);
+        m_ops->deallocate(get_handle(), memory == nullptr ? nullptr : memory->get_handle());
     }
 
     void record_stream(
-        const ::TF_DeviceMemoryBase* memory,
+        const ice::sonic::DeviceMemoryBase* memory,
         const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->record_stream(get_handle(), memory, stream.get_handle(), out_status.get_handle());
+        m_ops->record_stream(
+            get_handle(),
+            memory == nullptr ? nullptr : memory->get_handle(),
+            stream.get_handle(),
+            out_status.get_handle()
+        );
     }
 
     void owns_pointer(const void* pointer, bool& out_owns) const noexcept
@@ -139,26 +152,30 @@ public:
     }
 
     void set_option(
-        TF_AllocatorOption option,
+        ice::sonic::AllocatorOption option,
         int64_t value,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->set_option(get_handle(), option, value, out_status.get_handle());
+        m_ops->set_option(get_handle(), option.get_value(), value, out_status.get_handle());
     }
 
     void get_option(
-        TF_AllocatorOption option,
+        ice::sonic::AllocatorOption option,
         std::int64_t& out_value,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->get_option(get_handle(), option, &out_value, out_status.get_handle());
+        m_ops->get_option(get_handle(), option.get_value(), &out_value, out_status.get_handle());
     }
 
-    void get_stats(::TF_AllocatorStats* out_stats, bool& out_success) const noexcept
+    void get_stats(ice::sonic::AllocatorStats* out_stats, bool& out_success) const noexcept
     {
-        m_ops->get_stats(get_handle(), out_stats, &out_success);
+        m_ops->get_stats(
+            get_handle(),
+            out_stats == nullptr ? nullptr : out_stats->get_handle(),
+            &out_success
+        );
     }
 
     void reset_accumulated_stats() const noexcept
@@ -172,26 +189,29 @@ public:
     }
 
     void get_snapshot(
-        const ::TF_PoolId* pool_filter,
+        const ice::sonic::PoolId* pool_filter,
         const ice::sonic::Buffer& out_snapshot,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_snapshot(
             get_handle(),
-            pool_filter,
+            pool_filter == nullptr ? nullptr : pool_filter->get_handle(),
             out_snapshot.get_handle(),
             out_status.get_handle()
         );
     }
 
-    void generate_pool_id(::TF_PoolId* out_pool_id) const noexcept
+    void generate_pool_id(ice::sonic::PoolId* out_pool_id) const noexcept
     {
-        m_ops->generate_pool_id(get_handle(), out_pool_id);
+        m_ops->generate_pool_id(
+            get_handle(),
+            out_pool_id == nullptr ? nullptr : out_pool_id->get_handle()
+        );
     }
 
     void create_mem_pool_internal(
-        const ::TF_PoolId* pool_id,
+        const ice::sonic::PoolId* pool_id,
         _Bool is_user_created,
         const ice::sonic::MemPool& out_pool,
         const ice::sonic::Status& out_status
@@ -199,7 +219,7 @@ public:
     {
         m_ops->create_mem_pool_internal(
             get_handle(),
-            pool_id,
+            pool_id == nullptr ? nullptr : pool_id->get_handle(),
             is_user_created,
             out_pool.get_handle(),
             out_status.get_handle()
@@ -220,29 +240,43 @@ public:
     }
 
     void export_memory(
-        const ::TF_DeviceMemoryBase* memory,
-        ::TF_IpcMemoryHandle* out_handle,
+        const ice::sonic::DeviceMemoryBase* memory,
+        ice::sonic::IpcMemoryHandle* out_handle,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->export_memory(get_handle(), memory, out_handle, out_status.get_handle());
+        m_ops->export_memory(
+            get_handle(),
+            memory == nullptr ? nullptr : memory->get_handle(),
+            out_handle == nullptr ? nullptr : out_handle->get_handle(),
+            out_status.get_handle()
+        );
     }
 
     void open_memory(
-        const ::TF_IpcMemoryHandle* handle,
-        ::TF_DeviceMemoryBase* out_memory,
+        const ice::sonic::IpcMemoryHandle* handle,
+        ice::sonic::DeviceMemoryBase* out_memory,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->open_memory(get_handle(), handle, out_memory, out_status.get_handle());
+        m_ops->open_memory(
+            get_handle(),
+            handle == nullptr ? nullptr : handle->get_handle(),
+            out_memory == nullptr ? nullptr : out_memory->get_handle(),
+            out_status.get_handle()
+        );
     }
 
     void close_memory(
-        ::TF_DeviceMemoryBase* memory,
+        ice::sonic::DeviceMemoryBase* memory,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->close_memory(get_handle(), memory, out_status.get_handle());
+        m_ops->close_memory(
+            get_handle(),
+            memory == nullptr ? nullptr : memory->get_handle(),
+            out_status.get_handle()
+        );
     }
 };
 

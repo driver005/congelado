@@ -11,5 +11,8 @@ export import :read_only_memory_region;
 export import :tree;
 export import :filesystem;
 export import :random_access_file;
+export import :filesystem_option_value;
+export import :filesystem_option;
+export import :filesystem_option_type;
 
 // clang-format on

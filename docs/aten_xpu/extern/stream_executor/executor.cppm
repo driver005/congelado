@@ -7,6 +7,7 @@ module;
 export module aten_xpu_extern_stream_executor:executor;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
 import cc_ice_intern_sonic;
 import cc_ice_extern_stream_executor_builder;
 import aten_xpu_intern;
@@ -132,7 +133,7 @@ public:
         const auto& error =
             static_cast<SyclStream&>(SyclStream::from_handle(stream.get_handle())).getAsyncError();
         if (!error.empty()) {
-            m_status.fail(out_status, TF_INTERNAL, error);
+            m_status.fail(out_status, ice::sonic::Code::k_internal, error);
         }
     }
 
@@ -143,7 +144,7 @@ public:
     ) noexcept override
     {
         static_cast<void>(out_status);
-        const TF_EventOptions options{.struct_size = sizeof(TF_EventOptions)};
+        const ice::sonic::EventOptions options;
         static_cast<SyclEvent&>(SyclEvent::from_handle(event.get_handle()))
             .bind(options, device_index(device));
     }
@@ -160,17 +161,17 @@ public:
     void get_event_status(
         const ice::sonic::Device& device,
         const ice::sonic::Event& event,
-        ::TF_EventStatus& out_event_status
+        ice::sonic::EventStatus& out_event_status
     ) noexcept override
     {
         static_cast<void>(device);
         try {
             out_event_status =
                 static_cast<SyclEvent&>(SyclEvent::from_handle(event.get_handle())).is_complete()
-                    ? TF_EVENT_COMPLETE
-                    : TF_EVENT_PENDING;
+                    ? ice::sonic::EventStatus::k_complete
+                    : ice::sonic::EventStatus::k_pending;
         } catch (const sycl::exception&) {
-            out_event_status = TF_EVENT_ERROR;
+            out_event_status = ice::sonic::EventStatus::k_error;
         }
     }
 
@@ -183,7 +184,11 @@ public:
     {
         auto& target = static_cast<SyclEvent&>(SyclEvent::from_handle(event.get_handle()));
         if (target.getDeviceIndex() != -1 && target.getDeviceIndex() != device_index(device)) {
-            m_status.fail(out_status, TF_INVALID_ARGUMENT, "event device does not match stream");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_invalid_argument,
+                "event device does not match stream"
+            );
             return;
         }
 
@@ -271,72 +276,72 @@ public:
         const ice::sonic::Device& device,
         const ice::sonic::Stream& stream,
         void* host_dst,
-        const TF_DeviceMemoryBase* device_src,
+        const ice::sonic::DeviceMemoryBase* device_src,
         uint64_t size,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
         static_cast<void>(device);
-        submit_copy(stream, host_dst, device_src->opaque, size, out_status);
+        submit_copy(stream, host_dst, device_src->getOpaque(), size, out_status);
     }
 
     void memcpy_htod(
         const ice::sonic::Device& device,
         const ice::sonic::Stream& stream,
-        TF_DeviceMemoryBase* device_dst,
+        ice::sonic::DeviceMemoryBase* device_dst,
         const void* host_src,
         uint64_t size,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
         static_cast<void>(device);
-        submit_copy(stream, device_dst->opaque, host_src, size, out_status);
+        submit_copy(stream, device_dst->getOpaque(), host_src, size, out_status);
     }
 
     void memcpy_dtod(
         const ice::sonic::Device& device,
         const ice::sonic::Stream& stream,
-        TF_DeviceMemoryBase* device_dst,
-        const TF_DeviceMemoryBase* device_src,
+        ice::sonic::DeviceMemoryBase* device_dst,
+        const ice::sonic::DeviceMemoryBase* device_src,
         uint64_t size,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
         static_cast<void>(device);
-        submit_copy(stream, device_dst->opaque, device_src->opaque, size, out_status);
+        submit_copy(stream, device_dst->getOpaque(), device_src->getOpaque(), size, out_status);
     }
 
     void sync_memcpy_dtoh(
         const ice::sonic::Device& device,
         void* host_dst,
-        const TF_DeviceMemoryBase* device_src,
+        const ice::sonic::DeviceMemoryBase* device_src,
         uint64_t size,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-        blocking_copy(device, host_dst, device_src->opaque, size, out_status);
+        blocking_copy(device, host_dst, device_src->getOpaque(), size, out_status);
     }
 
     void sync_memcpy_htod(
         const ice::sonic::Device& device,
-        TF_DeviceMemoryBase* device_dst,
+        ice::sonic::DeviceMemoryBase* device_dst,
         const void* host_src,
         uint64_t size,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-        blocking_copy(device, device_dst->opaque, host_src, size, out_status);
+        blocking_copy(device, device_dst->getOpaque(), host_src, size, out_status);
     }
 
     void sync_memcpy_dtod(
         const ice::sonic::Device& device,
-        TF_DeviceMemoryBase* device_dst,
-        const TF_DeviceMemoryBase* device_src,
+        ice::sonic::DeviceMemoryBase* device_dst,
+        const ice::sonic::DeviceMemoryBase* device_src,
         uint64_t size,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-        blocking_copy(device, device_dst->opaque, device_src->opaque, size, out_status);
+        blocking_copy(device, device_dst->getOpaque(), device_src->getOpaque(), size, out_status);
     }
 
     void block_host_for_event(
@@ -393,7 +398,7 @@ public:
     void mem_zero(
         const ice::sonic::Device& device,
         const ice::sonic::Stream& stream,
-        TF_DeviceMemoryBase* location,
+        ice::sonic::DeviceMemoryBase* location,
         uint64_t size,
         const ice::sonic::Status& out_status
     ) noexcept override
@@ -404,7 +409,7 @@ public:
     void memset(
         const ice::sonic::Device& device,
         const ice::sonic::Stream& stream,
-        TF_DeviceMemoryBase* location,
+        ice::sonic::DeviceMemoryBase* location,
         uint8_t pattern,
         uint64_t size,
         const ice::sonic::Status& out_status
@@ -416,7 +421,7 @@ public:
     void memset32(
         const ice::sonic::Device& device,
         const ice::sonic::Stream& stream,
-        TF_DeviceMemoryBase* location,
+        ice::sonic::DeviceMemoryBase* location,
         uint32_t pattern,
         uint64_t size,
         const ice::sonic::Status& out_status
@@ -424,8 +429,11 @@ public:
     {
         static_cast<void>(device);
         try {
-            queue_of(stream)
-                .fill(static_cast<uint32_t*>(location->opaque), pattern, size / sizeof(uint32_t));
+            queue_of(stream).fill(
+                static_cast<uint32_t*>(location->getOpaque()),
+                pattern,
+                size / sizeof(uint32_t)
+            );
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
         }
@@ -464,12 +472,17 @@ public:
 
     void create_stream_with_options(
         const ice::sonic::Device& device,
-        const TF_StreamOptions* options,
+        const ice::sonic::StreamOptions* options,
         const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-        bind_new_stream(device, stream, options == nullptr ? 0 : options->priority, out_status);
+        bind_new_stream(
+            device,
+            stream,
+            options == nullptr ? 0 : options->getPriority(),
+            out_status
+        );
     }
 
     void get_stream_from_pool(
@@ -534,7 +547,11 @@ public:
     {
         auto* native = static_cast<sycl::queue*>(native_handle);
         if (native == nullptr || !native->is_in_order()) {
-            m_status.fail(out_status, TF_INVALID_ARGUMENT, "external queue must be in-order");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_invalid_argument,
+                "external queue must be in-order"
+            );
             return;
         }
         static_cast<SyclStream&>(SyclStream::from_handle(out_stream.get_handle()))
@@ -548,13 +565,17 @@ public:
 
     void create_event_with_options_internal(
         const ice::sonic::Device& device,
-        const TF_EventOptions* options,
+        const ice::sonic::EventOptions* options,
         const ice::sonic::Event& out_event,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-        if (options->enable_ipc && options->enable_timing) {
-            m_status.fail(out_status, TF_INVALID_ARGUMENT, "ipc events cannot enable timing");
+        if (options->getEnableIpc() && options->getEnableTiming()) {
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_invalid_argument,
+                "ipc events cannot enable timing"
+            );
             return;
         }
         static_cast<SyclEvent&>(SyclEvent::from_handle(out_event.get_handle()))
@@ -563,7 +584,7 @@ public:
 
     void create_event_from_ipc_internal(
         const ice::sonic::Device& device,
-        const TF_IpcEventHandle* handle,
+        const ice::sonic::IpcEventHandle* handle,
         const ice::sonic::Event& out_event,
         const ice::sonic::Status& out_status
     ) noexcept override
@@ -572,7 +593,7 @@ public:
             static_cast<SyclEvent&>(SyclEvent::from_handle(out_event.get_handle()))
                 .bind_from_ipc(*handle, m_context, native_device(device), device_index(device));
         } catch (const std::exception& error) {
-            m_status.fail(out_status, TF_INTERNAL, error.what());
+            m_status.fail(out_status, ice::sonic::Code::k_internal, error.what());
         }
     }
 
@@ -727,7 +748,7 @@ private:
     void submit_fill(
         const ice::sonic::Device& device,
         const ice::sonic::Stream& stream,
-        TF_DeviceMemoryBase* location,
+        ice::sonic::DeviceMemoryBase* location,
         uint8_t pattern,
         uint64_t size,
         const ice::sonic::Status& out_status
@@ -735,7 +756,7 @@ private:
     {
         static_cast<void>(device);
         try {
-            queue_of(stream).memset(location->opaque, pattern, size);
+            queue_of(stream).memset(location->getOpaque(), pattern, size);
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
         }

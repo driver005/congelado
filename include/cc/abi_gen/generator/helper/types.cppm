@@ -25,6 +25,19 @@ constexpr inline std::optional<Mode> from_string(std::string_view str) noexcept
     return std::nullopt;
 }
 
+// How one C parameter shows up in the generated C++ signature.
+enum class ParameterUse
+{
+    Plain,
+    ScalarReference,
+    Enum,
+    EnumOut,
+    StructPointer,
+    ArrayIn,
+    ArrayOut,
+    ArrayLength
+};
+
 using PathCallback = std::function<void(std::filesystem::path& model)>;
 
 struct PathComponents

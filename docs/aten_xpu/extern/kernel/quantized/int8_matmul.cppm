@@ -9,6 +9,7 @@ module;
 export module aten_xpu_extern_kernel:quantized_int8_matmul;
 
 import std;
+import cc_ice_intern_sonic;
 import aten_xpu_intern;
 import :kernel;
 import :context;
@@ -41,7 +42,7 @@ public:
 
     SyclInt8MatmulKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
         SyclKernel<SyclInt8MatmulKernel>{ops, k_int8_matmul_kernel_name},
-        m_output_type{construction.getType("output_dtype", TF_QINT8)},
+        m_output_type{construction.getType("output_dtype", ice::sonic::DataTypeEnum::k_qint8)},
         m_weight_transposed{construction.getBool("weight_transposed", false)},
         m_unary{construction.getString("unary", "none")},
         m_algorithm{construction.getString("algorithm", "none")},
@@ -96,7 +97,10 @@ public:
                 scalars,
                 m_algorithm
             )) {
-            context.fail(TF_INVALID_ARGUMENT, "unsupported quantized matmul post op");
+            context.fail(
+                ice::sonic::Code::k_invalid_argument,
+                "unsupported quantized matmul post op"
+            );
             return;
         }
 
@@ -166,7 +170,7 @@ private:
         return context.getInputCount() > index ? context.getInput(index) : std::nullopt;
     }
 
-    TFDataTypeEnum m_output_type;
+    ice::sonic::DataTypeEnum m_output_type;
     bool m_weight_transposed;
     std::string m_unary;
     std::string m_algorithm;

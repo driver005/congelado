@@ -112,13 +112,13 @@ public:
     ice::sonic::Span
     wrap(std::type_identity<ice::sonic::Span>, const ::TF_Span* handle) const noexcept
     {
-        return ice::sonic::Span{m_Span_ops, const_cast<::TF_Span*>(handle)};
+        return ice::sonic::Span{m_Span_ops, handle};
     }
 
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     const ::TF_SpanOps& get_vtable() const noexcept

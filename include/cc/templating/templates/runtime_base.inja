@@ -37,7 +37,7 @@ protected:
     {
     }
 
-    Runtime(const OpsStruct* ops, HandleStruct* handle) noexcept :
+    Runtime(const OpsStruct* ops, const HandleStruct* handle) noexcept :
         m_ops{ops}
     {
         if (handle != nullptr) {
@@ -47,30 +47,26 @@ protected:
 
     Runtime(
         const ::{{ registry_struct }}& registry_ops,
-        ::{{ registry_handle }}* registry_handle,
-        const ::{{ string_handle }}* type,
-        const ::{{ string_handle }}* provider
+        ::{{ registry_handle }}& registry_handle,
+        const ::{{ string_handle }}& type,
+        const ::{{ string_handle }}& provider
     ) noexcept
     {
         void* ops = nullptr;
-        registry_ops.get(registry_handle, type, provider, &ops);
+        registry_ops.get(&registry_handle, &type, &provider, &ops);
         m_ops = static_cast<const OpsStruct*>(ops);
     }
 
     Runtime(
         const ::{{ registry_struct }}& registry_ops,
-        ::{{ registry_handle }}* registry_handle,
-        HandleStruct* handle,
-        const ::{{ string_handle }}* type,
-        const ::{{ string_handle }}* provider
-    ) noexcept
+        ::{{ registry_handle }}& registry_handle,
+        const HandleStruct& handle,
+        const ::{{ string_handle }}& type,
+        const ::{{ string_handle }}& provider
+    ) noexcept :
+        Runtime(registry_ops, registry_handle, type, provider)
     {
-        void* ops = nullptr;
-        registry_ops.get(registry_handle, type, provider, &ops);
-        m_ops = static_cast<const OpsStruct*>(ops);
-        if (handle != nullptr) {
-            m_handle = *handle;
-        }
+        m_handle = handle;
     }
 
     const OpsStruct* m_ops{nullptr};

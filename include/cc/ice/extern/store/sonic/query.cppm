@@ -25,25 +25,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     StoreQuery(
         const ice::sonic::Registration& registry,
-        ::TFStoreQuery* handle,
+        const ::TFStoreQuery& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +53,7 @@ public:
     {
     }
 
-    StoreQuery(const ::TFStoreQueryOps* ops, ::TFStoreQuery* handle) noexcept :
+    StoreQuery(const ::TFStoreQueryOps* ops, const ::TFStoreQuery* handle) noexcept :
         Runtime(ops, handle)
     {
     }

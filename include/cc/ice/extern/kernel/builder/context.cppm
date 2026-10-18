@@ -8,6 +8,7 @@ module;
 #include "include/c/extern/kernel/context.h"
 #include "include/c/extern/random_generator/random_generator.h"
 #include "include/c/intern/buffer.h"
+#include "include/c/intern/datatype.h"
 #include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tensor.h"
@@ -62,7 +63,7 @@ public:
     get_input(int i, ::TF_Tensor** out_tensor, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void
     input_range(const ice::sonic::String& name, ::TF_InputRange_Args* out_args) noexcept = 0;
-    virtual void input_datatype(int index, ::TFDataTypeEnum& out_type) noexcept = 0;
+    virtual void input_datatype(int index, ice::sonic::DataTypeEnum& out_type) noexcept = 0;
     virtual void set_output(
         int i,
         const ice::sonic::Tensor& tensor,
@@ -87,7 +88,7 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void failure(const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void expected_output_datatype(int i, ::TFDataTypeEnum& out_type) noexcept = 0;
+    virtual void expected_output_datatype(int i, ice::sonic::DataTypeEnum& out_type) noexcept = 0;
     virtual void is_host_memory_input(
         int i,
         bool& out_is_host,
@@ -112,27 +113,23 @@ public:
     get_op_kernel_requested_input(size_t index, const ice::sonic::String& out_name) noexcept = 0;
     virtual void allocate_output(
         int index,
-        TFDataTypeEnum dtype,
-        const int64_t* dims,
-        int num_dims,
+        ice::sonic::DataTypeEnum dtype,
+        std::span<const std::int64_t> dims,
         size_t len,
         ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void forward_input_or_allocate_output(
-        const int* candidate_input_indices,
-        int num_candidate_input_indices,
+        std::span<const int> candidate_input_indices,
         int output_index,
-        const int64_t* output_dims,
-        int output_num_dims,
-        int* out_forwarded_input,
+        std::span<const std::int64_t> output_dims,
+        std::span<int> out_forwarded_input,
         ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void allocate_temp(
-        TFDataTypeEnum dtype,
-        const int64_t* dims,
-        int num_dims,
+        ice::sonic::DataTypeEnum dtype,
+        std::span<const std::int64_t> dims,
         void* alloc_attrs,
         ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
@@ -165,9 +162,8 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void temporary_variable(
-        TFDataTypeEnum dtype,
-        const int64_t* dims,
-        int num_dims,
+        ice::sonic::DataTypeEnum dtype,
+        std::span<const std::int64_t> dims,
         const ice::sonic::String& var_name,
         TF_PluginAllocatorFunc plugin_allocator,
         const ice::sonic::Status& out_status
@@ -180,8 +176,7 @@ public:
     virtual void maybe_lock_variable_input_mutexes_in_order(
         _Bool do_lock,
         _Bool sparse,
-        const int* inputs,
-        size_t len,
+        std::span<const int> inputs,
         TF_CopyTensorFunc copy_func,
         ::TF_VariableInputLockHolder** out_lock_holder,
         const ice::sonic::Status& out_status
@@ -274,7 +269,9 @@ public:
                 [](::TF_OpKernelContext* ctx, int index, ::TFDataTypeEnum* out_type) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
-                self.input_datatype(index, *out_type);
+                ice::sonic::DataTypeEnum wrapped_out_type{*out_type};
+                self.input_datatype(index, wrapped_out_type);
+                *out_type = wrapped_out_type.get_value();
             },
             .set_output =
                 [](::TF_OpKernelContext* ctx,
@@ -353,7 +350,9 @@ public:
                 [](::TF_OpKernelContext* ctx, int i, ::TFDataTypeEnum* out_type) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
-                self.expected_output_datatype(i, *out_type);
+                ice::sonic::DataTypeEnum wrapped_out_type{*out_type};
+                self.expected_output_datatype(i, wrapped_out_type);
+                *out_type = wrapped_out_type.get_value();
             },
             .is_host_memory_input =
                 [](::TF_OpKernelContext* ctx,
@@ -461,9 +460,8 @@ public:
                 auto& self = OpKernelContext::from_handle(context);
                 self.allocate_output(
                     index,
-                    dtype,
-                    dims,
-                    num_dims,
+                    ice::sonic::DataTypeEnum{dtype},
+                    std::span<const std::int64_t>{dims, static_cast<std::size_t>(num_dims)},
                     len,
                     out_tensor,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
@@ -482,12 +480,16 @@ public:
             {
                 auto& self = OpKernelContext::from_handle(context);
                 self.forward_input_or_allocate_output(
-                    candidate_input_indices,
-                    num_candidate_input_indices,
+                    std::span<const int>{
+                        candidate_input_indices,
+                        static_cast<std::size_t>(num_candidate_input_indices)
+                    },
                     output_index,
-                    output_dims,
-                    output_num_dims,
-                    out_forwarded_input,
+                    std::span<const std::int64_t>{
+                        output_dims,
+                        static_cast<std::size_t>(output_num_dims)
+                    },
+                    std::span<int>{out_forwarded_input, static_cast<std::size_t>(output_num_dims)},
                     out_tensor,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
@@ -503,9 +505,8 @@ public:
             {
                 auto& self = OpKernelContext::from_handle(context);
                 self.allocate_temp(
-                    dtype,
-                    dims,
-                    num_dims,
+                    ice::sonic::DataTypeEnum{dtype},
+                    std::span<const std::int64_t>{dims, static_cast<std::size_t>(num_dims)},
                     alloc_attrs,
                     out_tensor,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
@@ -593,9 +594,8 @@ public:
             {
                 auto& self = OpKernelContext::from_handle(ctx);
                 self.temporary_variable(
-                    dtype,
-                    dims,
-                    num_dims,
+                    ice::sonic::DataTypeEnum{dtype},
+                    std::span<const std::int64_t>{dims, static_cast<std::size_t>(num_dims)},
                     self.wrap(std::type_identity<ice::sonic::String>{}, var_name),
                     plugin_allocator,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
@@ -628,8 +628,7 @@ public:
                 self.maybe_lock_variable_input_mutexes_in_order(
                     do_lock,
                     sparse,
-                    inputs,
-                    len,
+                    std::span<const int>{inputs, static_cast<std::size_t>(len)},
                     copy_func,
                     out_lock_holder,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
@@ -751,7 +750,7 @@ public:
     ice::sonic::Buffer
     wrap(std::type_identity<ice::sonic::Buffer>, const ::TF_Buffer* handle) const noexcept
     {
-        return ice::sonic::Buffer{m_Buffer_ops, const_cast<::TF_Buffer*>(handle)};
+        return ice::sonic::Buffer{m_Buffer_ops, handle};
     }
 
     ice::sonic::RandomGenerator wrap(
@@ -759,28 +758,25 @@ public:
         const ::TF_RandomGenerator* handle
     ) const noexcept
     {
-        return ice::sonic::RandomGenerator{
-            m_RandomGenerator_ops,
-            const_cast<::TF_RandomGenerator*>(handle)
-        };
+        return ice::sonic::RandomGenerator{m_RandomGenerator_ops, handle};
     }
 
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     ice::sonic::Tensor
     wrap(std::type_identity<ice::sonic::Tensor>, const ::TF_Tensor* handle) const noexcept
     {
-        return ice::sonic::Tensor{m_Tensor_ops, const_cast<::TF_Tensor*>(handle)};
+        return ice::sonic::Tensor{m_Tensor_ops, handle};
     }
 
     const ::TF_OpKernelContextOps& get_vtable() const noexcept

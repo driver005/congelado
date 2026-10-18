@@ -13,5 +13,9 @@ export import :properties;
 export import :optimizer;
 export import :configs;
 export import :grappler;
+export import :grappler_optimizer_configs;
+export import :capture_mode;
+export import :grappler_optimization_level;
+export import :tri_state;
 
 // clang-format on

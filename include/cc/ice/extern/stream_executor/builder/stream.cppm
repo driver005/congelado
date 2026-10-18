@@ -12,6 +12,7 @@ module;
 export module cc_ice_extern_stream_executor_builder:stream;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
 import cc_ice_intern_sonic;
 
 export namespace ice::builder {
@@ -46,7 +47,7 @@ public:
     virtual void query(bool& out_idle, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void synchronize(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_capture_status(
-        ::TF_CaptureStatus& out_capture_status,
+        ice::sonic::CaptureStatus& out_capture_status,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_native_handle(void** out_handle) noexcept = 0;
@@ -96,10 +97,12 @@ public:
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = Stream::from_handle(stream);
+                ice::sonic::CaptureStatus wrapped_out_capture_status{*out_capture_status};
                 self.get_capture_status(
-                    *out_capture_status,
+                    wrapped_out_capture_status,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
+                *out_capture_status = wrapped_out_capture_status.get_value();
             },
             .get_native_handle =
                 [](::TF_Stream* stream, void** out_handle) noexcept
@@ -114,7 +117,7 @@ public:
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     const ::TF_StreamOps& get_vtable() const noexcept

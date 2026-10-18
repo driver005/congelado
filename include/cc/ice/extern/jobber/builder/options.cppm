@@ -46,12 +46,12 @@ public:
     virtual void destroy() noexcept = 0;
     virtual void get_options(
         const ice::sonic::Job& job,
-        ::TFJobOptions* out_options,
+        ice::sonic::JobOptions* out_options,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void update_options(
         const ice::sonic::Job& job,
-        const ::TFJobOptions* new_options,
+        const ice::sonic::JobOptions* new_options,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void set_priority(
@@ -79,11 +79,18 @@ public:
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = Options::from_handle(options);
+                std::optional<ice::sonic::JobOptions> wrapped_out_options;
+                if (out_options != nullptr) {
+                    wrapped_out_options.emplace(*out_options);
+                }
                 self.get_options(
                     self.wrap(std::type_identity<ice::sonic::Job>{}, job),
-                    out_options,
+                    wrapped_out_options ? &*wrapped_out_options : nullptr,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
+                if (out_options != nullptr) {
+                    *out_options = *wrapped_out_options->get_handle();
+                }
             },
             .update_options =
                 [](::TF_Options* options,
@@ -92,9 +99,13 @@ public:
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = Options::from_handle(options);
+                std::optional<ice::sonic::JobOptions> wrapped_new_options;
+                if (new_options != nullptr) {
+                    wrapped_new_options.emplace(*new_options);
+                }
                 self.update_options(
                     self.wrap(std::type_identity<ice::sonic::Job>{}, job),
-                    new_options,
+                    wrapped_new_options ? &*wrapped_new_options : nullptr,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -117,13 +128,13 @@ public:
 
     ice::sonic::Job wrap(std::type_identity<ice::sonic::Job>, const ::TF_Job* handle) const noexcept
     {
-        return ice::sonic::Job{m_Job_ops, const_cast<::TF_Job*>(handle)};
+        return ice::sonic::Job{m_Job_ops, handle};
     }
 
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     const ::TF_OptionsOps& get_vtable() const noexcept

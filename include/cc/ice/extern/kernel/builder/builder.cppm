@@ -6,6 +6,7 @@
 module;
 
 #include "include/c/extern/kernel/builder.h"
+#include "include/c/intern/datatype.h"
 #include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
@@ -48,7 +49,7 @@ public:
     virtual void destroy() noexcept = 0;
     virtual void type_constraint(
         const ice::sonic::String& attr_name,
-        TFDataTypeEnum type,
+        ice::sonic::DataTypeEnum type,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void host_memory(const ice::sonic::String& arg_name) noexcept = 0;
@@ -86,7 +87,7 @@ public:
                 auto& self = KernelBuilder::from_handle(kernel_builder);
                 self.type_constraint(
                     self.wrap(std::type_identity<ice::sonic::String>{}, attr_name),
-                    type,
+                    ice::sonic::DataTypeEnum{type},
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -139,13 +140,13 @@ public:
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     const ::TF_KernelBuilderOps& get_vtable() const noexcept

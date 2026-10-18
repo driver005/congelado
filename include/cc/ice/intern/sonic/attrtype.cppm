@@ -11,6 +11,7 @@ module;
 export module cc_ice_intern_sonic:attrtype;
 
 import std;
+import :attr_type_enum;
 import :registration;
 import :runtime;
 import :tstring;
@@ -27,25 +28,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     AttrType(
         const ice::sonic::Registration& registry,
-        ::TF_AttrType* handle,
+        const ::TF_AttrType& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -55,7 +56,7 @@ public:
     {
     }
 
-    AttrType(const ::TF_AttrTypeOps* ops, ::TF_AttrType* handle) noexcept :
+    AttrType(const ::TF_AttrTypeOps* ops, const ::TF_AttrType* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -75,9 +76,12 @@ public:
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    void attrtype_name(TFAttrTypeEnum type, const ice::sonic::String& out_type_name) const noexcept
+    void attrtype_name(
+        ice::sonic::AttrTypeEnum type,
+        const ice::sonic::String& out_type_name
+    ) const noexcept
     {
-        m_ops->attrtype_name(get_handle(), type, out_type_name.get_handle());
+        m_ops->attrtype_name(get_handle(), type.get_value(), out_type_name.get_handle());
     }
 };
 

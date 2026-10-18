@@ -8,6 +8,7 @@ module;
 #include "include/c/extern/ops/dimension_handle.h"
 #include "include/c/extern/ops/shape_handle.h"
 #include "include/c/extern/ops/shape_inference_context.h"
+#include "include/c/intern/datatype.h"
 #include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
@@ -68,7 +69,7 @@ public:
     virtual void vector_from_size(size_t size, const ice::sonic::ShapeHandle& handle) noexcept = 0;
     virtual void get_attr_type(
         const ice::sonic::String& attr_name,
-        ::TFDataTypeEnum& out_val,
+        ice::sonic::DataTypeEnum& out_val,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void rank(const ice::sonic::ShapeHandle& handle, std::int64_t& out_rank) noexcept = 0;
@@ -176,11 +177,13 @@ public:
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = ShapeInferenceContext::from_handle(ctx);
+                ice::sonic::DataTypeEnum wrapped_out_val{*out_val};
                 self.get_attr_type(
                     self.wrap(std::type_identity<ice::sonic::String>{}, attr_name),
-                    *out_val,
+                    wrapped_out_val,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
+                *out_val = wrapped_out_val.get_value();
             },
             .rank =
                 [](::TF_ShapeInferenceContext* ctx,
@@ -311,28 +314,25 @@ public:
         const ::TF_DimensionHandle* handle
     ) const noexcept
     {
-        return ice::sonic::DimensionHandle{
-            m_DimensionHandle_ops,
-            const_cast<::TF_DimensionHandle*>(handle)
-        };
+        return ice::sonic::DimensionHandle{m_DimensionHandle_ops, handle};
     }
 
     ice::sonic::ShapeHandle
     wrap(std::type_identity<ice::sonic::ShapeHandle>, const ::TF_ShapeHandle* handle) const noexcept
     {
-        return ice::sonic::ShapeHandle{m_ShapeHandle_ops, const_cast<::TF_ShapeHandle*>(handle)};
+        return ice::sonic::ShapeHandle{m_ShapeHandle_ops, handle};
     }
 
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     const ::TF_ShapeInferenceContextOps& get_vtable() const noexcept

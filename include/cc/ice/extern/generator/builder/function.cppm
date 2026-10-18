@@ -297,10 +297,7 @@ public:
         const ::TFGeneratorAttribute* handle
     ) const noexcept
     {
-        return ice::sonic::GeneratorAttribute{
-            m_GeneratorAttribute_ops,
-            const_cast<::TFGeneratorAttribute*>(handle)
-        };
+        return ice::sonic::GeneratorAttribute{m_GeneratorAttribute_ops, handle};
     }
 
     ice::sonic::GeneratorBlock wrap(
@@ -308,10 +305,7 @@ public:
         const ::TFGeneratorBlock* handle
     ) const noexcept
     {
-        return ice::sonic::GeneratorBlock{
-            m_GeneratorBlock_ops,
-            const_cast<::TFGeneratorBlock*>(handle)
-        };
+        return ice::sonic::GeneratorBlock{m_GeneratorBlock_ops, handle};
     }
 
     ice::sonic::GeneratorDefinition wrap(
@@ -319,10 +313,7 @@ public:
         const ::TFGeneratorDefinition* handle
     ) const noexcept
     {
-        return ice::sonic::GeneratorDefinition{
-            m_GeneratorDefinition_ops,
-            const_cast<::TFGeneratorDefinition*>(handle)
-        };
+        return ice::sonic::GeneratorDefinition{m_GeneratorDefinition_ops, handle};
     }
 
     ice::sonic::GeneratorParameter wrap(
@@ -330,28 +321,25 @@ public:
         const ::TFGeneratorParameter* handle
     ) const noexcept
     {
-        return ice::sonic::GeneratorParameter{
-            m_GeneratorParameter_ops,
-            const_cast<::TFGeneratorParameter*>(handle)
-        };
+        return ice::sonic::GeneratorParameter{m_GeneratorParameter_ops, handle};
     }
 
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     ice::sonic::Tensor
     wrap(std::type_identity<ice::sonic::Tensor>, const ::TF_Tensor* handle) const noexcept
     {
-        return ice::sonic::Tensor{m_Tensor_ops, const_cast<::TF_Tensor*>(handle)};
+        return ice::sonic::Tensor{m_Tensor_ops, handle};
     }
 
     const ::TFGeneratorFunctionOps& get_vtable() const noexcept

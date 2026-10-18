@@ -104,7 +104,7 @@ public:
     virtual void receive(
         void* out_buffer,
         size_t buffer_size,
-        size_t* out_bytes_received,
+        std::size_t& out_bytes_received,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void receive_async(
@@ -125,9 +125,9 @@ public:
     virtual void receive_from(
         void* out_buffer,
         size_t buffer_size,
-        size_t* out_bytes_received,
+        std::size_t& out_bytes_received,
         const ice::sonic::String& out_sender_host,
-        uint16_t* out_sender_port,
+        std::uint16_t& out_sender_port,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void
@@ -147,7 +147,7 @@ public:
         std::uint16_t& out_port,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
-    virtual void get_protocol(::TFSocketProtocol& out_protocol) noexcept = 0;
+    virtual void get_protocol(ice::sonic::SocketProtocol& out_protocol) noexcept = 0;
     virtual void get_fd(std::intptr_t& out_fd) noexcept = 0;
     virtual void is_valid(int& out_valid) noexcept = 0;
 
@@ -362,7 +362,7 @@ public:
                 self.receive(
                     out_buffer,
                     buffer_size,
-                    out_bytes_received,
+                    *out_bytes_received,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -415,9 +415,9 @@ public:
                 self.receive_from(
                     out_buffer,
                     buffer_size,
-                    out_bytes_received,
+                    *out_bytes_received,
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_sender_host),
-                    out_sender_port,
+                    *out_sender_port,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -487,7 +487,9 @@ public:
                 [](::TF_Socket* socket, ::TFSocketProtocol* out_protocol) noexcept
             {
                 auto& self = Socket::from_handle(socket);
-                self.get_protocol(*out_protocol);
+                ice::sonic::SocketProtocol wrapped_out_protocol{*out_protocol};
+                self.get_protocol(wrapped_out_protocol);
+                *out_protocol = wrapped_out_protocol.get_value();
             },
             .get_fd =
                 [](::TF_Socket* socket, intptr_t* out_fd) noexcept
@@ -508,19 +510,19 @@ public:
     ice::sonic::Socket
     wrap(std::type_identity<ice::sonic::Socket>, const ::TF_Socket* handle) const noexcept
     {
-        return ice::sonic::Socket{m_Socket_ops, const_cast<::TF_Socket*>(handle)};
+        return ice::sonic::Socket{m_Socket_ops, handle};
     }
 
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     const ::TF_SocketOps& get_vtable() const noexcept

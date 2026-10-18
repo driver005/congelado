@@ -5,6 +5,7 @@ module;
 export module aten_xpu_extern_stream_executor:allocator_block_pool;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
 import :allocator_block;
 
 export namespace aten_xpu {
@@ -15,7 +16,7 @@ public:
     using SizeOrderedSet = std::set<SyclBlock*, SyclBlockSizeLess>;
     using AddressOrderedSet = std::set<SyclBlock*, SyclBlockAddressLess>;
 
-    SyclBlockPool(bool is_small, TF_PoolId owner) noexcept :
+    SyclBlockPool(bool is_small, ice::sonic::PoolId owner) noexcept :
         m_is_small{is_small},
         m_owner{owner}
     {
@@ -46,7 +47,7 @@ public:
         return m_is_small;
     }
 
-    const TF_PoolId& getOwner() const noexcept
+    const ice::sonic::PoolId& getOwner() const noexcept
     {
         return m_owner;
     }
@@ -75,7 +76,7 @@ public:
 
     bool is_default() const noexcept
     {
-        return m_owner.first == 0 && m_owner.second == 0;
+        return m_owner.getFirst() == 0 && m_owner.getSecond() == 0;
     }
 
     SyclBlock* take_best_fit(sycl::queue* queue, std::size_t size, bool use_expandable)
@@ -103,7 +104,7 @@ public:
 
 private:
     bool m_is_small;
-    TF_PoolId m_owner;
+    ice::sonic::PoolId m_owner;
     int m_allocation_count{0};
     SizeOrderedSet m_blocks;
     AddressOrderedSet m_unmapped;

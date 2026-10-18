@@ -2,7 +2,7 @@
 {% for dep in deps %}
                 {{ dep.type }} wrap(std::type_identity<{{ dep.type }}>, const ::{{ dep.handle }}* handle) const noexcept
                 {
-                    return {{ dep.type }}{m_{{ dep.member }}_ops, const_cast<::{{ dep.handle }}*>(handle)};
+                    return {{ dep.type }}{m_{{ dep.member }}_ops, handle};
                 }
 
 {% endfor %}

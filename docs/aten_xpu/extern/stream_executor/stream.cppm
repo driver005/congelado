@@ -7,6 +7,7 @@ module;
 export module aten_xpu_extern_stream_executor:stream;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
 import cc_ice_intern_sonic;
 import cc_ice_extern_stream_executor_builder;
 import aten_xpu_intern;
@@ -115,7 +116,8 @@ public:
     void query(bool& out_idle, const ice::sonic::Status& out_status) noexcept override
     {
         if (!m_queue) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, "stream is not bound");
+            m_status
+                .fail(out_status, ice::sonic::Code::k_failed_precondition, "stream is not bound");
             return;
         }
         out_idle = m_queue->ext_oneapi_empty();
@@ -124,7 +126,8 @@ public:
     void synchronize(const ice::sonic::Status& out_status) noexcept override
     {
         if (!m_queue) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, "stream is not bound");
+            m_status
+                .fail(out_status, ice::sonic::Code::k_failed_precondition, "stream is not bound");
             return;
         }
 
@@ -136,7 +139,7 @@ public:
     }
 
     void get_capture_status(
-        ::TF_CaptureStatus& out_capture_status,
+        ice::sonic::CaptureStatus& out_capture_status,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -144,8 +147,8 @@ public:
         const bool recording =
             m_queue && m_queue->ext_oneapi_get_state() ==
                            sycl::ext::oneapi::experimental::queue_state::recording;
-        out_capture_status =
-            recording || m_capturing ? TF_CAPTURE_STATUS_ACTIVE : TF_CAPTURE_STATUS_NONE;
+        out_capture_status = recording || m_capturing ? ice::sonic::CaptureStatus::k_active
+                                                      : ice::sonic::CaptureStatus::k_none;
     }
 
     void get_native_handle(void** out_handle) noexcept override

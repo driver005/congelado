@@ -1,12 +1,12 @@
 
 {% if registry_type != "" %}
                         {{ class_name }}(const {{ registry_type }}& registry, const {{ string_type }}& type, const {{ string_type }}& provider) noexcept
-                            : Runtime(*registry.get_ops(), registry.get_handle(), type.get_handle(), provider.get_handle())
+                            : Runtime(*registry.get_ops(), *registry.get_handle(), *type.get_handle(), *provider.get_handle())
                         {
                         }
 
-                        {{ class_name }}(const {{ registry_type }}& registry, ::{{ handle_name }}* handle, const {{ string_type }}& type, const {{ string_type }}& provider) noexcept
-                            : Runtime(*registry.get_ops(), registry.get_handle(), handle, type.get_handle(), provider.get_handle())
+                        {{ class_name }}(const {{ registry_type }}& registry, const ::{{ handle_name }}& handle, const {{ string_type }}& type, const {{ string_type }}& provider) noexcept
+                            : Runtime(*registry.get_ops(), *registry.get_handle(), handle, *type.get_handle(), *provider.get_handle())
                         {
                         }
 
@@ -16,7 +16,7 @@
                         {
                         }
 
-                        {{ class_name }}(const ::{{ struct_name }}* ops, ::{{ handle_name }}* handle) noexcept
+                        {{ class_name }}(const ::{{ struct_name }}* ops, const ::{{ handle_name }}* handle) noexcept
                             : Runtime(ops, handle)
                         {
                         }

@@ -9,6 +9,7 @@ congelado_module_library(
     name = "cc_ice_extern_random_generator_sonic",
     partitions = [
         "random_generator.cppm",
+        "philox_state.cppm",
     ],
     primary_interface = "base.cppm",
     visibility = ["//visibility:public"],

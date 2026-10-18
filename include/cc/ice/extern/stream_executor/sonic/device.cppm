@@ -11,6 +11,7 @@ module;
 export module cc_ice_extern_stream_executor_sonic:device;
 
 import std;
+import :device_properties;
 import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
@@ -25,25 +26,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Device(
         const ice::sonic::Registration& registry,
-        ::TF_Device* handle,
+        const ::TF_Device& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +54,7 @@ public:
     {
     }
 
-    Device(const ::TF_DeviceOps* ops, ::TF_Device* handle) noexcept :
+    Device(const ::TF_DeviceOps* ops, const ::TF_Device* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -99,11 +100,15 @@ public:
     }
 
     void get_device_properties(
-        ::TF_DeviceProperties* out_properties,
+        ice::sonic::DeviceProperties* out_properties,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->get_device_properties(get_handle(), out_properties, out_status.get_handle());
+        m_ops->get_device_properties(
+            get_handle(),
+            out_properties == nullptr ? nullptr : out_properties->get_handle(),
+            out_status.get_handle()
+        );
     }
 
     void get_native_handle(void** out_handle) const noexcept

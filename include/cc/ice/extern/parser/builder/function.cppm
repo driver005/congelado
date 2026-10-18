@@ -143,7 +143,7 @@ public:
     ice::sonic::ParserBlock
     wrap(std::type_identity<ice::sonic::ParserBlock>, const ::TFParserBlock* handle) const noexcept
     {
-        return ice::sonic::ParserBlock{m_ParserBlock_ops, const_cast<::TFParserBlock*>(handle)};
+        return ice::sonic::ParserBlock{m_ParserBlock_ops, handle};
     }
 
     ice::sonic::ParserParameter wrap(
@@ -151,22 +151,19 @@ public:
         const ::TFParserParameter* handle
     ) const noexcept
     {
-        return ice::sonic::ParserParameter{
-            m_ParserParameter_ops,
-            const_cast<::TFParserParameter*>(handle)
-        };
+        return ice::sonic::ParserParameter{m_ParserParameter_ops, handle};
     }
 
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     const ::TFParserFunctionOps& get_vtable() const noexcept

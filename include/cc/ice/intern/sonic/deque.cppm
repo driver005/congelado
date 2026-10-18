@@ -28,25 +28,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Deque(
         const ice::sonic::Registration& registry,
-        ::TF_Deque* handle,
+        const ::TF_Deque& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -56,7 +56,7 @@ public:
     {
     }
 
-    Deque(const ::TF_DequeOps* ops, ::TF_Deque* handle) noexcept :
+    Deque(const ::TF_DequeOps* ops, const ::TF_Deque* handle) noexcept :
         Runtime(ops, handle)
     {
     }

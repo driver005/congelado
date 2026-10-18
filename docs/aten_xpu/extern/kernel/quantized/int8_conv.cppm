@@ -8,6 +8,7 @@ module;
 export module aten_xpu_extern_kernel:quantized_int8_conv;
 
 import std;
+import cc_ice_intern_sonic;
 import aten_xpu_intern;
 import :kernel;
 import :context;
@@ -43,7 +44,7 @@ public:
     SyclInt8ConvolutionKernel(const SyclOpsTable& ops, SyclKernelConstruction& construction) :
         SyclKernel<SyclInt8ConvolutionKernel>{ops, k_int8_convolution_kernel_name},
         m_geometry{SyclConvolutionGeometry{construction}},
-        m_output_type{construction.getType("output_dtype", TF_QINT8)},
+        m_output_type{construction.getType("output_dtype", ice::sonic::DataTypeEnum::k_qint8)},
         m_unary{construction.getString("unary", "none")},
         m_algorithm{construction.getString("algorithm", "none")},
         m_binary{construction.getString("binary", "none")},
@@ -100,7 +101,10 @@ public:
                 scalars,
                 m_algorithm
             )) {
-            context.fail(TF_INVALID_ARGUMENT, "unsupported quantized convolution post op");
+            context.fail(
+                ice::sonic::Code::k_invalid_argument,
+                "unsupported quantized convolution post op"
+            );
             return;
         }
 
@@ -165,7 +169,7 @@ private:
     }
 
     SyclConvolutionGeometry m_geometry;
-    TFDataTypeEnum m_output_type;
+    ice::sonic::DataTypeEnum m_output_type;
     std::string m_unary;
     std::string m_algorithm;
     std::string m_binary;

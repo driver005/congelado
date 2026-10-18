@@ -93,19 +93,19 @@ public:
         const ::TFGrapplerItem* handle
     ) const noexcept
     {
-        return ice::sonic::GrapplerItem{m_GrapplerItem_ops, const_cast<::TFGrapplerItem*>(handle)};
+        return ice::sonic::GrapplerItem{m_GrapplerItem_ops, handle};
     }
 
     ice::sonic::Buffer
     wrap(std::type_identity<ice::sonic::Buffer>, const ::TF_Buffer* handle) const noexcept
     {
-        return ice::sonic::Buffer{m_Buffer_ops, const_cast<::TF_Buffer*>(handle)};
+        return ice::sonic::Buffer{m_Buffer_ops, handle};
     }
 
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     const ::TFGrapplerOptimizerOps& get_vtable() const noexcept

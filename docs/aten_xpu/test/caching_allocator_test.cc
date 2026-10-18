@@ -14,20 +14,20 @@ namespace aten_xpu {
 class SyclCachingAllocatorTest : public SyclTestFixture
 {
 protected:
-    TF_DeviceMemoryBase allocate(
+    ice::sonic::DeviceMemoryBase allocate(
         const ice::sonic::Allocator& allocator,
         const ice::sonic::Stream& stream,
         uint64_t size
     )
     {
-        TF_DeviceMemoryBase memory{};
-        allocator.allocate(size, TF_MEMORY_SPACE_DEVICE, stream, &memory, getStatus());
+        ice::sonic::DeviceMemoryBase memory;
+        allocator.allocate(size, ice::sonic::MemorySpace::k_device, stream, &memory, getStatus());
         return memory;
     }
 
-    TF_AllocatorStats stats(const ice::sonic::Allocator& allocator)
+    ice::sonic::AllocatorStats stats(const ice::sonic::Allocator& allocator)
     {
-        TF_AllocatorStats result{};
+        ice::sonic::AllocatorStats result;
         _Bool success = false;
         allocator.get_stats(&result, success);
         return result;
@@ -40,16 +40,16 @@ TEST_F(SyclCachingAllocatorTest, ReusesCachedBlocks)
     auto allocator = make_allocator();
     auto first = allocate(allocator, stream, 4'096);
     ASSERT_TRUE(ok());
-    void* first_pointer = first.opaque;
+    void* first_pointer = first.getOpaque();
     allocator.deallocate(&first);
 
     auto second = allocate(allocator, stream, 4'096);
-    EXPECT_EQ(second.opaque, first_pointer);
-    EXPECT_EQ(stats(allocator).bytes_reserved, 2 << 20);
+    EXPECT_EQ(second.getOpaque(), first_pointer);
+    EXPECT_EQ(stats(allocator).getBytesReserved(), 2 << 20);
 
     allocator.deallocate(&second);
     allocator.empty_cache(getStatus());
-    EXPECT_EQ(stats(allocator).bytes_reserved, 0);
+    EXPECT_EQ(stats(allocator).getBytesReserved(), 0);
     release_allocator(allocator);
     release_stream(stream);
 }
@@ -76,12 +76,12 @@ TEST_F(SyclCachingAllocatorTest, NoSplitKeepsBlocksWhole)
 {
     auto stream = make_stream();
     auto allocator = make_allocator();
-    allocator.set_option(TF_ALLOCATOR_OPTION_NO_SPLIT, 1, getStatus());
+    allocator.set_option(ice::sonic::AllocatorOption::k_no_split, 1, getStatus());
     auto memory = allocate(allocator, stream, 1'024);
     uint64_t size = 0;
     void* base = nullptr;
-    allocator.get_base_allocation(memory.opaque, &base, size, getStatus());
-    EXPECT_EQ(base, memory.opaque);
+    allocator.get_base_allocation(memory.getOpaque(), &base, size, getStatus());
+    EXPECT_EQ(base, memory.getOpaque());
     EXPECT_EQ(size, 2U << 20U);
     allocator.deallocate(&memory);
     release_allocator(allocator);
@@ -99,9 +99,9 @@ TEST_F(SyclCachingAllocatorTest, MemPoolCapturesAllocations)
     auto memory = allocate(allocator, stream, 1'024);
     pool.end_allocate_to_pool(getStatus());
 
-    TF_PoolId pool_id{};
+    ice::sonic::PoolId pool_id;
     pool.get_id(&pool_id);
-    EXPECT_GT(pool_id.second, 0);
+    EXPECT_GT(pool_id.getSecond(), 0);
     allocator.deallocate(&memory);
     pool.release(getStatus());
     allocator.destroy_mem_pool_internal(pool);
@@ -117,7 +117,7 @@ TEST_F(SyclCachingAllocatorTest, MemoryFractionLimitsReservation)
     allocator.set_memory_fraction(0.0, getStatus());
     auto memory = allocate(allocator, stream, 1'024);
     EXPECT_FALSE(ok());
-    EXPECT_EQ(memory.opaque, nullptr);
+    EXPECT_EQ(memory.getOpaque(), nullptr);
     release_allocator(allocator);
     release_stream(stream);
 }

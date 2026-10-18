@@ -42,8 +42,10 @@ public:
     virtual ~AttrType() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
-    virtual void
-    attrtype_name(TFAttrTypeEnum type, const ice::sonic::String& out_type_name) noexcept = 0;
+    virtual void attrtype_name(
+        ice::sonic::AttrTypeEnum type,
+        const ice::sonic::String& out_type_name
+    ) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_AttrType*)) noexcept
     {
@@ -70,7 +72,7 @@ public:
             {
                 auto& self = AttrType::from_handle(attrtype);
                 self.attrtype_name(
-                    type,
+                    ice::sonic::AttrTypeEnum{type},
                     self.wrap(std::type_identity<ice::sonic::String>{}, out_type_name)
                 );
             },
@@ -81,7 +83,7 @@ public:
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     const ::TF_AttrTypeOps& get_vtable() const noexcept

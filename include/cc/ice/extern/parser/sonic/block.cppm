@@ -26,25 +26,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     ParserBlock(
         const ice::sonic::Registration& registry,
-        ::TFParserBlock* handle,
+        const ::TFParserBlock& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -54,7 +54,7 @@ public:
     {
     }
 
-    ParserBlock(const ::TFParserBlockOps* ops, ::TFParserBlock* handle) noexcept :
+    ParserBlock(const ::TFParserBlockOps* ops, const ::TFParserBlock* handle) noexcept :
         Runtime(ops, handle)
     {
     }

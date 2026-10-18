@@ -27,25 +27,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     FileStatistics(
         const ice::sonic::Registration& registry,
-        ::TF_FileStatistics* handle,
+        const ::TF_FileStatistics& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -55,7 +55,7 @@ public:
     {
     }
 
-    FileStatistics(const ::TF_FileStatisticsOps* ops, ::TF_FileStatistics* handle) noexcept :
+    FileStatistics(const ::TF_FileStatisticsOps* ops, const ::TF_FileStatistics* handle) noexcept :
         Runtime(ops, handle)
     {
     }

@@ -2,6 +2,7 @@ export module cc_abi_gen_generator;
 
 export import :runtime_spec;
 export import :runtime_emitter;
+export import :value_emitter;
 export import :vtable_emitter;
 export import :runtime;
 export import :helper_dependency_info;

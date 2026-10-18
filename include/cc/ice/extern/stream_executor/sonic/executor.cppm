@@ -5,7 +5,9 @@
 
 module;
 
+#include "include/c/extern/stream_executor/event.h"
 #include "include/c/extern/stream_executor/executor.h"
+#include "include/c/extern/stream_executor/types.h"
 #include "include/c/intern/registration.h"
 
 export module cc_ice_extern_stream_executor_sonic:executor;
@@ -13,8 +15,13 @@ export module cc_ice_extern_stream_executor_sonic:executor;
 import std;
 import :allocator;
 import :device;
+import :device_memory_base;
 import :event;
+import :event_options;
+import :event_status;
+import :ipc_event_handle;
 import :stream;
+import :stream_options;
 import :timer;
 import cc_ice_extern_random_generator_sonic;
 import cc_ice_intern_sonic;
@@ -31,25 +38,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Executor(
         const ice::sonic::Registration& registry,
-        ::TF_Executor* handle,
+        const ::TF_Executor& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -59,7 +66,7 @@ public:
     {
     }
 
-    Executor(const ::TF_ExecutorOps* ops, ::TF_Executor* handle) noexcept :
+    Executor(const ::TF_ExecutorOps* ops, const ::TF_Executor* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -167,15 +174,17 @@ public:
     void get_event_status(
         const ice::sonic::Device& device,
         const ice::sonic::Event& event,
-        ::TF_EventStatus& out_event_status
+        ice::sonic::EventStatus& out_event_status
     ) const noexcept
     {
+        ::TF_EventStatus raw_out_event_status{};
         m_ops->get_event_status(
             get_handle(),
             device.get_handle(),
             event.get_handle(),
-            &out_event_status
+            &raw_out_event_status
         );
+        out_event_status = ice::sonic::EventStatus{raw_out_event_status};
     }
 
     void record_event(
@@ -268,7 +277,7 @@ public:
         const ice::sonic::Device& device,
         const ice::sonic::Stream& stream,
         void* host_dst,
-        const ::TF_DeviceMemoryBase* device_src,
+        const ice::sonic::DeviceMemoryBase* device_src,
         uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -278,7 +287,7 @@ public:
             device.get_handle(),
             stream.get_handle(),
             host_dst,
-            device_src,
+            device_src == nullptr ? nullptr : device_src->get_handle(),
             size,
             out_status.get_handle()
         );
@@ -287,7 +296,7 @@ public:
     void memcpy_htod(
         const ice::sonic::Device& device,
         const ice::sonic::Stream& stream,
-        ::TF_DeviceMemoryBase* device_dst,
+        ice::sonic::DeviceMemoryBase* device_dst,
         const void* host_src,
         uint64_t size,
         const ice::sonic::Status& out_status
@@ -297,7 +306,7 @@ public:
             get_handle(),
             device.get_handle(),
             stream.get_handle(),
-            device_dst,
+            device_dst == nullptr ? nullptr : device_dst->get_handle(),
             host_src,
             size,
             out_status.get_handle()
@@ -307,8 +316,8 @@ public:
     void memcpy_dtod(
         const ice::sonic::Device& device,
         const ice::sonic::Stream& stream,
-        ::TF_DeviceMemoryBase* device_dst,
-        const ::TF_DeviceMemoryBase* device_src,
+        ice::sonic::DeviceMemoryBase* device_dst,
+        const ice::sonic::DeviceMemoryBase* device_src,
         uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -317,8 +326,8 @@ public:
             get_handle(),
             device.get_handle(),
             stream.get_handle(),
-            device_dst,
-            device_src,
+            device_dst == nullptr ? nullptr : device_dst->get_handle(),
+            device_src == nullptr ? nullptr : device_src->get_handle(),
             size,
             out_status.get_handle()
         );
@@ -327,7 +336,7 @@ public:
     void sync_memcpy_dtoh(
         const ice::sonic::Device& device,
         void* host_dst,
-        const ::TF_DeviceMemoryBase* device_src,
+        const ice::sonic::DeviceMemoryBase* device_src,
         uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -336,7 +345,7 @@ public:
             get_handle(),
             device.get_handle(),
             host_dst,
-            device_src,
+            device_src == nullptr ? nullptr : device_src->get_handle(),
             size,
             out_status.get_handle()
         );
@@ -344,7 +353,7 @@ public:
 
     void sync_memcpy_htod(
         const ice::sonic::Device& device,
-        ::TF_DeviceMemoryBase* device_dst,
+        ice::sonic::DeviceMemoryBase* device_dst,
         const void* host_src,
         uint64_t size,
         const ice::sonic::Status& out_status
@@ -353,7 +362,7 @@ public:
         m_ops->sync_memcpy_htod(
             get_handle(),
             device.get_handle(),
-            device_dst,
+            device_dst == nullptr ? nullptr : device_dst->get_handle(),
             host_src,
             size,
             out_status.get_handle()
@@ -362,8 +371,8 @@ public:
 
     void sync_memcpy_dtod(
         const ice::sonic::Device& device,
-        ::TF_DeviceMemoryBase* device_dst,
-        const ::TF_DeviceMemoryBase* device_src,
+        ice::sonic::DeviceMemoryBase* device_dst,
+        const ice::sonic::DeviceMemoryBase* device_src,
         uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -371,8 +380,8 @@ public:
         m_ops->sync_memcpy_dtod(
             get_handle(),
             device.get_handle(),
-            device_dst,
-            device_src,
+            device_dst == nullptr ? nullptr : device_dst->get_handle(),
+            device_src == nullptr ? nullptr : device_src->get_handle(),
             size,
             out_status.get_handle()
         );
@@ -417,7 +426,7 @@ public:
     void mem_zero(
         const ice::sonic::Device& device,
         const ice::sonic::Stream& stream,
-        ::TF_DeviceMemoryBase* location,
+        ice::sonic::DeviceMemoryBase* location,
         uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -426,7 +435,7 @@ public:
             get_handle(),
             device.get_handle(),
             stream.get_handle(),
-            location,
+            location == nullptr ? nullptr : location->get_handle(),
             size,
             out_status.get_handle()
         );
@@ -435,7 +444,7 @@ public:
     void memset(
         const ice::sonic::Device& device,
         const ice::sonic::Stream& stream,
-        ::TF_DeviceMemoryBase* location,
+        ice::sonic::DeviceMemoryBase* location,
         uint8_t pattern,
         uint64_t size,
         const ice::sonic::Status& out_status
@@ -445,7 +454,7 @@ public:
             get_handle(),
             device.get_handle(),
             stream.get_handle(),
-            location,
+            location == nullptr ? nullptr : location->get_handle(),
             pattern,
             size,
             out_status.get_handle()
@@ -455,7 +464,7 @@ public:
     void memset32(
         const ice::sonic::Device& device,
         const ice::sonic::Stream& stream,
-        ::TF_DeviceMemoryBase* location,
+        ice::sonic::DeviceMemoryBase* location,
         uint32_t pattern,
         uint64_t size,
         const ice::sonic::Status& out_status
@@ -465,7 +474,7 @@ public:
             get_handle(),
             device.get_handle(),
             stream.get_handle(),
-            location,
+            location == nullptr ? nullptr : location->get_handle(),
             pattern,
             size,
             out_status.get_handle()
@@ -492,7 +501,7 @@ public:
 
     void create_stream_with_options(
         const ice::sonic::Device& device,
-        const ::TF_StreamOptions* options,
+        const ice::sonic::StreamOptions* options,
         const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -500,7 +509,7 @@ public:
         m_ops->create_stream_with_options(
             get_handle(),
             device.get_handle(),
-            options,
+            options == nullptr ? nullptr : options->get_handle(),
             stream.get_handle(),
             out_status.get_handle()
         );
@@ -568,7 +577,7 @@ public:
 
     void create_event_with_options_internal(
         const ice::sonic::Device& device,
-        const ::TF_EventOptions* options,
+        const ice::sonic::EventOptions* options,
         const ice::sonic::Event& out_event,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -576,7 +585,7 @@ public:
         m_ops->create_event_with_options_internal(
             get_handle(),
             device.get_handle(),
-            options,
+            options == nullptr ? nullptr : options->get_handle(),
             out_event.get_handle(),
             out_status.get_handle()
         );
@@ -584,7 +593,7 @@ public:
 
     void create_event_from_ipc_internal(
         const ice::sonic::Device& device,
-        const ::TF_IpcEventHandle* handle,
+        const ice::sonic::IpcEventHandle* handle,
         const ice::sonic::Event& out_event,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -592,7 +601,7 @@ public:
         m_ops->create_event_from_ipc_internal(
             get_handle(),
             device.get_handle(),
-            handle,
+            handle == nullptr ? nullptr : handle->get_handle(),
             out_event.get_handle(),
             out_status.get_handle()
         );

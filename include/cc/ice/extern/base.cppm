@@ -21,5 +21,6 @@ export import cc_ice_extern_filesystem;
 export import cc_ice_extern_ops;
 export import cc_ice_extern_pubsub;
 export import cc_ice_extern_kernel;
+export import cc_ice_extern_plugin;
 
 // clang-format on

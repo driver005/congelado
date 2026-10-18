@@ -26,23 +26,23 @@ public:
         const ice::sonic::String& provider) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Map(const ice::sonic::Registration& registry,
-        ::TF_Map* handle,
+        const ::TF_Map& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -52,7 +52,7 @@ public:
     {
     }
 
-    Map(const ::TF_MapOps* ops, ::TF_Map* handle) noexcept :
+    Map(const ::TF_MapOps* ops, const ::TF_Map* handle) noexcept :
         Runtime(ops, handle)
     {
     }

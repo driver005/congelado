@@ -28,25 +28,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Vector(
         const ice::sonic::Registration& registry,
-        ::TF_Vector* handle,
+        const ::TF_Vector& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -56,7 +56,7 @@ public:
     {
     }
 
-    Vector(const ::TF_VectorOps* ops, ::TF_Vector* handle) noexcept :
+    Vector(const ::TF_VectorOps* ops, const ::TF_Vector* handle) noexcept :
         Runtime(ops, handle)
     {
     }

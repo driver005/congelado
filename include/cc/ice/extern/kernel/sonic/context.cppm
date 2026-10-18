@@ -6,6 +6,7 @@
 module;
 
 #include "include/c/extern/kernel/context.h"
+#include "include/c/intern/datatype.h"
 #include "include/c/intern/registration.h"
 
 export module cc_ice_extern_kernel_sonic:context;
@@ -26,25 +27,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     OpKernelContext(
         const ice::sonic::Registration& registry,
-        ::TF_OpKernelContext* handle,
+        const ::TF_OpKernelContext& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -54,7 +55,8 @@ public:
     {
     }
 
-    OpKernelContext(const ::TF_OpKernelContextOps* ops, ::TF_OpKernelContext* handle) noexcept :
+    OpKernelContext(const ::TF_OpKernelContextOps* ops, const ::TF_OpKernelContext* handle) noexcept
+        :
         Runtime(ops, handle)
     {
     }
@@ -93,9 +95,11 @@ public:
         m_ops->input_range(get_handle(), name.get_handle(), out_args);
     }
 
-    void input_datatype(int index, ::TFDataTypeEnum& out_type) const noexcept
+    void input_datatype(int index, ice::sonic::DataTypeEnum& out_type) const noexcept
     {
-        m_ops->input_datatype(get_handle(), index, &out_type);
+        ::TFDataTypeEnum raw_out_type{};
+        m_ops->input_datatype(get_handle(), index, &raw_out_type);
+        out_type = ice::sonic::DataTypeEnum{raw_out_type};
     }
 
     void set_output(
@@ -159,9 +163,11 @@ public:
         m_ops->failure(get_handle(), out_status.get_handle());
     }
 
-    void expected_output_datatype(int i, ::TFDataTypeEnum& out_type) const noexcept
+    void expected_output_datatype(int i, ice::sonic::DataTypeEnum& out_type) const noexcept
     {
-        m_ops->expected_output_datatype(get_handle(), i, &out_type);
+        ::TFDataTypeEnum raw_out_type{};
+        m_ops->expected_output_datatype(get_handle(), i, &raw_out_type);
+        out_type = ice::sonic::DataTypeEnum{raw_out_type};
     }
 
     void is_host_memory_input(
@@ -237,9 +243,8 @@ public:
 
     void allocate_output(
         int index,
-        TFDataTypeEnum dtype,
-        const int64_t* dims,
-        int num_dims,
+        ice::sonic::DataTypeEnum dtype,
+        const std::vector<std::int64_t>& dims,
         size_t len,
         ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
@@ -248,9 +253,9 @@ public:
         m_ops->allocate_output(
             get_handle(),
             index,
-            dtype,
-            dims,
-            num_dims,
+            dtype.get_value(),
+            dims.data(),
+            static_cast<int>(dims.size()),
             len,
             out_tensor,
             out_status.get_handle()
@@ -258,33 +263,30 @@ public:
     }
 
     void forward_input_or_allocate_output(
-        const int* candidate_input_indices,
-        int num_candidate_input_indices,
+        const std::vector<int>& candidate_input_indices,
         int output_index,
-        const int64_t* output_dims,
-        int output_num_dims,
-        int* out_forwarded_input,
+        const std::vector<std::int64_t>& output_dims,
+        std::vector<int>& out_forwarded_input,
         ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->forward_input_or_allocate_output(
             get_handle(),
-            candidate_input_indices,
-            num_candidate_input_indices,
+            candidate_input_indices.data(),
+            static_cast<int>(candidate_input_indices.size()),
             output_index,
-            output_dims,
-            output_num_dims,
-            out_forwarded_input,
+            output_dims.data(),
+            static_cast<int>(std::min({output_dims.size(), out_forwarded_input.size()})),
+            out_forwarded_input.data(),
             out_tensor,
             out_status.get_handle()
         );
     }
 
     void allocate_temp(
-        TFDataTypeEnum dtype,
-        const int64_t* dims,
-        int num_dims,
+        ice::sonic::DataTypeEnum dtype,
+        const std::vector<std::int64_t>& dims,
         void* alloc_attrs,
         ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
@@ -292,9 +294,9 @@ public:
     {
         m_ops->allocate_temp(
             get_handle(),
-            dtype,
-            dims,
-            num_dims,
+            dtype.get_value(),
+            dims.data(),
+            static_cast<int>(dims.size()),
             alloc_attrs,
             out_tensor,
             out_status.get_handle()
@@ -374,9 +376,8 @@ public:
     }
 
     void temporary_variable(
-        TFDataTypeEnum dtype,
-        const int64_t* dims,
-        int num_dims,
+        ice::sonic::DataTypeEnum dtype,
+        const std::vector<std::int64_t>& dims,
         const ice::sonic::String& var_name,
         TF_PluginAllocatorFunc plugin_allocator,
         const ice::sonic::Status& out_status
@@ -384,9 +385,9 @@ public:
     {
         m_ops->temporary_variable(
             get_handle(),
-            dtype,
-            dims,
-            num_dims,
+            dtype.get_value(),
+            dims.data(),
+            static_cast<int>(dims.size()),
             var_name.get_handle(),
             plugin_allocator,
             out_status.get_handle()
@@ -410,8 +411,7 @@ public:
     void maybe_lock_variable_input_mutexes_in_order(
         _Bool do_lock,
         _Bool sparse,
-        const int* inputs,
-        size_t len,
+        const std::vector<int>& inputs,
         TF_CopyTensorFunc copy_func,
         ::TF_VariableInputLockHolder** out_lock_holder,
         const ice::sonic::Status& out_status
@@ -421,8 +421,8 @@ public:
             get_handle(),
             do_lock,
             sparse,
-            inputs,
-            len,
+            inputs.data(),
+            static_cast<size_t>(inputs.size()),
             copy_func,
             out_lock_holder,
             out_status.get_handle()

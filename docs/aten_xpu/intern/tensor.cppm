@@ -8,6 +8,7 @@ module;
 export module aten_xpu_intern:tensor;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
 import cc_ice_intern_sonic;
 import cc_ice_intern_builder;
 import :ops_table;
@@ -34,7 +35,7 @@ public:
     SyclTensor(SyclTensor&&) = delete;
     SyclTensor& operator=(SyclTensor&&) = delete;
 
-    void setMemorySpace(TF_MemorySpace memory_space) noexcept
+    void setMemorySpace(ice::sonic::MemorySpace memory_space) noexcept
     {
         m_memory_space = memory_space;
     }
@@ -49,14 +50,14 @@ public:
         m_status.copy_into(out_name, "SyclTensor");
     }
 
-    void set_dtype(TFDataTypeEnum dtype) noexcept override
+    void set_dtype(ice::sonic::DataTypeEnum dtype) noexcept override
     {
         m_dtype = dtype;
     }
 
-    void set_dims(const int64_t* dims, int num_dims) noexcept override
+    void set_dims(std::span<const std::int64_t> dims) noexcept override
     {
-        m_dims.assign(dims, dims + num_dims);
+        m_dims.assign(dims.begin(), dims.end());
         fill_contiguous_strides();
         const auto bytes =
             static_cast<std::size_t>(element_count()) * m_datatype.element_size(m_dtype);
@@ -92,7 +93,7 @@ public:
         delete this;
     }
 
-    void tensor_type(::TFDataTypeEnum& out_dtype) noexcept override
+    void tensor_type(ice::sonic::DataTypeEnum& out_dtype) noexcept override
     {
         out_dtype = m_dtype;
     }
@@ -123,8 +124,8 @@ public:
     }
 
     void tensor_bitcast_from(
-        TFDataTypeEnum dtype,
-        TF_Tensor** out_tensor,
+        ice::sonic::DataTypeEnum dtype,
+        ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -132,8 +133,8 @@ public:
     }
 
     void tensor_bitcast_to(
-        TFDataTypeEnum dtype,
-        TF_Tensor** out_tensor,
+        ice::sonic::DataTypeEnum dtype,
+        ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -155,9 +156,9 @@ public:
         }
     }
 
-    void set_strides(const int64_t* strides, int num_strides) noexcept override
+    void set_strides(std::span<const std::int64_t> strides) noexcept override
     {
-        m_strides.assign(strides, strides + num_strides);
+        m_strides.assign(strides.begin(), strides.end());
     }
 
     void stride(int dim_index, std::int64_t& out_stride) noexcept override
@@ -186,30 +187,33 @@ public:
     }
 
     void tensor_view(
-        const int64_t* dims,
-        int num_dims,
-        const int64_t* strides,
+        std::span<const std::int64_t> dims,
+        std::span<const std::int64_t> strides,
         int64_t offset_elements,
-        TF_Tensor** out_view,
+        ::TF_Tensor** out_view,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
         if (!fits_storage(
-                dims,
-                strides,
-                num_dims,
+                dims.data(),
+                strides.data(),
+                static_cast<int>(dims.size()),
                 offset_elements,
                 m_datatype.element_size(m_dtype)
             )) {
-            m_status.fail(out_status, TF_OUT_OF_RANGE, "view exceeds tensor storage");
+            m_status
+                .fail(out_status, ice::sonic::Code::k_out_of_range, "view exceeds tensor storage");
             return;
         }
 
         auto* handle = create_handle();
         auto& view = static_cast<SyclTensor&>(SyclTensor::from_handle(handle));
         view.share_storage_from(*this, m_dtype);
-        view.m_dims.assign(dims, dims + num_dims);
-        view.m_strides.assign(strides, strides + num_dims);
+        view.m_dims.assign(dims.begin(), dims.end());
+        view.m_strides.assign(
+            strides.begin(),
+            strides.begin() + static_cast<std::ptrdiff_t>(dims.size())
+        );
         view.m_storage_offset = offset_elements;
         *out_view = handle;
     }
@@ -223,7 +227,7 @@ public:
                static_cast<std::size_t>(m_storage_offset) * m_datatype.element_size(m_dtype);
     }
 
-    TFDataTypeEnum getDtype() const noexcept
+    ice::sonic::DataTypeEnum getDtype() const noexcept
     {
         return m_dtype;
     }
@@ -253,7 +257,7 @@ public:
         return m_device_index;
     }
 
-    TF_MemorySpace getMemorySpace() const noexcept
+    ice::sonic::MemorySpace getMemorySpace() const noexcept
     {
         return m_memory_space;
     }
@@ -284,7 +288,7 @@ private:
         }
     }
 
-    void share_storage_from(const SyclTensor& source, TFDataTypeEnum dtype)
+    void share_storage_from(const SyclTensor& source, ice::sonic::DataTypeEnum dtype)
     {
         m_storage = source.m_storage;
         m_byte_size = source.m_byte_size;
@@ -293,7 +297,11 @@ private:
         m_dtype = dtype;
     }
 
-    void bitcast(TFDataTypeEnum dtype, TF_Tensor** out_tensor, const ice::sonic::Status& out_status)
+    void bitcast(
+        ice::sonic::DataTypeEnum dtype,
+        TF_Tensor** out_tensor,
+        const ice::sonic::Status& out_status
+    )
     {
         const auto source_size = m_datatype.element_size(m_dtype);
         const auto target_size = m_datatype.element_size(dtype);
@@ -310,7 +318,11 @@ private:
 
         const auto last_bytes = static_cast<std::size_t>(m_dims.back()) * source_size;
         if (!is_contiguous() || last_bytes % target_size != 0) {
-            m_status.fail(out_status, TF_INVALID_ARGUMENT, "bitcast changes the innermost extent");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_invalid_argument,
+                "bitcast changes the innermost extent"
+            );
             return;
         }
 
@@ -348,12 +360,12 @@ private:
     const SyclTensorPlacement& m_placement;
     std::shared_ptr<void> m_storage;
     std::size_t m_byte_size{0};
-    TFDataTypeEnum m_dtype{TF_FLOAT};
+    ice::sonic::DataTypeEnum m_dtype{ice::sonic::DataTypeEnum::k_float};
     std::vector<int64_t> m_dims;
     std::vector<int64_t> m_strides;
     int64_t m_storage_offset{0};
     int m_device_index{0};
-    TF_MemorySpace m_memory_space{TF_MEMORY_SPACE_DEVICE};
+    ice::sonic::MemorySpace m_memory_space{ice::sonic::MemorySpace::k_device};
 };
 
 } // namespace aten_xpu

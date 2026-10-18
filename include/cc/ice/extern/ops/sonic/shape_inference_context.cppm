@@ -6,6 +6,7 @@
 module;
 
 #include "include/c/extern/ops/shape_inference_context.h"
+#include "include/c/intern/datatype.h"
 #include "include/c/intern/registration.h"
 
 export module cc_ice_extern_ops_sonic:shape_inference_context;
@@ -28,25 +29,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     ShapeInferenceContext(
         const ice::sonic::Registration& registry,
-        ::TF_ShapeInferenceContext* handle,
+        const ::TF_ShapeInferenceContext& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -58,7 +59,7 @@ public:
 
     ShapeInferenceContext(
         const ::TF_ShapeInferenceContextOps* ops,
-        ::TF_ShapeInferenceContext* handle
+        const ::TF_ShapeInferenceContext* handle
     ) noexcept :
         Runtime(ops, handle)
     {
@@ -109,16 +110,18 @@ public:
 
     void get_attr_type(
         const ice::sonic::String& attr_name,
-        ::TFDataTypeEnum& out_val,
+        ice::sonic::DataTypeEnum& out_val,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
+        ::TFDataTypeEnum raw_out_val{};
         m_ops->get_attr_type(
             get_handle(),
             attr_name.get_handle(),
-            &out_val,
+            &raw_out_val,
             out_status.get_handle()
         );
+        out_val = ice::sonic::DataTypeEnum{raw_out_val};
     }
 
     void rank(const ice::sonic::ShapeHandle& handle, std::int64_t& out_rank) const noexcept

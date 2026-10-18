@@ -5,12 +5,14 @@
 
 module;
 
+#include "include/c/extern/filesystem/option_types.h"
 #include "include/c/extern/filesystem/tree.h"
 #include "include/c/intern/registration.h"
 
 export module cc_ice_extern_filesystem_sonic:tree;
 
 import std;
+import :filesystem_option;
 import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
@@ -25,25 +27,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     FilesystemTree(
         const ice::sonic::Registration& registry,
-        ::TFFilesystemTree* handle,
+        const ::TFFilesystemTree& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +55,7 @@ public:
     {
     }
 
-    FilesystemTree(const ::TFFilesystemTreeOps* ops, ::TFFilesystemTree* handle) noexcept :
+    FilesystemTree(const ::TFFilesystemTreeOps* ops, const ::TFFilesystemTree* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -256,24 +258,28 @@ public:
 
     void get_filesystem_configuration_option(
         const ice::sonic::String& key,
-        ::TFFilesystemOption* out_option,
+        ice::sonic::FilesystemOption* out_option,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_filesystem_configuration_option(
             get_handle(),
             key.get_handle(),
-            out_option,
+            out_option == nullptr ? nullptr : out_option->get_handle(),
             out_status.get_handle()
         );
     }
 
     void set_filesystem_configuration_option(
-        const ::TFFilesystemOption* option,
+        const ice::sonic::FilesystemOption* option,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->set_filesystem_configuration_option(get_handle(), option, out_status.get_handle());
+        m_ops->set_filesystem_configuration_option(
+            get_handle(),
+            option == nullptr ? nullptr : option->get_handle(),
+            out_status.get_handle()
+        );
     }
 
     void get_filesystem_configuration_keys(

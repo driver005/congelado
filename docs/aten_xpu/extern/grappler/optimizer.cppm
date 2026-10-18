@@ -50,7 +50,7 @@ public:
 
         tensorflow::GraphDef graph;
         if (!graph.ParseFromArray(input.data, static_cast<int>(input.length))) {
-            m_status.fail(out_status, TF_INVALID_ARGUMENT, "malformed GraphDef");
+            m_status.fail(out_status, ice::sonic::Code::k_invalid_argument, "malformed GraphDef");
             return;
         }
 
@@ -60,7 +60,7 @@ public:
 
         const auto fused = fuse_bias_and_activation(graph);
         if (!fused.SerializeToString(&m_scratch_bytes)) {
-            m_status.fail(out_status, TF_INTERNAL, "failed to serialize GraphDef");
+            m_status.fail(out_status, ice::sonic::Code::k_internal, "failed to serialize GraphDef");
             return;
         }
         out_optimized_graph_buf.assign_from_string(m_scratch_bytes.data(), m_scratch_bytes.size());

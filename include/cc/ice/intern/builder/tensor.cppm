@@ -5,6 +5,7 @@
 
 module;
 
+#include "include/c/intern/datatype.h"
 #include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tensor.h"
@@ -49,37 +50,36 @@ public:
     virtual ~Tensor() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
-    virtual void set_dtype(TFDataTypeEnum dtype) noexcept = 0;
-    virtual void set_dims(const int64_t* dims, int num_dims) noexcept = 0;
+    virtual void set_dtype(ice::sonic::DataTypeEnum dtype) noexcept = 0;
+    virtual void set_dims(std::span<const std::int64_t> dims) noexcept = 0;
     virtual void set_byte_size(size_t len) noexcept = 0;
     virtual void delete_tensor() noexcept = 0;
-    virtual void tensor_type(::TFDataTypeEnum& out_dtype) noexcept = 0;
+    virtual void tensor_type(ice::sonic::DataTypeEnum& out_dtype) noexcept = 0;
     virtual void num_dims(int& out_num_dims) noexcept = 0;
     virtual void dim(int dim_index, std::int64_t& out_dim) noexcept = 0;
     virtual void tensor_element_count(std::int64_t& out_count) noexcept = 0;
     virtual void tensor_byte_size(std::size_t& out_byte_size) noexcept = 0;
     virtual void tensor_data(void** out_data) noexcept = 0;
     virtual void tensor_bitcast_from(
-        TFDataTypeEnum dtype,
+        ice::sonic::DataTypeEnum dtype,
         ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void tensor_bitcast_to(
-        TFDataTypeEnum dtype,
+        ice::sonic::DataTypeEnum dtype,
         ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void tensor_copy(const ice::sonic::Tensor& dst) noexcept = 0;
-    virtual void set_strides(const int64_t* strides, int num_strides) noexcept = 0;
+    virtual void set_strides(std::span<const std::int64_t> strides) noexcept = 0;
     virtual void stride(int dim_index, std::int64_t& out_stride) noexcept = 0;
     virtual void set_storage_offset(int64_t offset_elements) noexcept = 0;
     virtual void storage_offset(std::int64_t& out_offset_elements) noexcept = 0;
     virtual void set_device_index(int device_index) noexcept = 0;
     virtual void get_device_index(int& out_device_index) noexcept = 0;
     virtual void tensor_view(
-        const int64_t* dims,
-        int num_dims,
-        const int64_t* strides,
+        std::span<const std::int64_t> dims,
+        std::span<const std::int64_t> strides,
         int64_t offset_elements,
         ::TF_Tensor** out_view,
         const ice::sonic::Status& out_status
@@ -107,13 +107,15 @@ public:
                 [](::TF_Tensor* tensor, TFDataTypeEnum dtype) noexcept
             {
                 auto& self = Tensor::from_handle(tensor);
-                self.set_dtype(dtype);
+                self.set_dtype(ice::sonic::DataTypeEnum{dtype});
             },
             .set_dims =
                 [](::TF_Tensor* tensor, const int64_t* dims, int num_dims) noexcept
             {
                 auto& self = Tensor::from_handle(tensor);
-                self.set_dims(dims, num_dims);
+                self.set_dims(
+                    std::span<const std::int64_t>{dims, static_cast<std::size_t>(num_dims)}
+                );
             },
             .set_byte_size =
                 [](::TF_Tensor* tensor, size_t len) noexcept
@@ -131,7 +133,9 @@ public:
                 [](const ::TF_Tensor* tensor, ::TFDataTypeEnum* out_dtype) noexcept
             {
                 auto& self = Tensor::from_handle(tensor);
-                self.tensor_type(*out_dtype);
+                ice::sonic::DataTypeEnum wrapped_out_dtype{*out_dtype};
+                self.tensor_type(wrapped_out_dtype);
+                *out_dtype = wrapped_out_dtype.get_value();
             },
             .num_dims =
                 [](const ::TF_Tensor* tensor, int* out_num_dims) noexcept
@@ -171,7 +175,7 @@ public:
             {
                 auto& self = Tensor::from_handle(src);
                 self.tensor_bitcast_from(
-                    dtype,
+                    ice::sonic::DataTypeEnum{dtype},
                     out_tensor,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
@@ -184,7 +188,7 @@ public:
             {
                 auto& self = Tensor::from_handle(src);
                 self.tensor_bitcast_to(
-                    dtype,
+                    ice::sonic::DataTypeEnum{dtype},
                     out_tensor,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
@@ -199,7 +203,9 @@ public:
                 [](::TF_Tensor* tensor, const int64_t* strides, int num_strides) noexcept
             {
                 auto& self = Tensor::from_handle(tensor);
-                self.set_strides(strides, num_strides);
+                self.set_strides(
+                    std::span<const std::int64_t>{strides, static_cast<std::size_t>(num_strides)}
+                );
             },
             .stride =
                 [](const ::TF_Tensor* tensor, int dim_index, int64_t* out_stride) noexcept
@@ -242,9 +248,8 @@ public:
             {
                 auto& self = Tensor::from_handle(base);
                 self.tensor_view(
-                    dims,
-                    num_dims,
-                    strides,
+                    std::span<const std::int64_t>{dims, static_cast<std::size_t>(num_dims)},
+                    std::span<const std::int64_t>{strides, static_cast<std::size_t>(num_dims)},
                     offset_elements,
                     out_view,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
@@ -257,19 +262,19 @@ public:
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     ice::sonic::Tensor
     wrap(std::type_identity<ice::sonic::Tensor>, const ::TF_Tensor* handle) const noexcept
     {
-        return ice::sonic::Tensor{m_Tensor_ops, const_cast<::TF_Tensor*>(handle)};
+        return ice::sonic::Tensor{m_Tensor_ops, handle};
     }
 
     const ::TF_TensorOps& get_vtable() const noexcept

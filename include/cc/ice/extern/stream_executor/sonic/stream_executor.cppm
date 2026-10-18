@@ -25,25 +25,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     StreamExecutor(
         const ice::sonic::Registration& registry,
-        ::TF_StreamExecutor* handle,
+        const ::TF_StreamExecutor& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +53,7 @@ public:
     {
     }
 
-    StreamExecutor(const ::TF_StreamExecutorOps* ops, ::TF_StreamExecutor* handle) noexcept :
+    StreamExecutor(const ::TF_StreamExecutorOps* ops, const ::TF_StreamExecutor* handle) noexcept :
         Runtime(ops, handle)
     {
     }

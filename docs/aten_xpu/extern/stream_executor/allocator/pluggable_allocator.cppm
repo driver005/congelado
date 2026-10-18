@@ -7,6 +7,7 @@ module;
 export module aten_xpu_extern_stream_executor:allocator_pluggable;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
 import cc_ice_intern_sonic;
 import cc_ice_extern_stream_executor_builder;
 import aten_xpu_intern;
@@ -62,16 +63,16 @@ public:
 
     void allocate(
         uint64_t size,
-        TF_MemorySpace memory_space,
+        ice::sonic::MemorySpace memory_space,
         const ice::sonic::Stream& stream,
-        TF_DeviceMemoryBase* out_memory,
+        ice::sonic::DeviceMemoryBase* out_memory,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-        if (memory_space != TF_MEMORY_SPACE_DEVICE || !m_allocate) {
+        if (memory_space != ice::sonic::MemorySpace::k_device || !m_allocate) {
             m_status.fail(
                 out_status,
-                TF_UNIMPLEMENTED,
+                ice::sonic::Code::k_unimplemented,
                 "pluggable allocator serves device memory only"
             );
             return;
@@ -80,36 +81,45 @@ public:
         auto* queue = resolve_queue(stream);
         void* pointer = m_allocate(size, m_device_index, queue);
         if (pointer == nullptr) {
-            m_status.fail(out_status, TF_RESOURCE_EXHAUSTED, "custom allocator returned null");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_resource_exhausted,
+                "custom allocator returned null"
+            );
             return;
         }
 
         m_metadata.emplace(pointer, std::pair{static_cast<std::size_t>(size), queue});
-        *out_memory = TF_DeviceMemoryBase{.struct_size = sizeof(TF_DeviceMemoryBase)};
-        out_memory->opaque = pointer;
-        out_memory->size = size;
+        *out_memory = ice::sonic::DeviceMemoryBase{};
+        out_memory->setOpaque(pointer);
+        out_memory->setSize(size);
     }
 
-    void deallocate(TF_DeviceMemoryBase* memory) noexcept override
+    void deallocate(ice::sonic::DeviceMemoryBase* memory) noexcept override
     {
-        auto found = m_metadata.find(memory->opaque);
+        auto found = m_metadata.find(memory->getOpaque());
         if (found == m_metadata.end()) {
             return;
         }
-        m_deallocate(memory->opaque, found->second.first, m_device_index, found->second.second);
+        m_deallocate(
+            memory->getOpaque(),
+            found->second.first,
+            m_device_index,
+            found->second.second
+        );
         m_metadata.erase(found);
-        memory->opaque = nullptr;
+        memory->setOpaque(nullptr);
     }
 
     void record_stream(
-        const TF_DeviceMemoryBase* memory,
+        const ice::sonic::DeviceMemoryBase* memory,
         const ice::sonic::Stream& stream,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
         static_cast<void>(out_status);
         if (m_record_stream) {
-            m_record_stream(memory->opaque, resolve_queue(stream));
+            m_record_stream(memory->getOpaque(), resolve_queue(stream));
         }
     }
 
@@ -127,7 +137,11 @@ public:
     {
         const auto found = m_metadata.find(const_cast<void*>(pointer));
         if (found == m_metadata.end()) {
-            m_status.fail(out_status, TF_NOT_FOUND, "pointer not owned by this allocator");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_not_found,
+                "pointer not owned by this allocator"
+            );
             return;
         }
         *out_base = found->first;
@@ -154,7 +168,7 @@ public:
     }
 
     void set_option(
-        TF_AllocatorOption option,
+        ice::sonic::AllocatorOption option,
         int64_t value,
         const ice::sonic::Status& out_status
     ) noexcept override
@@ -165,7 +179,7 @@ public:
     }
 
     void get_option(
-        TF_AllocatorOption option,
+        ice::sonic::AllocatorOption option,
         std::int64_t& out_value,
         const ice::sonic::Status& out_status
     ) noexcept override
@@ -175,7 +189,7 @@ public:
         m_status.fail_unimplemented(out_status, "get_option");
     }
 
-    void get_stats(TF_AllocatorStats* out_stats, bool& out_success) noexcept override
+    void get_stats(ice::sonic::AllocatorStats* out_stats, bool& out_success) noexcept override
     {
         static_cast<void>(out_stats);
         out_success = false;
@@ -186,7 +200,7 @@ public:
     void reset_peak_stats() noexcept override {}
 
     void get_snapshot(
-        const TF_PoolId* pool_filter,
+        const ice::sonic::PoolId* pool_filter,
         const ice::sonic::Buffer& out_snapshot,
         const ice::sonic::Status& out_status
     ) noexcept override
@@ -196,13 +210,13 @@ public:
         m_status.fail_unimplemented(out_status, "get_snapshot");
     }
 
-    void generate_pool_id(TF_PoolId* out_pool_id) noexcept override
+    void generate_pool_id(ice::sonic::PoolId* out_pool_id) noexcept override
     {
-        *out_pool_id = TF_PoolId{.first = 0, .second = static_cast<int64_t>(++m_pool_sequence)};
+        *out_pool_id = ice::sonic::PoolId{0, static_cast<int64_t>(++m_pool_sequence)};
     }
 
     void create_mem_pool_internal(
-        const TF_PoolId* pool_id,
+        const ice::sonic::PoolId* pool_id,
         _Bool is_user_created,
         const ice::sonic::MemPool& out_pool,
         const ice::sonic::Status& out_status
@@ -229,8 +243,8 @@ public:
     }
 
     void export_memory(
-        const TF_DeviceMemoryBase* memory,
-        TF_IpcMemoryHandle* out_handle,
+        const ice::sonic::DeviceMemoryBase* memory,
+        ice::sonic::IpcMemoryHandle* out_handle,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -240,8 +254,8 @@ public:
     }
 
     void open_memory(
-        const TF_IpcMemoryHandle* handle,
-        TF_DeviceMemoryBase* out_memory,
+        const ice::sonic::IpcMemoryHandle* handle,
+        ice::sonic::DeviceMemoryBase* out_memory,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
@@ -251,7 +265,7 @@ public:
     }
 
     void close_memory(
-        TF_DeviceMemoryBase* memory,
+        ice::sonic::DeviceMemoryBase* memory,
         const ice::sonic::Status& out_status
     ) noexcept override
     {

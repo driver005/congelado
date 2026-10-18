@@ -63,10 +63,8 @@ protected:
     {
         ice::sonic::Stream stream{SyclOpsTable::getInstance().getStreamOps()};
         stream.create();
-        const TF_StreamOptions options{
-            .struct_size = sizeof(TF_StreamOptions),
-            .priority = priority
-        };
+        ice::sonic::StreamOptions options;
+        options.setPriority(priority);
         m_executor->create_stream_with_options(*m_device, &options, stream, *m_status);
         return stream;
     }
@@ -93,9 +91,9 @@ protected:
 
     bool ok() const noexcept
     {
-        TF_Code code = TF_OK;
+        ice::sonic::Code code{ice::sonic::Code::k_ok};
         m_status->get_code(code);
-        return code == TF_OK;
+        return code == ice::sonic::Code::k_ok;
     }
 
     int getDeviceCount() const noexcept

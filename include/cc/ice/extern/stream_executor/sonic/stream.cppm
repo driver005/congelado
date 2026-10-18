@@ -11,6 +11,7 @@ module;
 export module cc_ice_extern_stream_executor_sonic:stream;
 
 import std;
+import :capture_status;
 import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
@@ -25,25 +26,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Stream(
         const ice::sonic::Registration& registry,
-        ::TF_Stream* handle,
+        const ::TF_Stream& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +54,7 @@ public:
     {
     }
 
-    Stream(const ::TF_StreamOps* ops, ::TF_Stream* handle) noexcept :
+    Stream(const ::TF_StreamOps* ops, const ::TF_Stream* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -89,11 +90,13 @@ public:
     }
 
     void get_capture_status(
-        ::TF_CaptureStatus& out_capture_status,
+        ice::sonic::CaptureStatus& out_capture_status,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->get_capture_status(get_handle(), &out_capture_status, out_status.get_handle());
+        ::TF_CaptureStatus raw_out_capture_status{};
+        m_ops->get_capture_status(get_handle(), &raw_out_capture_status, out_status.get_handle());
+        out_capture_status = ice::sonic::CaptureStatus{raw_out_capture_status};
     }
 
     void get_native_handle(void** out_handle) const noexcept

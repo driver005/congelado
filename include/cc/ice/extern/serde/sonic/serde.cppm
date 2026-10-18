@@ -25,25 +25,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Serde(
         const ice::sonic::Registration& registry,
-        ::TF_Serde* handle,
+        const ::TF_Serde& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +53,7 @@ public:
     {
     }
 
-    Serde(const ::TF_SerdeOps* ops, ::TF_Serde* handle) noexcept :
+    Serde(const ::TF_SerdeOps* ops, const ::TF_Serde* handle) noexcept :
         Runtime(ops, handle)
     {
     }

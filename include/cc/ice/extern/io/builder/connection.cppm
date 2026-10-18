@@ -103,19 +103,19 @@ public:
     ice::sonic::Response
     wrap(std::type_identity<ice::sonic::Response>, const ::TF_Response* handle) const noexcept
     {
-        return ice::sonic::Response{m_Response_ops, const_cast<::TF_Response*>(handle)};
+        return ice::sonic::Response{m_Response_ops, handle};
     }
 
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     const ::TFServerConnectionOps& get_vtable() const noexcept

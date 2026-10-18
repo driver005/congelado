@@ -14,6 +14,8 @@ congelado_module_library(
         "request.cppm",
         "response.cppm",
         "connection.cppm",
+        "socket_status.cppm",
+        "socket_protocol.cppm",
     ],
     primary_interface = "base.cppm",
     visibility = ["//visibility:public"],

@@ -5,6 +5,7 @@
 
 module;
 
+#include "include/c/extern/filesystem/option_types.h"
 #include "include/c/extern/filesystem/tree.h"
 #include "include/c/intern/file_statistics.h"
 #include "include/c/intern/registration.h"
@@ -15,6 +16,7 @@ module;
 export module cc_ice_extern_filesystem_builder:tree;
 
 import std;
+import cc_ice_extern_filesystem_sonic;
 import cc_ice_intern_sonic;
 
 export namespace ice::builder {
@@ -124,11 +126,11 @@ public:
     ) noexcept = 0;
     virtual void get_filesystem_configuration_option(
         const ice::sonic::String& key,
-        ::TFFilesystemOption* out_option,
+        ice::sonic::FilesystemOption* out_option,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void set_filesystem_configuration_option(
-        const ::TFFilesystemOption* option,
+        const ice::sonic::FilesystemOption* option,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_filesystem_configuration_keys(
@@ -377,11 +379,18 @@ public:
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = FilesystemTree::from_handle(manager);
+                std::optional<ice::sonic::FilesystemOption> wrapped_out_option;
+                if (out_option != nullptr) {
+                    wrapped_out_option.emplace(*out_option);
+                }
                 self.get_filesystem_configuration_option(
                     self.wrap(std::type_identity<ice::sonic::String>{}, key),
-                    out_option,
+                    wrapped_out_option ? &*wrapped_out_option : nullptr,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
+                if (out_option != nullptr) {
+                    *out_option = *wrapped_out_option->get_handle();
+                }
             },
             .set_filesystem_configuration_option =
                 [](::TFFilesystemTree* manager,
@@ -389,8 +398,12 @@ public:
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = FilesystemTree::from_handle(manager);
+                std::optional<ice::sonic::FilesystemOption> wrapped_option;
+                if (option != nullptr) {
+                    wrapped_option.emplace(*option);
+                }
                 self.set_filesystem_configuration_option(
-                    option,
+                    wrapped_option ? &*wrapped_option : nullptr,
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -414,28 +427,25 @@ public:
         const ::TF_FileStatistics* handle
     ) const noexcept
     {
-        return ice::sonic::FileStatistics{
-            m_FileStatistics_ops,
-            const_cast<::TF_FileStatistics*>(handle)
-        };
+        return ice::sonic::FileStatistics{m_FileStatistics_ops, handle};
     }
 
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     ice::sonic::Tensor
     wrap(std::type_identity<ice::sonic::Tensor>, const ::TF_Tensor* handle) const noexcept
     {
-        return ice::sonic::Tensor{m_Tensor_ops, const_cast<::TF_Tensor*>(handle)};
+        return ice::sonic::Tensor{m_Tensor_ops, handle};
     }
 
     const ::TFFilesystemTreeOps& get_vtable() const noexcept

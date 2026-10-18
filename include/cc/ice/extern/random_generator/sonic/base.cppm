@@ -7,5 +7,6 @@ export module cc_ice_extern_random_generator_sonic;
 
 // clang-format off
 export import :random_generator;
+export import :philox_state;
 
 // clang-format on

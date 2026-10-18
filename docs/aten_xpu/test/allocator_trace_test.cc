@@ -27,8 +27,8 @@ TEST_F(SyclAllocatorTraceTest, TrackAllocateAndFree)
             }
         );
 
-    TF_DeviceMemoryBase memory{};
-    allocator.allocate(1'024, TF_MEMORY_SPACE_DEVICE, stream, &memory, getStatus());
+    ice::sonic::DeviceMemoryBase memory;
+    allocator.allocate(1'024, ice::sonic::MemorySpace::k_device, stream, &memory, getStatus());
     allocator.deallocate(&memory);
     EXPECT_EQ(seen[SyclAllocatorTrace::Action::segment_alloc], 1);
     EXPECT_EQ(seen[SyclAllocatorTrace::Action::alloc], 1);

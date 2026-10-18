@@ -26,25 +26,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Observe(
         const ice::sonic::Registration& registry,
-        ::TF_Observe* handle,
+        const ::TF_Observe& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -54,7 +54,7 @@ public:
     {
     }
 
-    Observe(const ::TF_ObserveOps* ops, ::TF_Observe* handle) noexcept :
+    Observe(const ::TF_ObserveOps* ops, const ::TF_Observe* handle) noexcept :
         Runtime(ops, handle)
     {
     }

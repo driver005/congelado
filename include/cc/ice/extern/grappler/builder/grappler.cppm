@@ -117,34 +117,31 @@ public:
         const ::TFGrapplerDeviceGraph* handle
     ) const noexcept
     {
-        return ice::sonic::GrapplerDeviceGraph{
-            m_GrapplerDeviceGraph_ops,
-            const_cast<::TFGrapplerDeviceGraph*>(handle)
-        };
+        return ice::sonic::GrapplerDeviceGraph{m_GrapplerDeviceGraph_ops, handle};
     }
 
     ice::sonic::Device
     wrap(std::type_identity<ice::sonic::Device>, const ::TF_Device* handle) const noexcept
     {
-        return ice::sonic::Device{m_Device_ops, const_cast<::TF_Device*>(handle)};
+        return ice::sonic::Device{m_Device_ops, handle};
     }
 
     ice::sonic::Executor
     wrap(std::type_identity<ice::sonic::Executor>, const ::TF_Executor* handle) const noexcept
     {
-        return ice::sonic::Executor{m_Executor_ops, const_cast<::TF_Executor*>(handle)};
+        return ice::sonic::Executor{m_Executor_ops, handle};
     }
 
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     const ::TF_GrapplerOps& get_vtable() const noexcept

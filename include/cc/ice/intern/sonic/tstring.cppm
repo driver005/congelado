@@ -12,6 +12,7 @@ export module cc_ice_intern_sonic:tstring;
 
 import std;
 import :runtime;
+import :t_string_type;
 
 export namespace ice::sonic {
 
@@ -23,7 +24,7 @@ public:
     {
     }
 
-    String(const ::TF_StringOps* ops, ::TF_String* handle) noexcept :
+    String(const ::TF_StringOps* ops, const ::TF_String* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -58,9 +59,11 @@ public:
         m_ops->get_data_pointer(get_handle(), out_data);
     }
 
-    void get_type(::TFTStringType& out_type) const noexcept
+    void get_type(ice::sonic::TStringType& out_type) const noexcept
     {
-        m_ops->get_type(get_handle(), &out_type);
+        ::TFTStringType raw_out_type{};
+        m_ops->get_type(get_handle(), &raw_out_type);
+        out_type = ice::sonic::TStringType{raw_out_type};
     }
 
     void get_size(std::size_t& out_size) const noexcept

@@ -8,6 +8,8 @@ module;
 export module aten_xpu_extern_random_generator:random_generator;
 
 import std;
+import cc_ice_extern_random_generator_sonic;
+import cc_ice_extern_stream_executor_sonic;
 import cc_ice_intern_sonic;
 import cc_ice_extern_random_generator_builder;
 import aten_xpu_intern;
@@ -96,7 +98,8 @@ public:
         auto& tensor = static_cast<SyclTensor&>(SyclTensor::from_handle(state.get_handle()));
         const auto bytes = tensor.getByteSize();
         if (bytes != k_state_bytes && bytes != sizeof(uint64_t)) {
-            m_status.fail(out_status, TF_INVALID_ARGUMENT, "RNG state is wrong size");
+            m_status
+                .fail(out_status, ice::sonic::Code::k_invalid_argument, "RNG state is wrong size");
             return;
         }
 
@@ -109,19 +112,27 @@ public:
         }
 
         if (m_state->getCapturing() && values[0] != m_state->getSeed()) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, "cannot change seed while capturing");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_failed_precondition,
+                "cannot change seed while capturing"
+            );
             return;
         }
         m_state->setSeed(values[0]);
         m_state->setOffset(bytes == k_state_bytes ? values[1] : 0);
     }
 
-    void get_state(TF_Tensor** out_state, const ice::sonic::Status& out_status) noexcept override
+    void get_state(::TF_Tensor** out_state, const ice::sonic::Status& out_status) noexcept override
     {
         try {
             const std::array<int64_t, 1> dims{static_cast<int64_t>(k_state_bytes)};
-            auto* handle =
-                m_factory.empty(dims, TF_UINT8, m_device_index, TF_MEMORY_SPACE_HOST_PINNED);
+            auto* handle = m_factory.empty(
+                dims,
+                ice::sonic::DataTypeEnum::k_uint8,
+                m_device_index,
+                ice::sonic::MemorySpace::k_host_pinned
+            );
             const std::array<uint64_t, 2> values{m_state->getSeed(), m_state->getOffset()};
             std::memcpy(
                 static_cast<SyclTensor&>(SyclTensor::from_handle(handle)).getData(),
@@ -157,24 +168,24 @@ public:
 
     void philox_state(
         uint64_t increment,
-        TF_PhiloxState* out_state,
+        ice::sonic::PhiloxState* out_state,
         const ice::sonic::Status& out_status
     ) noexcept override
     {
         try {
-            *out_state = TF_PhiloxState{.struct_size = sizeof(TF_PhiloxState)};
+            *out_state = ice::sonic::PhiloxState{};
             if (m_state->getCapturing()) {
-                out_state->seed_ptr = m_state->getSeedExtragraph();
-                out_state->offset_ptr = m_state->getOffsetExtragraph();
-                out_state->offset_intragraph = m_state->getOffsetIntragraph();
-                out_state->captured = true;
+                out_state->setSeedPtr(m_state->getSeedExtragraph());
+                out_state->setOffsetPtr(m_state->getOffsetExtragraph());
+                out_state->setOffsetIntragraph(m_state->getOffsetIntragraph());
+                out_state->setCaptured(true);
             } else {
-                out_state->seed = m_state->getSeed();
-                out_state->offset = m_state->getOffset();
+                out_state->setSeed(m_state->getSeed());
+                out_state->setOffset(m_state->getOffset());
             }
             m_state->increase(increment);
         } catch (const std::exception& error) {
-            m_status.fail(out_status, TF_INTERNAL, error.what());
+            m_status.fail(out_status, ice::sonic::Code::k_internal, error.what());
         }
     }
 
@@ -186,7 +197,11 @@ public:
     ) noexcept override
     {
         if (m_state->getCapturing()) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, "use philox_state while capturing");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_failed_precondition,
+                "use philox_state while capturing"
+            );
             return;
         }
         out_seed = m_state->getSeed();
@@ -205,7 +220,11 @@ public:
     ) noexcept override
     {
         if (m_state->getCapturing()) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, "cannot clone while capturing");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_failed_precondition,
+                "cannot clone while capturing"
+            );
             return;
         }
         static_cast<SyclRandomGenerator&>(SyclRandomGenerator::from_handle(out_clone.get_handle()))
@@ -225,7 +244,7 @@ public:
 private:
     void read_host(const SyclTensor& tensor, void* destination, std::size_t bytes) const
     {
-        if (tensor.getMemorySpace() != TF_MEMORY_SPACE_DEVICE) {
+        if (tensor.getMemorySpace() != ice::sonic::MemorySpace::k_device) {
             std::memcpy(destination, tensor.getData(), bytes);
             return;
         }

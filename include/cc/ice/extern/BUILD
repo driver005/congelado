@@ -25,5 +25,6 @@ congelado_module_library(
         "//include/cc/ice/extern/ops:cc_ice_extern_ops",
         "//include/cc/ice/extern/pubsub:cc_ice_extern_pubsub",
         "//include/cc/ice/extern/kernel:cc_ice_extern_kernel",
+        "//include/cc/ice/extern/plugin:cc_ice_extern_plugin",
     ],
 )

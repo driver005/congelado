@@ -70,7 +70,7 @@ public:
     ice::sonic::Duration
     wrap(std::type_identity<ice::sonic::Duration>, const ::TF_Duration* handle) const noexcept
     {
-        return ice::sonic::Duration{m_Duration_ops, const_cast<::TF_Duration*>(handle)};
+        return ice::sonic::Duration{m_Duration_ops, handle};
     }
 
     const ::TF_TimePointOps& get_vtable() const noexcept

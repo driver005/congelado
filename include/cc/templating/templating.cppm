@@ -81,6 +81,8 @@ private:
             {"vtable_field_generic_start", cc_templating_generated::k_vtable_field_generic_start},
             {"runtime_base", cc_templating_generated::k_runtime_base},
             {"builder_footer", cc_templating_generated::k_builder_footer},
+            {"value_struct", cc_templating_generated::k_value_struct},
+            {"value_enum", cc_templating_generated::k_value_enum},
             {"method_body_start", cc_templating_generated::k_method_body_start}
         };
 

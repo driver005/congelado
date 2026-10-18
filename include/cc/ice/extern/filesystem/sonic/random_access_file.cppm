@@ -25,25 +25,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     RandomAccessFile(
         const ice::sonic::Registration& registry,
-        ::TF_RandomAccessFile* handle,
+        const ::TF_RandomAccessFile& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +53,10 @@ public:
     {
     }
 
-    RandomAccessFile(const ::TF_RandomAccessFileOps* ops, ::TF_RandomAccessFile* handle) noexcept :
+    RandomAccessFile(
+        const ::TF_RandomAccessFileOps* ops,
+        const ::TF_RandomAccessFile* handle
+    ) noexcept :
         Runtime(ops, handle)
     {
     }

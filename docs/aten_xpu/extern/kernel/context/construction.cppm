@@ -73,12 +73,12 @@ public:
         return value;
     }
 
-    TFDataTypeEnum getType(std::string_view name, TFDataTypeEnum fallback)
+    ice::sonic::DataTypeEnum getType(std::string_view name, ice::sonic::DataTypeEnum fallback)
     {
         if (!has_attribute(name)) {
             return fallback;
         }
-        TFDataTypeEnum value = fallback;
+        ice::sonic::DataTypeEnum value{fallback};
         m_construction.get_attr_type(name_of(name), value, m_status);
         return value;
     }
@@ -93,12 +93,9 @@ public:
         m_construction.get_attr_size(name_of(name), list_size, total_size, m_status);
         const auto count =
             std::min(out_values.size(), static_cast<std::size_t>(std::max(list_size, 0)));
-        m_construction.get_attr_int64_list(
-            name_of(name),
-            out_values.data(),
-            static_cast<int>(count),
-            m_status
-        );
+        m_scratch_int64.assign(count, 0);
+        m_construction.get_attr_int64_list(name_of(name), m_scratch_int64, m_status);
+        std::copy_n(m_scratch_int64.begin(), count, out_values.begin());
         return count;
     }
 
@@ -112,12 +109,9 @@ public:
         m_construction.get_attr_size(name_of(name), list_size, total_size, m_status);
         const auto count =
             std::min(out_values.size(), static_cast<std::size_t>(std::max(list_size, 0)));
-        m_construction.get_attr_float_list(
-            name_of(name),
-            out_values.data(),
-            static_cast<int>(count),
-            m_status
-        );
+        m_scratch_float.assign(count, 0.0F);
+        m_construction.get_attr_float_list(name_of(name), m_scratch_float, m_status);
+        std::copy_n(m_scratch_float.begin(), count, out_values.begin());
         return count;
     }
 
@@ -140,12 +134,12 @@ public:
 
     bool ok() const noexcept
     {
-        TF_Code code = TF_OK;
+        ice::sonic::Code code{ice::sonic::Code::k_ok};
         m_status.get_code(code);
-        return code == TF_OK;
+        return code == ice::sonic::Code::k_ok;
     }
 
-    void fail(TF_Code code, std::string_view message)
+    void fail(ice::sonic::Code code, std::string_view message)
     {
         m_helper.fail(m_status, code, message);
         m_construction.failure(m_status);
@@ -162,6 +156,8 @@ private:
     SyclStatus m_helper;
     ice::sonic::OpKernelConstruction m_construction;
     ice::sonic::Status m_status;
+    std::vector<std::int64_t> m_scratch_int64;
+    std::vector<float> m_scratch_float;
     ice::sonic::String m_scratch_name;
 };
 

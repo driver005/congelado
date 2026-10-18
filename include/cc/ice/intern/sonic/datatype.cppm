@@ -11,6 +11,7 @@ module;
 export module cc_ice_intern_sonic:datatype;
 
 import std;
+import :data_type_enum;
 import :registration;
 import :runtime;
 import :tstring;
@@ -27,25 +28,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     DataType(
         const ice::sonic::Registration& registry,
-        ::TF_DataType* handle,
+        const ::TF_DataType& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -55,7 +56,7 @@ public:
     {
     }
 
-    DataType(const ::TF_DataTypeOps* ops, ::TF_DataType* handle) noexcept :
+    DataType(const ::TF_DataTypeOps* ops, const ::TF_DataType* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -75,9 +76,9 @@ public:
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    void datatype_size(TFDataTypeEnum dt, std::size_t& out_size) const noexcept
+    void datatype_size(ice::sonic::DataTypeEnum dt, std::size_t& out_size) const noexcept
     {
-        m_ops->datatype_size(get_handle(), dt, &out_size);
+        m_ops->datatype_size(get_handle(), dt.get_value(), &out_size);
     }
 };
 

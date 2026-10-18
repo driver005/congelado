@@ -28,25 +28,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Hash(
         const ice::sonic::Registration& registry,
-        ::TF_Hash* handle,
+        const ::TF_Hash& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -56,7 +56,7 @@ public:
     {
     }
 
-    Hash(const ::TF_HashOps* ops, ::TF_Hash* handle) noexcept :
+    Hash(const ::TF_HashOps* ops, const ::TF_Hash* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -79,11 +79,11 @@ public:
     void hash_bytes(
         const void* data,
         size_t size,
-        size_t* out_hash,
+        std::size_t& out_hash,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->hash_bytes(get_handle(), data, size, out_hash, out_status.get_handle());
+        m_ops->hash_bytes(get_handle(), data, size, &out_hash, out_status.get_handle());
     }
 
     void hash_combine(

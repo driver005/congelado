@@ -42,7 +42,7 @@ public:
     virtual ~DataType() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
-    virtual void datatype_size(TFDataTypeEnum dt, std::size_t& out_size) noexcept = 0;
+    virtual void datatype_size(ice::sonic::DataTypeEnum dt, std::size_t& out_size) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_DataType*)) noexcept
     {
@@ -66,7 +66,7 @@ public:
                 [](::TF_DataType* datatype, TFDataTypeEnum dt, size_t* out_size) noexcept
             {
                 auto& self = DataType::from_handle(datatype);
-                self.datatype_size(dt, *out_size);
+                self.datatype_size(ice::sonic::DataTypeEnum{dt}, *out_size);
             },
 
         };
@@ -75,7 +75,7 @@ public:
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     const ::TF_DataTypeOps& get_vtable() const noexcept

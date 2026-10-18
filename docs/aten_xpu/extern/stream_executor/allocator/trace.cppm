@@ -7,6 +7,7 @@ module;
 export module aten_xpu_extern_stream_executor:allocator_trace;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
 
 export namespace aten_xpu {
 
@@ -26,7 +27,7 @@ public:
         out_of_memory
     };
 
-    using Entry = std::tuple<Action, std::uintptr_t, std::size_t, sycl::queue*, TF_PoolId>;
+    using Entry = std::tuple<Action, std::uintptr_t, std::size_t, sycl::queue*, ice::sonic::PoolId>;
     using Tracker = std::function<void(const Entry&)>;
 
     void addTracker(Tracker tracker)
@@ -56,7 +57,7 @@ public:
         const void* address,
         std::size_t size,
         sycl::queue* queue,
-        TF_PoolId pool
+        ice::sonic::PoolId pool
     )
     {
         const Entry entry{action, reinterpret_cast<std::uintptr_t>(address), size, queue, pool};

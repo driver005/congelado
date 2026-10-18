@@ -11,6 +11,7 @@ module;
 export module cc_ice_intern_sonic:status;
 
 import std;
+import :code;
 import :registration;
 import :runtime;
 import :tstring;
@@ -27,25 +28,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Status(
         const ice::sonic::Registration& registry,
-        ::TF_Status* handle,
+        const ::TF_Status& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -55,7 +56,7 @@ public:
     {
     }
 
-    Status(const ::TF_StatusOps* ops, ::TF_Status* handle) noexcept :
+    Status(const ::TF_StatusOps* ops, const ::TF_Status* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -75,9 +76,9 @@ public:
         m_ops->delete_status(get_handle());
     }
 
-    void set_status(TF_Code code, const ice::sonic::String& msg) const noexcept
+    void set_status(ice::sonic::Code code, const ice::sonic::String& msg) const noexcept
     {
-        m_ops->set_status(get_handle(), code, msg.get_handle());
+        m_ops->set_status(get_handle(), code.get_value(), msg.get_handle());
     }
 
     void set_payload(const ice::sonic::String& key, const ice::sonic::String& value) const noexcept
@@ -95,9 +96,11 @@ public:
         m_ops->set_status_from_io_error(get_handle(), error_code, context.get_handle());
     }
 
-    void get_code(::TF_Code& out_code) const noexcept
+    void get_code(ice::sonic::Code& out_code) const noexcept
     {
-        m_ops->get_code(get_handle(), &out_code);
+        ::TF_Code raw_out_code{};
+        m_ops->get_code(get_handle(), &raw_out_code);
+        out_code = ice::sonic::Code{raw_out_code};
     }
 
     void message(const ice::sonic::String& out_message) const noexcept

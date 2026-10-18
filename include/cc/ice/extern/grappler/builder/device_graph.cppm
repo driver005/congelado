@@ -7,6 +7,7 @@ module;
 
 #include "include/c/extern/grappler/device_graph.h"
 #include "include/c/extern/random_generator/random_generator.h"
+#include "include/c/extern/stream_executor/mem_pool.h"
 #include "include/c/extern/stream_executor/stream.h"
 #include "include/c/intern/registration.h"
 #include "include/c/intern/status.h"
@@ -15,6 +16,7 @@ module;
 export module cc_ice_extern_grappler_builder:device_graph;
 
 import std;
+import cc_ice_extern_grappler_sonic;
 import cc_ice_extern_random_generator_sonic;
 import cc_ice_extern_stream_executor_sonic;
 import cc_ice_intern_sonic;
@@ -56,15 +58,15 @@ public:
     virtual void destroy() noexcept = 0;
     virtual void capture_begin(
         const ice::sonic::Stream& capture_stream,
-        const ::TF_PoolId* pool_id,
-        TF_CaptureMode mode,
+        const ice::sonic::PoolId* pool_id,
+        ice::sonic::CaptureMode mode,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void capture_end(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void instantiate(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void replay(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void reset(const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void get_pool(::TF_PoolId* out_pool_id) noexcept = 0;
+    virtual void get_pool(ice::sonic::PoolId* out_pool_id) noexcept = 0;
     virtual void register_random_generator(
         const ice::sonic::RandomGenerator& generator,
         const ice::sonic::Status& out_status
@@ -97,10 +99,14 @@ public:
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = GrapplerDeviceGraph::from_handle(graph);
+                std::optional<ice::sonic::PoolId> wrapped_pool_id;
+                if (pool_id != nullptr) {
+                    wrapped_pool_id.emplace(*pool_id);
+                }
                 self.capture_begin(
                     self.wrap(std::type_identity<ice::sonic::Stream>{}, capture_stream),
-                    pool_id,
-                    mode,
+                    wrapped_pool_id ? &*wrapped_pool_id : nullptr,
+                    ice::sonic::CaptureMode{mode},
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },
@@ -132,7 +138,14 @@ public:
                 [](::TFGrapplerDeviceGraph* graph, ::TF_PoolId* out_pool_id) noexcept
             {
                 auto& self = GrapplerDeviceGraph::from_handle(graph);
-                self.get_pool(out_pool_id);
+                std::optional<ice::sonic::PoolId> wrapped_out_pool_id;
+                if (out_pool_id != nullptr) {
+                    wrapped_out_pool_id.emplace(*out_pool_id);
+                }
+                self.get_pool(wrapped_out_pool_id ? &*wrapped_out_pool_id : nullptr);
+                if (out_pool_id != nullptr) {
+                    *out_pool_id = *wrapped_out_pool_id->get_handle();
+                }
             },
             .register_random_generator =
                 [](::TFGrapplerDeviceGraph* graph,
@@ -182,28 +195,25 @@ public:
         const ::TF_RandomGenerator* handle
     ) const noexcept
     {
-        return ice::sonic::RandomGenerator{
-            m_RandomGenerator_ops,
-            const_cast<::TF_RandomGenerator*>(handle)
-        };
+        return ice::sonic::RandomGenerator{m_RandomGenerator_ops, handle};
     }
 
     ice::sonic::Status
     wrap(std::type_identity<ice::sonic::Status>, const ::TF_Status* handle) const noexcept
     {
-        return ice::sonic::Status{m_Status_ops, const_cast<::TF_Status*>(handle)};
+        return ice::sonic::Status{m_Status_ops, handle};
     }
 
     ice::sonic::Stream
     wrap(std::type_identity<ice::sonic::Stream>, const ::TF_Stream* handle) const noexcept
     {
-        return ice::sonic::Stream{m_Stream_ops, const_cast<::TF_Stream*>(handle)};
+        return ice::sonic::Stream{m_Stream_ops, handle};
     }
 
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     const ::TFGrapplerDeviceGraphOps& get_vtable() const noexcept

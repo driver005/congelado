@@ -11,6 +11,8 @@ module;
 export module cc_ice_extern_grappler_sonic:configs;
 
 import std;
+import :grappler_optimization_level;
+import :grappler_optimizer_configs;
 import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
@@ -25,25 +27,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     GrapplerConfigs(
         const ice::sonic::Registration& registry,
-        ::TFGrapplerConfigs* handle,
+        const ::TFGrapplerConfigs& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +55,7 @@ public:
     {
     }
 
-    GrapplerConfigs(const ::TFGrapplerConfigsOps* ops, ::TFGrapplerConfigs* handle) noexcept :
+    GrapplerConfigs(const ::TFGrapplerConfigsOps* ops, const ::TFGrapplerConfigs* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -68,30 +70,40 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void get_optimization_level(::TFGrapplerOptimizationLevel& out_level) const noexcept
+    void get_optimization_level(ice::sonic::GrapplerOptimizationLevel& out_level) const noexcept
     {
-        m_ops->get_optimization_level(get_handle(), &out_level);
+        ::TFGrapplerOptimizationLevel raw_out_level{};
+        m_ops->get_optimization_level(get_handle(), &raw_out_level);
+        out_level = ice::sonic::GrapplerOptimizationLevel{raw_out_level};
     }
 
-    void set_optimization_level(TFGrapplerOptimizationLevel level) const noexcept
+    void set_optimization_level(ice::sonic::GrapplerOptimizationLevel level) const noexcept
     {
-        m_ops->set_optimization_level(get_handle(), level);
+        m_ops->set_optimization_level(get_handle(), level.get_value());
     }
 
     void get_optimizer_configs(
-        ::TFGrapplerOptimizerConfigs* out_configs,
+        ice::sonic::GrapplerOptimizerConfigs* out_configs,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->get_optimizer_configs(get_handle(), out_configs, out_status.get_handle());
+        m_ops->get_optimizer_configs(
+            get_handle(),
+            out_configs == nullptr ? nullptr : out_configs->get_handle(),
+            out_status.get_handle()
+        );
     }
 
     void set_optimizer_configs(
-        const ::TFGrapplerOptimizerConfigs* in_configs,
+        const ice::sonic::GrapplerOptimizerConfigs* in_configs,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->set_optimizer_configs(get_handle(), in_configs, out_status.get_handle());
+        m_ops->set_optimizer_configs(
+            get_handle(),
+            in_configs == nullptr ? nullptr : in_configs->get_handle(),
+            out_status.get_handle()
+        );
     }
 };
 

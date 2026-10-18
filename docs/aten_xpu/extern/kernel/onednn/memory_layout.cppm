@@ -7,6 +7,7 @@ module;
 export module aten_xpu_extern_kernel:onednn_memory_layout;
 
 import std;
+import cc_ice_intern_sonic;
 import aten_xpu_intern;
 
 export namespace aten_xpu {
@@ -14,31 +15,31 @@ export namespace aten_xpu {
 class SyclOnednnLayout
 {
 public:
-    std::optional<dnnl::memory::data_type> data_type(TFDataTypeEnum dtype) const noexcept
+    std::optional<dnnl::memory::data_type> data_type(ice::sonic::DataTypeEnum dtype) const noexcept
     {
         using data_type_t = dnnl::memory::data_type;
         switch (dtype) {
-            case TF_FLOAT:
+            case ice::sonic::DataTypeEnum::k_float:
                 return data_type_t::f32;
-            case TF_HALF:
+            case ice::sonic::DataTypeEnum::k_half:
                 return data_type_t::f16;
-            case TF_BFLOAT16:
+            case ice::sonic::DataTypeEnum::k_bfloat16:
                 return data_type_t::bf16;
-            case TF_INT32:
-            case TF_QINT32:
+            case ice::sonic::DataTypeEnum::k_int32:
+            case ice::sonic::DataTypeEnum::k_qint32:
                 return data_type_t::s32;
-            case TF_INT8:
-            case TF_QINT8:
+            case ice::sonic::DataTypeEnum::k_int8:
+            case ice::sonic::DataTypeEnum::k_qint8:
                 return data_type_t::s8;
-            case TF_UINT8:
-            case TF_QUINT8:
-            case TF_BOOL:
+            case ice::sonic::DataTypeEnum::k_uint8:
+            case ice::sonic::DataTypeEnum::k_quint8:
+            case ice::sonic::DataTypeEnum::k_bool:
                 return data_type_t::u8;
-            case TF_DOUBLE:
+            case ice::sonic::DataTypeEnum::k_double:
                 return data_type_t::f64;
-            case TF_FLOAT8_E4M3FN:
+            case ice::sonic::DataTypeEnum::k_float8_e4m3fn:
                 return data_type_t::f8_e4m3;
-            case TF_FLOAT8_E5M2:
+            case ice::sonic::DataTypeEnum::k_float8_e5m2:
                 return data_type_t::f8_e5m2;
             default:
                 return std::nullopt;

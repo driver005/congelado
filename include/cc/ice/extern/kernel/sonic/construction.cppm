@@ -6,6 +6,7 @@
 module;
 
 #include "include/c/extern/kernel/construction.h"
+#include "include/c/intern/datatype.h"
 #include "include/c/intern/registration.h"
 
 export module cc_ice_extern_kernel_sonic:construction;
@@ -26,25 +27,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     OpKernelConstruction(
         const ice::sonic::Registration& registry,
-        ::TF_OpKernelConstruction* handle,
+        const ::TF_OpKernelConstruction& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -56,7 +57,7 @@ public:
 
     OpKernelConstruction(
         const ::TF_OpKernelConstructionOps* ops,
-        ::TF_OpKernelConstruction* handle
+        const ::TF_OpKernelConstruction* handle
     ) noexcept :
         Runtime(ops, handle)
     {
@@ -103,16 +104,18 @@ public:
 
     void get_attr_type(
         const ice::sonic::String& attr_name,
-        ::TFDataTypeEnum& out_val,
+        ice::sonic::DataTypeEnum& out_val,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
+        ::TFDataTypeEnum raw_out_val{};
         m_ops->get_attr_type(
             get_handle(),
             attr_name.get_handle(),
-            &out_val,
+            &raw_out_val,
             out_status.get_handle()
         );
+        out_val = ice::sonic::DataTypeEnum{raw_out_val};
     }
 
     void get_attr_int32(
@@ -201,64 +204,64 @@ public:
 
     void get_attr_type_list(
         const ice::sonic::String& attr_name,
-        ::TFDataTypeEnum* out_vals,
-        int max_vals,
+        std::vector<ice::sonic::DataTypeEnum>& out_vals,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
+        std::vector<::TFDataTypeEnum> raw_out_vals(out_vals.size());
         m_ops->get_attr_type_list(
             get_handle(),
             attr_name.get_handle(),
-            out_vals,
-            max_vals,
+            raw_out_vals.data(),
+            static_cast<int>(out_vals.size()),
             out_status.get_handle()
         );
+        for (std::size_t index = 0; index < out_vals.size(); ++index) {
+            out_vals[index] = ice::sonic::DataTypeEnum{raw_out_vals[index]};
+        }
     }
 
     void get_attr_int32_list(
         const ice::sonic::String& attr_name,
-        int32_t* out_vals,
-        int max_vals,
+        std::vector<std::int32_t>& out_vals,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_attr_int32_list(
             get_handle(),
             attr_name.get_handle(),
-            out_vals,
-            max_vals,
+            out_vals.data(),
+            static_cast<int>(out_vals.size()),
             out_status.get_handle()
         );
     }
 
     void get_attr_int64_list(
         const ice::sonic::String& attr_name,
-        int64_t* out_vals,
-        int max_vals,
+        std::vector<std::int64_t>& out_vals,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_attr_int64_list(
             get_handle(),
             attr_name.get_handle(),
-            out_vals,
-            max_vals,
+            out_vals.data(),
+            static_cast<int>(out_vals.size()),
             out_status.get_handle()
         );
     }
 
     void get_attr_float_list(
         const ice::sonic::String& attr_name,
-        float* out_vals,
-        int max_vals,
+        std::vector<float>& out_vals,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_attr_float_list(
             get_handle(),
             attr_name.get_handle(),
-            out_vals,
-            max_vals,
+            out_vals.data(),
+            static_cast<int>(out_vals.size()),
             out_status.get_handle()
         );
     }
@@ -352,16 +355,15 @@ public:
 
     void get_attr_tensor_shape(
         const ice::sonic::String& attr_name,
-        int64_t* out_dims,
-        size_t num_dims,
+        std::vector<std::int64_t>& out_dims,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->get_attr_tensor_shape(
             get_handle(),
             attr_name.get_handle(),
-            out_dims,
-            num_dims,
+            out_dims.data(),
+            static_cast<size_t>(out_dims.size()),
             out_status.get_handle()
         );
     }

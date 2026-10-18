@@ -6,11 +6,13 @@
 module;
 
 #include "include/c/extern/grappler/device_graph.h"
+#include "include/c/extern/stream_executor/mem_pool.h"
 #include "include/c/intern/registration.h"
 
 export module cc_ice_extern_grappler_sonic:device_graph;
 
 import std;
+import :capture_mode;
 import cc_ice_extern_random_generator_sonic;
 import cc_ice_extern_stream_executor_sonic;
 import cc_ice_intern_sonic;
@@ -28,25 +30,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     GrapplerDeviceGraph(
         const ice::sonic::Registration& registry,
-        ::TFGrapplerDeviceGraph* handle,
+        const ::TFGrapplerDeviceGraph& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -58,7 +60,7 @@ public:
 
     GrapplerDeviceGraph(
         const ::TFGrapplerDeviceGraphOps* ops,
-        ::TFGrapplerDeviceGraph* handle
+        const ::TFGrapplerDeviceGraph* handle
     ) noexcept :
         Runtime(ops, handle)
     {
@@ -76,16 +78,16 @@ public:
 
     void capture_begin(
         const ice::sonic::Stream& capture_stream,
-        const ::TF_PoolId* pool_id,
-        TF_CaptureMode mode,
+        const ice::sonic::PoolId* pool_id,
+        ice::sonic::CaptureMode mode,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
         m_ops->capture_begin(
             get_handle(),
             capture_stream.get_handle(),
-            pool_id,
-            mode,
+            pool_id == nullptr ? nullptr : pool_id->get_handle(),
+            mode.get_value(),
             out_status.get_handle()
         );
     }
@@ -110,9 +112,9 @@ public:
         m_ops->reset(get_handle(), out_status.get_handle());
     }
 
-    void get_pool(::TF_PoolId* out_pool_id) const noexcept
+    void get_pool(ice::sonic::PoolId* out_pool_id) const noexcept
     {
-        m_ops->get_pool(get_handle(), out_pool_id);
+        m_ops->get_pool(get_handle(), out_pool_id == nullptr ? nullptr : out_pool_id->get_handle());
     }
 
     void register_random_generator(

@@ -25,25 +25,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     DimensionHandle(
         const ice::sonic::Registration& registry,
-        ::TF_DimensionHandle* handle,
+        const ::TF_DimensionHandle& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +53,8 @@ public:
     {
     }
 
-    DimensionHandle(const ::TF_DimensionHandleOps* ops, ::TF_DimensionHandle* handle) noexcept :
+    DimensionHandle(const ::TF_DimensionHandleOps* ops, const ::TF_DimensionHandle* handle) noexcept
+        :
         Runtime(ops, handle)
     {
     }

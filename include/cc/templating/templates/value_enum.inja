@@ -1,0 +1,50 @@
+// GENERATED FILE — DO NOT EDIT BY HAND.
+// Produced by {{ folder_name }}_abi_gen from {{ header_path }}. Re-run
+// `bazel run //include/{{ folder_name }}/abi_gen:{{ folder_name }}_abi_gen -- generate --pilot` (or `make gen-{{ folder_name }}-abi`) to
+// regenerate; edits made directly to this file will be overwritten.
+
+module;
+
+#include "{{ header_path }}"
+
+export module {{ module_name }}:{{ partition }};
+
+import std;
+
+export namespace {{ namespace_name }}::sonic {
+
+class {{ class_name }}
+{
+public:
+    enum Value : std::underlying_type_t<::{{ c_name }}>
+    {
+{% for item in enumerators %}        {{ item.name }} = ::{{ item.c_name }}{% if not loop.is_last %},{% endif %}
+{% endfor %}    };
+
+    constexpr {{ class_name }}() noexcept = default;
+
+    constexpr {{ class_name }}(::{{ c_name }} value) noexcept :
+        m_value{value}
+    {
+    }
+
+    constexpr {{ class_name }}(Value value) noexcept :
+        m_value{static_cast<::{{ c_name }}>(value)}
+    {
+    }
+
+    constexpr ::{{ c_name }} get_value() const noexcept
+    {
+        return m_value;
+    }
+
+    constexpr operator ::{{ c_name }}() const noexcept
+    {
+        return m_value;
+    }
+
+private:
+    ::{{ c_name }} m_value{};
+};
+
+} // namespace {{ namespace_name }}::sonic

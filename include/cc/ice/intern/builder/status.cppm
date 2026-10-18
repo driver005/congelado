@@ -42,13 +42,13 @@ public:
     virtual ~Status() = default;
     virtual void destroy() noexcept = 0;
     virtual void delete_status() noexcept = 0;
-    virtual void set_status(TF_Code code, const ice::sonic::String& msg) noexcept = 0;
+    virtual void set_status(ice::sonic::Code code, const ice::sonic::String& msg) noexcept = 0;
     virtual void
     set_payload(const ice::sonic::String& key, const ice::sonic::String& value) noexcept = 0;
     virtual void for_each_payload(TF_PayloadVisitor visitor, void* capture) noexcept = 0;
     virtual void
     set_status_from_io_error(int error_code, const ice::sonic::String& context) noexcept = 0;
-    virtual void get_code(::TF_Code& out_code) noexcept = 0;
+    virtual void get_code(ice::sonic::Code& out_code) noexcept = 0;
     virtual void message(const ice::sonic::String& out_message) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_Status*)) noexcept
@@ -73,7 +73,10 @@ public:
                 [](::TF_Status* s, TF_Code code, const ::TF_String* msg) noexcept
             {
                 auto& self = Status::from_handle(s);
-                self.set_status(code, self.wrap(std::type_identity<ice::sonic::String>{}, msg));
+                self.set_status(
+                    ice::sonic::Code{code},
+                    self.wrap(std::type_identity<ice::sonic::String>{}, msg)
+                );
             },
             .set_payload =
                 [](::TF_Status* s, const ::TF_String* key, const ::TF_String* value) noexcept
@@ -103,7 +106,9 @@ public:
                 [](const ::TF_Status* s, ::TF_Code* out_code) noexcept
             {
                 auto& self = Status::from_handle(s);
-                self.get_code(*out_code);
+                ice::sonic::Code wrapped_out_code{*out_code};
+                self.get_code(wrapped_out_code);
+                *out_code = wrapped_out_code.get_value();
             },
             .message =
                 [](const ::TF_Status* s, ::TF_String* out_message) noexcept
@@ -118,7 +123,7 @@ public:
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     const ::TF_StatusOps& get_vtable() const noexcept

@@ -43,7 +43,7 @@ public:
     virtual void copy(const char* src, size_t size) noexcept = 0;
     virtual void assign_view(const char* src, size_t size) noexcept = 0;
     virtual void get_data_pointer(const char** out_data) noexcept = 0;
-    virtual void get_type(::TFTStringType& out_type) noexcept = 0;
+    virtual void get_type(ice::sonic::TStringType& out_type) noexcept = 0;
     virtual void get_size(std::size_t& out_size) noexcept = 0;
     virtual void get_capacity(std::size_t& out_capacity) noexcept = 0;
     virtual void dealloc() noexcept = 0;
@@ -88,7 +88,9 @@ public:
                 [](const ::TF_String* t, ::TFTStringType* out_type) noexcept
             {
                 auto& self = String::from_handle(t);
-                self.get_type(*out_type);
+                ice::sonic::TStringType wrapped_out_type{*out_type};
+                self.get_type(wrapped_out_type);
+                *out_type = wrapped_out_type.get_value();
             },
             .get_size =
                 [](const ::TF_String* t, size_t* out_size) noexcept

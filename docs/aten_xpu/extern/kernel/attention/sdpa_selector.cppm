@@ -5,6 +5,7 @@ module;
 export module aten_xpu_extern_kernel:attention_sdpa_selector;
 
 import std;
+import cc_ice_intern_sonic;
 import aten_xpu_intern;
 
 export namespace aten_xpu {
@@ -77,9 +78,11 @@ public:
     }
 
 private:
-    bool supported_dtype(TFDataTypeEnum dtype) const noexcept
+    bool supported_dtype(ice::sonic::DataTypeEnum dtype) const noexcept
     {
-        return dtype == TF_HALF || dtype == TF_BFLOAT16 || dtype == TF_FLOAT;
+        return dtype == ice::sonic::DataTypeEnum::k_half ||
+               dtype == ice::sonic::DataTypeEnum::k_bfloat16 ||
+               dtype == ice::sonic::DataTypeEnum::k_float;
     }
 };
 

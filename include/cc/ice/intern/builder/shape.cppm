@@ -42,7 +42,7 @@ public:
     virtual ~Shape() = default;
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
-    virtual void set_dims(const int64_t* dims, int num_dims) noexcept = 0;
+    virtual void set_dims(std::span<const std::int64_t> dims) noexcept = 0;
     virtual void delete_shape() noexcept = 0;
     virtual void shape_num_dims(int& out_num_dims) noexcept = 0;
     virtual void shape_dim(int index, std::int64_t& out_dim) noexcept = 0;
@@ -69,7 +69,9 @@ public:
                 [](::TF_Shape* shape, const int64_t* dims, int num_dims) noexcept
             {
                 auto& self = Shape::from_handle(shape);
-                self.set_dims(dims, num_dims);
+                self.set_dims(
+                    std::span<const std::int64_t>{dims, static_cast<std::size_t>(num_dims)}
+                );
             },
             .delete_shape =
                 [](::TF_Shape* shape) noexcept
@@ -96,7 +98,7 @@ public:
     ice::sonic::String
     wrap(std::type_identity<ice::sonic::String>, const ::TF_String* handle) const noexcept
     {
-        return ice::sonic::String{m_String_ops, const_cast<::TF_String*>(handle)};
+        return ice::sonic::String{m_String_ops, handle};
     }
 
     const ::TF_ShapeOps& get_vtable() const noexcept

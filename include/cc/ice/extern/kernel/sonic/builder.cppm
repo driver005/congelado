@@ -6,6 +6,7 @@
 module;
 
 #include "include/c/extern/kernel/builder.h"
+#include "include/c/intern/datatype.h"
 #include "include/c/intern/registration.h"
 
 export module cc_ice_extern_kernel_sonic:builder;
@@ -25,25 +26,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     KernelBuilder(
         const ice::sonic::Registration& registry,
-        ::TF_KernelBuilder* handle,
+        const ::TF_KernelBuilder& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +54,7 @@ public:
     {
     }
 
-    KernelBuilder(const ::TF_KernelBuilderOps* ops, ::TF_KernelBuilder* handle) noexcept :
+    KernelBuilder(const ::TF_KernelBuilderOps* ops, const ::TF_KernelBuilder* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -70,11 +71,16 @@ public:
 
     void type_constraint(
         const ice::sonic::String& attr_name,
-        TFDataTypeEnum type,
+        ice::sonic::DataTypeEnum type,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
-        m_ops->type_constraint(get_handle(), attr_name.get_handle(), type, out_status.get_handle());
+        m_ops->type_constraint(
+            get_handle(),
+            attr_name.get_handle(),
+            type.get_value(),
+            out_status.get_handle()
+        );
     }
 
     void host_memory(const ice::sonic::String& arg_name) const noexcept

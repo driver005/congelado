@@ -60,6 +60,12 @@ public:
         return *this;
     }
 
+    Parameter& add_element_pointer(bool element_pointer) noexcept
+    {
+        m_element_pointer = element_pointer;
+        return *this;
+    }
+
     void set_name(std::string&& name) noexcept
     {
         m_name = std::move(name);
@@ -69,6 +75,34 @@ public:
     std::string_view get_type() const noexcept
     {
         return m_type;
+    }
+
+    bool is_pointer() const noexcept
+    {
+        return m_type.ends_with('*');
+    }
+
+    bool is_const_pointee() const noexcept
+    {
+        return m_type.starts_with("const ");
+    }
+
+    // Name under which a plain C struct or enum of this parameter is registered.
+    // Example: "const TF_PoolId *" -> "TF_PoolId", "enum TF_Code" -> "TF_Code"
+    std::string get_value_key() const
+    {
+        if (is_pointer()) {
+            return m_pointee_name;
+        }
+
+        std::string_view key = m_type;
+        for (const std::string_view prefix: {"const ", "enum ", "struct "}) {
+            if (key.starts_with(prefix)) {
+                key.remove_prefix(prefix.size());
+            }
+        }
+
+        return std::string{key};
     }
 
     // Same as get_type() but with the record pointee spelled from the global namespace, so a
@@ -129,6 +163,23 @@ public:
         return m_scalar_pointer && m_name.starts_with("out_");
     }
 
+    // True for a pointer to numbers or enums (const or not, not char, not bool): the start of an
+    // array when a length parameter follows it.
+    bool is_element_pointer() const noexcept
+    {
+        return m_element_pointer;
+    }
+
+    // True for a plain integer parameter that can carry an element count.
+    bool is_integer() const noexcept
+    {
+        static constexpr std::array<std::string_view, 8> k_integers{
+            "int", "unsigned int", "size_t", "int32_t", "int64_t", "uint32_t", "uint64_t", "long"
+        };
+
+        return std::ranges::find(k_integers, std::string_view{m_type}) != k_integers.end();
+    }
+
     // C++ spelling of the pointee for the reference form of a scalar out parameter.
     // Example: "int32_t" -> "std::int32_t", "_Bool" -> "bool", "TFDataTypeEnum" -> "::TFDataTypeEnum"
     std::string get_value_type() const
@@ -156,6 +207,7 @@ private:
     std::string m_pointee_name;
     std::string m_name;
     bool m_scalar_pointer{false};
+    bool m_element_pointer{false};
 };
 
 } // namespace cc_abi_gen::parser::helper

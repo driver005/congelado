@@ -5,6 +5,7 @@ module;
 export module aten_xpu_extern_stream_executor:mem_pool;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
 import cc_ice_intern_sonic;
 import cc_ice_extern_stream_executor_builder;
 import aten_xpu_intern;
@@ -41,7 +42,7 @@ public:
         m_raw_deallocate = std::move(deallocate);
     }
 
-    void bind(TF_PoolId pool_id, bool is_user_created)
+    void bind(ice::sonic::PoolId pool_id, bool is_user_created)
     {
         m_pool_id = pool_id;
         m_is_user_created = is_user_created;
@@ -79,7 +80,7 @@ public:
         delete this;
     }
 
-    void get_id(TF_PoolId* out_pool_id) noexcept override
+    void get_id(ice::sonic::PoolId* out_pool_id) noexcept override
     {
         *out_pool_id = m_pool_id;
     }
@@ -96,7 +97,11 @@ public:
     ) noexcept override
     {
         if (m_allocating) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, "pool is already capturing");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_failed_precondition,
+                "pool is already capturing"
+            );
             return;
         }
         m_stream_filter = stream_filter;
@@ -115,7 +120,11 @@ public:
     void release(const ice::sonic::Status& out_status) noexcept override
     {
         if (m_use_count <= 0) {
-            m_status.fail(out_status, TF_FAILED_PRECONDITION, "pool released more than acquired");
+            m_status.fail(
+                out_status,
+                ice::sonic::Code::k_failed_precondition,
+                "pool released more than acquired"
+            );
             return;
         }
         --m_use_count;
@@ -127,7 +136,7 @@ public:
         m_use_on_oom = use_on_oom;
     }
 
-    const TF_PoolId& getPoolId() const noexcept
+    const ice::sonic::PoolId& getPoolId() const noexcept
     {
         return m_pool_id;
     }
@@ -174,7 +183,7 @@ public:
 
 private:
     SyclStatus m_status;
-    TF_PoolId m_pool_id{};
+    ice::sonic::PoolId m_pool_id{};
     bool m_is_user_created{true};
     bool m_allocating{false};
     bool m_use_on_oom{false};

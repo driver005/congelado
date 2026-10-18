@@ -11,6 +11,7 @@ module;
 export module cc_ice_extern_io_sonic:socket;
 
 import std;
+import :socket_protocol;
 import cc_ice_intern_sonic;
 
 export namespace ice::sonic {
@@ -25,25 +26,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     Socket(
         const ice::sonic::Registration& registry,
-        ::TF_Socket* handle,
+        const ::TF_Socket& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +54,7 @@ public:
     {
     }
 
-    Socket(const ::TF_SocketOps* ops, ::TF_Socket* handle) noexcept :
+    Socket(const ::TF_SocketOps* ops, const ::TF_Socket* handle) noexcept :
         Runtime(ops, handle)
     {
     }
@@ -218,7 +219,7 @@ public:
     void receive(
         void* out_buffer,
         size_t buffer_size,
-        size_t* out_bytes_received,
+        std::size_t& out_bytes_received,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -226,7 +227,7 @@ public:
             get_handle(),
             out_buffer,
             buffer_size,
-            out_bytes_received,
+            &out_bytes_received,
             out_status.get_handle()
         );
     }
@@ -272,9 +273,9 @@ public:
     void receive_from(
         void* out_buffer,
         size_t buffer_size,
-        size_t* out_bytes_received,
+        std::size_t& out_bytes_received,
         const ice::sonic::String& out_sender_host,
-        uint16_t* out_sender_port,
+        std::uint16_t& out_sender_port,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -282,9 +283,9 @@ public:
             get_handle(),
             out_buffer,
             buffer_size,
-            out_bytes_received,
+            &out_bytes_received,
             out_sender_host.get_handle(),
-            out_sender_port,
+            &out_sender_port,
             out_status.get_handle()
         );
     }
@@ -345,9 +346,11 @@ public:
         );
     }
 
-    void get_protocol(::TFSocketProtocol& out_protocol) const noexcept
+    void get_protocol(ice::sonic::SocketProtocol& out_protocol) const noexcept
     {
-        m_ops->get_protocol(get_handle(), &out_protocol);
+        ::TFSocketProtocol raw_out_protocol{};
+        m_ops->get_protocol(get_handle(), &raw_out_protocol);
+        out_protocol = ice::sonic::SocketProtocol{raw_out_protocol};
     }
 
     void get_fd(std::intptr_t& out_fd) const noexcept

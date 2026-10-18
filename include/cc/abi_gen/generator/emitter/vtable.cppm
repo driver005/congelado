@@ -13,6 +13,7 @@ import :helper_module_naming;
 import :helper_types;
 import :runtime_spec;
 import :runtime_emitter;
+import :value_emitter;
 
 export namespace cc_abi_gen::generator::emitter {
 
@@ -129,6 +130,82 @@ public:
         track_partition(base_path, *components);
 
         return {};
+    }
+
+    // Wrapper class of a plain C struct or enum. Always lives in the sonic module of its folder.
+    std::expected<void, std::string> generate_value(
+        std::filesystem::path& root,
+        std::string_view out_dir,
+        const parser::value::Model& model
+    )
+    {
+        auto base_path = root / out_dir;
+
+        auto path = value_path(base_path, model);
+        auto module_name = helper::ModuleNaming::module_name(path.parent_path());
+        if (!module_name) {
+            return std::unexpected(std::move(module_name.error()));
+        }
+
+        auto rendered = ValueEmitter{m_base_folder, m_namespace_name}.render(model, *module_name);
+        if (!rendered) {
+            return std::unexpected(std::move(rendered.error()));
+        }
+
+        auto write_result = m_file_writer.write(*rendered, path, root);
+        if (!write_result) {
+            return write_result;
+        }
+
+        m_dependencies_by_folder[path.parent_path()].insert(
+            c_headers_label(model.get_header_path())
+        );
+        track_partition(
+            base_path,
+            PathComponents{
+                .tier = model.to_tier(),
+                .domain = model.get_domain_name(),
+                .mode = "sonic",
+                .file = model.to_file_name()
+            }
+        );
+
+        return {};
+    }
+
+    std::expected<bool, std::string> check_value(
+        std::filesystem::path& root,
+        std::string_view out_dir,
+        const parser::value::Model& model
+    )
+    {
+        auto base_path = root / out_dir;
+
+        auto path = value_path(base_path, model);
+        auto module_name = helper::ModuleNaming::module_name(path.parent_path());
+        if (!module_name) {
+            return std::unexpected(std::move(module_name.error()));
+        }
+
+        auto rendered = ValueEmitter{m_base_folder, m_namespace_name}.render(model, *module_name);
+        if (!rendered) {
+            return std::unexpected(std::move(rendered.error()));
+        }
+
+        auto diff_result = m_file_writer.diff(*rendered, path, root);
+        if (!diff_result) {
+            return std::unexpected(std::move(diff_result.error()));
+        }
+
+        if (diff_result->get_identical()) {
+            std::println(stderr, "[cc_abi_gen] up to date: {}", path.string());
+            return true;
+        }
+
+        std::println("--- {} differs ---", path.string());
+        std::print("{}", diff_result->get_unified_diff());
+
+        return false;
     }
 
     std::expected<void, std::string>
@@ -646,7 +723,7 @@ private:
         }
         m_writer += *ms_result;
 
-        auto parameters_list = write_cpp_parameter_list(slot);
+        auto parameters_list = write_cpp_parameter_list(slot, mode == Mode::Builder);
         if (!parameters_list.has_value()) {
             return parameters_list;
         }
@@ -657,7 +734,7 @@ private:
             return {};
         }
 
-        auto mbs_result = helper::format_method_body_start(slot.get_name());
+        auto mbs_result = helper::format_method_body_start(slot.get_name(), preamble(slot, mode));
         if (!mbs_result) {
             return std::unexpected(mbs_result.error());
         }
@@ -672,20 +749,67 @@ private:
             return call_arguments;
         }
 
-        m_writer += helper::format_method_body_end();
+        m_writer += helper::format_method_body_end(epilogue(slot, mode));
 
         return {};
     }
 
     std::expected<void, std::string>
-    write_cpp_parameter_list(const parser::slot::Slot& slot)
+    write_cpp_parameter_list(const parser::slot::Slot& slot, bool is_builder_list)
     {
-        for (auto&& [index, parameter]: slot.extract_parameters() | std::views::enumerate) {
-            if (index != 0) {
+        bool first = true;
+        for (const parser::helper::Parameter& parameter: slot.extract_parameters()) {
+            const auto use = classify(slot, parameter);
+            if (use == ParameterUse::ArrayLength) {
+                continue;
+            }
+            if (!first) {
                 m_writer += ", ";
             }
+            first = false;
 
-            if (is_reference_parameter(slot, parameter)) {
+            if (use == ParameterUse::ArrayIn || use == ParameterUse::ArrayOut) {
+                // The caller (sonic) holds the array in a vector, the implementer (builder) gets
+                // a span over the host's array.
+                const bool input = use == ParameterUse::ArrayIn;
+                auto array_result = helper::format_parameter(
+                    is_builder_list ? std::format(
+                                          "std::span<{}{}>",
+                                          input ? "const " : "",
+                                          element_type(parameter, true)
+                                      )
+                                    : std::format(
+                                          "{}std::vector<{}>&",
+                                          input ? "const " : "",
+                                          element_type(parameter, false)
+                                      ),
+                    parameter.get_name()
+                );
+                if (!array_result) {
+                    return std::unexpected(array_result.error());
+                }
+                m_writer += *array_result;
+                continue;
+            }
+
+            if (use == ParameterUse::Enum || use == ParameterUse::EnumOut ||
+                use == ParameterUse::StructPointer) {
+                const auto value = find_value(parameter);
+                std::string type = value_type(value->get());
+                if (use == ParameterUse::StructPointer) {
+                    type = (parameter.is_const_pointee() ? "const " : "") + type + "*";
+                } else if (use == ParameterUse::EnumOut) {
+                    type += "&";
+                }
+                auto value_result = helper::format_parameter(type, parameter.get_name());
+                if (!value_result) {
+                    return std::unexpected(value_result.error());
+                }
+                m_writer += *value_result;
+                continue;
+            }
+
+            if (use == ParameterUse::ScalarReference) {
                 auto reference_result = helper::format_parameter(
                     parameter.get_value_type() + "&",
                     parameter.get_name()
@@ -724,19 +848,11 @@ private:
         return {};
     }
 
-    // A scalar `out_*` pointer becomes a reference in the C++ layer, unless the slot also carries a
-    // length/capacity parameter, which marks the pointer as the start of an array.
-    bool is_reference_parameter(
-        const parser::slot::Slot& slot,
-        const parser::helper::Parameter& parameter
-    ) const noexcept
+    // A slot with a length or capacity parameter hands out arrays, which stay plain pointers.
+    bool has_array(const parser::slot::Slot& slot) const noexcept
     {
-        if (!parameter.is_scalar_out()) {
-            return false;
-        }
-
-        static constexpr std::array<std::string_view, 6> k_length_words{
-            "num", "count", "capacity", "size", "max", "len"
+        static constexpr std::array<std::string_view, 5> k_length_words{
+            "num", "count", "capacity", "max", "len"
         };
 
         for (const parser::helper::Parameter& candidate: slot.extract_parameters()) {
@@ -745,12 +861,385 @@ private:
             }
             for (const std::string_view word: k_length_words) {
                 if (candidate.get_name().contains(word)) {
-                    return false;
+                    return true;
                 }
             }
         }
 
-        return true;
+        return false;
+    }
+
+    std::optional<std::reference_wrapper<const parser::value::Model>>
+    find_value(const parser::helper::Parameter& parameter) const
+    {
+        return m_registry.get().find_value(parameter.get_value_key());
+    }
+
+    // The integer parameter that carries the element count of the array starting at `parameter`.
+    const parser::helper::Parameter* length_of(
+        const parser::slot::Slot& slot,
+        const parser::helper::Parameter& parameter
+    ) const noexcept
+    {
+        static constexpr std::array<std::string_view, 5> k_length_words{
+            "num", "count", "capacity", "max", "len"
+        };
+
+        if (!parameter.is_element_pointer()) {
+            return nullptr;
+        }
+
+        const auto parameters = slot.extract_parameters();
+        const auto index = static_cast<std::size_t>(&parameter - parameters.data());
+        // A string list hands out char** next to its lengths; those stay plain pointers.
+        if (index > 0 && parameters[index - 1].get_type().ends_with("**")) {
+            return nullptr;
+        }
+
+        if (index + 1 < parameters.size()) {
+            const parser::helper::Parameter& candidate = parameters[index + 1];
+            if (candidate.is_integer() && !candidate.get_name().starts_with("out_")) {
+                for (const std::string_view word: k_length_words) {
+                    if (candidate.get_name().contains(word)) {
+                        return &candidate;
+                    }
+                }
+            }
+        }
+
+        // An array right behind a length shares it: tensor_view(dims, num_dims, strides, ...).
+        if (index > 0 && parameters[index - 1].is_integer() && index > 1 &&
+            length_of(slot, parameters[index - 2]) == &parameters[index - 1]) {
+            return &parameters[index - 1];
+        }
+
+        return nullptr;
+    }
+
+    bool is_array_length(
+        const parser::slot::Slot& slot,
+        const parser::helper::Parameter& parameter
+    ) const noexcept
+    {
+        const auto parameters = slot.extract_parameters();
+        const auto index = static_cast<std::size_t>(&parameter - parameters.data());
+
+        return index > 0 && length_of(slot, parameters[index - 1]) == &parameter;
+    }
+
+    // The array parameter whose element count `length` carries.
+    const parser::helper::Parameter& array_of(
+        const parser::slot::Slot& slot,
+        const parser::helper::Parameter& length
+    ) const noexcept
+    {
+        const auto parameters = slot.extract_parameters();
+
+        return parameters[static_cast<std::size_t>(&length - parameters.data()) - 1];
+    }
+
+    // Element type of an array parameter. Example: std::int64_t, ice::sonic::DataTypeEnum
+    // `raw` asks for the C element type, which a span over the host's array needs.
+    std::string element_type(const parser::helper::Parameter& parameter, bool raw) const
+    {
+        const auto value = find_value(parameter);
+        if (!raw && value.has_value() && value->get().get_kind() == parser::value::Kind::Enum) {
+            return value_type(value->get());
+        }
+
+        return parameter.get_value_type();
+    }
+
+    // True when the elements are a wrapped enum, which the C side holds as the raw C enum.
+    bool has_wrapped_elements(const parser::helper::Parameter& parameter) const
+    {
+        const auto value = find_value(parameter);
+
+        return value.has_value() && value->get().get_kind() == parser::value::Kind::Enum;
+    }
+
+    // The argument that stands for an array on either side of the C boundary: a span over the
+    // host's array for the implementer (builder), the vector's data() for the caller (sonic).
+    std::string array_argument(
+        const parser::slot::Slot& slot,
+        const parser::helper::Parameter& parameter,
+        ParameterUse use,
+        const Mode& mode
+    ) const
+    {
+        const std::string name{parameter.get_name()};
+        if (mode == Mode::Builder) {
+            return std::format(
+                "std::span<{}{}>{{{}, static_cast<std::size_t>({})}}",
+                use == ParameterUse::ArrayIn ? "const " : "",
+                element_type(parameter, true),
+                name,
+                length_of(slot, parameter)->get_name()
+            );
+        }
+
+        return (has_wrapped_elements(parameter) ? "raw_" : "") + name + ".data()";
+    }
+
+    // The sonic argument for an element count: the smallest size of the vectors that share it.
+    std::string length_argument(
+        const parser::slot::Slot& slot,
+        const parser::helper::Parameter& length
+    ) const
+    {
+        std::vector<std::string> sizes;
+        for (const parser::helper::Parameter& candidate: slot.extract_parameters()) {
+            if (length_of(slot, candidate) == &length) {
+                sizes.push_back(std::format("{}.size()", candidate.get_name()));
+            }
+        }
+
+        std::string size = sizes.front();
+        if (sizes.size() > 1) {
+            size = "std::min({";
+            for (std::size_t index = 0; index < sizes.size(); ++index) {
+                size += (index == 0 ? "" : ", ") + sizes[index];
+            }
+            size += "})";
+        }
+
+        return std::format("static_cast<{}>({})", length.get_type(), size);
+    }
+
+    ParameterUse classify(
+        const parser::slot::Slot& slot,
+        const parser::helper::Parameter& parameter
+    ) const
+    {
+        if (length_of(slot, parameter) != nullptr) {
+            return parameter.is_const_pointee() ? ParameterUse::ArrayIn : ParameterUse::ArrayOut;
+        }
+        if (is_array_length(slot, parameter)) {
+            return ParameterUse::ArrayLength;
+        }
+
+        const auto value = find_value(parameter);
+        if (value.has_value()) {
+            if (value->get().get_kind() == parser::value::Kind::Enum) {
+                if (!parameter.is_pointer()) {
+                    return ParameterUse::Enum;
+                }
+                if (parameter.get_name().starts_with("out_") && !parameter.is_const_pointee() &&
+                    !has_array(slot)) {
+                    return ParameterUse::EnumOut;
+                }
+
+                return ParameterUse::Plain;
+            }
+            if (parameter.is_pointer() && !has_array(slot)) {
+                return ParameterUse::StructPointer;
+            }
+
+            return ParameterUse::Plain;
+        }
+
+        if (parameter.is_scalar_out() && !has_array(slot)) {
+            return ParameterUse::ScalarReference;
+        }
+
+        return ParameterUse::Plain;
+    }
+
+    // Example: ice::sonic::PoolId
+    std::string value_type(const parser::value::Model& value) const
+    {
+        return std::format("{}::sonic::{}", m_namespace_name, value.get_class_name());
+    }
+
+    // The C++ argument that stands for a wrapped parameter, on either side of the C boundary.
+    std::string value_argument(
+        ParameterUse use,
+        const parser::value::Model& value,
+        const parser::helper::Parameter& parameter,
+        const Mode& mode
+    ) const
+    {
+        const std::string name{parameter.get_name()};
+        if (mode == Mode::Builder) {
+            switch (use) {
+                case ParameterUse::Enum:
+                    return std::format("{}{{{}}}", value_type(value), name);
+                case ParameterUse::EnumOut:
+                    return "wrapped_" + name;
+                default:
+                    return std::format("wrapped_{0} ? &*wrapped_{0} : nullptr", name);
+            }
+        }
+
+        switch (use) {
+            case ParameterUse::Enum:
+                return name + ".get_value()";
+            case ParameterUse::EnumOut:
+                return "&raw_" + name;
+            default:
+                return std::format("{0} == nullptr ? nullptr : {0}->get_handle()", name);
+        }
+    }
+
+    // Sonic: unwrap enum elements into a raw C vector. The builder reads the host array in place.
+    std::string array_preamble(
+        const parser::slot::Slot& slot,
+        const parser::helper::Parameter& parameter,
+        ParameterUse use,
+        const Mode& mode
+    ) const
+    {
+        const std::string name{parameter.get_name()};
+        if (mode == Mode::Builder) {
+            return {};
+        }
+        if (!has_wrapped_elements(parameter)) {
+            return {};
+        }
+
+        const auto value = find_value(parameter);
+        std::string text = std::format(
+            "                std::vector<::{0}> raw_{1}({1}.size());\n",
+            value->get().get_c_name(),
+            name
+        );
+        if (use == ParameterUse::ArrayIn) {
+            text += std::format(
+                "                for (std::size_t index = 0; index < {0}.size(); ++index) {{\n"
+                "                    raw_{0}[index] = {0}[index].get_value();\n"
+                "                }}\n",
+                name
+            );
+        }
+
+        return text;
+    }
+
+    // Sonic: wrap raw enum elements again. The builder writes the host array in place.
+    std::string array_epilogue(
+        const parser::slot::Slot& slot,
+        const parser::helper::Parameter& parameter,
+        const Mode& mode
+    ) const
+    {
+        const std::string name{parameter.get_name()};
+        const bool wrapped = has_wrapped_elements(parameter);
+        if (mode == Mode::Builder) {
+            return {};
+        }
+        if (!wrapped) {
+            return {};
+        }
+
+        return std::format(
+            "                for (std::size_t index = 0; index < {0}.size(); ++index) {{\n"
+            "                    {0}[index] = {1}{{raw_{0}[index]}};\n"
+            "                }}\n",
+            name,
+            element_type(parameter, false)
+        );
+    }
+
+    // Statements that run before the C call (sonic) or the virtual call (builder).
+    std::string preamble(const parser::slot::Slot& slot, const Mode& mode) const
+    {
+        std::string text;
+        for (const parser::helper::Parameter& parameter: slot.extract_parameters()) {
+            const auto use = classify(slot, parameter);
+            if (use == ParameterUse::ArrayIn || use == ParameterUse::ArrayOut) {
+                text += array_preamble(slot, parameter, use, mode);
+                continue;
+            }
+            if (use != ParameterUse::EnumOut && use != ParameterUse::StructPointer) {
+                continue;
+            }
+
+            const auto value = find_value(parameter);
+            const std::string name{parameter.get_name()};
+            if (mode == Mode::Builder && use == ParameterUse::EnumOut) {
+                text += std::format("                {} wrapped_{}{{*{}}};\n", value_type(value->get()), name, name);
+            } else if (mode == Mode::Builder) {
+                text += std::format(
+                    "                std::optional<{0}> wrapped_{1};\n"
+                    "                if ({1} != nullptr) {{\n"
+                    "                    wrapped_{1}.emplace(*{1});\n"
+                    "                }}\n",
+                    value_type(value->get()),
+                    name
+                );
+            } else if (use == ParameterUse::EnumOut) {
+                text += std::format("                ::{} raw_{}{{}};\n", value->get().get_c_name(), name);
+            }
+        }
+
+        return text;
+    }
+
+    // Statements that run after the call and copy results back through the wrapped parameters.
+    std::string epilogue(const parser::slot::Slot& slot, const Mode& mode) const
+    {
+        std::string text;
+        for (const parser::helper::Parameter& parameter: slot.extract_parameters()) {
+            const auto use = classify(slot, parameter);
+            const std::string name{parameter.get_name()};
+            if (use == ParameterUse::ArrayOut) {
+                text += array_epilogue(slot, parameter, mode);
+            } else if (use == ParameterUse::EnumOut && mode == Mode::Builder) {
+                text += std::format("                *{0} = wrapped_{0}.get_value();\n", name);
+            } else if (use == ParameterUse::EnumOut) {
+                const auto value = find_value(parameter);
+                text += std::format("                {} = {}{{raw_{}}};\n", name, value_type(value->get()), name);
+            } else if (use == ParameterUse::StructPointer && mode == Mode::Builder &&
+                       !parameter.is_const_pointee()) {
+                text += std::format(
+                    "                if ({0} != nullptr) {{\n"
+                    "                    *{0} = *wrapped_{0}->get_handle();\n"
+                    "                }}\n",
+                    name
+                );
+            }
+        }
+
+        return text;
+    }
+
+    // Value classes the parameters of a model depend on, once each.
+    std::vector<const parser::value::Model*> value_dependencies_of(
+        const parser::vtable::Model& model
+    ) const
+    {
+        std::map<std::string, const parser::value::Model*> unique;
+        for (const parser::slot::Slot& slot: model.get_slots()) {
+            for (const parser::helper::Parameter& parameter: slot.extract_parameters()) {
+                const auto use = classify(slot, parameter);
+                if (use == ParameterUse::Plain || use == ParameterUse::ScalarReference ||
+                    use == ParameterUse::ArrayLength) {
+                    continue;
+                }
+                const auto value = find_value(parameter);
+                if (value.has_value()) {
+                    unique.emplace(value->get().get_c_name(), &value->get());
+                }
+            }
+        }
+
+        std::vector<const parser::value::Model*> result;
+        for (const auto& [c_name, value]: unique) {
+            result.push_back(value);
+        }
+
+        return result;
+    }
+
+    std::expected<void, std::string> add_value_import(
+        const std::filesystem::path& base_path,
+        const parser::value::Model& value,
+        const std::filesystem::path& module_dir
+    )
+    {
+        const auto directory = value_path(base_path, value).parent_path();
+
+        return add_import(directory, value.to_file_name(), module_dir);
     }
 
     std::expected<void, std::string>
@@ -758,14 +1247,33 @@ private:
     {
         auto middle = slot.extract_parameters();
 
-        for (auto&& [index, parameter]: middle | std::views::enumerate) {
-            if (index != 0) {
+        bool first = true;
+        for (const parser::helper::Parameter& parameter: middle) {
+            const auto use = classify(slot, parameter);
+            if (use == ParameterUse::ArrayLength && mode == Mode::Builder) {
+                continue;
+            }
+            if (!first) {
                 m_writer += ", ";
             }
+            first = false;
 
-            if (is_reference_parameter(slot, parameter)) {
+            if (use == ParameterUse::ArrayLength) {
+                m_writer += length_argument(slot, parameter);
+                continue;
+            }
+            if (use == ParameterUse::ArrayIn || use == ParameterUse::ArrayOut) {
+                m_writer += array_argument(slot, parameter, use, mode);
+                continue;
+            }
+            if (use == ParameterUse::ScalarReference) {
                 m_writer += mode == Mode::Builder ? "*" : "&";
                 m_writer += parameter.get_name();
+                continue;
+            }
+            if (use != ParameterUse::Plain) {
+                const auto value = find_value(parameter);
+                m_writer += value_argument(use, value->get(), parameter, mode);
                 continue;
             }
 
@@ -849,7 +1357,8 @@ private:
         auto vtfm_result = helper::format_vtable_field_middle(
             model.get_class_name(),
             slot.get_name(),
-            self_parameter_name(slot)
+            self_parameter_name(slot),
+            preamble(slot, mode)
         );
         if (!vtfm_result) {
             return std::unexpected(vtfm_result.error());
@@ -861,7 +1370,7 @@ private:
             return call_arguments;
         }
 
-        m_writer += helper::format_vtable_field_end();
+        m_writer += helper::format_vtable_field_end(epilogue(slot, mode));
 
         return {};
     }
@@ -1008,6 +1517,9 @@ private:
                 m_registry.get().find(std::string{RuntimeEmitter::k_registry_struct})) {
             m_scratch_includes.insert(std::string{registry_model->get().get_header_path()});
         }
+        for (const parser::value::Model* value: value_dependencies_of(model)) {
+            m_scratch_includes.insert(value->get_header_path());
+        }
         m_scratch_includes.erase(std::string{model.get_header_path()});
 
         std::string joined;
@@ -1104,9 +1616,26 @@ private:
         return dependencies;
     }
 
+    std::filesystem::path
+    value_path(const std::filesystem::path& base_path, const parser::value::Model& model) const
+    {
+        auto path = base_path / model.to_tier() / model.get_domain_name() / "sonic" /
+                    (model.to_file_name() + ".cppm");
+        if (m_path_callback) {
+            m_path_callback(path);
+        }
+
+        return path;
+    }
+
     static std::string c_headers_label(const parser::vtable::Model& model)
     {
-        const std::filesystem::path header{model.get_header_path()};
+        return c_headers_label(model.get_header_path());
+    }
+
+    static std::string c_headers_label(std::string_view header_path)
+    {
+        const std::filesystem::path header{header_path};
 
         std::string package;
         for (const auto& part: header | std::views::take(2)) {
@@ -1145,6 +1674,13 @@ private:
 
         for (const parser::vtable::Model* dependency: *dependencies) {
             auto added = add_model_import(base_path, *dependency, model, mode, module_dir);
+            if (!added) {
+                return std::unexpected(std::move(added.error()));
+            }
+        }
+
+        for (const parser::value::Model* value: value_dependencies_of(model)) {
+            auto added = add_value_import(base_path, *value, module_dir);
             if (!added) {
                 return std::unexpected(std::move(added.error()));
             }

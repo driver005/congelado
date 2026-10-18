@@ -25,25 +25,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     PubSubPublish(
         const ice::sonic::Registration& registry,
-        ::TFPubSubPublish* handle,
+        const ::TFPubSubPublish& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +53,7 @@ public:
     {
     }
 
-    PubSubPublish(const ::TFPubSubPublishOps* ops, ::TFPubSubPublish* handle) noexcept :
+    PubSubPublish(const ::TFPubSubPublishOps* ops, const ::TFPubSubPublish* handle) noexcept :
         Runtime(ops, handle)
     {
     }

@@ -5,6 +5,7 @@ module;
 export module aten_xpu_extern_stream_executor:allocator_stats;
 
 import std;
+import cc_ice_extern_stream_executor_sonic;
 
 export namespace aten_xpu {
 
@@ -102,28 +103,26 @@ public:
         m_largest_alloc_size = 0;
     }
 
-    void fill(TF_AllocatorStats& stats, int64_t largest_free_block) const noexcept
+    void fill(ice::sonic::AllocatorStats& stats, int64_t largest_free_block) const noexcept
     {
-        stats = TF_AllocatorStats{.struct_size = sizeof(TF_AllocatorStats)};
-        stats.num_allocs = entry(Kind::allocation, Scope::aggregate)[k_allocated];
-        stats.bytes_in_use = getCurrent(Kind::allocated_bytes);
-        stats.peak_bytes_in_use = getPeak(Kind::allocated_bytes);
-        stats.largest_alloc_size = m_largest_alloc_size;
-        stats.bytes_reserved = getCurrent(Kind::reserved_bytes);
-        stats.peak_bytes_reserved = getPeak(Kind::reserved_bytes);
-        stats.largest_free_block_bytes = largest_free_block;
+        stats = ice::sonic::AllocatorStats{};
+        stats.setNumAllocs(entry(Kind::allocation, Scope::aggregate)[k_allocated]);
+        stats.setBytesInUse(getCurrent(Kind::allocated_bytes));
+        stats.setPeakBytesInUse(getPeak(Kind::allocated_bytes));
+        stats.setLargestAllocSize(m_largest_alloc_size);
+        stats.setBytesReserved(getCurrent(Kind::reserved_bytes));
+        stats.setPeakBytesReserved(getPeak(Kind::reserved_bytes));
+        stats.setLargestFreeBlockBytes(largest_free_block);
         if (m_bytes_limit) {
-            stats.has_bytes_limit = 1;
-            stats.bytes_limit = *m_bytes_limit;
-            stats.has_bytes_reservable_limit = 1;
-            stats.bytes_reservable_limit = *m_bytes_limit;
+            stats.setHasBytesLimit(1);
+            stats.setBytesLimit(*m_bytes_limit);
+            stats.setHasBytesReservableLimit(1);
+            stats.setBytesReservableLimit(*m_bytes_limit);
         }
     }
 
 private:
     using Entry = std::array<int64_t, 4>;
-
-    static constexpr std::size_t k_scope_count = static_cast<std::size_t>(Scope::count);
 
     enum Slot : std::size_t
     {
@@ -131,6 +130,11 @@ private:
         k_peak = 1,
         k_allocated = 2,
         k_freed = 3
+    };
+
+    enum Extent : std::size_t
+    {
+        k_scope_count = static_cast<std::size_t>(Scope::count)
     };
 
     const Entry& entry(Kind kind, Scope scope) const noexcept

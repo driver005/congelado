@@ -58,21 +58,14 @@ public:
     }
 
     std::optional<std::reference_wrapper<SyclTensor>>
-    allocateOutput(int index, TFDataTypeEnum dtype, std::span<const int64_t> dims)
+    allocateOutput(int index, ice::sonic::DataTypeEnum dtype, std::span<const int64_t> dims)
     {
         ::TF_Tensor* handle = nullptr;
         const auto elements =
             std::accumulate(dims.begin(), dims.end(), int64_t{1}, std::multiplies<>{});
         const auto bytes = static_cast<std::size_t>(elements) * m_datatype.element_size(dtype);
-        m_context.allocate_output(
-            index,
-            dtype,
-            dims.data(),
-            static_cast<int>(dims.size()),
-            bytes,
-            &handle,
-            m_status
-        );
+        m_scratch_dims.assign(dims.begin(), dims.end());
+        m_context.allocate_output(index, dtype, m_scratch_dims, bytes, &handle, m_status);
         if (!ok() || handle == nullptr) {
             return std::nullopt;
         }
@@ -80,17 +73,11 @@ public:
     }
 
     std::optional<std::reference_wrapper<SyclTensor>>
-    allocateTemp(TFDataTypeEnum dtype, std::span<const int64_t> dims)
+    allocateTemp(ice::sonic::DataTypeEnum dtype, std::span<const int64_t> dims)
     {
         ::TF_Tensor* handle = nullptr;
-        m_context.allocate_temp(
-            dtype,
-            dims.data(),
-            static_cast<int>(dims.size()),
-            nullptr,
-            &handle,
-            m_status
-        );
+        m_scratch_dims.assign(dims.begin(), dims.end());
+        m_context.allocate_temp(dtype, m_scratch_dims, nullptr, &handle, m_status);
         if (!ok() || handle == nullptr) {
             return std::nullopt;
         }
@@ -121,12 +108,12 @@ public:
 
     bool ok() const noexcept
     {
-        TF_Code code = TF_OK;
+        ice::sonic::Code code{ice::sonic::Code::k_ok};
         m_status.get_code(code);
-        return code == TF_OK;
+        return code == ice::sonic::Code::k_ok;
     }
 
-    void fail(TF_Code code, std::string_view message)
+    void fail(ice::sonic::Code code, std::string_view message)
     {
         m_helper.fail(m_status, code, message);
         m_context.failure(m_status);
@@ -134,7 +121,7 @@ public:
 
     void fail_from(const std::exception& error)
     {
-        fail(TF_INTERNAL, error.what());
+        fail(ice::sonic::Code::k_internal, error.what());
     }
 
     void propagate()
@@ -150,6 +137,7 @@ private:
     ice::sonic::OpKernelContext m_context;
     ice::sonic::Status m_status;
     SyclDataType m_datatype;
+    std::vector<std::int64_t> m_scratch_dims;
 };
 
 } // namespace aten_xpu

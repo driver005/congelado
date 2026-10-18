@@ -25,25 +25,25 @@ public:
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
-            type.get_handle(),
-            provider.get_handle()
+            *registry.get_handle(),
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
 
     StoreCollection(
         const ice::sonic::Registration& registry,
-        ::TFStoreCollection* handle,
+        const ::TFStoreCollection& handle,
         const ice::sonic::String& type,
         const ice::sonic::String& provider
     ) noexcept :
         Runtime(
             *registry.get_ops(),
-            registry.get_handle(),
+            *registry.get_handle(),
             handle,
-            type.get_handle(),
-            provider.get_handle()
+            *type.get_handle(),
+            *provider.get_handle()
         )
     {
     }
@@ -53,7 +53,7 @@ public:
     {
     }
 
-    StoreCollection(const ::TFStoreCollectionOps* ops, ::TFStoreCollection* handle) noexcept :
+    StoreCollection(const ::TFStoreCollectionOps* ops, const ::TFStoreCollection* handle) noexcept :
         Runtime(ops, handle)
     {
     }
