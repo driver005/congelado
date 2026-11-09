@@ -74,15 +74,16 @@ public:
         return *this;
     }
 
-    // Unified generate method - uses root for path resolution
     std::expected<void, std::string> generate(
         std::filesystem::path& root,
         std::string_view out_dir,
-        const parser::vtable::Model& model,
+        const parser::Model& model,
         const Mode& mode
     )
     {
-        if (mode == Mode::Both) {
+        const bool is_vtable = model.get_kind() == parser::Kind::VTABLE;
+
+        if (is_vtable && mode == Mode::Both) {
             auto result = generate(root, out_dir, model, Mode::Builder);
             if (!result) {
                 return result;
@@ -93,7 +94,7 @@ public:
 
         auto base_path = root / out_dir;
 
-        auto components = extract_path_components(model, mode);
+        auto components = path_components(model, mode);
         if (!components) {
             return std::unexpected(components.error());
         }
@@ -105,12 +106,17 @@ public:
             return std::unexpected(std::move(module_name.error()));
         }
 
-        auto imports = collect_imports(base_path, model, mode, path.parent_path());
-        if (!imports) {
-            return std::unexpected(std::move(imports.error()));
+        std::expected<std::string, std::string> rendered = std::unexpected("unreachable");
+        if (is_vtable) {
+            auto imports = collect_imports(base_path, model, mode, path.parent_path());
+            if (!imports) {
+                return std::unexpected(std::move(imports.error()));
+            }
+            rendered = render(base_path, model, mode, *module_name, *imports);
+        } else {
+            // Plain C struct or enum. Always lives in the sonic module of its folder.
+            rendered = ValueEmitter{m_base_folder, m_namespace_name}.render(model, *module_name);
         }
-
-        auto rendered = render(base_path, model, mode, *module_name, *imports);
         if (!rendered) {
             return std::unexpected(rendered.error());
         }
@@ -120,11 +126,16 @@ public:
             return write_result;
         }
 
-        m_dependencies_by_folder[path.parent_path()].insert(
-            m_scratch_dependencies.begin(),
-            m_scratch_dependencies.end()
-        );
-
+        if (is_vtable) {
+            m_dependencies_by_folder[path.parent_path()].insert(
+                m_scratch_dependencies.begin(),
+                m_scratch_dependencies.end()
+            );
+        } else {
+            m_dependencies_by_folder[path.parent_path()].insert(
+                c_headers_label(model.get_header_path())
+            );
+        }
 
         // Dynamically build the graph folder-by-folder explicitly from the model's structure
         track_partition(base_path, *components);
@@ -132,80 +143,70 @@ public:
         return {};
     }
 
-    // Wrapper class of a plain C struct or enum. Always lives in the sonic module of its folder.
-    std::expected<void, std::string> generate_value(
+    std::expected<bool, std::string> check(
         std::filesystem::path& root,
         std::string_view out_dir,
-        const parser::value::Model& model
+        const parser::Model& model,
+        const Mode& mode
     )
     {
-        auto base_path = root / out_dir;
+        const bool is_vtable = model.get_kind() == parser::Kind::VTABLE;
 
-        auto path = value_path(base_path, model);
-        auto module_name = helper::ModuleNaming::module_name(path.parent_path());
-        if (!module_name) {
-            return std::unexpected(std::move(module_name.error()));
-        }
-
-        auto rendered = ValueEmitter{m_base_folder, m_namespace_name}.render(model, *module_name);
-        if (!rendered) {
-            return std::unexpected(std::move(rendered.error()));
-        }
-
-        auto write_result = m_file_writer.write(*rendered, path, root);
-        if (!write_result) {
-            return write_result;
-        }
-
-        m_dependencies_by_folder[path.parent_path()].insert(
-            c_headers_label(model.get_header_path())
-        );
-        track_partition(
-            base_path,
-            PathComponents{
-                .tier = model.to_tier(),
-                .domain = model.get_domain_name(),
-                .mode = "sonic",
-                .file = model.to_file_name()
+        if (is_vtable && mode == Mode::Both) {
+            auto result = check(root, out_dir, model, Mode::Builder);
+            if (!result) {
+                return result;
             }
-        );
 
-        return {};
-    }
+            if (!*result) {
+                return false;
+            }
 
-    std::expected<bool, std::string> check_value(
-        std::filesystem::path& root,
-        std::string_view out_dir,
-        const parser::value::Model& model
-    )
-    {
+            return check(root, out_dir, model, Mode::Sonic);
+        }
+
         auto base_path = root / out_dir;
 
-        auto path = value_path(base_path, model);
-        auto module_name = helper::ModuleNaming::module_name(path.parent_path());
+        auto components = path_components(model, mode);
+        if (!components) {
+            return std::unexpected(components.error());
+        }
+
+        auto real_path = build_output_path(base_path, *components);
+
+        auto module_name = helper::ModuleNaming::module_name(real_path.parent_path());
         if (!module_name) {
             return std::unexpected(std::move(module_name.error()));
         }
 
-        auto rendered = ValueEmitter{m_base_folder, m_namespace_name}.render(model, *module_name);
+        std::expected<std::string, std::string> rendered = std::unexpected("unreachable");
+        if (is_vtable) {
+            auto imports = collect_imports(base_path, model, mode, real_path.parent_path());
+            if (!imports) {
+                return std::unexpected{std::move(imports.error())};
+            }
+            rendered = render(base_path, model, mode, *module_name, *imports);
+        } else {
+            rendered = ValueEmitter{m_base_folder, m_namespace_name}.render(model, *module_name);
+        }
         if (!rendered) {
-            return std::unexpected(std::move(rendered.error()));
+            return std::unexpected{std::move(rendered.error())};
         }
 
-        auto diff_result = m_file_writer.diff(*rendered, path, root);
+        auto diff_result = m_file_writer.diff(*rendered, real_path, root);
         if (!diff_result) {
-            return std::unexpected(std::move(diff_result.error()));
+            return std::unexpected{std::move(diff_result.error())};
         }
 
         if (diff_result->get_identical()) {
-            std::println(stderr, "[cc_abi_gen] up to date: {}", path.string());
-            return true;
+            std::println(stderr, "[cc_abi_gen] up to date: {}", real_path.string());
+        } else {
+            std::println("--- {} differs ---", real_path.string());
+            std::print("{}", diff_result->get_unified_diff());
+            return false;
         }
 
-        std::println("--- {} differs ---", path.string());
-        std::print("{}", diff_result->get_unified_diff());
-
-        return false;
+        return true;
     }
 
     std::expected<void, std::string>
@@ -292,66 +293,6 @@ public:
         }
 
         return {};
-    }
-
-    std::expected<bool, std::string> check(
-        std::filesystem::path& root,
-        std::string_view out_dir,
-        const parser::vtable::Model& model,
-        const Mode& mode
-    )
-    {
-        if (mode == Mode::Both) {
-            auto result = check(root, out_dir, model, Mode::Builder);
-            if (!result) {
-                return result;
-            }
-
-            if (!*result) {
-                return false;
-            }
-
-            return check(root, out_dir, model, Mode::Sonic);
-        }
-
-        auto base_path = root / out_dir;
-
-        auto components = extract_path_components(model, mode);
-        if (!components) {
-            return std::unexpected(components.error());
-        }
-
-        auto real_path = build_output_path(base_path, *components);
-
-        auto module_name = helper::ModuleNaming::module_name(real_path.parent_path());
-        if (!module_name) {
-            return std::unexpected(std::move(module_name.error()));
-        }
-
-        auto imports = collect_imports(base_path, model, mode, real_path.parent_path());
-        if (!imports) {
-            return std::unexpected{std::move(imports.error())};
-        }
-
-        auto rendered = render(base_path, model, mode, *module_name, *imports);
-        if (!rendered) {
-            return std::unexpected{std::move(rendered.error())};
-        }
-
-        auto diff_result = m_file_writer.diff(*rendered, real_path, root);
-        if (!diff_result) {
-            return std::unexpected{std::move(diff_result.error())};
-        }
-
-        if (diff_result->get_identical()) {
-            std::println(stderr, "[cc_abi_gen] up to date: {}", real_path.string());
-        } else {
-            std::println("--- {} differs ---", real_path.string());
-            std::print("{}", diff_result->get_unified_diff());
-            return false;
-        }
-
-        return true;
     }
 
     std::expected<void, std::string>
@@ -669,8 +610,29 @@ private:
     }
 
     std::expected<PathComponents, std::string>
-    extract_path_components(const parser::vtable::Model& model, const Mode& mode) const
+    path_components(const parser::Model& model, const Mode& mode) const
     {
+        if (model.get_kind() != parser::Kind::VTABLE) {
+            // Value kind never fails; forced sonic, same folder value_path used to build.
+            return PathComponents{
+                .tier = *model.to_tier(),
+                .domain = model.get_domain_name(),
+                .mode = "sonic",
+                .file = *model.to_file_name()
+            };
+        }
+
+        auto tier = model.to_tier();
+        if (!tier.has_value()) {
+            return std::unexpected{tier.error()};
+        }
+
+        std::string domain{model.get_domain_name()};
+        auto file = model.to_file_name();
+        if (!file.has_value()) {
+            return std::unexpected{std::move(file.error())};
+        }
+
         auto tier = model.to_tier();
         if (!tier.has_value()) {
             return std::unexpected{tier.error()};
@@ -851,9 +813,8 @@ private:
     // A slot with a length or capacity parameter hands out arrays, which stay plain pointers.
     bool has_array(const parser::slot::Slot& slot) const noexcept
     {
-        static constexpr std::array<std::string_view, 5> k_length_words{
-            "num", "count", "capacity", "max", "len"
-        };
+        static constexpr std::array<std::string_view, 5>
+            k_length_words{"num", "count", "capacity", "max", "len"};
 
         for (const parser::helper::Parameter& candidate: slot.extract_parameters()) {
             if (candidate.get_type().contains('*') || candidate.get_name().starts_with("out_")) {
@@ -869,21 +830,14 @@ private:
         return false;
     }
 
-    std::optional<std::reference_wrapper<const parser::value::Model>>
-    find_value(const parser::helper::Parameter& parameter) const
-    {
-        return m_registry.get().find_value(parameter.get_value_key());
-    }
-
     // The integer parameter that carries the element count of the array starting at `parameter`.
     const parser::helper::Parameter* length_of(
         const parser::slot::Slot& slot,
         const parser::helper::Parameter& parameter
     ) const noexcept
     {
-        static constexpr std::array<std::string_view, 5> k_length_words{
-            "num", "count", "capacity", "max", "len"
-        };
+        static constexpr std::array<std::string_view, 5>
+            k_length_words{"num", "count", "capacity", "max", "len"};
 
         if (!parameter.is_element_pointer()) {
             return nullptr;
@@ -928,10 +882,8 @@ private:
     }
 
     // The array parameter whose element count `length` carries.
-    const parser::helper::Parameter& array_of(
-        const parser::slot::Slot& slot,
-        const parser::helper::Parameter& length
-    ) const noexcept
+    const parser::helper::Parameter&
+    array_of(const parser::slot::Slot& slot, const parser::helper::Parameter& length) const noexcept
     {
         const auto parameters = slot.extract_parameters();
 
@@ -982,10 +934,8 @@ private:
     }
 
     // The sonic argument for an element count: the smallest size of the vectors that share it.
-    std::string length_argument(
-        const parser::slot::Slot& slot,
-        const parser::helper::Parameter& length
-    ) const
+    std::string
+    length_argument(const parser::slot::Slot& slot, const parser::helper::Parameter& length) const
     {
         std::vector<std::string> sizes;
         for (const parser::helper::Parameter& candidate: slot.extract_parameters()) {
@@ -1006,10 +956,8 @@ private:
         return std::format("static_cast<{}>({})", length.get_type(), size);
     }
 
-    ParameterUse classify(
-        const parser::slot::Slot& slot,
-        const parser::helper::Parameter& parameter
-    ) const
+    ParameterUse
+    classify(const parser::slot::Slot& slot, const parser::helper::Parameter& parameter) const
     {
         if (length_of(slot, parameter) != nullptr) {
             return parameter.is_const_pointee() ? ParameterUse::ArrayIn : ParameterUse::ArrayOut;
@@ -1157,7 +1105,12 @@ private:
             const auto value = find_value(parameter);
             const std::string name{parameter.get_name()};
             if (mode == Mode::Builder && use == ParameterUse::EnumOut) {
-                text += std::format("                {} wrapped_{}{{*{}}};\n", value_type(value->get()), name, name);
+                text += std::format(
+                    "                {} wrapped_{}{{*{}}};\n",
+                    value_type(value->get()),
+                    name,
+                    name
+                );
             } else if (mode == Mode::Builder) {
                 text += std::format(
                     "                std::optional<{0}> wrapped_{1};\n"
@@ -1168,7 +1121,11 @@ private:
                     name
                 );
             } else if (use == ParameterUse::EnumOut) {
-                text += std::format("                ::{} raw_{}{{}};\n", value->get().get_c_name(), name);
+                text += std::format(
+                    "                ::{} raw_{}{{}};\n",
+                    value->get().get_c_name(),
+                    name
+                );
             }
         }
 
@@ -1188,9 +1145,16 @@ private:
                 text += std::format("                *{0} = wrapped_{0}.get_value();\n", name);
             } else if (use == ParameterUse::EnumOut) {
                 const auto value = find_value(parameter);
-                text += std::format("                {} = {}{{raw_{}}};\n", name, value_type(value->get()), name);
-            } else if (use == ParameterUse::StructPointer && mode == Mode::Builder &&
-                       !parameter.is_const_pointee()) {
+                text += std::format(
+                    "                {} = {}{{raw_{}}};\n",
+                    name,
+                    value_type(value->get()),
+                    name
+                );
+            } else if (
+                use == ParameterUse::StructPointer && mode == Mode::Builder &&
+                !parameter.is_const_pointee()
+            ) {
                 text += std::format(
                     "                if ({0} != nullptr) {{\n"
                     "                    *{0} = *wrapped_{0}->get_handle();\n"
@@ -1204,9 +1168,8 @@ private:
     }
 
     // Value classes the parameters of a model depend on, once each.
-    std::vector<const parser::value::Model*> value_dependencies_of(
-        const parser::vtable::Model& model
-    ) const
+    std::vector<const parser::value::Model*>
+    value_dependencies_of(const parser::vtable::Model& model) const
     {
         std::map<std::string, const parser::value::Model*> unique;
         for (const parser::slot::Slot& slot: model.get_slots()) {
@@ -1532,8 +1495,8 @@ private:
 
     static bool is_runtime_root(const parser::vtable::Model& model) noexcept
     {
-        return model.get_struct_name() == RuntimeEmitter::k_string_struct
-               || model.get_struct_name() == RuntimeEmitter::k_registry_struct;
+        return model.get_struct_name() == RuntimeEmitter::k_string_struct ||
+               model.get_struct_name() == RuntimeEmitter::k_registry_struct;
     }
 
     // Empty for the String and registry roots in sonic mode: they cannot look themselves up.
@@ -1617,10 +1580,14 @@ private:
     }
 
     std::filesystem::path
-    value_path(const std::filesystem::path& base_path, const parser::value::Model& model) const
+    value_path(const std::filesystem::path& base_path, const parser::Model& model) const
     {
-        auto path = base_path / model.to_tier() / model.get_domain_name() / "sonic" /
-                    (model.to_file_name() + ".cppm");
+        auto components = path_components(model, Mode::Sonic);
+        if (!components) {
+            return base_path;
+        }
+
+        auto path = build_output_path(base_path, *components);
         if (m_path_callback) {
             m_path_callback(path);
         }
@@ -1742,7 +1709,9 @@ private:
         auto string_model = m_registry.get().find(std::string{RuntimeEmitter::k_string_struct});
         auto registry_model = m_registry.get().find(std::string{RuntimeEmitter::k_registry_struct});
         if (!string_model.has_value() || !registry_model.has_value()) {
-            return std::unexpected("Runtime String or registry anchor is not part of the parsed headers");
+            return std::unexpected(
+                "Runtime String or registry anchor is not part of the parsed headers"
+            );
         }
 
         m_runtime_emitter.add_value("namespace_name", std::string{m_namespace_name})

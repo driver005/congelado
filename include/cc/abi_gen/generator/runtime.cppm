@@ -107,15 +107,8 @@ public:
             return std::unexpected{"no models parsed"};
         }
 
-        for (const auto& [struct_name, model]: registry) {
+        for (const auto& [c_name, model]: registry) {
             auto result = m_emitter.generate(m_repo_root, m_output_dir, model, emitter::Mode::Both);
-            if (!result) {
-                return std::unexpected{std::move(result.error())};
-            }
-        }
-
-        for (const auto& [c_name, value]: registry.get_value_models()) {
-            auto result = m_emitter.generate_value(m_repo_root, m_output_dir, value);
             if (!result) {
                 return std::unexpected{std::move(result.error())};
             }
@@ -148,27 +141,18 @@ public:
             return std::unexpected{"no models parsed"};
         }
 
-        for (const auto& [struct_name, model]: registry) {
+        for (const auto& [c_name, model]: registry) {
             for (auto mode: {emitter::Mode::Builder, emitter::Mode::Sonic}) {
+                if (model.get_kind() != parser::Kind::VTABLE && mode == emitter::Mode::Builder) {
+                    continue; // value only ever checked once, sonic
+                }
                 auto rendered = m_emitter.check(m_repo_root, m_output_dir, model, mode);
                 if (!rendered) {
                     return std::unexpected{std::move(rendered.error())};
                 }
-
                 if (!*rendered) {
                     return false;
                 }
-            }
-        }
-
-        for (const auto& [c_name, value]: registry.get_value_models()) {
-            auto rendered = m_emitter.check_value(m_repo_root, m_output_dir, value);
-            if (!rendered) {
-                return std::unexpected{std::move(rendered.error())};
-            }
-
-            if (!*rendered) {
-                return false;
             }
         }
 
