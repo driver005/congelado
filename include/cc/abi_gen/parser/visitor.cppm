@@ -11,7 +11,6 @@ export module cc_abi_gen_parser:visitor;
 
 import std;
 import cc_abi_gen_classify;
-import :parameter_text;
 import :utils;
 
 export namespace cc_abi_gen::parser {

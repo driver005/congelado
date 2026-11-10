@@ -4,7 +4,6 @@ congelado_module_library(
     name = "cc_abi_gen_parser",
     partitions = [
         "utils.cppm",
-        "parameter_text.cppm",
         "visitor.cppm",
         "parser.cppm",
     ],
