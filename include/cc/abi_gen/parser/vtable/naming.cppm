@@ -33,7 +33,8 @@ std::string struct_size_macro(std::string_view struct_name)
     return macro;
 }
 
-// "TF_CacheOps" -> "Cache"; "TF_StringOps" -> "String"; "TFParserDefinitionOps" -> "ParserDefinition"
+// "TF_CacheOps" -> "Cache"; "TF_StringOps" -> "String"; "TFParserDefinitionOps" ->
+// "ParserDefinition"
 std::string class_name(std::string_view struct_name)
 {
     std::string_view bare = strip_ops_suffix(struct_name);

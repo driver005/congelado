@@ -107,7 +107,8 @@ private:
             common = names.front().size();
             for (const std::string& name: names) {
                 std::size_t index = 0;
-                while (index < common && index < name.size() && name[index] == names.front()[index]) {
+                while (index < common && index < name.size() &&
+                       name[index] == names.front()[index]) {
                     ++index;
                 }
                 common = index;

@@ -117,7 +117,8 @@ public:
         return name;
     }
 
-    // Tier folder of the header. Example: include/c/extern/stream_executor/types.h -> include/c/extern
+    // Tier folder of the header. Example: include/c/extern/stream_executor/types.h ->
+    // include/c/extern
     std::string to_tier() const
     {
         const std::filesystem::path path{m_header_path};
