@@ -12,6 +12,12 @@ import cc_abi_gen_classify;
 
 export namespace cc_abi_gen::parser {
 
+enum class Mode : std::uint8_t
+{
+    BUILDER,
+    SONIC,
+};
+
 // Example: "TFGrapplerConfigsOps" -> "TFGrapplerConfigs" when a slot takes that handle
 std::string c_handle_name(const classify::Classify& model)
 {

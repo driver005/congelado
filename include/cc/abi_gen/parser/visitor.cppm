@@ -11,15 +11,10 @@ export module cc_abi_gen_parser:visitor;
 
 import std;
 import cc_abi_gen_classify;
+import :parameter_text;
 import :utils;
 
 export namespace cc_abi_gen::parser {
-
-enum class Mode : std::uint8_t
-{
-    BUILDER,
-    SONIC,
-};
 
 // Every parsed C declaration by C name; sorted, so generated listings are stable.
 using Registry = std::map<std::string, classify::Classify>;
@@ -341,76 +336,82 @@ private:
     translate_slot(const classify::Function& slot, Mode mode, classify::Function& method) const
     {
         const bool BUILDER = mode == Mode::BUILDER;
-        m_scratch_before.clear();
-        m_scratch_arguments.clear();
-        m_scratch_after.clear();
+        std::string before;
+        std::string arguments;
+        std::string after;
 
         for (const classify::Param& parameter: slot_arguments(slot)) {
-            const bool HANDLED = translate_array(slot, parameter, BUILDER, method) ||
-                                 translate_enum(slot, parameter, BUILDER, method) ||
-                                 translate_struct(slot, parameter, BUILDER, method) ||
-                                 translate_scalar(slot, parameter, BUILDER, method);
-            if (!HANDLED) {
-                translate_handle(parameter, BUILDER, method);
+            const ParameterText TEXT = translate_parameter(slot, parameter, BUILDER);
+            if (!TEXT.get_type().empty()) {
+                method.set_param(TEXT.get_type(), parameter.get_name());
             }
+            if (!TEXT.get_argument().empty()) {
+                arguments += arguments.empty() ? TEXT.get_argument() : ", " + TEXT.get_argument();
+            }
+            before += TEXT.get_before();
+            after += TEXT.get_after();
         }
 
-        const std::string CALL =
-            BUILDER ? std::format("self.{}({});\n", slot.get_name(), m_scratch_arguments)
-                    : std::format(
-                          "m_ops->{}(get_handle(){}{});\n",
-                          slot.get_name(),
-                          m_scratch_arguments.empty() ? "" : ", ",
-                          m_scratch_arguments
-                      );
+        const std::string CALL = BUILDER ? std::format("self.{}({});\n", slot.get_name(), arguments)
+                                         : std::format(
+                                               "m_ops->{}(get_handle(){}{});\n",
+                                               slot.get_name(),
+                                               arguments.empty() ? "" : ", ",
+                                               arguments
+                                           );
 
-        return m_scratch_before + CALL + m_scratch_after;
+        return before + CALL + after;
     }
 
-    // One C++ parameter of `method` and the argument that stands for it in the call.
-    void emit(
-        classify::Function& method,
-        const std::string& type,
-        const std::string& name,
-        const std::string& argument
+    // The first kind of parameter that fits; a plain handle or value is the fallback.
+    [[nodiscard]] ParameterText translate_parameter(
+        const classify::Function& slot,
+        const classify::Param& parameter,
+        bool builder
     ) const
     {
-        if (!type.empty()) {
-            method.set_param(type, name);
+        if (auto text = translate_array(slot, parameter, builder)) {
+            return *text;
         }
-        if (!argument.empty()) {
-            m_scratch_arguments += m_scratch_arguments.empty() ? argument : ", " + argument;
+        if (auto text = translate_enum(slot, parameter, builder)) {
+            return *text;
         }
+        if (auto text = translate_struct(slot, parameter, builder)) {
+            return *text;
+        }
+        if (auto text = translate_scalar(slot, parameter, builder)) {
+            return *text;
+        }
+
+        return translate_handle(parameter, builder);
     }
 
     // Array pointers and their length: host span (builder), unwrapped vector (sonic).
-    bool translate_array(
+    [[nodiscard]] std::optional<ParameterText> translate_array(
         const classify::Function& slot,
         const classify::Param& parameter,
-        bool builder,
-        classify::Function& method
+        bool builder
     ) const
     {
         const std::string& name = parameter.get_name();
+        ParameterText text;
         if (is_array_length(slot, parameter)) {
-            emit(method, "", name, builder ? "" : length_argument(slot, parameter));
+            text.set_argument(builder ? "" : length_argument(slot, parameter));
 
-            return true;
+            return text;
         }
 
         const classify::Param* length = length_of(slot, parameter);
         if (length == nullptr) {
-            return false;
+            return std::nullopt;
         }
 
         const bool INPUT = parameter.is_const_pointee();
         const std::string_view CONSTNESS = INPUT ? "const " : "";
         const std::string RAW = parameter.get_value_type();
         if (builder) {
-            emit(
-                method,
-                std::format("std::span<{}{}>", CONSTNESS, RAW),
-                name,
+            text.set_type(std::format("std::span<{}{}>", CONSTNESS, RAW));
+            text.set_argument(
                 std::format(
                     "std::span<{}{}>{{{}, static_cast<std::size_t>({})}}",
                     CONSTNESS,
@@ -420,165 +421,164 @@ private:
                 )
             );
 
-            return true;
+            return text;
         }
 
         const Lookup VALUE = find_value(parameter);
         const bool IS_ENUM = VALUE.has_value() && VALUE->get().get_kind() == classify::Kind::ENUM;
         const std::string WRAPPER = IS_ENUM ? value_type(VALUE->get()) : RAW;
-        emit(
-            method,
-            std::format("{}std::vector<{}>&", CONSTNESS, WRAPPER),
-            name,
-            (IS_ENUM ? "raw_" : "") + name + ".data()"
-        );
+        text.set_type(std::format("{}std::vector<{}>&", CONSTNESS, WRAPPER));
+        text.set_argument((IS_ENUM ? "raw_" : "") + name + ".data()");
         if (IS_ENUM) {
-            m_scratch_before += std::format(
-                "std::vector<::{0}> raw_{1}({1}.size());\n",
-                VALUE->get().get_c_name(),
-                name
+            text.set_before(
+                std::format(
+                    "std::vector<::{0}> raw_{1}({1}.size());\n",
+                    VALUE->get().get_c_name(),
+                    name
+                )
             );
-            (INPUT ? m_scratch_before : m_scratch_after) += std::format(
+            const std::string LOOP = std::format(
                 "for (std::size_t index = 0; index < {0}.size(); ++index) {{\n    {1};\n}}\n",
                 name,
                 INPUT ? std::format("raw_{0}[index] = {0}[index].get_value()", name)
                       : std::format("{0}[index] = {1}{{raw_{0}[index]}}", name, WRAPPER)
             );
+            if (INPUT) {
+                text.add_before(LOOP);
+            } else {
+                text.add_after(LOOP);
+            }
         }
 
-        return true;
+        return text;
     }
 
     // An enum by value, or an `out_*` pointer to one, as its sonic wrapper.
-    bool translate_enum(
+    [[nodiscard]] std::optional<ParameterText> translate_enum(
         const classify::Function& slot,
         const classify::Param& parameter,
-        bool builder,
-        classify::Function& method
+        bool builder
     ) const
     {
         const Lookup VALUE = find_value(parameter);
         if (!VALUE.has_value() || VALUE->get().get_kind() != classify::Kind::ENUM) {
-            return false;
+            return std::nullopt;
         }
 
         const std::string& name = parameter.get_name();
         const std::string WRAPPER = value_type(VALUE->get());
+        ParameterText text;
+        text.set_type(WRAPPER);
         if (!parameter.is_pointer()) {
-            emit(
-                method,
-                WRAPPER,
-                name,
+            text.set_argument(
                 builder ? std::format("{}{{{}}}", WRAPPER, name) : name + ".get_value()"
             );
 
-            return true;
+            return text;
         }
 
         if (!name.starts_with("out_") || parameter.is_const_pointee() || has_array(slot)) {
-            return false;
+            return std::nullopt;
         }
 
-        emit(method, WRAPPER + "&", name, builder ? "wrapped_" + name : "&raw_" + name);
+        text.set_type(text.get_type() + '&');
         if (builder) {
-            m_scratch_before += std::format("{} wrapped_{}{{*{}}};\n", WRAPPER, name, name);
-            m_scratch_after += std::format("*{0} = wrapped_{0}.get_value();\n", name);
+            text.set_argument("wrapped_" + name);
+            text.set_before(std::format("{} wrapped_{}{{*{}}};\n", WRAPPER, name, name));
+            text.set_after(std::format("*{0} = wrapped_{0}.get_value();\n", name));
         } else {
-            m_scratch_before += std::format("::{} raw_{}{{}};\n", VALUE->get().get_c_name(), name);
-            m_scratch_after += std::format("{} = {}{{raw_{}}};\n", name, WRAPPER, name);
+            text.set_argument("&raw_" + name);
+            text.set_before(std::format("::{} raw_{}{{}};\n", VALUE->get().get_c_name(), name));
+            text.set_after(std::format("{} = {}{{raw_{}}};\n", name, WRAPPER, name));
         }
 
-        return true;
+        return text;
     }
 
     // A pointer to a plain C struct as a pointer to its sonic wrapper.
-    bool translate_struct(
+    [[nodiscard]] std::optional<ParameterText> translate_struct(
         const classify::Function& slot,
         const classify::Param& parameter,
-        bool builder,
-        classify::Function& method
+        bool builder
     ) const
     {
         const Lookup VALUE = find_value(parameter);
         if (!VALUE.has_value() || VALUE->get().get_kind() == classify::Kind::ENUM ||
             !parameter.is_pointer() || has_array(slot)) {
-            return false;
+            return std::nullopt;
         }
 
         const std::string& name = parameter.get_name();
         const std::string WRAPPER = value_type(VALUE->get());
-        emit(
-            method,
-            (parameter.is_const_pointee() ? "const " : "") + WRAPPER + "*",
-            name,
-            builder ? std::format("wrapped_{0} ? &*wrapped_{0} : nullptr", name)
-                    : std::format("{0} == nullptr ? nullptr : {0}->get_handle()", name)
-        );
+        ParameterText text;
+        text.set_type((parameter.is_const_pointee() ? "const " : "") + WRAPPER + "*");
         if (!builder) {
-            return true;
+            text.set_argument(std::format("{0} == nullptr ? nullptr : {0}->get_handle()", name));
+
+            return text;
         }
 
-        m_scratch_before += std::format(
-            "std::optional<{0}> wrapped_{1};\n"
-            "if ({1} != nullptr) {{\n    wrapped_{1}.emplace(*{1});\n}}\n",
-            WRAPPER,
-            name
+        text.set_argument(std::format("wrapped_{0} ? &*wrapped_{0} : nullptr", name));
+        text.set_before(
+            std::format(
+                "std::optional<{0}> wrapped_{1};\n"
+                "if ({1} != nullptr) {{\n    wrapped_{1}.emplace(*{1});\n}}\n",
+                WRAPPER,
+                name
+            )
         );
         if (!parameter.is_const_pointee()) {
-            m_scratch_after += std::format(
-                "if ({0} != nullptr) {{\n    *{0} = *wrapped_{0}->get_handle();\n}}\n",
-                name
+            text.set_after(
+                std::format(
+                    "if ({0} != nullptr) {{\n    *{0} = *wrapped_{0}->get_handle();\n}}\n",
+                    name
+                )
             );
         }
 
-        return true;
+        return text;
     }
 
     // An `out_*` pointer to a number, as a reference.
-    bool translate_scalar(
+    [[nodiscard]] std::optional<ParameterText> translate_scalar(
         const classify::Function& slot,
         const classify::Param& parameter,
-        bool builder,
-        classify::Function& method
+        bool builder
     ) const
     {
         if (find_value(parameter).has_value() || !parameter.is_scalar_out() || has_array(slot)) {
-            return false;
+            return std::nullopt;
         }
 
-        emit(
-            method,
-            parameter.get_value_type() + "&",
-            parameter.get_name(),
-            (builder ? "*" : "&") + parameter.get_name()
-        );
+        ParameterText text;
+        text.set_type(parameter.get_value_type() + "&");
+        text.set_argument((builder ? "*" : "&") + parameter.get_name());
 
-        return true;
+        return text;
     }
 
     // A handle of another vtable travels as its sonic class; anything else as written.
-    void translate_handle(
-        const classify::Param& parameter,
-        bool builder,
-        classify::Function& method
-    ) const
+    [[nodiscard]] ParameterText
+    translate_handle(const classify::Param& parameter, bool builder) const
     {
         const std::string& name = parameter.get_name();
         const Lookup VTABLE = find_vtable(parameter);
+        ParameterText text;
         if (!VTABLE.has_value()) {
-            emit(method, parameter.get_qualified_type(), name, name);
+            text.set_type(parameter.get_qualified_type());
+            text.set_argument(name);
 
-            return;
+            return text;
         }
 
         const std::string TYPE = value_type(VTABLE->get());
-        emit(
-            method,
-            std::format("const {} &", TYPE),
-            name,
+        text.set_type(std::format("const {} &", TYPE));
+        text.set_argument(
             builder ? std::format("self.wrap(std::type_identity<{}>{{}}, {})", TYPE, name)
                     : name + ".get_handle()"
         );
+
+        return text;
     }
 
     // Every registry entry `lookup` finds for a slot parameter of `model`, once per C name.
@@ -640,9 +640,6 @@ private:
     std::optional<std::reference_wrapper<const clang::SourceManager>> m_source_manager;
     std::string m_header_path;
     std::vector<const clang::FieldDecl*> m_scratch_fields;
-    mutable std::string m_scratch_before;
-    mutable std::string m_scratch_arguments;
-    mutable std::string m_scratch_after;
 };
 
 } // namespace cc_abi_gen::parser
