@@ -5,13 +5,14 @@ congelado_module_library(
     partitions = [
         "cli_options.cppm",
         "cli_runner.cppm",
+        "runtime.cppm",
+        "writer.cppm",
     ],
     primary_interface = "cc_abi_gen.cppm",
     visibility = ["//visibility:private"],
     deps = [
-        "//include/cc/abi_gen/generator:cc_abi_gen_generator",
         "//include/cc/abi_gen/parser:cc_abi_gen_parser",
-        "//include/cc/abi_gen/writer:cc_abi_gen_writer",
+        "//include/cc/abi_gen/classify:cc_abi_gen_classify",
         "//include/cc/utils/cli:cc_utils_cli",
         "//include/cc/utils/cli/ast:cc_utils_cli_ast",
         "//include/cc/utils/cli/parser:cc_utils_cli_parser",

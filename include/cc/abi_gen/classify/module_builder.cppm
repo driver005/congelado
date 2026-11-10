@@ -30,6 +30,13 @@ public:
         return *this;
     }
 
+    // A complete `import …;` line, used when the imports are already rendered.
+    [[nodiscard]] ModuleBuilder& set_raw_import(std::string line)
+    {
+        m_raw_imports.push_back(std::move(line));
+        return *this;
+    }
+
     [[nodiscard]] ModuleBuilder& set_namespace(std::string space)
     {
         m_namespaces.push_back(std::move(space));
@@ -69,15 +76,21 @@ public:
         }
 
         // Imports
-        if (!m_imports.empty()) {
-            code += m_imports |
-                    std::views::transform(
-                        [](const std::string& imp)
-                        {
-                            return std::format("import {};\n", imp);
-                        }
-                    ) |
-                    std::views::join_with(std::string_view("")) | std::ranges::to<std::string>();
+        std::string import_lines = m_imports |
+                                   std::views::transform(
+                                       [](const std::string& imp)
+                                       {
+                                           return std::format("import {};\n", imp);
+                                       }
+                                   ) |
+                                   std::views::join_with(std::string_view("")) |
+                                   std::ranges::to<std::string>();
+        for (const std::string& line: m_raw_imports) {
+            import_lines += line;
+            import_lines += '\n';
+        }
+        if (!import_lines.empty()) {
+            code += import_lines;
             code += '\n';
         }
 
@@ -116,6 +129,7 @@ private:
     std::string m_global_fragment;
     bool m_is_export_module{true};
     std::vector<std::string> m_imports;
+    std::vector<std::string> m_raw_imports;
     std::vector<std::string> m_namespaces;
     std::vector<Classify> m_classes;
 };

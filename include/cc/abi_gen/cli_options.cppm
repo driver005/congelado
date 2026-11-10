@@ -8,13 +8,8 @@ export namespace cc_abi_gen {
 class CliOptions
 {
 public:
-    bool m_pilot = false;
-    std::optional<std::string> m_tier;
     std::optional<std::string> m_folder;
     std::optional<std::string> m_namespace_name;
-    std::optional<std::string> m_domain;
-    std::optional<std::string> m_header;
-    std::optional<std::string> m_out;
     std::optional<std::string> m_out_dir;
     std::optional<std::string> m_repo_root;
 };

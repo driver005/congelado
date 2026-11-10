@@ -1,4 +1,0 @@
-
-            ) noexcept {
-                auto& self = {{ class_name }}::from_handle({{ self_param_name }});
-{{ preamble }}                self.{{ slot_name }}(

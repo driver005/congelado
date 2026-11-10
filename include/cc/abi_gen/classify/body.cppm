@@ -118,28 +118,6 @@ public:
         return *this;
     }
 
-    // `m_ops->method(get_handle(), args);` — `, ` only when has_arguments.
-    BodyBuilder&
-    add_ops_call(std::string_view method, std::string_view arguments, bool has_arguments)
-    {
-        m_body += std::format("{}m_ops->{}(get_handle()", INDENT, method);
-        if (has_arguments) {
-            m_body += ", ";
-        }
-        m_body += arguments;
-        m_body += ");\n";
-        return *this;
-    }
-
-    // `self.method(args);`
-    BodyBuilder& add_self_call(std::string_view method, std::string_view arguments)
-    {
-        m_body += std::format("{}self.{}(", INDENT, method);
-        m_body += arguments;
-        m_body += ");\n";
-        return *this;
-    }
-
     // Parameter of the open slot.
     BodyBuilder& add_param(Param param)
     {

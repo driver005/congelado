@@ -11,6 +11,16 @@ enum class FunctionType : std::uint8_t
     COPY_CONSTRUCTOR,
     MOVE_CONSTRUCTOR,
     DESTRUCTOR,
+    // `operator T()`: no return type in front of the name.
+    CONVERSION,
+};
+
+// What C declaration a class was parsed from.
+enum class Kind : std::uint8_t
+{
+    VTABLE,
+    STRUCT,
+    ENUM,
 };
 
 } // namespace cc_abi_gen::classify

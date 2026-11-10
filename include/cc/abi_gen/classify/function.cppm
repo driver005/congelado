@@ -11,7 +11,7 @@ class Function
 public:
     Function() = default;
 
-    Function(
+    explicit Function(
         std::string name,
         std::string return_type = "void",
         FunctionType type = FunctionType::STANDARD
@@ -29,60 +29,15 @@ public:
     Function(Function&& other) noexcept = default;
     Function& operator=(Function&& other) noexcept = default;
 
-    [[nodiscard]] std::string generate_doxygen(std::string_view indent = "    ") const
-    {
-        if (m_doxygen_brief.empty() && m_parameters.empty() && m_doxygen_return_doc.empty()) {
-            return "";
-        }
-
-        std::string doc = std::format("{}", indent);
-
-        if (!m_doxygen_brief.empty()) {
-            doc += std::format("{} * @brief {}\n", indent, m_doxygen_brief);
-        }
-
-        // Range-first approach for parameter documentation filtering and transformation
-        auto param_docs = m_parameters |
-                          std::views::filter(
-                              [](const Param& param)
-                              {
-                                  return !param.get_description().empty();
-                              }
-                          ) |
-                          std::views::transform(
-                              [indent](const Param& param)
-                              {
-                                  return std::format(
-                                      "{} * @param {} {}\n",
-                                      indent,
-                                      param.get_name(),
-                                      param.get_description()
-                                  );
-                              }
-                          );
-
-        for (const auto& p_doc: param_docs) {
-            doc += p_doc;
-        }
-
-        if (!m_doxygen_return_doc.empty() && m_return_type != "void" &&
-            m_type == FunctionType::STANDARD) {
-            doc += std::format("{} * @return {}\n", indent, m_doxygen_return_doc);
-        }
-
-        doc += std::format("{} */\n", indent);
-        return doc;
-    }
-
     [[nodiscard]] std::string generate_signature(bool include_defaults = true) const
     {
         std::string sig;
 
+        if (m_is_constexpr) {
+            sig += "constexpr ";
+        }
         if (m_is_static) {
             sig += "static ";
-        }
-        if (m_is_inline) {
-            sig += "inline ";
         }
         if (m_is_explicit) {
             sig += "explicit ";
@@ -99,16 +54,16 @@ public:
 
         std::string params_str = m_parameters |
                                  std::views::transform(
-                                     [include_defaults](const Param& p)
+                                     [include_defaults](const Param& param)
                                      {
-                                         return p.to_string(include_defaults);
+                                         return param.to_string(include_defaults);
                                      }
                                  ) |
                                  std::views::join_with(std::string_view(", ")) |
                                  std::ranges::to<std::string>();
 
         sig += params_str;
-        sig += ")";
+        sig += ')';
 
         if (m_is_const) {
             sig += " const";
@@ -116,16 +71,13 @@ public:
         if (m_is_noexcept) {
             sig += " noexcept";
         }
-        if (m_is_override) {
-            sig += " override";
-        }
 
         return sig;
     }
 
     [[nodiscard]] std::string generate_code(std::string_view indent = "    ") const
     {
-        std::string code = generate_doxygen(indent);
+        std::string code;
 
         if (!m_template_params.empty()) {
             code += std::format("{}template<{}>\n", indent, m_template_params);
@@ -147,7 +99,7 @@ public:
         if (!m_initializer_list.empty()) {
             code += std::format(" :\n{}{}", indent, m_initializer_list);
         }
-        code += "\n";
+        code += '\n';
 
         code += std::format("{}{{\n", indent);
 
@@ -169,16 +121,10 @@ public:
     Function& set_param(
         std::string type,
         std::string name,
-        std::optional<std::string> default_value = std::nullopt,
-        std::string description = ""
+        std::optional<std::string> default_value = std::nullopt
     )
     {
-        m_parameters.emplace_back(
-            std::move(type),
-            std::move(name),
-            std::move(default_value),
-            std::move(description)
-        );
+        m_parameters.emplace_back(std::move(type), std::move(name), std::move(default_value));
         return *this;
     }
 
@@ -266,39 +212,31 @@ public:
         return *this;
     }
 
-    Function& set_override(bool value = true) noexcept
-    {
-        m_is_override = value;
-        return *this;
-    }
-
     Function& set_static(bool value = true) noexcept
     {
         m_is_static = value;
         return *this;
     }
 
-    Function& set_inline(bool value = true) noexcept
+    Function& set_constexpr(bool value = true) noexcept
     {
-        m_is_inline = value;
-        return *this;
-    }
-
-    Function& set_doxygen_brief(std::string brief)
-    {
-        m_doxygen_brief = std::move(brief);
-        return *this;
-    }
-
-    Function& set_doxygen_return_doc(std::string ret_doc)
-    {
-        m_doxygen_return_doc = std::move(ret_doc);
+        m_is_constexpr = value;
         return *this;
     }
 
     [[nodiscard]] const std::string& get_name() const noexcept
     {
         return m_name;
+    }
+
+    [[nodiscard]] const std::string& get_return_type() const noexcept
+    {
+        return m_return_type;
+    }
+
+    [[nodiscard]] std::span<const Param> get_parameters() const noexcept
+    {
+        return m_parameters;
     }
 
     [[nodiscard]] FunctionType get_type() const noexcept
@@ -318,17 +256,12 @@ private:
     bool m_is_const{false};
     bool m_is_noexcept{false};
     bool m_is_virtual{false};
-    bool m_is_override{false};
     bool m_is_static{false};
-    bool m_is_inline{false};
+    bool m_is_constexpr{false};
     bool m_is_explicit{false};
     bool m_is_pure_virtual{false};
     bool m_is_deleted{false};
     bool m_is_defaulted{false};
-
-    // Doxygen Documentation Fields
-    std::string m_doxygen_brief;
-    std::string m_doxygen_return_doc;
 };
 
 } // namespace cc_abi_gen::classify

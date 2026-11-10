@@ -6,28 +6,13 @@ export module cc_abi_gen:cli_runner;
 
 import std;
 import :cli_options;
-import cc_abi_gen_parser;
-import cc_abi_gen_generator;
-import cc_abi_gen_writer;
+import :runtime;
 import cc_utils_cli;
 import cc_utils_cli_parser;
 
-void replace_all(std::string& source, std::string_view from, std::string_view to)
-{
-    if (from.empty()) {
-        return;
-    }
-    size_t start_pos = 0;
-    while ((start_pos = source.find(from, start_pos)) != std::string::npos) {
-        source.replace(start_pos, from.length(), to);
-        start_pos += to.length(); // Advance past the replaced segment
-    }
-}
-
 export namespace cc_abi_gen {
 
-// Command-line entry point: `generate` (genrule's explicit form, or --pilot's manual form) and
-// `check` (dry-run diff, --pilot only).
+// Command-line entry point: `generate` (genrule's explicit form, or --pilot's manual form).
 class CliRunner
 {
 public:
@@ -108,30 +93,27 @@ public:
             return 1;
         }
 
-        if (current_cmd_opt->get().get_name() == "generate") {
-            return run_generate();
+        if (current_cmd_opt->get().get_name() != "generate") {
+            std::println(stderr, "{}", usage());
+            return 1;
         }
 
-        return run_check();
+        return run_generate();
     }
 
 private:
-    // Every generated file lands in this C++ namespace (`ice::builder`/`ice::sonic` — see
-    // helper::format_header) — matches every hand-written/checked-in file under include/cc/abi.
+    // Every generated file lands in this C++ namespace and under include/<folder>.
     static constexpr std::string_view NAMESPACE_NAME = "ice";
     static constexpr std::string_view FOLDER_NAME = "cc";
 
-    std::string usage()
+    static std::string_view usage()
     {
-        return "usage: cc_abi_gen generate --pilot [--out-dir <dir>] | "
-               "cc_abi_gen generate --tier <builder|sonic|both> --domain <name> --header "
-               "<path> "
-               "[--out <path>] | "
-               "cc_abi_gen check --pilot";
+        return "usage: cc_abi_gen generate --pilot [--out-dir <dir>] [--repo-root <dir>] "
+               "[--folder <name>] [--namespace <name>]";
     }
 
     // Every command this binary accepts and the flags each one allows
-    cc_utils::cli::parser::Schema build_command_schema()
+    static cc_utils::cli::parser::Schema build_command_schema()
     {
         using namespace cc_utils::cli::parser;
 
@@ -141,21 +123,9 @@ private:
             std::move(
                 Option{"generate", "Generate ABI"}
                     .add_flag(Flag{"pilot", "Pilot mode", FlagType::Boolean, {}})
-                    .add_flag(Flag{"tier", "Tier", FlagType::String, {}})
                     .add_flag(Flag{"folder", "Folder name", FlagType::String, {}})
                     .add_flag(Flag{"namespace", "Namespace name", FlagType::String, {}})
-                    .add_flag(Flag{"domain", "Domain name", FlagType::String, {}})
-                    .add_flag(Flag{"header", "Header path", FlagType::String, {}})
-                    .add_flag(Flag{"out", "Output path", FlagType::String, {}})
                     .add_flag(Flag{"out-dir", "Output directory", FlagType::String, {}})
-                    .add_flag(Flag{"repo-root", "Repo root", FlagType::String, {}})
-            )
-        );
-
-        schema.add_option(
-            std::move(
-                Option{"check", "Check ABI diff"}
-                    .add_flag(Flag{"pilot", "Pilot mode", FlagType::Boolean, {}})
                     .add_flag(Flag{"repo-root", "Repo root", FlagType::String, {}})
             )
         );
@@ -163,7 +133,7 @@ private:
         return schema;
     }
 
-    CliOptions parse_options(const cc_utils::cli::Parser& parser)
+    static CliOptions parse_options(const cc_utils::cli::Parser& parser)
     {
         CliOptions options;
 
@@ -173,16 +143,6 @@ private:
         }
 
         const auto& current_cmd = current_cmd_opt->get();
-
-        auto has_flag = [&current_cmd](std::string_view name) -> bool
-        {
-            for (const auto& flag: current_cmd.get_flags()) {
-                if (flag.get_name() == name) {
-                    return true;
-                }
-            }
-            return false;
-        };
 
         auto get_value = [&current_cmd](std::string_view name) -> std::optional<std::string>
         {
@@ -196,25 +156,11 @@ private:
             return std::nullopt;
         };
 
-        options.m_pilot = has_flag("pilot");
-
-        if (auto value = get_value("tier")) {
-            options.m_tier = std::move(*value);
-        }
         if (auto value = get_value("folder")) {
             options.m_folder = std::move(*value);
         }
         if (auto value = get_value("namespace")) {
             options.m_namespace_name = std::move(*value);
-        }
-        if (auto value = get_value("domain")) {
-            options.m_domain = std::move(*value);
-        }
-        if (auto value = get_value("header")) {
-            options.m_header = std::move(*value);
-        }
-        if (auto value = get_value("out")) {
-            options.m_out = std::move(*value);
         }
         if (auto value = get_value("out-dir")) {
             options.m_out_dir = std::move(*value);
@@ -226,12 +172,13 @@ private:
         return options;
     }
 
-    std::filesystem::path resolve_repo_root(const CliOptions& options)
+    static std::filesystem::path resolve_repo_root(const CliOptions& options)
     {
         if (options.m_repo_root) {
             return *options.m_repo_root;
         }
 
+        // NOLINTNEXTLINE(concurrency-mt-unsafe)
         if (const char* workspace_directory = std::getenv("BUILD_WORKSPACE_DIRECTORY")) {
             return workspace_directory;
         }
@@ -239,7 +186,7 @@ private:
         return std::filesystem::current_path();
     }
 
-    std::string resolve_folder_name(const CliOptions& options)
+    static std::string resolve_folder_name(const CliOptions& options)
     {
         if (options.m_folder) {
             return *options.m_folder;
@@ -248,7 +195,7 @@ private:
         return std::string{FOLDER_NAME};
     }
 
-    std::string resolve_namespace_name(const CliOptions& options)
+    static std::string resolve_namespace_name(const CliOptions& options)
     {
         if (options.m_namespace_name) {
             return *options.m_namespace_name;
@@ -257,7 +204,7 @@ private:
         return std::string{NAMESPACE_NAME};
     }
 
-    std::filesystem::path resolve_output_dir(const CliOptions& options)
+    static std::filesystem::path resolve_output_dir(const CliOptions& options)
     {
         if (options.m_out_dir) {
             return *options.m_out_dir;
@@ -266,53 +213,8 @@ private:
         return "include/";
     }
 
-    // Explicit single-file mode: what the genrule wiring invokes.
-    int run_generate_single(const CliOptions& options)
-    {
-        if (!options.m_tier || !options.m_domain || !options.m_header) {
-            std::println(stderr, "{}", usage());
-            return 1;
-        }
-        std::println(stderr, "[cc_abi_gen] parsing {}", *options.m_header);
-
-        auto parsed = m_runtime.parse_directory("include/c");
-        if (!parsed) {
-            std::println(stderr, "{}", parsed.error());
-            return 1;
-        }
-
-        // Parse tier using enum's from_string method
-        auto mode = generator::emitter::from_string(*options.m_tier);
-        if (!mode) {
-            std::println(stderr, "invalid tier: {} (expected builder|sonic|both)", *options.m_tier);
-            return 1;
-        }
-
-        const auto& registry = m_runtime.get_registry();
-        auto model = registry.find(*options.m_header);
-        if (!model.has_value()) {
-            std::println(stderr, "[cc_abi_gen] no vtable struct found in: {}", *options.m_header);
-            return 1;
-        }
-
-        auto gen_result = m_runtime.generate_single(*model, *mode);
-        if (!gen_result) {
-            std::println(stderr, "{}", gen_result.error());
-            return 1;
-        }
-
-        if (*mode == generator::emitter::Mode::Both) {
-            std::println(stderr, "[cc_abi_gen] wrote both layers");
-        } else {
-            std::println(stderr, "[cc_abi_gen] wrote {}", *options.m_out);
-        }
-
-        return 0;
-    }
-
     int run_generate()
     {
-        // Parse extern and intern directories separately (not the root include/c)
         auto parsed = m_runtime.parse_directory("include/c");
         if (!parsed) {
             std::println(stderr, "{}", parsed.error());
@@ -330,74 +232,7 @@ private:
         return 0;
     }
 
-    int run_check_single(const CliOptions& options)
-    {
-        if (!options.m_tier || !options.m_domain || !options.m_header) {
-            std::println(stderr, "{}", usage());
-            return 1;
-        }
-        std::println(stderr, "[cc_abi_gen] parsing {}", *options.m_header);
-
-        auto parsed = m_runtime.parse_directory("include/c");
-        if (!parsed) {
-            std::println(stderr, "{}", parsed.error());
-            return 1;
-        }
-
-        // Parse tier using enum's from_string method
-        auto mode = generator::emitter::from_string(*options.m_tier);
-        if (!mode) {
-            std::println(stderr, "invalid tier: {} (expected builder|sonic|both)", *options.m_tier);
-            return 1;
-        }
-
-        const auto& registry = m_runtime.get_registry();
-        auto model = registry.find(*options.m_header);
-        if (!model.has_value()) {
-            std::println(stderr, "[cc_abi_gen] no vtable struct found in: {}", *options.m_header);
-            return 1;
-        }
-
-        auto check_result = m_runtime.check_single(*model, *mode);
-        if (!check_result) {
-            std::println(stderr, "{}", check_result.error());
-            return 1;
-        }
-
-        if (*check_result) {
-            std::println(stderr, "[cc_abi_gen] done: {} up to date", *mode);
-        } else {
-            std::println(stderr, "[cc_abi_gen] done: differences found in {}", *mode);
-        }
-
-        return 0;
-    }
-
-    int run_check()
-    {
-        auto parsed = m_runtime.parse_directory("include/c");
-        if (!parsed) {
-            std::println(stderr, "{}", parsed.error());
-            return 1;
-        }
-
-        auto check_result = m_runtime.check();
-        if (!check_result) {
-            std::println(stderr, "{}", check_result.error());
-            return 1;
-        }
-
-        if (*check_result) {
-            std::println(stderr, "[cc_abi_gen] done: all up to date");
-        } else {
-            std::println(stderr, "[cc_abi_gen] done: differences found");
-        }
-
-        return *check_result ? 0 : 1;
-    }
-
-    writer::Writer m_writer;
-    generator::runtime::Runtime m_runtime{
+    Runtime m_runtime{
         std::filesystem::path{},
         std::string{FOLDER_NAME},
         std::string{NAMESPACE_NAME}

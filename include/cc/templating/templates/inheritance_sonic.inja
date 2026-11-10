@@ -1,1 +1,0 @@
- : public {{ namespace_name }}::sonic::Runtime<::{{ struct_name }}, ::{{ handle_name }}>

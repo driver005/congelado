@@ -9,6 +9,7 @@ congelado_module_library(
         "parms.cppm",
         "body.cppm",
         "utils.cppm",
+        "build_file.cppm",
     ],
     primary_interface = "classify.cppm",
     visibility = ["//visibility:public"],
