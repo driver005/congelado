@@ -49,13 +49,13 @@ public:
                 self.destroy();
             },
             .get_numa_node =
-                [](::TF_Device* device, int32_t* out_numa_node) noexcept
+                [](::TF_Device* device, std::int32_t* out_numa_node) noexcept
             {
                 auto& self = Device::from_handle(device);
                 self.get_numa_node(*out_numa_node);
             },
             .get_memory_bandwidth =
-                [](::TF_Device* device, int64_t* out_bandwidth) noexcept
+                [](::TF_Device* device, std::int64_t* out_bandwidth) noexcept
             {
                 auto& self = Device::from_handle(device);
                 self.get_memory_bandwidth(*out_bandwidth);

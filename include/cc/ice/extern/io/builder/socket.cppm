@@ -55,59 +55,60 @@ public:
         void* user_data,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
-    virtual void connect(int64_t timeout_ms, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void
+    connect(std::int64_t timeout_ms, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void connect_async(
-        int64_t timeout_ms,
+        std::int64_t timeout_ms,
         TFSocketAckFn completion,
         void* user_data,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void send(
         const void* data,
-        size_t length,
-        size_t* out_bytes_sent,
+        std::size_t length,
+        std::size_t* out_bytes_sent,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void send_async(
         const void* data,
-        size_t length,
+        std::size_t length,
         TFSocketTransferFn completion,
         void* user_data,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void receive(
         void* out_buffer,
-        size_t buffer_size,
+        std::size_t buffer_size,
         std::size_t& out_bytes_received,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void receive_async(
         void* out_buffer,
-        size_t buffer_size,
+        std::size_t buffer_size,
         TFSocketTransferFn completion,
         void* user_data,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void send_to(
         const void* data,
-        size_t length,
+        std::size_t length,
         const ice::sonic::String& dest_host,
-        uint16_t dest_port,
-        size_t* out_bytes_sent,
+        std::uint16_t dest_port,
+        std::size_t* out_bytes_sent,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void receive_from(
         void* out_buffer,
-        size_t buffer_size,
+        std::size_t buffer_size,
         std::size_t& out_bytes_received,
         const ice::sonic::String& out_sender_host,
         std::uint16_t& out_sender_port,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void
-    set_send_timeout(int64_t timeout_ms, const ice::sonic::Status& out_status) noexcept = 0;
+    set_send_timeout(std::int64_t timeout_ms, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void
-    set_receive_timeout(int64_t timeout_ms, const ice::sonic::Status& out_status) noexcept = 0;
+    set_receive_timeout(std::int64_t timeout_ms, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void shutdown(int how, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_status(int& out_status) noexcept = 0;
     virtual void get_error_code(int& out_error_code) noexcept = 0;
@@ -270,7 +271,7 @@ public:
                 );
             },
             .connect =
-                [](::TF_Socket* socket, int64_t timeout_ms, ::TF_Status* out_status) noexcept
+                [](::TF_Socket* socket, std::int64_t timeout_ms, ::TF_Status* out_status) noexcept
             {
                 auto& self = Socket::from_handle(socket);
                 self.connect(
@@ -280,7 +281,7 @@ public:
             },
             .connect_async =
                 [](::TF_Socket* socket,
-                   int64_t timeout_ms,
+                   std::int64_t timeout_ms,
                    TFSocketAckFn completion,
                    void* user_data,
                    ::TF_Status* out_status) noexcept
@@ -296,8 +297,8 @@ public:
             .send =
                 [](::TF_Socket* socket,
                    const void* data,
-                   size_t length,
-                   size_t* out_bytes_sent,
+                   std::size_t length,
+                   std::size_t* out_bytes_sent,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = Socket::from_handle(socket);
@@ -311,7 +312,7 @@ public:
             .send_async =
                 [](::TF_Socket* socket,
                    const void* data,
-                   size_t length,
+                   std::size_t length,
                    TFSocketTransferFn completion,
                    void* user_data,
                    ::TF_Status* out_status) noexcept
@@ -328,8 +329,8 @@ public:
             .receive =
                 [](::TF_Socket* socket,
                    void* out_buffer,
-                   size_t buffer_size,
-                   size_t* out_bytes_received,
+                   std::size_t buffer_size,
+                   std::size_t* out_bytes_received,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = Socket::from_handle(socket);
@@ -343,7 +344,7 @@ public:
             .receive_async =
                 [](::TF_Socket* socket,
                    void* out_buffer,
-                   size_t buffer_size,
+                   std::size_t buffer_size,
                    TFSocketTransferFn completion,
                    void* user_data,
                    ::TF_Status* out_status) noexcept
@@ -360,10 +361,10 @@ public:
             .send_to =
                 [](::TF_Socket* socket,
                    const void* data,
-                   size_t length,
+                   std::size_t length,
                    const ::TF_String* dest_host,
-                   uint16_t dest_port,
-                   size_t* out_bytes_sent,
+                   std::uint16_t dest_port,
+                   std::size_t* out_bytes_sent,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = Socket::from_handle(socket);
@@ -379,10 +380,10 @@ public:
             .receive_from =
                 [](::TF_Socket* socket,
                    void* out_buffer,
-                   size_t buffer_size,
-                   size_t* out_bytes_received,
+                   std::size_t buffer_size,
+                   std::size_t* out_bytes_received,
                    ::TF_String* out_sender_host,
-                   uint16_t* out_sender_port,
+                   std::uint16_t* out_sender_port,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = Socket::from_handle(socket);
@@ -396,7 +397,7 @@ public:
                 );
             },
             .set_send_timeout =
-                [](::TF_Socket* socket, int64_t timeout_ms, ::TF_Status* out_status) noexcept
+                [](::TF_Socket* socket, std::int64_t timeout_ms, ::TF_Status* out_status) noexcept
             {
                 auto& self = Socket::from_handle(socket);
                 self.set_send_timeout(
@@ -405,7 +406,7 @@ public:
                 );
             },
             .set_receive_timeout =
-                [](::TF_Socket* socket, int64_t timeout_ms, ::TF_Status* out_status) noexcept
+                [](::TF_Socket* socket, std::int64_t timeout_ms, ::TF_Status* out_status) noexcept
             {
                 auto& self = Socket::from_handle(socket);
                 self.set_receive_timeout(
@@ -434,7 +435,7 @@ public:
             .get_local_endpoint =
                 [](::TF_Socket* socket,
                    ::TF_String* out_host,
-                   uint16_t* out_port,
+                   std::uint16_t* out_port,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = Socket::from_handle(socket);
@@ -447,7 +448,7 @@ public:
             .get_remote_endpoint =
                 [](::TF_Socket* socket,
                    ::TF_String* out_host,
-                   uint16_t* out_port,
+                   std::uint16_t* out_port,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = Socket::from_handle(socket);
@@ -466,7 +467,7 @@ public:
                 *out_protocol = wrapped_out_protocol.get_value();
             },
             .get_fd =
-                [](::TF_Socket* socket, intptr_t* out_fd) noexcept
+                [](::TF_Socket* socket, std::intptr_t* out_fd) noexcept
             {
                 auto& self = Socket::from_handle(socket);
                 self.get_fd(*out_fd);

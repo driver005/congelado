@@ -24,7 +24,7 @@ public:
     virtual void destroy() noexcept = 0;
     virtual void get_dtype(int& out_dtype, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_shape(
-        int64_t** out_dims,
+        std::int64_t** out_dims,
         int& out_num_dims,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
@@ -52,7 +52,7 @@ public:
             },
             .get_shape =
                 [](::TFParserTypeInfo* typeinfo,
-                   int64_t** out_dims,
+                   std::int64_t** out_dims,
                    int* out_num_dims,
                    ::TF_Status* out_status) noexcept
             {

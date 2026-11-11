@@ -26,9 +26,9 @@ public:
     virtual void is_directory(int& out_is_directory) noexcept = 0;
     virtual void set_is_directory(int is_directory) noexcept = 0;
     virtual void length(std::int64_t& out_length) noexcept = 0;
-    virtual void set_length(int64_t length) noexcept = 0;
+    virtual void set_length(std::int64_t length) noexcept = 0;
     virtual void mtime_nsec(std::int64_t& out_mtime_nsec) noexcept = 0;
-    virtual void set_mtime_nsec(int64_t mtime_nsec) noexcept = 0;
+    virtual void set_mtime_nsec(std::int64_t mtime_nsec) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_FileStatistics*)) noexcept
     {
@@ -61,25 +61,25 @@ public:
                 self.set_is_directory(is_directory);
             },
             .length =
-                [](const ::TF_FileStatistics* stats, int64_t* out_length) noexcept
+                [](const ::TF_FileStatistics* stats, std::int64_t* out_length) noexcept
             {
                 auto& self = FileStatistics::from_handle(stats);
                 self.length(*out_length);
             },
             .set_length =
-                [](::TF_FileStatistics* stats, int64_t length) noexcept
+                [](::TF_FileStatistics* stats, std::int64_t length) noexcept
             {
                 auto& self = FileStatistics::from_handle(stats);
                 self.set_length(length);
             },
             .mtime_nsec =
-                [](const ::TF_FileStatistics* stats, int64_t* out_mtime_nsec) noexcept
+                [](const ::TF_FileStatistics* stats, std::int64_t* out_mtime_nsec) noexcept
             {
                 auto& self = FileStatistics::from_handle(stats);
                 self.mtime_nsec(*out_mtime_nsec);
             },
             .set_mtime_nsec =
-                [](::TF_FileStatistics* stats, int64_t mtime_nsec) noexcept
+                [](::TF_FileStatistics* stats, std::int64_t mtime_nsec) noexcept
             {
                 auto& self = FileStatistics::from_handle(stats);
                 self.set_mtime_nsec(mtime_nsec);

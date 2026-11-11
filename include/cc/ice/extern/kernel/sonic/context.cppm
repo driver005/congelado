@@ -193,7 +193,7 @@ public:
     }
 
     void get_op_kernel_requested_input(
-        size_t index,
+        std::size_t index,
         const ice::sonic::String& out_name
     ) const noexcept
     {
@@ -204,7 +204,7 @@ public:
         int index,
         ice::sonic::DataTypeEnum dtype,
         const std::vector<std::int64_t>& dims,
-        size_t len,
+        std::size_t len,
         ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -381,7 +381,7 @@ public:
             do_lock,
             sparse,
             inputs.data(),
-            static_cast<size_t>(inputs.size()),
+            static_cast<std::size_t>(inputs.size()),
             copy_func,
             out_lock_holder,
             out_status.get_handle()
@@ -417,7 +417,10 @@ public:
         );
     }
 
-    void forward_ref_input_to_ref_output(int32_t input_index, int32_t output_index) const noexcept
+    void forward_ref_input_to_ref_output(
+        std::int32_t input_index,
+        std::int32_t output_index
+    ) const noexcept
     {
         m_ops->forward_ref_input_to_ref_output(get_handle(), input_index, output_index);
     }

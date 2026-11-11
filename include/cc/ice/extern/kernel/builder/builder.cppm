@@ -34,7 +34,7 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void host_memory(const ice::sonic::String& arg_name) noexcept = 0;
-    virtual void priority(int32_t priority_number) noexcept = 0;
+    virtual void priority(std::int32_t priority_number) noexcept = 0;
     virtual void label(const ice::sonic::String& label) noexcept = 0;
     virtual void register_kernel_builder(
         const ice::sonic::String& kernel_name,
@@ -79,7 +79,7 @@ public:
                 self.host_memory(self.wrap(std::type_identity<ice::sonic::String>{}, arg_name));
             },
             .priority =
-                [](::TF_KernelBuilder* kernel_builder, int32_t priority_number) noexcept
+                [](::TF_KernelBuilder* kernel_builder, std::int32_t priority_number) noexcept
             {
                 auto& self = KernelBuilder::from_handle(kernel_builder);
                 self.priority(priority_number);

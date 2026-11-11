@@ -54,7 +54,7 @@ public:
                 self.data(out_data);
             },
             .length =
-                [](::TF_ReadOnlyMemoryRegion* region, uint64_t* out_length) noexcept
+                [](::TF_ReadOnlyMemoryRegion* region, std::uint64_t* out_length) noexcept
             {
                 auto& self = ReadOnlyMemoryRegion::from_handle(region);
                 self.length(*out_length);

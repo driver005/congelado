@@ -232,23 +232,25 @@ clang::QualType element_qual_type(const clang::FieldDecl* field)
     return field->getType();
 }
 
+// C types that live in std:: in the generated C++.
+inline constexpr std::array STD_NAMES{
+    "int8_t",
+    "int16_t",
+    "int32_t",
+    "int64_t",
+    "uint8_t",
+    "uint16_t",
+    "uint32_t",
+    "uint64_t",
+    "intptr_t",
+    "uintptr_t",
+    "size_t",
+    "ptrdiff_t",
+};
+
 // Writes global names with `::` and fixed width integers with `std::`.
 std::string spell(const std::string& type)
 {
-    static constexpr std::array STD_NAMES{
-        "int8_t",
-        "int16_t",
-        "int32_t",
-        "int64_t",
-        "uint8_t",
-        "uint16_t",
-        "uint32_t",
-        "uint64_t",
-        "intptr_t",
-        "uintptr_t",
-        "size_t",
-        "ptrdiff_t",
-    };
     static constexpr std::array KEYWORDS{"const", "struct", "enum", "union", "volatile"};
 
     auto is_identifier = [](unsigned char token)
@@ -272,6 +274,32 @@ std::string spell(const std::string& type)
             }
         }
         result += token;
+    }
+
+    return result;
+}
+
+// The parameter type as the generated C++ spells it: global pointee, std:: sized integers.
+std::string qualified_type(const classify::Param& parameter)
+{
+    const std::string TYPE = parameter.get_qualified_type();
+
+    std::string result;
+    std::size_t index = 0;
+    while (index < TYPE.size()) {
+        const auto START = index;
+        const bool IS_NAME =
+            std::isalpha(static_cast<unsigned char>(TYPE.at(START))) != 0 || TYPE.at(START) == '_';
+        while (index < TYPE.size() &&
+               (std::isalnum(static_cast<unsigned char>(TYPE.at(index))) != 0 ||
+                TYPE.at(index) == '_') == IS_NAME) {
+            ++index;
+        }
+
+        const std::string_view TOKEN{TYPE.data() + START, index - START};
+        const bool QUALIFIED = START > 0 && TYPE.at(START - 1) == ':';
+        result += IS_NAME && !QUALIFIED && std::ranges::contains(STD_NAMES, TOKEN) ? "std::" : "";
+        result += TOKEN;
     }
 
     return result;
@@ -472,6 +500,37 @@ const classify::Param* length_of(const classify::Function& slot, const classify:
     return nullptr;
 }
 
+// The integer parameter that carries the length of the `const char *` text at `parameter`.
+const classify::Param*
+text_length_of(const classify::Function& slot, const classify::Param& parameter)
+{
+    if (parameter.get_type() != "const char *") {
+        return nullptr;
+    }
+
+    const auto PARAMETERS = slot_arguments(slot);
+    const auto INDEX = static_cast<std::size_t>(&parameter - PARAMETERS.data());
+    if (INDEX + 1 >= PARAMETERS.size()) {
+        return nullptr;
+    }
+
+    const classify::Param& candidate = PARAMETERS.at(INDEX + 1);
+    const bool IS_LENGTH =
+        is_length_name(candidate.get_name()) || candidate.get_name().contains("size");
+
+    return candidate.is_integer() && !candidate.get_name().starts_with("out_") && IS_LENGTH
+               ? &candidate
+               : nullptr;
+}
+
+bool is_text_length(const classify::Function& slot, const classify::Param& parameter)
+{
+    const auto PARAMETERS = slot_arguments(slot);
+    const auto INDEX = static_cast<std::size_t>(&parameter - PARAMETERS.data());
+
+    return INDEX > 0 && text_length_of(slot, PARAMETERS.at(INDEX - 1)) == &parameter;
+}
+
 bool is_array_length(const classify::Function& slot, const classify::Param& parameter)
 {
     const auto PARAMETERS = slot_arguments(slot);
@@ -493,7 +552,7 @@ std::string length_argument(const classify::Function& slot, const classify::Para
 
     return std::format(
         "static_cast<{}>({})",
-        length.get_type(),
+        qualified_type(length),
         count > 1 ? std::format("std::min({{{}}})", size) : size
     );
 }

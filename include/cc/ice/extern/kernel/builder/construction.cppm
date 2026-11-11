@@ -105,10 +105,10 @@ public:
     virtual void get_attr_string_list(
         const ice::sonic::String& attr_name,
         char** out_values,
-        size_t* out_lengths,
+        std::size_t* out_lengths,
         int max_values,
         void* storage,
-        size_t storage_size,
+        std::size_t storage_size,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_attr_tensor_list(
@@ -166,8 +166,8 @@ public:
             .get_attr_size =
                 [](::TF_OpKernelConstruction* ctx,
                    const ::TF_String* attr_name,
-                   int32_t* out_list_size,
-                   int32_t* out_total_size,
+                   std::int32_t* out_list_size,
+                   std::int32_t* out_total_size,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = OpKernelConstruction::from_handle(ctx);
@@ -196,7 +196,7 @@ public:
             .get_attr_int32 =
                 [](::TF_OpKernelConstruction* ctx,
                    const ::TF_String* attr_name,
-                   int32_t* out_val,
+                   std::int32_t* out_val,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = OpKernelConstruction::from_handle(ctx);
@@ -209,7 +209,7 @@ public:
             .get_attr_int64 =
                 [](::TF_OpKernelConstruction* ctx,
                    const ::TF_String* attr_name,
-                   int64_t* out_val,
+                   std::int64_t* out_val,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = OpKernelConstruction::from_handle(ctx);
@@ -288,7 +288,7 @@ public:
             .get_attr_int32_list =
                 [](::TF_OpKernelConstruction* ctx,
                    const ::TF_String* attr_name,
-                   int32_t* out_vals,
+                   std::int32_t* out_vals,
                    int max_vals,
                    ::TF_Status* out_status) noexcept
             {
@@ -302,7 +302,7 @@ public:
             .get_attr_int64_list =
                 [](::TF_OpKernelConstruction* ctx,
                    const ::TF_String* attr_name,
-                   int64_t* out_vals,
+                   std::int64_t* out_vals,
                    int max_vals,
                    ::TF_Status* out_status) noexcept
             {
@@ -346,10 +346,10 @@ public:
                 [](::TF_OpKernelConstruction* ctx,
                    const ::TF_String* attr_name,
                    char** out_values,
-                   size_t* out_lengths,
+                   std::size_t* out_lengths,
                    int max_values,
                    void* storage,
-                   size_t storage_size,
+                   std::size_t storage_size,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = OpKernelConstruction::from_handle(ctx);
@@ -413,8 +413,8 @@ public:
             .get_attr_tensor_shape =
                 [](::TF_OpKernelConstruction* ctx,
                    const ::TF_String* attr_name,
-                   int64_t* out_dims,
-                   size_t num_dims,
+                   std::int64_t* out_dims,
+                   std::size_t num_dims,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = OpKernelConstruction::from_handle(ctx);

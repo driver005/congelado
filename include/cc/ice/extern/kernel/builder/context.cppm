@@ -87,13 +87,15 @@ public:
     virtual void get_op_kernel_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void
     get_resource_mgr_default_container_name(const ice::sonic::String& out_name) noexcept = 0;
-    virtual void
-    get_op_kernel_requested_input(size_t index, const ice::sonic::String& out_name) noexcept = 0;
+    virtual void get_op_kernel_requested_input(
+        std::size_t index,
+        const ice::sonic::String& out_name
+    ) noexcept = 0;
     virtual void allocate_output(
         int index,
         ice::sonic::DataTypeEnum dtype,
         std::span<const std::int64_t> dims,
-        size_t len,
+        std::size_t len,
         ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
@@ -170,8 +172,10 @@ public:
         ::TF_Tensor** out_tensor,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
-    virtual void
-    forward_ref_input_to_ref_output(int32_t input_index, int32_t output_index) noexcept = 0;
+    virtual void forward_ref_input_to_ref_output(
+        std::int32_t input_index,
+        std::int32_t output_index
+    ) noexcept = 0;
     virtual void
     is_ref_input(int i, bool& out_is_ref, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_input_by_name(
@@ -359,25 +363,25 @@ public:
                 );
             },
             .step_id =
-                [](::TF_OpKernelContext* ctx, int64_t* out_id) noexcept
+                [](::TF_OpKernelContext* ctx, std::int64_t* out_id) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
                 self.step_id(*out_id);
             },
             .get_frame_id =
-                [](::TF_OpKernelContext* ctx, uint64_t* out_id) noexcept
+                [](::TF_OpKernelContext* ctx, std::uint64_t* out_id) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
                 self.get_frame_id(*out_id);
             },
             .get_iter_id =
-                [](::TF_OpKernelContext* ctx, int64_t* out_id) noexcept
+                [](::TF_OpKernelContext* ctx, std::int64_t* out_id) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
                 self.get_iter_id(*out_id);
             },
             .get_step_id =
-                [](::TF_OpKernelContext* ctx, int64_t* out_id) noexcept
+                [](::TF_OpKernelContext* ctx, std::int64_t* out_id) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
                 self.get_step_id(*out_id);
@@ -417,7 +421,7 @@ public:
                 );
             },
             .get_op_kernel_requested_input =
-                [](::TF_OpKernelContext* ctx, size_t index, ::TF_String* out_name) noexcept
+                [](::TF_OpKernelContext* ctx, std::size_t index, ::TF_String* out_name) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
                 self.get_op_kernel_requested_input(
@@ -429,9 +433,9 @@ public:
                 [](::TF_OpKernelContext* context,
                    int index,
                    TFDataTypeEnum dtype,
-                   const int64_t* dims,
+                   const std::int64_t* dims,
                    int num_dims,
-                   size_t len,
+                   std::size_t len,
                    ::TF_Tensor** out_tensor,
                    ::TF_Status* out_status) noexcept
             {
@@ -450,7 +454,7 @@ public:
                    const int* candidate_input_indices,
                    int num_candidate_input_indices,
                    int output_index,
-                   const int64_t* output_dims,
+                   const std::int64_t* output_dims,
                    int output_num_dims,
                    int* out_forwarded_input,
                    ::TF_Tensor** out_tensor,
@@ -475,7 +479,7 @@ public:
             .allocate_temp =
                 [](::TF_OpKernelContext* context,
                    TFDataTypeEnum dtype,
-                   const int64_t* dims,
+                   const std::int64_t* dims,
                    int num_dims,
                    void* alloc_attrs,
                    ::TF_Tensor** out_tensor,
@@ -564,7 +568,7 @@ public:
             .temporary_variable =
                 [](::TF_OpKernelContext* ctx,
                    TFDataTypeEnum dtype,
-                   const int64_t* dims,
+                   const std::int64_t* dims,
                    int num_dims,
                    const ::TF_String* var_name,
                    TF_PluginAllocatorFunc plugin_allocator,
@@ -597,7 +601,7 @@ public:
                    _Bool do_lock,
                    _Bool sparse,
                    const int* inputs,
-                   size_t len,
+                   std::size_t len,
                    TF_CopyTensorFunc copy_func,
                    ::TF_VariableInputLockHolder** out_lock_holder,
                    ::TF_Status* out_status) noexcept
@@ -640,7 +644,9 @@ public:
                 );
             },
             .forward_ref_input_to_ref_output =
-                [](::TF_OpKernelContext* ctx, int32_t input_index, int32_t output_index) noexcept
+                [](::TF_OpKernelContext* ctx,
+                   std::int32_t input_index,
+                   std::int32_t output_index) noexcept
             {
                 auto& self = OpKernelContext::from_handle(ctx);
                 self.forward_ref_input_to_ref_output(input_index, output_index);

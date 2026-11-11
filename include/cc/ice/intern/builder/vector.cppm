@@ -19,15 +19,18 @@ public:
     using Runtime::Runtime;
 
     virtual void destroy() noexcept = 0;
-    virtual void set_element_size(size_t element_size) noexcept = 0;
+    virtual void set_element_size(std::size_t element_size) noexcept = 0;
     virtual void push_back(const void* value) noexcept = 0;
     virtual void
-    get(size_t index, const void** out_value, const ice::sonic::Status& out_status) noexcept = 0;
+    get(std::size_t index,
+        const void** out_value,
+        const ice::sonic::Status& out_status) noexcept = 0;
     virtual void
-    set(size_t index, const void* value, const ice::sonic::Status& out_status) noexcept = 0;
+    set(std::size_t index, const void* value, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void size(std::size_t& out_size) noexcept = 0;
     virtual void capacity(std::size_t& out_capacity) noexcept = 0;
-    virtual void reserve(size_t new_capacity, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void
+    reserve(std::size_t new_capacity, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void data(void** out_data) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_Vector*)) noexcept
@@ -43,7 +46,7 @@ public:
                 self.destroy();
             },
             .set_element_size =
-                [](::TF_Vector* vector, size_t element_size) noexcept
+                [](::TF_Vector* vector, std::size_t element_size) noexcept
             {
                 auto& self = Vector::from_handle(vector);
                 self.set_element_size(element_size);
@@ -56,7 +59,7 @@ public:
             },
             .get =
                 [](const ::TF_Vector* vector,
-                   size_t index,
+                   std::size_t index,
                    const void** out_value,
                    ::TF_Status* out_status) noexcept
             {
@@ -69,7 +72,7 @@ public:
             },
             .set =
                 [](::TF_Vector* vector,
-                   size_t index,
+                   std::size_t index,
                    const void* value,
                    ::TF_Status* out_status) noexcept
             {
@@ -81,19 +84,19 @@ public:
                 );
             },
             .size =
-                [](const ::TF_Vector* vector, size_t* out_size) noexcept
+                [](const ::TF_Vector* vector, std::size_t* out_size) noexcept
             {
                 auto& self = Vector::from_handle(vector);
                 self.size(*out_size);
             },
             .capacity =
-                [](const ::TF_Vector* vector, size_t* out_capacity) noexcept
+                [](const ::TF_Vector* vector, std::size_t* out_capacity) noexcept
             {
                 auto& self = Vector::from_handle(vector);
                 self.capacity(*out_capacity);
             },
             .reserve =
-                [](::TF_Vector* vector, size_t new_capacity, ::TF_Status* out_status) noexcept
+                [](::TF_Vector* vector, std::size_t new_capacity, ::TF_Status* out_status) noexcept
             {
                 auto& self = Vector::from_handle(vector);
                 self.reserve(

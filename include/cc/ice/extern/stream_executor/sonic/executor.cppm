@@ -238,7 +238,7 @@ public:
         const ice::sonic::Stream& stream,
         void* host_dst,
         const ice::sonic::DeviceMemoryBase* device_src,
-        uint64_t size,
+        std::uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -258,7 +258,7 @@ public:
         const ice::sonic::Stream& stream,
         ice::sonic::DeviceMemoryBase* device_dst,
         const void* host_src,
-        uint64_t size,
+        std::uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -278,7 +278,7 @@ public:
         const ice::sonic::Stream& stream,
         ice::sonic::DeviceMemoryBase* device_dst,
         const ice::sonic::DeviceMemoryBase* device_src,
-        uint64_t size,
+        std::uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -297,7 +297,7 @@ public:
         const ice::sonic::Device& device,
         void* host_dst,
         const ice::sonic::DeviceMemoryBase* device_src,
-        uint64_t size,
+        std::uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -315,7 +315,7 @@ public:
         const ice::sonic::Device& device,
         ice::sonic::DeviceMemoryBase* device_dst,
         const void* host_src,
-        uint64_t size,
+        std::uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -333,7 +333,7 @@ public:
         const ice::sonic::Device& device,
         ice::sonic::DeviceMemoryBase* device_dst,
         const ice::sonic::DeviceMemoryBase* device_src,
-        uint64_t size,
+        std::uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -387,7 +387,7 @@ public:
         const ice::sonic::Device& device,
         const ice::sonic::Stream& stream,
         ice::sonic::DeviceMemoryBase* location,
-        uint64_t size,
+        std::uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -405,8 +405,8 @@ public:
         const ice::sonic::Device& device,
         const ice::sonic::Stream& stream,
         ice::sonic::DeviceMemoryBase* location,
-        uint8_t pattern,
-        uint64_t size,
+        std::uint8_t pattern,
+        std::uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -425,8 +425,8 @@ public:
         const ice::sonic::Device& device,
         const ice::sonic::Stream& stream,
         ice::sonic::DeviceMemoryBase* location,
-        uint32_t pattern,
-        uint64_t size,
+        std::uint32_t pattern,
+        std::uint64_t size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -477,7 +477,7 @@ public:
 
     void get_stream_from_pool(
         const ice::sonic::Device& device,
-        int32_t priority,
+        std::int32_t priority,
         const ice::sonic::Stream& out_stream,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -592,7 +592,7 @@ public:
 
     void create_random_generator_internal(
         const ice::sonic::Device& device,
-        uint64_t seed,
+        std::uint64_t seed,
         const ice::sonic::RandomGenerator& out_generator,
         const ice::sonic::Status& out_status
     ) const noexcept

@@ -34,8 +34,8 @@ public:
     }
 
     void read(
-        uint64_t offset,
-        size_t n,
+        std::uint64_t offset,
+        std::size_t n,
         char* buffer,
         std::int64_t& out_bytes_read,
         const ice::sonic::Status& out_status

@@ -52,13 +52,13 @@ public:
     virtual void
     set(const ice::sonic::String& key,
         const ice::sonic::String& value,
-        int64_t ttl_seconds,
+        std::int64_t ttl_seconds,
         TFStoreSetCompletionFn completion,
         void* user_data,
         const ice::sonic::Status& out_status) noexcept = 0;
     virtual void multi_set(
         const ice::sonic::Map& entries,
-        int64_t ttl_seconds,
+        std::int64_t ttl_seconds,
         TFStoreAckFn completion,
         void* user_data,
         const ice::sonic::Status& out_status
@@ -95,7 +95,7 @@ public:
     ) noexcept = 0;
     virtual void increment(
         const ice::sonic::String& key,
-        int64_t delta,
+        std::int64_t delta,
         TFStoreIntFn completion,
         void* user_data,
         const ice::sonic::Status& out_status
@@ -110,7 +110,7 @@ public:
     ) noexcept = 0;
     virtual void expire(
         const ice::sonic::String& key,
-        int64_t ttl_seconds,
+        std::int64_t ttl_seconds,
         TFStoreAckFn completion,
         void* user_data,
         const ice::sonic::Status& out_status
@@ -213,7 +213,7 @@ public:
                 [](::TFStoreCollection* collection,
                    const ::TF_String* key,
                    const ::TF_String* value,
-                   int64_t ttl_seconds,
+                   std::int64_t ttl_seconds,
                    TFStoreSetCompletionFn completion,
                    void* user_data,
                    ::TF_Status* out_status) noexcept
@@ -231,7 +231,7 @@ public:
             .multi_set =
                 [](::TFStoreCollection* collection,
                    const ::TF_Map* entries,
-                   int64_t ttl_seconds,
+                   std::int64_t ttl_seconds,
                    TFStoreAckFn completion,
                    void* user_data,
                    ::TF_Status* out_status) noexcept
@@ -323,7 +323,7 @@ public:
             .increment =
                 [](::TFStoreCollection* collection,
                    const ::TF_String* key,
-                   int64_t delta,
+                   std::int64_t delta,
                    TFStoreIntFn completion,
                    void* user_data,
                    ::TF_Status* out_status) noexcept
@@ -359,7 +359,7 @@ public:
             .expire =
                 [](::TFStoreCollection* collection,
                    const ::TF_String* key,
-                   int64_t ttl_seconds,
+                   std::int64_t ttl_seconds,
                    TFStoreAckFn completion,
                    void* user_data,
                    ::TF_Status* out_status) noexcept

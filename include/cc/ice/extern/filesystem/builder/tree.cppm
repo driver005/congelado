@@ -46,8 +46,8 @@ public:
     delete_dir(const ice::sonic::String& path, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void delete_recursively(
         const ice::sonic::String& path,
-        uint64_t* undeleted_files,
-        uint64_t* undeleted_dirs,
+        std::uint64_t* undeleted_files,
+        std::uint64_t* undeleted_dirs,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void rename_file(
@@ -185,8 +185,8 @@ public:
             .delete_recursively =
                 [](::TFFilesystemTree* manager,
                    const ::TF_String* path,
-                   uint64_t* undeleted_files,
-                   uint64_t* undeleted_dirs,
+                   std::uint64_t* undeleted_files,
+                   std::uint64_t* undeleted_dirs,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = FilesystemTree::from_handle(manager);
@@ -276,7 +276,7 @@ public:
             .get_file_size =
                 [](::TFFilesystemTree* manager,
                    const ::TF_String* path,
-                   int64_t* out_size,
+                   std::int64_t* out_size,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = FilesystemTree::from_handle(manager);

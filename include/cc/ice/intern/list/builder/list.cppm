@@ -19,7 +19,7 @@ public:
     using Runtime::Runtime;
 
     virtual void destroy() noexcept = 0;
-    virtual void set_element_size(size_t element_size) noexcept = 0;
+    virtual void set_element_size(std::size_t element_size) noexcept = 0;
     virtual void push_front(
         const void* value,
         ::TFListNode* out_node,
@@ -47,7 +47,7 @@ public:
                 self.destroy();
             },
             .set_element_size =
-                [](::TF_List* list, size_t element_size) noexcept
+                [](::TF_List* list, std::size_t element_size) noexcept
             {
                 auto& self = List::from_handle(list);
                 self.set_element_size(element_size);
@@ -91,7 +91,7 @@ public:
                 self.for_each(visitor, capture);
             },
             .size =
-                [](const ::TF_List* list, size_t* out_size) noexcept
+                [](const ::TF_List* list, std::size_t* out_size) noexcept
             {
                 auto& self = List::from_handle(list);
                 self.size(*out_size);

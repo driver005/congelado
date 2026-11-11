@@ -32,7 +32,7 @@ public:
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    void set_status(int32_t status_code, const ice::sonic::Status& out_status) const noexcept
+    void set_status(std::int32_t status_code, const ice::sonic::Status& out_status) const noexcept
     {
         m_ops->set_status(get_handle(), status_code, out_status.get_handle());
     }
@@ -98,7 +98,7 @@ public:
 
     void set_body(
         const void* data,
-        size_t length,
+        std::size_t length,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

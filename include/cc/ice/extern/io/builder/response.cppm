@@ -31,7 +31,8 @@ public:
 
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
-    virtual void set_status(int32_t status_code, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void
+    set_status(std::int32_t status_code, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_status(std::int32_t& out_status_code) noexcept = 0;
     virtual void get_status_text(const ice::sonic::String& out_status_text) noexcept = 0;
     virtual void set_header(
@@ -54,8 +55,11 @@ public:
         const ice::sonic::Map& out_headers,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
-    virtual void
-    set_body(const void* data, size_t length, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void set_body(
+        const void* data,
+        std::size_t length,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
     virtual void get_body(const void** out_data, std::size_t& out_length) noexcept = 0;
     virtual void set_keep_alive(int enabled, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void is_keep_alive(int& out_keep_alive) noexcept = 0;
@@ -102,7 +106,9 @@ public:
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .set_status =
-                [](::TF_Response* response, int32_t status_code, ::TF_Status* out_status) noexcept
+                [](::TF_Response* response,
+                   std::int32_t status_code,
+                   ::TF_Status* out_status) noexcept
             {
                 auto& self = Response::from_handle(response);
                 self.set_status(
@@ -111,7 +117,7 @@ public:
                 );
             },
             .get_status =
-                [](::TF_Response* response, int32_t* out_status_code) noexcept
+                [](::TF_Response* response, std::int32_t* out_status_code) noexcept
             {
                 auto& self = Response::from_handle(response);
                 self.get_status(*out_status_code);
@@ -184,7 +190,7 @@ public:
             .set_body =
                 [](::TF_Response* response,
                    const void* data,
-                   size_t length,
+                   std::size_t length,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = Response::from_handle(response);
@@ -195,7 +201,7 @@ public:
                 );
             },
             .get_body =
-                [](::TF_Response* response, const void** out_data, size_t* out_length) noexcept
+                [](::TF_Response* response, const void** out_data, std::size_t* out_length) noexcept
             {
                 auto& self = Response::from_handle(response);
                 self.get_body(out_data, *out_length);
@@ -250,7 +256,7 @@ public:
                 );
             },
             .get_content_length =
-                [](::TF_Response* response, int64_t* out_length) noexcept
+                [](::TF_Response* response, std::int64_t* out_length) noexcept
             {
                 auto& self = Response::from_handle(response);
                 self.get_content_length(*out_length);

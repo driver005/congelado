@@ -48,7 +48,7 @@ public:
         m_ops->host_memory(get_handle(), arg_name.get_handle());
     }
 
-    void priority(int32_t priority_number) const noexcept
+    void priority(std::int32_t priority_number) const noexcept
     {
         m_ops->priority(get_handle(), priority_number);
     }

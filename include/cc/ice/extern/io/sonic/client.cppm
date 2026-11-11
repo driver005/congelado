@@ -34,13 +34,13 @@ public:
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    void connect(int64_t timeout_ms, const ice::sonic::Status& out_status) const noexcept
+    void connect(std::int64_t timeout_ms, const ice::sonic::Status& out_status) const noexcept
     {
         m_ops->connect(get_handle(), timeout_ms, out_status.get_handle());
     }
 
     void connect_async(
-        int64_t timeout_ms,
+        std::int64_t timeout_ms,
         TFClientConnectFn completion,
         void* user_data,
         const ice::sonic::Status& out_status
@@ -94,7 +94,7 @@ public:
     }
 
     void create_request(
-        uint32_t stream_id,
+        std::uint32_t stream_id,
         const ice::sonic::Request& out_request,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -137,7 +137,10 @@ public:
         );
     }
 
-    void cancel_request(uint32_t stream_id, const ice::sonic::Status& out_status) const noexcept
+    void cancel_request(
+        std::uint32_t stream_id,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
         m_ops->cancel_request(get_handle(), stream_id, out_status.get_handle());
     }
@@ -178,12 +181,15 @@ public:
         m_ops->set_max_retries(get_handle(), max_retries, out_status.get_handle());
     }
 
-    void set_retry_backoff(int64_t backoff_ms, const ice::sonic::Status& out_status) const noexcept
+    void set_retry_backoff(
+        std::int64_t backoff_ms,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
         m_ops->set_retry_backoff(get_handle(), backoff_ms, out_status.get_handle());
     }
 
-    void set_timeout(int64_t timeout_ms, const ice::sonic::Status& out_status) const noexcept
+    void set_timeout(std::int64_t timeout_ms, const ice::sonic::Status& out_status) const noexcept
     {
         m_ops->set_timeout(get_handle(), timeout_ms, out_status.get_handle());
     }

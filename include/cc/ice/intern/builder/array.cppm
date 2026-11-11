@@ -19,12 +19,14 @@ public:
     using Runtime::Runtime;
 
     virtual void destroy() noexcept = 0;
-    virtual void set_element_size(size_t element_size) noexcept = 0;
-    virtual void set_count(size_t count) noexcept = 0;
+    virtual void set_element_size(std::size_t element_size) noexcept = 0;
+    virtual void set_count(std::size_t count) noexcept = 0;
     virtual void
-    get(size_t index, const void** out_value, const ice::sonic::Status& out_status) noexcept = 0;
+    get(std::size_t index,
+        const void** out_value,
+        const ice::sonic::Status& out_status) noexcept = 0;
     virtual void
-    set(size_t index, const void* value, const ice::sonic::Status& out_status) noexcept = 0;
+    set(std::size_t index, const void* value, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void size(std::size_t& out_size) noexcept = 0;
     virtual void data(void** out_data) noexcept = 0;
 
@@ -41,20 +43,20 @@ public:
                 self.destroy();
             },
             .set_element_size =
-                [](::TF_Array* array, size_t element_size) noexcept
+                [](::TF_Array* array, std::size_t element_size) noexcept
             {
                 auto& self = Array::from_handle(array);
                 self.set_element_size(element_size);
             },
             .set_count =
-                [](::TF_Array* array, size_t count) noexcept
+                [](::TF_Array* array, std::size_t count) noexcept
             {
                 auto& self = Array::from_handle(array);
                 self.set_count(count);
             },
             .get =
                 [](const ::TF_Array* array,
-                   size_t index,
+                   std::size_t index,
                    const void** out_value,
                    ::TF_Status* out_status) noexcept
             {
@@ -67,7 +69,7 @@ public:
             },
             .set =
                 [](::TF_Array* array,
-                   size_t index,
+                   std::size_t index,
                    const void* value,
                    ::TF_Status* out_status) noexcept
             {
@@ -79,7 +81,7 @@ public:
                 );
             },
             .size =
-                [](const ::TF_Array* array, size_t* out_size) noexcept
+                [](const ::TF_Array* array, std::size_t* out_size) noexcept
             {
                 auto& self = Array::from_handle(array);
                 self.size(*out_size);

@@ -42,7 +42,7 @@ public:
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .datatype_size =
-                [](::TF_DataType* datatype, TFDataTypeEnum dt, size_t* out_size) noexcept
+                [](::TF_DataType* datatype, TFDataTypeEnum dt, std::size_t* out_size) noexcept
             {
                 auto& self = DataType::from_handle(datatype);
                 self.datatype_size(ice::sonic::DataTypeEnum{dt}, *out_size);

@@ -19,11 +19,11 @@ public:
     using Runtime::Runtime;
 
     virtual void destroy() noexcept = 0;
-    virtual void set(size_t index) noexcept = 0;
-    virtual void clear(size_t index) noexcept = 0;
+    virtual void set(std::size_t index) noexcept = 0;
+    virtual void clear(std::size_t index) noexcept = 0;
     virtual void
-    test(size_t index, int& out_result, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void flip(size_t index, const ice::sonic::Status& out_status) noexcept = 0;
+    test(std::size_t index, int& out_result, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void flip(std::size_t index, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void count(std::size_t& out_count) noexcept = 0;
     virtual void size(std::size_t& out_size) noexcept = 0;
 
@@ -40,20 +40,20 @@ public:
                 self.destroy();
             },
             .set =
-                [](::TF_BitSet* bitset, size_t index) noexcept
+                [](::TF_BitSet* bitset, std::size_t index) noexcept
             {
                 auto& self = BitSet::from_handle(bitset);
                 self.set(index);
             },
             .clear =
-                [](::TF_BitSet* bitset, size_t index) noexcept
+                [](::TF_BitSet* bitset, std::size_t index) noexcept
             {
                 auto& self = BitSet::from_handle(bitset);
                 self.clear(index);
             },
             .test =
                 [](const ::TF_BitSet* bitset,
-                   size_t index,
+                   std::size_t index,
                    int* out_result,
                    ::TF_Status* out_status) noexcept
             {
@@ -65,19 +65,19 @@ public:
                 );
             },
             .flip =
-                [](::TF_BitSet* bitset, size_t index, ::TF_Status* out_status) noexcept
+                [](::TF_BitSet* bitset, std::size_t index, ::TF_Status* out_status) noexcept
             {
                 auto& self = BitSet::from_handle(bitset);
                 self.flip(index, self.wrap(std::type_identity<ice::sonic::Status>{}, out_status));
             },
             .count =
-                [](const ::TF_BitSet* bitset, size_t* out_count) noexcept
+                [](const ::TF_BitSet* bitset, std::size_t* out_count) noexcept
             {
                 auto& self = BitSet::from_handle(bitset);
                 self.count(*out_count);
             },
             .size =
-                [](const ::TF_BitSet* bitset, size_t* out_size) noexcept
+                [](const ::TF_BitSet* bitset, std::size_t* out_size) noexcept
             {
                 auto& self = BitSet::from_handle(bitset);
                 self.size(*out_size);

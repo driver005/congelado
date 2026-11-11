@@ -34,7 +34,7 @@ public:
 
     virtual void destroy() noexcept = 0;
     virtual void allocate(
-        uint64_t size,
+        std::uint64_t size,
         ice::sonic::MemorySpace memory_space,
         const ice::sonic::Stream& stream,
         ice::sonic::DeviceMemoryBase* out_memory,
@@ -59,7 +59,7 @@ public:
     virtual void get_memory_fraction(double& out_fraction) noexcept = 0;
     virtual void set_option(
         ice::sonic::AllocatorOption option,
-        int64_t value,
+        std::int64_t value,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_option(
@@ -114,7 +114,7 @@ public:
             },
             .allocate =
                 [](::TF_Allocator* allocator,
-                   uint64_t size,
+                   std::uint64_t size,
                    TF_MemorySpace memory_space,
                    ::TF_Stream* stream,
                    ::TF_DeviceMemoryBase* out_memory,
@@ -176,7 +176,7 @@ public:
                 [](::TF_Allocator* allocator,
                    const void* pointer,
                    void** out_base,
-                   uint64_t* out_size,
+                   std::uint64_t* out_size,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = Allocator::from_handle(allocator);
@@ -211,7 +211,7 @@ public:
             .set_option =
                 [](::TF_Allocator* allocator,
                    TF_AllocatorOption option,
-                   int64_t value,
+                   std::int64_t value,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = Allocator::from_handle(allocator);
@@ -224,7 +224,7 @@ public:
             .get_option =
                 [](::TF_Allocator* allocator,
                    TF_AllocatorOption option,
-                   int64_t* out_value,
+                   std::int64_t* out_value,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = Allocator::from_handle(allocator);

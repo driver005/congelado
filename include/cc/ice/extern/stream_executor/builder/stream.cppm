@@ -44,7 +44,7 @@ public:
                 self.destroy();
             },
             .get_priority =
-                [](::TF_Stream* stream, int32_t* out_priority) noexcept
+                [](::TF_Stream* stream, std::int32_t* out_priority) noexcept
             {
                 auto& self = Stream::from_handle(stream);
                 self.get_priority(*out_priority);

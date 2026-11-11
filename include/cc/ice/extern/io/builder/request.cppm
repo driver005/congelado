@@ -68,8 +68,11 @@ public:
         const ice::sonic::Map& out_params,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
-    virtual void
-    set_body(const void* data, size_t length, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void set_body(
+        const void* data,
+        std::size_t length,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
     virtual void get_body(const void** out_data, std::size_t& out_length) noexcept = 0;
     virtual void set_content_type(
         const ice::sonic::String& content_type,
@@ -97,10 +100,11 @@ public:
     virtual void
     set_addr(const ice::sonic::String& addr, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void set_no_decompress(int enabled, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void set_timeout(int64_t timeout_ms, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void
+    set_timeout(std::int64_t timeout_ms, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_timeout(std::int64_t& out_timeout_ms) noexcept = 0;
     virtual void
-    set_stream_id(uint32_t stream_id, const ice::sonic::Status& out_status) noexcept = 0;
+    set_stream_id(std::uint32_t stream_id, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void get_stream_id(std::uint32_t& out_stream_id) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_Request*)) noexcept
@@ -275,7 +279,7 @@ public:
             .set_body =
                 [](::TF_Request* request,
                    const void* data,
-                   size_t length,
+                   std::size_t length,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = Request::from_handle(request);
@@ -286,7 +290,7 @@ public:
                 );
             },
             .get_body =
-                [](::TF_Request* request, const void** out_data, size_t* out_length) noexcept
+                [](::TF_Request* request, const void** out_data, std::size_t* out_length) noexcept
             {
                 auto& self = Request::from_handle(request);
                 self.get_body(out_data, *out_length);
@@ -397,7 +401,7 @@ public:
                 );
             },
             .set_timeout =
-                [](::TF_Request* request, int64_t timeout_ms, ::TF_Status* out_status) noexcept
+                [](::TF_Request* request, std::int64_t timeout_ms, ::TF_Status* out_status) noexcept
             {
                 auto& self = Request::from_handle(request);
                 self.set_timeout(
@@ -406,13 +410,13 @@ public:
                 );
             },
             .get_timeout =
-                [](::TF_Request* request, int64_t* out_timeout_ms) noexcept
+                [](::TF_Request* request, std::int64_t* out_timeout_ms) noexcept
             {
                 auto& self = Request::from_handle(request);
                 self.get_timeout(*out_timeout_ms);
             },
             .set_stream_id =
-                [](::TF_Request* request, uint32_t stream_id, ::TF_Status* out_status) noexcept
+                [](::TF_Request* request, std::uint32_t stream_id, ::TF_Status* out_status) noexcept
             {
                 auto& self = Request::from_handle(request);
                 self.set_stream_id(
@@ -421,7 +425,7 @@ public:
                 );
             },
             .get_stream_id =
-                [](::TF_Request* request, uint32_t* out_stream_id) noexcept
+                [](::TF_Request* request, std::uint32_t* out_stream_id) noexcept
             {
                 auto& self = Request::from_handle(request);
                 self.get_stream_id(*out_stream_id);

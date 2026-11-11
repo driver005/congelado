@@ -38,7 +38,7 @@ public:
     ) noexcept = 0;
     virtual void resubmit(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void wait(
-        int64_t timeout_ms,
+        std::int64_t timeout_ms,
         TFJobCompletionFn completion,
         void* user_data,
         const ice::sonic::Status& out_status
@@ -90,7 +90,7 @@ public:
             },
             .wait =
                 [](::TF_Job* job,
-                   int64_t timeout_ms,
+                   std::int64_t timeout_ms,
                    TFJobCompletionFn completion,
                    void* user_data,
                    ::TF_Status* out_status) noexcept

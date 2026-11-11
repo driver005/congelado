@@ -100,7 +100,7 @@ public:
     }
 
     void set_max_connections(
-        size_t max_connections,
+        std::size_t max_connections,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

@@ -82,7 +82,7 @@ public:
                 );
             },
             .size =
-                [](const ::TF_Set* set, size_t* out_size) noexcept
+                [](const ::TF_Set* set, std::size_t* out_size) noexcept
             {
                 auto& self = Set::from_handle(set);
                 self.size(*out_size);

@@ -19,13 +19,15 @@ public:
     using Runtime::Runtime;
 
     virtual void destroy() noexcept = 0;
-    virtual void set_element_size(size_t element_size) noexcept = 0;
+    virtual void set_element_size(std::size_t element_size) noexcept = 0;
     virtual void push_front(const void* value) noexcept = 0;
     virtual void push_back(const void* value) noexcept = 0;
     virtual void pop_front() noexcept = 0;
     virtual void pop_back() noexcept = 0;
     virtual void
-    get(size_t index, const void** out_value, const ice::sonic::Status& out_status) noexcept = 0;
+    get(std::size_t index,
+        const void** out_value,
+        const ice::sonic::Status& out_status) noexcept = 0;
     virtual void size(std::size_t& out_size) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TF_Deque*)) noexcept
@@ -41,7 +43,7 @@ public:
                 self.destroy();
             },
             .set_element_size =
-                [](::TF_Deque* deque, size_t element_size) noexcept
+                [](::TF_Deque* deque, std::size_t element_size) noexcept
             {
                 auto& self = Deque::from_handle(deque);
                 self.set_element_size(element_size);
@@ -72,7 +74,7 @@ public:
             },
             .get =
                 [](const ::TF_Deque* deque,
-                   size_t index,
+                   std::size_t index,
                    const void** out_value,
                    ::TF_Status* out_status) noexcept
             {
@@ -84,7 +86,7 @@ public:
                 );
             },
             .size =
-                [](const ::TF_Deque* deque, size_t* out_size) noexcept
+                [](const ::TF_Deque* deque, std::size_t* out_size) noexcept
             {
                 auto& self = Deque::from_handle(deque);
                 self.size(*out_size);

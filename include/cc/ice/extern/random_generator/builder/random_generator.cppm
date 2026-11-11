@@ -29,10 +29,10 @@ public:
     using Runtime::Runtime;
 
     virtual void destroy() noexcept = 0;
-    virtual void set_seed(uint64_t seed) noexcept = 0;
+    virtual void set_seed(std::uint64_t seed) noexcept = 0;
     virtual void get_seed(std::uint64_t& out_seed) noexcept = 0;
     virtual void reseed_nondeterministic(std::uint64_t& out_seed) noexcept = 0;
-    virtual void set_offset(uint64_t offset) noexcept = 0;
+    virtual void set_offset(std::uint64_t offset) noexcept = 0;
     virtual void get_offset(std::uint64_t& out_offset) noexcept = 0;
     virtual void
     set_state(const ice::sonic::Tensor& state, const ice::sonic::Status& out_status) noexcept = 0;
@@ -47,12 +47,12 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void philox_state(
-        uint64_t increment,
+        std::uint64_t increment,
         ice::sonic::PhiloxState* out_state,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void philox_engine_inputs(
-        uint64_t increment,
+        std::uint64_t increment,
         std::uint64_t& out_seed,
         std::uint64_t& out_offset,
         const ice::sonic::Status& out_status
@@ -76,31 +76,31 @@ public:
                 self.destroy();
             },
             .set_seed =
-                [](::TF_RandomGenerator* generator, uint64_t seed) noexcept
+                [](::TF_RandomGenerator* generator, std::uint64_t seed) noexcept
             {
                 auto& self = RandomGenerator::from_handle(generator);
                 self.set_seed(seed);
             },
             .get_seed =
-                [](::TF_RandomGenerator* generator, uint64_t* out_seed) noexcept
+                [](::TF_RandomGenerator* generator, std::uint64_t* out_seed) noexcept
             {
                 auto& self = RandomGenerator::from_handle(generator);
                 self.get_seed(*out_seed);
             },
             .reseed_nondeterministic =
-                [](::TF_RandomGenerator* generator, uint64_t* out_seed) noexcept
+                [](::TF_RandomGenerator* generator, std::uint64_t* out_seed) noexcept
             {
                 auto& self = RandomGenerator::from_handle(generator);
                 self.reseed_nondeterministic(*out_seed);
             },
             .set_offset =
-                [](::TF_RandomGenerator* generator, uint64_t offset) noexcept
+                [](::TF_RandomGenerator* generator, std::uint64_t offset) noexcept
             {
                 auto& self = RandomGenerator::from_handle(generator);
                 self.set_offset(offset);
             },
             .get_offset =
-                [](::TF_RandomGenerator* generator, uint64_t* out_offset) noexcept
+                [](::TF_RandomGenerator* generator, std::uint64_t* out_offset) noexcept
             {
                 auto& self = RandomGenerator::from_handle(generator);
                 self.get_offset(*out_offset);
@@ -151,7 +151,7 @@ public:
             },
             .philox_state =
                 [](::TF_RandomGenerator* generator,
-                   uint64_t increment,
+                   std::uint64_t increment,
                    ::TF_PhiloxState* out_state,
                    ::TF_Status* out_status) noexcept
             {
@@ -171,9 +171,9 @@ public:
             },
             .philox_engine_inputs =
                 [](::TF_RandomGenerator* generator,
-                   uint64_t increment,
-                   uint64_t* out_seed,
-                   uint64_t* out_offset,
+                   std::uint64_t increment,
+                   std::uint64_t* out_seed,
+                   std::uint64_t* out_offset,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = RandomGenerator::from_handle(generator);

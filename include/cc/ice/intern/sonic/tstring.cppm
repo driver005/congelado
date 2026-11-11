@@ -32,14 +32,14 @@ public:
         m_ops->init(get_handle());
     }
 
-    void copy(const char* src, size_t size) const noexcept
+    void copy(std::string_view src) const noexcept
     {
-        m_ops->copy(get_handle(), src, size);
+        m_ops->copy(get_handle(), src.data(), src.size());
     }
 
-    void assign_view(const char* src, size_t size) const noexcept
+    void assign_view(std::string_view src) const noexcept
     {
-        m_ops->assign_view(get_handle(), src, size);
+        m_ops->assign_view(get_handle(), src.data(), src.size());
     }
 
     void get_data_pointer(const char** out_data) const noexcept

@@ -45,7 +45,8 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void scalar(const ice::sonic::ShapeHandle& handle) noexcept = 0;
-    virtual void vector_from_size(size_t size, const ice::sonic::ShapeHandle& handle) noexcept = 0;
+    virtual void
+    vector_from_size(std::size_t size, const ice::sonic::ShapeHandle& handle) noexcept = 0;
     virtual void get_attr_type(
         const ice::sonic::String& attr_name,
         ice::sonic::DataTypeEnum& out_val,
@@ -55,30 +56,30 @@ public:
     virtual void rank_known(const ice::sonic::ShapeHandle& handle, int& out_known) noexcept = 0;
     virtual void with_rank(
         const ice::sonic::ShapeHandle& handle,
-        int64_t rank,
+        std::int64_t rank,
         const ice::sonic::ShapeHandle& result,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void with_rank_at_least(
         const ice::sonic::ShapeHandle& handle,
-        int64_t rank,
+        std::int64_t rank,
         const ice::sonic::ShapeHandle& result,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void with_rank_at_most(
         const ice::sonic::ShapeHandle& handle,
-        int64_t rank,
+        std::int64_t rank,
         const ice::sonic::ShapeHandle& result,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void
     dim(const ice::sonic::ShapeHandle& shape_handle,
-        int64_t i,
+        std::int64_t i,
         const ice::sonic::DimensionHandle& result) noexcept = 0;
     virtual void subshape(
         const ice::sonic::ShapeHandle& shape_handle,
-        int64_t start,
-        int64_t end,
+        std::int64_t start,
+        std::int64_t end,
         const ice::sonic::ShapeHandle& result,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
@@ -103,7 +104,7 @@ public:
                 self.destroy();
             },
             .num_inputs =
-                [](::TF_ShapeInferenceContext* ctx, int64_t* out_num) noexcept
+                [](::TF_ShapeInferenceContext* ctx, std::int64_t* out_num) noexcept
             {
                 auto& self = ShapeInferenceContext::from_handle(ctx);
                 self.num_inputs(*out_num);
@@ -141,7 +142,9 @@ public:
                 self.scalar(self.wrap(std::type_identity<ice::sonic::ShapeHandle>{}, handle));
             },
             .vector_from_size =
-                [](::TF_ShapeInferenceContext* ctx, size_t size, ::TF_ShapeHandle* handle) noexcept
+                [](::TF_ShapeInferenceContext* ctx,
+                   std::size_t size,
+                   ::TF_ShapeHandle* handle) noexcept
             {
                 auto& self = ShapeInferenceContext::from_handle(ctx);
                 self.vector_from_size(
@@ -167,7 +170,7 @@ public:
             .rank =
                 [](::TF_ShapeInferenceContext* ctx,
                    ::TF_ShapeHandle* handle,
-                   int64_t* out_rank) noexcept
+                   std::int64_t* out_rank) noexcept
             {
                 auto& self = ShapeInferenceContext::from_handle(ctx);
                 self.rank(
@@ -189,7 +192,7 @@ public:
             .with_rank =
                 [](::TF_ShapeInferenceContext* ctx,
                    ::TF_ShapeHandle* handle,
-                   int64_t rank,
+                   std::int64_t rank,
                    ::TF_ShapeHandle* result,
                    ::TF_Status* out_status) noexcept
             {
@@ -204,7 +207,7 @@ public:
             .with_rank_at_least =
                 [](::TF_ShapeInferenceContext* ctx,
                    ::TF_ShapeHandle* handle,
-                   int64_t rank,
+                   std::int64_t rank,
                    ::TF_ShapeHandle* result,
                    ::TF_Status* out_status) noexcept
             {
@@ -219,7 +222,7 @@ public:
             .with_rank_at_most =
                 [](::TF_ShapeInferenceContext* ctx,
                    ::TF_ShapeHandle* handle,
-                   int64_t rank,
+                   std::int64_t rank,
                    ::TF_ShapeHandle* result,
                    ::TF_Status* out_status) noexcept
             {
@@ -234,7 +237,7 @@ public:
             .dim =
                 [](::TF_ShapeInferenceContext* ctx,
                    ::TF_ShapeHandle* shape_handle,
-                   int64_t i,
+                   std::int64_t i,
                    ::TF_DimensionHandle* result) noexcept
             {
                 auto& self = ShapeInferenceContext::from_handle(ctx);
@@ -247,8 +250,8 @@ public:
             .subshape =
                 [](::TF_ShapeInferenceContext* ctx,
                    ::TF_ShapeHandle* shape_handle,
-                   int64_t start,
-                   int64_t end,
+                   std::int64_t start,
+                   std::int64_t end,
                    ::TF_ShapeHandle* result,
                    ::TF_Status* out_status) noexcept
             {

@@ -21,12 +21,14 @@ public:
 
     virtual void destroy() noexcept = 0;
     virtual void
-    get(size_t index, const void** out_value, const ice::sonic::Status& out_status) noexcept = 0;
+    get(std::size_t index,
+        const void** out_value,
+        const ice::sonic::Status& out_status) noexcept = 0;
     virtual void size(std::size_t& out_size) noexcept = 0;
     virtual void data(void** out_data) noexcept = 0;
     virtual void subspan(
-        size_t offset,
-        size_t count,
+        std::size_t offset,
+        std::size_t count,
         const ice::sonic::Span& out_span,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
@@ -45,7 +47,7 @@ public:
             },
             .get =
                 [](const ::TF_Span* span,
-                   size_t index,
+                   std::size_t index,
                    const void** out_value,
                    ::TF_Status* out_status) noexcept
             {
@@ -57,7 +59,7 @@ public:
                 );
             },
             .size =
-                [](const ::TF_Span* span, size_t* out_size) noexcept
+                [](const ::TF_Span* span, std::size_t* out_size) noexcept
             {
                 auto& self = Span::from_handle(span);
                 self.size(*out_size);
@@ -70,8 +72,8 @@ public:
             },
             .subspan =
                 [](const ::TF_Span* span,
-                   size_t offset,
-                   size_t count,
+                   std::size_t offset,
+                   std::size_t count,
                    ::TF_Span* out_span,
                    ::TF_Status* out_status) noexcept
             {

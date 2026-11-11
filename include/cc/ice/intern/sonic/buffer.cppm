@@ -32,7 +32,7 @@ public:
         m_ops->get_name(get_handle(), out_name.get_handle());
     }
 
-    void assign_from_string(const void* proto, size_t proto_len) const noexcept
+    void assign_from_string(const void* proto, std::size_t proto_len) const noexcept
     {
         m_ops->assign_from_string(get_handle(), proto, proto_len);
     }

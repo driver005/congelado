@@ -26,7 +26,7 @@ public:
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void set_dtype(ice::sonic::DataTypeEnum dtype) noexcept = 0;
     virtual void set_dims(std::span<const std::int64_t> dims) noexcept = 0;
-    virtual void set_byte_size(size_t len) noexcept = 0;
+    virtual void set_byte_size(std::size_t len) noexcept = 0;
     virtual void delete_tensor() noexcept = 0;
     virtual void tensor_type(ice::sonic::DataTypeEnum& out_dtype) noexcept = 0;
     virtual void num_dims(int& out_num_dims) noexcept = 0;
@@ -47,14 +47,14 @@ public:
     virtual void tensor_copy(const ice::sonic::Tensor& dst) noexcept = 0;
     virtual void set_strides(std::span<const std::int64_t> strides) noexcept = 0;
     virtual void stride(int dim_index, std::int64_t& out_stride) noexcept = 0;
-    virtual void set_storage_offset(int64_t offset_elements) noexcept = 0;
+    virtual void set_storage_offset(std::int64_t offset_elements) noexcept = 0;
     virtual void storage_offset(std::int64_t& out_offset_elements) noexcept = 0;
     virtual void set_device_index(int device_index) noexcept = 0;
     virtual void get_device_index(int& out_device_index) noexcept = 0;
     virtual void tensor_view(
         std::span<const std::int64_t> dims,
         std::span<const std::int64_t> strides,
-        int64_t offset_elements,
+        std::int64_t offset_elements,
         ::TF_Tensor** out_view,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
@@ -84,7 +84,7 @@ public:
                 self.set_dtype(ice::sonic::DataTypeEnum{dtype});
             },
             .set_dims =
-                [](::TF_Tensor* tensor, const int64_t* dims, int num_dims) noexcept
+                [](::TF_Tensor* tensor, const std::int64_t* dims, int num_dims) noexcept
             {
                 auto& self = Tensor::from_handle(tensor);
                 self.set_dims(
@@ -92,7 +92,7 @@ public:
                 );
             },
             .set_byte_size =
-                [](::TF_Tensor* tensor, size_t len) noexcept
+                [](::TF_Tensor* tensor, std::size_t len) noexcept
             {
                 auto& self = Tensor::from_handle(tensor);
                 self.set_byte_size(len);
@@ -118,19 +118,19 @@ public:
                 self.num_dims(*out_num_dims);
             },
             .dim =
-                [](const ::TF_Tensor* tensor, int dim_index, int64_t* out_dim) noexcept
+                [](const ::TF_Tensor* tensor, int dim_index, std::int64_t* out_dim) noexcept
             {
                 auto& self = Tensor::from_handle(tensor);
                 self.dim(dim_index, *out_dim);
             },
             .tensor_element_count =
-                [](const ::TF_Tensor* tensor, int64_t* out_count) noexcept
+                [](const ::TF_Tensor* tensor, std::int64_t* out_count) noexcept
             {
                 auto& self = Tensor::from_handle(tensor);
                 self.tensor_element_count(*out_count);
             },
             .tensor_byte_size =
-                [](const ::TF_Tensor* tensor, size_t* out_byte_size) noexcept
+                [](const ::TF_Tensor* tensor, std::size_t* out_byte_size) noexcept
             {
                 auto& self = Tensor::from_handle(tensor);
                 self.tensor_byte_size(*out_byte_size);
@@ -174,7 +174,7 @@ public:
                 self.tensor_copy(self.wrap(std::type_identity<ice::sonic::Tensor>{}, dst));
             },
             .set_strides =
-                [](::TF_Tensor* tensor, const int64_t* strides, int num_strides) noexcept
+                [](::TF_Tensor* tensor, const std::int64_t* strides, int num_strides) noexcept
             {
                 auto& self = Tensor::from_handle(tensor);
                 self.set_strides(
@@ -182,19 +182,19 @@ public:
                 );
             },
             .stride =
-                [](const ::TF_Tensor* tensor, int dim_index, int64_t* out_stride) noexcept
+                [](const ::TF_Tensor* tensor, int dim_index, std::int64_t* out_stride) noexcept
             {
                 auto& self = Tensor::from_handle(tensor);
                 self.stride(dim_index, *out_stride);
             },
             .set_storage_offset =
-                [](::TF_Tensor* tensor, int64_t offset_elements) noexcept
+                [](::TF_Tensor* tensor, std::int64_t offset_elements) noexcept
             {
                 auto& self = Tensor::from_handle(tensor);
                 self.set_storage_offset(offset_elements);
             },
             .storage_offset =
-                [](const ::TF_Tensor* tensor, int64_t* out_offset_elements) noexcept
+                [](const ::TF_Tensor* tensor, std::int64_t* out_offset_elements) noexcept
             {
                 auto& self = Tensor::from_handle(tensor);
                 self.storage_offset(*out_offset_elements);
@@ -213,10 +213,10 @@ public:
             },
             .tensor_view =
                 [](::TF_Tensor* base,
-                   const int64_t* dims,
+                   const std::int64_t* dims,
                    int num_dims,
-                   const int64_t* strides,
-                   int64_t offset_elements,
+                   const std::int64_t* strides,
+                   std::int64_t offset_elements,
                    ::TF_Tensor** out_view,
                    ::TF_Status* out_status) noexcept
             {

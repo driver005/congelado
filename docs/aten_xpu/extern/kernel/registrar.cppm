@@ -135,7 +135,7 @@ public:
 private:
     void assign(const ice::sonic::String& target, std::string_view value) const
     {
-        target.copy(value.data(), value.size());
+        target.copy(value);
     }
 
     const SyclOpsTable& m_ops;

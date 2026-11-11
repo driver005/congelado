@@ -29,7 +29,7 @@ public:
     {
         ice::sonic::String text{m_ops.getStringOps()};
         text.create();
-        text.copy(message.data(), message.size());
+        text.copy(message);
         status.set_status(code, text);
         text.destroy();
     }
@@ -46,7 +46,7 @@ public:
 
     void copy_into(const ice::sonic::String& target, std::string_view source) const noexcept
     {
-        target.copy(source.data(), source.size());
+        target.copy(source);
     }
 
     sycl::async_handler make_async_handler(std::shared_ptr<std::string> sink) const

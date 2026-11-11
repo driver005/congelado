@@ -27,7 +27,7 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void set_element_size(size_t element_size) const noexcept
+    void set_element_size(std::size_t element_size) const noexcept
     {
         m_ops->set_element_size(get_handle(), element_size);
     }
@@ -53,7 +53,7 @@ public:
     }
 
     void get(
-        size_t index,
+        std::size_t index,
         const void** out_value,
         const ice::sonic::Status& out_status
     ) const noexcept

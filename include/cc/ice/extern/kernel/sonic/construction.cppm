@@ -242,10 +242,10 @@ public:
     void get_attr_string_list(
         const ice::sonic::String& attr_name,
         char** out_values,
-        size_t* out_lengths,
+        std::size_t* out_lengths,
         int max_values,
         void* storage,
-        size_t storage_size,
+        std::size_t storage_size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -320,7 +320,7 @@ public:
             get_handle(),
             attr_name.get_handle(),
             out_dims.data(),
-            static_cast<size_t>(out_dims.size()),
+            static_cast<std::size_t>(out_dims.size()),
             out_status.get_handle()
         );
     }

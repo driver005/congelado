@@ -69,8 +69,8 @@ public:
 
     void delete_recursively(
         const ice::sonic::String& path,
-        uint64_t* undeleted_files,
-        uint64_t* undeleted_dirs,
+        std::uint64_t* undeleted_files,
+        std::uint64_t* undeleted_dirs,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

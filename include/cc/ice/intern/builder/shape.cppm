@@ -44,7 +44,7 @@ public:
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .set_dims =
-                [](::TF_Shape* shape, const int64_t* dims, int num_dims) noexcept
+                [](::TF_Shape* shape, const std::int64_t* dims, int num_dims) noexcept
             {
                 auto& self = Shape::from_handle(shape);
                 self.set_dims(
@@ -64,7 +64,7 @@ public:
                 self.shape_num_dims(*out_num_dims);
             },
             .shape_dim =
-                [](const ::TF_Shape* shape, int index, int64_t* out_dim) noexcept
+                [](const ::TF_Shape* shape, int index, std::int64_t* out_dim) noexcept
             {
                 auto& self = Shape::from_handle(shape);
                 self.shape_dim(index, *out_dim);

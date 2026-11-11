@@ -55,7 +55,7 @@ public:
     void set_attr(
         const ice::sonic::String& name,
         const void* value,
-        size_t value_size,
+        std::size_t value_size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

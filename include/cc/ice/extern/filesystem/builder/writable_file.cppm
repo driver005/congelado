@@ -66,7 +66,9 @@ public:
                 );
             },
             .tell =
-                [](::TF_WritableFile* file, int64_t* out_position, ::TF_Status* out_status) noexcept
+                [](::TF_WritableFile* file,
+                   std::int64_t* out_position,
+                   ::TF_Status* out_status) noexcept
             {
                 auto& self = WritableFile::from_handle(file);
                 self.tell(

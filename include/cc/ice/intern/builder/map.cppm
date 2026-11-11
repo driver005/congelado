@@ -87,7 +87,7 @@ public:
                 );
             },
             .size =
-                [](const ::TF_Map* map, size_t* out_size) noexcept
+                [](const ::TF_Map* map, std::size_t* out_size) noexcept
             {
                 auto& self = Map::from_handle(map);
                 self.size(*out_size);

@@ -36,9 +36,10 @@ public:
 
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
-    virtual void connect(int64_t timeout_ms, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void
+    connect(std::int64_t timeout_ms, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void connect_async(
-        int64_t timeout_ms,
+        std::int64_t timeout_ms,
         TFClientConnectFn completion,
         void* user_data,
         const ice::sonic::Status& out_status
@@ -52,7 +53,7 @@ public:
     virtual void set_keep_alive(int enabled, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void is_keep_alive(int& out_keep_alive) noexcept = 0;
     virtual void create_request(
-        uint32_t stream_id,
+        std::uint32_t stream_id,
         const ice::sonic::Request& out_request,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
@@ -68,7 +69,7 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void
-    cancel_request(uint32_t stream_id, const ice::sonic::Status& out_status) noexcept = 0;
+    cancel_request(std::uint32_t stream_id, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void list_pending_requests(
         const ice::sonic::Vector& out_stream_ids,
         const ice::sonic::Status& out_status
@@ -83,8 +84,9 @@ public:
     virtual void
     set_max_retries(int max_retries, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void
-    set_retry_backoff(int64_t backoff_ms, const ice::sonic::Status& out_status) noexcept = 0;
-    virtual void set_timeout(int64_t timeout_ms, const ice::sonic::Status& out_status) noexcept = 0;
+    set_retry_backoff(std::int64_t backoff_ms, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void
+    set_timeout(std::int64_t timeout_ms, const ice::sonic::Status& out_status) noexcept = 0;
     virtual void on_error(TFClientConnectFn handler, void* user_data) noexcept = 0;
     virtual void get_last_error(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void
@@ -109,7 +111,7 @@ public:
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .connect =
-                [](::TF_Client* client, int64_t timeout_ms, ::TF_Status* out_status) noexcept
+                [](::TF_Client* client, std::int64_t timeout_ms, ::TF_Status* out_status) noexcept
             {
                 auto& self = Client::from_handle(client);
                 self.connect(
@@ -119,7 +121,7 @@ public:
             },
             .connect_async =
                 [](::TF_Client* client,
-                   int64_t timeout_ms,
+                   std::int64_t timeout_ms,
                    TFClientConnectFn completion,
                    void* user_data,
                    ::TF_Status* out_status) noexcept
@@ -157,7 +159,7 @@ public:
                 self.is_connected(*out_connected);
             },
             .get_remote_endpoint =
-                [](::TF_Client* client, ::TF_String* out_host, uint16_t* out_port) noexcept
+                [](::TF_Client* client, ::TF_String* out_host, std::uint16_t* out_port) noexcept
             {
                 auto& self = Client::from_handle(client);
                 self.get_remote_endpoint(
@@ -182,7 +184,7 @@ public:
             },
             .create_request =
                 [](::TF_Client* client,
-                   uint32_t stream_id,
+                   std::uint32_t stream_id,
                    ::TF_Request* out_request,
                    ::TF_Status* out_status) noexcept
             {
@@ -222,7 +224,7 @@ public:
                 );
             },
             .cancel_request =
-                [](::TF_Client* client, uint32_t stream_id, ::TF_Status* out_status) noexcept
+                [](::TF_Client* client, std::uint32_t stream_id, ::TF_Status* out_status) noexcept
             {
                 auto& self = Client::from_handle(client);
                 self.cancel_request(
@@ -242,7 +244,7 @@ public:
                 );
             },
             .get_pending_request_count =
-                [](::TF_Client* client, size_t* out_count) noexcept
+                [](::TF_Client* client, std::size_t* out_count) noexcept
             {
                 auto& self = Client::from_handle(client);
                 self.get_pending_request_count(*out_count);
@@ -276,7 +278,7 @@ public:
                 );
             },
             .set_retry_backoff =
-                [](::TF_Client* client, int64_t backoff_ms, ::TF_Status* out_status) noexcept
+                [](::TF_Client* client, std::int64_t backoff_ms, ::TF_Status* out_status) noexcept
             {
                 auto& self = Client::from_handle(client);
                 self.set_retry_backoff(
@@ -285,7 +287,7 @@ public:
                 );
             },
             .set_timeout =
-                [](::TF_Client* client, int64_t timeout_ms, ::TF_Status* out_status) noexcept
+                [](::TF_Client* client, std::int64_t timeout_ms, ::TF_Status* out_status) noexcept
             {
                 auto& self = Client::from_handle(client);
                 self.set_timeout(

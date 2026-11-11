@@ -29,7 +29,7 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void set_seed(uint64_t seed) const noexcept
+    void set_seed(std::uint64_t seed) const noexcept
     {
         m_ops->set_seed(get_handle(), seed);
     }
@@ -44,7 +44,7 @@ public:
         m_ops->reseed_nondeterministic(get_handle(), &out_seed);
     }
 
-    void set_offset(uint64_t offset) const noexcept
+    void set_offset(std::uint64_t offset) const noexcept
     {
         m_ops->set_offset(get_handle(), offset);
     }
@@ -84,7 +84,7 @@ public:
     }
 
     void philox_state(
-        uint64_t increment,
+        std::uint64_t increment,
         ice::sonic::PhiloxState* out_state,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -98,7 +98,7 @@ public:
     }
 
     void philox_engine_inputs(
-        uint64_t increment,
+        std::uint64_t increment,
         std::uint64_t& out_seed,
         std::uint64_t& out_offset,
         const ice::sonic::Status& out_status

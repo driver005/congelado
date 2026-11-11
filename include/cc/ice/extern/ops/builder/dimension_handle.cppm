@@ -41,7 +41,7 @@ public:
                 self.value_known(*out_known);
             },
             .value =
-                [](::TF_DimensionHandle* dim_handle, int64_t* out_value) noexcept
+                [](::TF_DimensionHandle* dim_handle, std::int64_t* out_value) noexcept
             {
                 auto& self = DimensionHandle::from_handle(dim_handle);
                 self.value(*out_value);

@@ -126,13 +126,13 @@ public:
         m_ops->accept_async(get_handle(), completion, user_data, out_status.get_handle());
     }
 
-    void connect(int64_t timeout_ms, const ice::sonic::Status& out_status) const noexcept
+    void connect(std::int64_t timeout_ms, const ice::sonic::Status& out_status) const noexcept
     {
         m_ops->connect(get_handle(), timeout_ms, out_status.get_handle());
     }
 
     void connect_async(
-        int64_t timeout_ms,
+        std::int64_t timeout_ms,
         TFSocketAckFn completion,
         void* user_data,
         const ice::sonic::Status& out_status
@@ -149,8 +149,8 @@ public:
 
     void send(
         const void* data,
-        size_t length,
-        size_t* out_bytes_sent,
+        std::size_t length,
+        std::size_t* out_bytes_sent,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -159,7 +159,7 @@ public:
 
     void send_async(
         const void* data,
-        size_t length,
+        std::size_t length,
         TFSocketTransferFn completion,
         void* user_data,
         const ice::sonic::Status& out_status
@@ -177,7 +177,7 @@ public:
 
     void receive(
         void* out_buffer,
-        size_t buffer_size,
+        std::size_t buffer_size,
         std::size_t& out_bytes_received,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -193,7 +193,7 @@ public:
 
     void receive_async(
         void* out_buffer,
-        size_t buffer_size,
+        std::size_t buffer_size,
         TFSocketTransferFn completion,
         void* user_data,
         const ice::sonic::Status& out_status
@@ -211,10 +211,10 @@ public:
 
     void send_to(
         const void* data,
-        size_t length,
+        std::size_t length,
         const ice::sonic::String& dest_host,
-        uint16_t dest_port,
-        size_t* out_bytes_sent,
+        std::uint16_t dest_port,
+        std::size_t* out_bytes_sent,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -231,7 +231,7 @@ public:
 
     void receive_from(
         void* out_buffer,
-        size_t buffer_size,
+        std::size_t buffer_size,
         std::size_t& out_bytes_received,
         const ice::sonic::String& out_sender_host,
         std::uint16_t& out_sender_port,
@@ -249,13 +249,16 @@ public:
         );
     }
 
-    void set_send_timeout(int64_t timeout_ms, const ice::sonic::Status& out_status) const noexcept
+    void set_send_timeout(
+        std::int64_t timeout_ms,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
         m_ops->set_send_timeout(get_handle(), timeout_ms, out_status.get_handle());
     }
 
     void set_receive_timeout(
-        int64_t timeout_ms,
+        std::int64_t timeout_ms,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

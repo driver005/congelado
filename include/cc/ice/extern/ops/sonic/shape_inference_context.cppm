@@ -60,7 +60,7 @@ public:
         m_ops->scalar(get_handle(), handle.get_handle());
     }
 
-    void vector_from_size(size_t size, const ice::sonic::ShapeHandle& handle) const noexcept
+    void vector_from_size(std::size_t size, const ice::sonic::ShapeHandle& handle) const noexcept
     {
         m_ops->vector_from_size(get_handle(), size, handle.get_handle());
     }
@@ -93,7 +93,7 @@ public:
 
     void with_rank(
         const ice::sonic::ShapeHandle& handle,
-        int64_t rank,
+        std::int64_t rank,
         const ice::sonic::ShapeHandle& result,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -109,7 +109,7 @@ public:
 
     void with_rank_at_least(
         const ice::sonic::ShapeHandle& handle,
-        int64_t rank,
+        std::int64_t rank,
         const ice::sonic::ShapeHandle& result,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -125,7 +125,7 @@ public:
 
     void with_rank_at_most(
         const ice::sonic::ShapeHandle& handle,
-        int64_t rank,
+        std::int64_t rank,
         const ice::sonic::ShapeHandle& result,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -141,7 +141,7 @@ public:
 
     void dim(
         const ice::sonic::ShapeHandle& shape_handle,
-        int64_t i,
+        std::int64_t i,
         const ice::sonic::DimensionHandle& result
     ) const noexcept
     {
@@ -150,8 +150,8 @@ public:
 
     void subshape(
         const ice::sonic::ShapeHandle& shape_handle,
-        int64_t start,
-        int64_t end,
+        std::int64_t start,
+        std::int64_t end,
         const ice::sonic::ShapeHandle& result,
         const ice::sonic::Status& out_status
     ) const noexcept

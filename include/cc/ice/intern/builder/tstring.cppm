@@ -19,8 +19,8 @@ public:
 
     virtual void destroy() noexcept = 0;
     virtual void init() noexcept = 0;
-    virtual void copy(const char* src, size_t size) noexcept = 0;
-    virtual void assign_view(const char* src, size_t size) noexcept = 0;
+    virtual void copy(std::string_view src) noexcept = 0;
+    virtual void assign_view(std::string_view src) noexcept = 0;
     virtual void get_data_pointer(const char** out_data) noexcept = 0;
     virtual void get_type(ice::sonic::TStringType& out_type) noexcept = 0;
     virtual void get_size(std::size_t& out_size) noexcept = 0;
@@ -46,16 +46,16 @@ public:
                 self.init();
             },
             .copy =
-                [](::TF_String* dst, const char* src, size_t size) noexcept
+                [](::TF_String* dst, const char* src, std::size_t size) noexcept
             {
                 auto& self = String::from_handle(dst);
-                self.copy(src, size);
+                self.copy(std::string_view{src, size});
             },
             .assign_view =
-                [](::TF_String* dst, const char* src, size_t size) noexcept
+                [](::TF_String* dst, const char* src, std::size_t size) noexcept
             {
                 auto& self = String::from_handle(dst);
-                self.assign_view(src, size);
+                self.assign_view(std::string_view{src, size});
             },
             .get_data_pointer =
                 [](const ::TF_String* t, const char** out_data) noexcept
@@ -72,13 +72,13 @@ public:
                 *out_type = wrapped_out_type.get_value();
             },
             .get_size =
-                [](const ::TF_String* t, size_t* out_size) noexcept
+                [](const ::TF_String* t, std::size_t* out_size) noexcept
             {
                 auto& self = String::from_handle(t);
                 self.get_size(*out_size);
             },
             .get_capacity =
-                [](const ::TF_String* t, size_t* out_capacity) noexcept
+                [](const ::TF_String* t, std::size_t* out_capacity) noexcept
             {
                 auto& self = String::from_handle(t);
                 self.get_capacity(*out_capacity);

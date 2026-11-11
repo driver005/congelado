@@ -32,8 +32,8 @@ public:
     run(const ice::sonic::Map& filters,
         const ice::sonic::String& free_text,
         const ice::sonic::String& sort,
-        size_t offset,
-        size_t limit,
+        std::size_t offset,
+        std::size_t limit,
         TFStoreQueryFn completion,
         void* user_data,
         const ice::sonic::Status& out_status) noexcept = 0;
@@ -55,8 +55,8 @@ public:
                    const ::TF_Map* filters,
                    const ::TF_String* free_text,
                    const ::TF_String* sort,
-                   size_t offset,
-                   size_t limit,
+                   std::size_t offset,
+                   std::size_t limit,
                    TFStoreQueryFn completion,
                    void* user_data,
                    ::TF_Status* out_status) noexcept

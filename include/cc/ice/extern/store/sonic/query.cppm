@@ -31,8 +31,8 @@ public:
         const ice::sonic::Map& filters,
         const ice::sonic::String& free_text,
         const ice::sonic::String& sort,
-        size_t offset,
-        size_t limit,
+        std::size_t offset,
+        std::size_t limit,
         TFStoreQueryFn completion,
         void* user_data,
         const ice::sonic::Status& out_status

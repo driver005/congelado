@@ -28,7 +28,7 @@ public:
     }
 
     void get(
-        size_t index,
+        std::size_t index,
         const void** out_value,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -47,8 +47,8 @@ public:
     }
 
     void subspan(
-        size_t offset,
-        size_t count,
+        std::size_t offset,
+        std::size_t count,
         const ice::sonic::Span& out_span,
         const ice::sonic::Status& out_status
     ) const noexcept

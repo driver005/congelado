@@ -29,10 +29,10 @@ public:
     ) noexcept = 0;
     virtual void get_nodes_to_preserve_list(
         char** out_values,
-        size_t* out_lengths,
+        std::size_t* out_lengths,
         int num_values,
         void* storage,
-        size_t storage_size,
+        std::size_t storage_size,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_fetch_nodes_size(
@@ -42,10 +42,10 @@ public:
     ) noexcept = 0;
     virtual void get_fetch_nodes_list(
         char** out_values,
-        size_t* out_lengths,
+        std::size_t* out_lengths,
         int num_values,
         void* storage,
-        size_t storage_size,
+        std::size_t storage_size,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
 
@@ -64,7 +64,7 @@ public:
             .get_nodes_to_preserve_size =
                 [](::TFGrapplerItem* item,
                    int* out_num_values,
-                   size_t* out_storage_size,
+                   std::size_t* out_storage_size,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = GrapplerItem::from_handle(item);
@@ -77,10 +77,10 @@ public:
             .get_nodes_to_preserve_list =
                 [](::TFGrapplerItem* item,
                    char** out_values,
-                   size_t* out_lengths,
+                   std::size_t* out_lengths,
                    int num_values,
                    void* storage,
-                   size_t storage_size,
+                   std::size_t storage_size,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = GrapplerItem::from_handle(item);
@@ -96,7 +96,7 @@ public:
             .get_fetch_nodes_size =
                 [](::TFGrapplerItem* item,
                    int* out_num_values,
-                   size_t* out_storage_size,
+                   std::size_t* out_storage_size,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = GrapplerItem::from_handle(item);
@@ -109,10 +109,10 @@ public:
             .get_fetch_nodes_list =
                 [](::TFGrapplerItem* item,
                    char** out_values,
-                   size_t* out_lengths,
+                   std::size_t* out_lengths,
                    int num_values,
                    void* storage,
-                   size_t storage_size,
+                   std::size_t storage_size,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = GrapplerItem::from_handle(item);

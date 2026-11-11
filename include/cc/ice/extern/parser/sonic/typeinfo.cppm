@@ -34,7 +34,7 @@ public:
     }
 
     void get_shape(
-        int64_t** out_dims,
+        std::int64_t** out_dims,
         int& out_num_dims,
         const ice::sonic::Status& out_status
     ) const noexcept

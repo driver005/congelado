@@ -45,7 +45,7 @@ public:
         m_ops->set_dims(get_handle(), dims.data(), static_cast<int>(dims.size()));
     }
 
-    void set_byte_size(size_t len) const noexcept
+    void set_byte_size(std::size_t len) const noexcept
     {
         m_ops->set_byte_size(get_handle(), len);
     }
@@ -130,7 +130,7 @@ public:
         m_ops->stride(get_handle(), dim_index, &out_stride);
     }
 
-    void set_storage_offset(int64_t offset_elements) const noexcept
+    void set_storage_offset(std::int64_t offset_elements) const noexcept
     {
         m_ops->set_storage_offset(get_handle(), offset_elements);
     }
@@ -153,7 +153,7 @@ public:
     void tensor_view(
         const std::vector<std::int64_t>& dims,
         const std::vector<std::int64_t>& strides,
-        int64_t offset_elements,
+        std::int64_t offset_elements,
         ::TF_Tensor** out_view,
         const ice::sonic::Status& out_status
     ) const noexcept

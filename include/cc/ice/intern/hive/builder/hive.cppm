@@ -19,7 +19,7 @@ public:
     using Runtime::Runtime;
 
     virtual void destroy() noexcept = 0;
-    virtual void set_element_size(size_t element_size) noexcept = 0;
+    virtual void set_element_size(std::size_t element_size) noexcept = 0;
     virtual void insert(
         const void* value,
         ::TFHiveSlot* out_slot,
@@ -46,7 +46,7 @@ public:
                 self.destroy();
             },
             .set_element_size =
-                [](::TF_Hive* hive, size_t element_size) noexcept
+                [](::TF_Hive* hive, std::size_t element_size) noexcept
             {
                 auto& self = Hive::from_handle(hive);
                 self.set_element_size(element_size);
@@ -90,7 +90,7 @@ public:
                 self.for_each(visitor, capture);
             },
             .size =
-                [](const ::TF_Hive* hive, size_t* out_size) noexcept
+                [](const ::TF_Hive* hive, std::size_t* out_size) noexcept
             {
                 auto& self = Hive::from_handle(hive);
                 self.size(*out_size);

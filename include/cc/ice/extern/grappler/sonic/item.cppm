@@ -44,10 +44,10 @@ public:
 
     void get_nodes_to_preserve_list(
         char** out_values,
-        size_t* out_lengths,
+        std::size_t* out_lengths,
         int num_values,
         void* storage,
-        size_t storage_size,
+        std::size_t storage_size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -78,10 +78,10 @@ public:
 
     void get_fetch_nodes_list(
         char** out_values,
-        size_t* out_lengths,
+        std::size_t* out_lengths,
         int num_values,
         void* storage,
-        size_t storage_size,
+        std::size_t storage_size,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

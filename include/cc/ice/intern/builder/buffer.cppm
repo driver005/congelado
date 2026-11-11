@@ -20,7 +20,7 @@ public:
 
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
-    virtual void assign_from_string(const void* proto, size_t proto_len) noexcept = 0;
+    virtual void assign_from_string(const void* proto, std::size_t proto_len) noexcept = 0;
     virtual void delete_buffer() noexcept = 0;
     virtual void get_buffer(::TFBufferData* out_buffer) noexcept = 0;
 
@@ -43,7 +43,7 @@ public:
                 self.get_name(self.wrap(std::type_identity<ice::sonic::String>{}, out_name));
             },
             .assign_from_string =
-                [](::TF_Buffer* buffer, const void* proto, size_t proto_len) noexcept
+                [](::TF_Buffer* buffer, const void* proto, std::size_t proto_len) noexcept
             {
                 auto& self = Buffer::from_handle(buffer);
                 self.assign_from_string(proto, proto_len);

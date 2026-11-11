@@ -44,7 +44,7 @@ public:
     virtual void set_attr(
         const ice::sonic::String& name,
         const void* value,
-        size_t value_size,
+        std::size_t value_size,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void get_operand(int index, const ice::sonic::String& out_operand) noexcept = 0;
@@ -102,7 +102,7 @@ public:
                 [](::TFGeneratorNode* node_context,
                    const ::TF_String* name,
                    const void* value,
-                   size_t value_size,
+                   std::size_t value_size,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = GeneratorNode::from_handle(node_context);

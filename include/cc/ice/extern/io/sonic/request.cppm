@@ -162,7 +162,7 @@ public:
 
     void set_body(
         const void* data,
-        size_t length,
+        std::size_t length,
         const ice::sonic::Status& out_status
     ) const noexcept
     {
@@ -253,7 +253,7 @@ public:
         m_ops->set_no_decompress(get_handle(), enabled, out_status.get_handle());
     }
 
-    void set_timeout(int64_t timeout_ms, const ice::sonic::Status& out_status) const noexcept
+    void set_timeout(std::int64_t timeout_ms, const ice::sonic::Status& out_status) const noexcept
     {
         m_ops->set_timeout(get_handle(), timeout_ms, out_status.get_handle());
     }
@@ -263,7 +263,7 @@ public:
         m_ops->get_timeout(get_handle(), &out_timeout_ms);
     }
 
-    void set_stream_id(uint32_t stream_id, const ice::sonic::Status& out_status) const noexcept
+    void set_stream_id(std::uint32_t stream_id, const ice::sonic::Status& out_status) const noexcept
     {
         m_ops->set_stream_id(get_handle(), stream_id, out_status.get_handle());
     }

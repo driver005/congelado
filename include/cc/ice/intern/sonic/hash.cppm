@@ -35,7 +35,7 @@ public:
 
     void hash_bytes(
         const void* data,
-        size_t size,
+        std::size_t size,
         std::size_t& out_hash,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -44,8 +44,8 @@ public:
     }
 
     void hash_combine(
-        size_t seed,
-        size_t value,
+        std::size_t seed,
+        std::size_t value,
         std::size_t& out_hash,
         const ice::sonic::Status& out_status
     ) const noexcept

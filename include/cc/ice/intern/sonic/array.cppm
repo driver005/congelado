@@ -27,18 +27,18 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void set_element_size(size_t element_size) const noexcept
+    void set_element_size(std::size_t element_size) const noexcept
     {
         m_ops->set_element_size(get_handle(), element_size);
     }
 
-    void set_count(size_t count) const noexcept
+    void set_count(std::size_t count) const noexcept
     {
         m_ops->set_count(get_handle(), count);
     }
 
     void get(
-        size_t index,
+        std::size_t index,
         const void** out_value,
         const ice::sonic::Status& out_status
     ) const noexcept
@@ -46,7 +46,11 @@ public:
         m_ops->get(get_handle(), index, out_value, out_status.get_handle());
     }
 
-    void set(size_t index, const void* value, const ice::sonic::Status& out_status) const noexcept
+    void set(
+        std::size_t index,
+        const void* value,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
         m_ops->set(get_handle(), index, value, out_status.get_handle());
     }

@@ -48,7 +48,7 @@ public:
         m_ops->length(get_handle(), &out_length);
     }
 
-    void set_length(int64_t length) const noexcept
+    void set_length(std::int64_t length) const noexcept
     {
         m_ops->set_length(get_handle(), length);
     }
@@ -58,7 +58,7 @@ public:
         m_ops->mtime_nsec(get_handle(), &out_mtime_nsec);
     }
 
-    void set_mtime_nsec(int64_t mtime_nsec) const noexcept
+    void set_mtime_nsec(std::int64_t mtime_nsec) const noexcept
     {
         m_ops->set_mtime_nsec(get_handle(), mtime_nsec);
     }

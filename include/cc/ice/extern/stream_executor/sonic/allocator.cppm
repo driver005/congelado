@@ -39,7 +39,7 @@ public:
     }
 
     void allocate(
-        uint64_t size,
+        std::uint64_t size,
         ice::sonic::MemorySpace memory_space,
         const ice::sonic::Stream& stream,
         ice::sonic::DeviceMemoryBase* out_memory,
@@ -113,7 +113,7 @@ public:
 
     void set_option(
         ice::sonic::AllocatorOption option,
-        int64_t value,
+        std::int64_t value,
         const ice::sonic::Status& out_status
     ) const noexcept
     {

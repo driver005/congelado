@@ -49,8 +49,10 @@ public:
     virtual void resume_accepting(const ice::sonic::Status& out_status) noexcept = 0;
     virtual void is_running(int& out_running) noexcept = 0;
     virtual void is_idle(int& out_idle) noexcept = 0;
-    virtual void
-    set_max_connections(size_t max_connections, const ice::sonic::Status& out_status) noexcept = 0;
+    virtual void set_max_connections(
+        std::size_t max_connections,
+        const ice::sonic::Status& out_status
+    ) noexcept = 0;
     virtual void get_max_connections(std::size_t& out_max_connections) noexcept = 0;
     virtual void find_connection(
         const ice::sonic::String& connection_id,
@@ -112,7 +114,7 @@ public:
                 self.get_bind_host(self.wrap(std::type_identity<ice::sonic::String>{}, out_host));
             },
             .get_bind_port =
-                [](::TF_Server* server, uint16_t* out_port) noexcept
+                [](::TF_Server* server, std::uint16_t* out_port) noexcept
             {
                 auto& self = Server::from_handle(server);
                 self.get_bind_port(*out_port);
@@ -188,7 +190,9 @@ public:
                 self.is_idle(*out_idle);
             },
             .set_max_connections =
-                [](::TF_Server* server, size_t max_connections, ::TF_Status* out_status) noexcept
+                [](::TF_Server* server,
+                   std::size_t max_connections,
+                   ::TF_Status* out_status) noexcept
             {
                 auto& self = Server::from_handle(server);
                 self.set_max_connections(
@@ -197,7 +201,7 @@ public:
                 );
             },
             .get_max_connections =
-                [](::TF_Server* server, size_t* out_max_connections) noexcept
+                [](::TF_Server* server, std::size_t* out_max_connections) noexcept
             {
                 auto& self = Server::from_handle(server);
                 self.get_max_connections(*out_max_connections);
@@ -236,7 +240,7 @@ public:
                 );
             },
             .get_connection_count =
-                [](::TF_Server* server, size_t* out_count) noexcept
+                [](::TF_Server* server, std::size_t* out_count) noexcept
             {
                 auto& self = Server::from_handle(server);
                 self.get_connection_count(*out_count);

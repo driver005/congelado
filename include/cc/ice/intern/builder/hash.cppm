@@ -24,13 +24,13 @@ public:
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void hash_bytes(
         const void* data,
-        size_t size,
+        std::size_t size,
         std::size_t& out_hash,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
     virtual void hash_combine(
-        size_t seed,
-        size_t value,
+        std::size_t seed,
+        std::size_t value,
         std::size_t& out_hash,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
@@ -56,8 +56,8 @@ public:
             .hash_bytes =
                 [](::TF_Hash* hash,
                    const void* data,
-                   size_t size,
-                   size_t* out_hash,
+                   std::size_t size,
+                   std::size_t* out_hash,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = Hash::from_handle(hash);
@@ -70,9 +70,9 @@ public:
             },
             .hash_combine =
                 [](::TF_Hash* hash,
-                   size_t seed,
-                   size_t value,
-                   size_t* out_hash,
+                   std::size_t seed,
+                   std::size_t value,
+                   std::size_t* out_hash,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = Hash::from_handle(hash);

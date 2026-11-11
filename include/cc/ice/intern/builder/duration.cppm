@@ -34,19 +34,19 @@ public:
                 self.destroy();
             },
             .get_ticks =
-                [](const ::TF_Duration* duration, int64_t* out_ticks) noexcept
+                [](const ::TF_Duration* duration, std::int64_t* out_ticks) noexcept
             {
                 auto& self = Duration::from_handle(duration);
                 self.get_ticks(*out_ticks);
             },
             .get_ratio_num =
-                [](const ::TF_Duration* duration, int64_t* out_num) noexcept
+                [](const ::TF_Duration* duration, std::int64_t* out_num) noexcept
             {
                 auto& self = Duration::from_handle(duration);
                 self.get_ratio_num(*out_num);
             },
             .get_ratio_den =
-                [](const ::TF_Duration* duration, int64_t* out_den) noexcept
+                [](const ::TF_Duration* duration, std::int64_t* out_den) noexcept
             {
                 auto& self = Duration::from_handle(duration);
                 self.get_ratio_den(*out_den);

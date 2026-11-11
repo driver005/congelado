@@ -21,7 +21,7 @@ public:
     using Runtime::Runtime;
 
     virtual void destroy() noexcept = 0;
-    virtual void set_element_size(size_t element_size) noexcept = 0;
+    virtual void set_element_size(std::size_t element_size) noexcept = 0;
     virtual void push_front(
         const void* value,
         ::TFForwardListNode* out_node,
@@ -43,7 +43,7 @@ public:
                 self.destroy();
             },
             .set_element_size =
-                [](::TF_ForwardList* list, size_t element_size) noexcept
+                [](::TF_ForwardList* list, std::size_t element_size) noexcept
             {
                 auto& self = ForwardList::from_handle(list);
                 self.set_element_size(element_size);

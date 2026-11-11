@@ -27,22 +27,26 @@ public:
         m_ops->destroy(get_handle());
     }
 
-    void set(size_t index) const noexcept
+    void set(std::size_t index) const noexcept
     {
         m_ops->set(get_handle(), index);
     }
 
-    void clear(size_t index) const noexcept
+    void clear(std::size_t index) const noexcept
     {
         m_ops->clear(get_handle(), index);
     }
 
-    void test(size_t index, int& out_result, const ice::sonic::Status& out_status) const noexcept
+    void test(
+        std::size_t index,
+        int& out_result,
+        const ice::sonic::Status& out_status
+    ) const noexcept
     {
         m_ops->test(get_handle(), index, &out_result, out_status.get_handle());
     }
 
-    void flip(size_t index, const ice::sonic::Status& out_status) const noexcept
+    void flip(std::size_t index, const ice::sonic::Status& out_status) const noexcept
     {
         m_ops->flip(get_handle(), index, out_status.get_handle());
     }

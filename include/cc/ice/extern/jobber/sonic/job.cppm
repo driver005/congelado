@@ -52,7 +52,7 @@ public:
     }
 
     void wait(
-        int64_t timeout_ms,
+        std::int64_t timeout_ms,
         TFJobCompletionFn completion,
         void* user_data,
         const ice::sonic::Status& out_status

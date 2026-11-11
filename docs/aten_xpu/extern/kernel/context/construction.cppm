@@ -148,7 +148,7 @@ public:
 private:
     const ice::sonic::String& name_of(std::string_view name)
     {
-        m_scratch_name.copy(name.data(), name.size());
+        m_scratch_name.copy(name);
         return m_scratch_name;
     }
 

@@ -29,8 +29,8 @@ public:
     virtual void destroy() noexcept = 0;
     virtual void get_name(const ice::sonic::String& out_name) noexcept = 0;
     virtual void read(
-        uint64_t offset,
-        size_t n,
+        std::uint64_t offset,
+        std::size_t n,
         char* buffer,
         std::int64_t& out_bytes_read,
         const ice::sonic::Status& out_status
@@ -56,10 +56,10 @@ public:
             },
             .read =
                 [](::TF_RandomAccessFile* file,
-                   uint64_t offset,
-                   size_t n,
+                   std::uint64_t offset,
+                   std::size_t n,
                    char* buffer,
-                   int64_t* out_bytes_read,
+                   std::int64_t* out_bytes_read,
                    ::TF_Status* out_status) noexcept
             {
                 auto& self = RandomAccessFile::from_handle(file);

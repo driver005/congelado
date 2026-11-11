@@ -141,9 +141,7 @@ public:
 
             body.begin_slot(slot.get_name());
             for (const classify::Param& parameter: slot.get_parameters()) {
-                body.add_param(
-                    classify::Param{parameter.get_qualified_type(), parameter.get_name()}
-                );
+                body.add_param(classify::Param{qualified_type(parameter), parameter.get_name()});
             }
             body.add_self_handle(model.get_class_name(), self_parameter_name(slot));
             body.add_raw(CALL);
@@ -369,6 +367,9 @@ private:
         bool builder
     ) const
     {
+        if (auto text = translate_text(slot, parameter, builder)) {
+            return *text;
+        }
         if (auto text = translate_array(slot, parameter, builder)) {
             return *text;
         }
@@ -383,6 +384,39 @@ private:
         }
 
         return translate_handle(parameter, builder);
+    }
+
+    // A `const char *` with its length is one std::string_view; the length parameter is dropped.
+    [[nodiscard]] static std::optional<ParameterText>
+    translate_text(const classify::Function& slot, const classify::Param& parameter, bool builder)
+    {
+        ParameterText text;
+        if (is_text_length(slot, parameter)) {
+            const auto PARAMETERS = slot_arguments(slot);
+            const auto INDEX = static_cast<std::size_t>(&parameter - PARAMETERS.data());
+            if (!builder) {
+                text.set_argument(PARAMETERS.at(INDEX - 1).get_name() + ".size()");
+            }
+
+            return text;
+        }
+
+        const classify::Param* length = text_length_of(slot, parameter);
+        if (length == nullptr) {
+            return std::nullopt;
+        }
+
+        text.set_type("std::string_view");
+        text.set_argument(
+            builder ? std::format(
+                          "std::string_view{{{}, {}}}",
+                          parameter.get_name(),
+                          length->get_name()
+                      )
+                    : parameter.get_name() + ".data()"
+        );
+
+        return text;
     }
 
     // Array pointers and their length: host span (builder), unwrapped vector (sonic).
@@ -564,7 +598,7 @@ private:
         const Lookup VTABLE = find_vtable(parameter);
         ParameterText text;
         if (!VTABLE.has_value()) {
-            text.set_type(parameter.get_qualified_type());
+            text.set_type(qualified_type(parameter));
             text.set_argument(name);
 
             return text;

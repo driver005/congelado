@@ -33,7 +33,7 @@ public:
                 self.destroy();
             },
             .nanoseconds =
-                [](::TF_Timer* timer, uint64_t* out_nanoseconds) noexcept
+                [](::TF_Timer* timer, std::uint64_t* out_nanoseconds) noexcept
             {
                 auto& self = Timer::from_handle(timer);
                 self.nanoseconds(*out_nanoseconds);
