@@ -3,10 +3,15 @@ load("//bazel:build_defs.bzl", "congelado_cxx26_copts", "congelado_module_librar
 
 congelado_module_library(
     name = "aten_xpu_profiler_rocprofiler",
+    # The HIP headers pulled in by rocprofiler-sdk refuse to compile without a platform macro.
+    copts = congelado_cxx26_copts() + ["-D__HIP_PLATFORM_AMD__"],
     partitions = ["backend.cppm"],
     primary_interface = "base.cppm",
     visibility = ["//visibility:public"],
-    deps = ["//docs/aten_xpu/extern/profiler/common:aten_xpu_profiler_common"],
+    deps = [
+        "//docs/aten_xpu/extern/profiler/common:aten_xpu_profiler_common",
+        "@rocprofiler//:headers",
+    ],
 )
 
 # The plugin library the host loads: exports create_profiler / create_tensor. Host symbols

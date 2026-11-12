@@ -6,7 +6,10 @@ congelado_module_library(
     partitions = ["backend.cppm"],
     primary_interface = "base.cppm",
     visibility = ["//visibility:public"],
-    deps = ["//docs/aten_xpu/extern/profiler/common:aten_xpu_profiler_common"],
+    deps = [
+        "//docs/aten_xpu/extern/profiler/common:aten_xpu_profiler_common",
+        "@pti//:headers",
+    ],
 )
 
 # The plugin library the host loads: exports create_profiler / create_tensor. Host symbols
