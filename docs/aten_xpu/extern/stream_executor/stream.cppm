@@ -30,15 +30,15 @@ public:
     ) const
     {
         auto handler = m_status.make_async_handler(async_error);
+        // SYCL fixes queue profiling at creation: only requested sessions pay for it.
+        const bool PROFILE =
+            SyclProfileCollector::isRequested() && SyclProfileCollector::supportsDevice(device);
         if (priority < 0) {
             return std::make_shared<sycl::queue>(
                 context,
                 device,
                 handler,
-                sycl::property_list{
-                    sycl::property::queue::in_order{},
-                    sycl::ext::oneapi::property::queue::priority_high{}
-                }
+                make_properties(PROFILE, sycl::ext::oneapi::property::queue::priority_high{})
             );
         }
         if (priority > 0) {
@@ -46,21 +46,27 @@ public:
                 context,
                 device,
                 handler,
-                sycl::property_list{
-                    sycl::property::queue::in_order{},
-                    sycl::ext::oneapi::property::queue::priority_low{}
-                }
+                make_properties(PROFILE, sycl::ext::oneapi::property::queue::priority_low{})
             );
         }
-        return std::make_shared<sycl::queue>(
-            context,
-            device,
-            handler,
-            sycl::property_list{sycl::property::queue::in_order{}}
-        );
+        return std::make_shared<sycl::queue>(context, device, handler, make_properties(PROFILE));
     }
 
 private:
+    template<typename... Properties>
+    static sycl::property_list make_properties(bool profile, Properties... extra)
+    {
+        if (profile) {
+            return sycl::property_list{
+                sycl::property::queue::in_order{},
+                sycl::property::queue::enable_profiling{},
+                extra...
+            };
+        }
+
+        return sycl::property_list{sycl::property::queue::in_order{}, extra...};
+    }
+
     SyclStatus m_status;
 };
 

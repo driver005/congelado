@@ -7,6 +7,7 @@ module;
 export module aten_xpu_extern_kernel:onednn_primitive_executor;
 
 import std;
+import aten_xpu_intern;
 import :onednn_engine_cache;
 
 export namespace aten_xpu {
@@ -56,7 +57,12 @@ public:
                 }
             );
         }
-        return dnnl::sycl_interop::execute(primitive, m_stream, m_arguments);
+        auto event = dnnl::sycl_interop::execute(primitive, m_stream, m_arguments);
+        SyclOpsTable::getInstance()
+            .getProfileCollector()
+            .record(m_queue, "onednn_primitive", SyclProfileActivity::Kind::COMPUTE, 0, event);
+
+        return event;
     }
 
 private:

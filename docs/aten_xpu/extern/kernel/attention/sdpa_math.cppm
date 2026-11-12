@@ -256,15 +256,24 @@ private:
         const auto query_length = m_query_length;
         const auto key_length = m_key_length;
         const auto offset = key_length - query_length;
-        m_queue.parallel_for(
-            sycl::range<2>{static_cast<std::size_t>(dims[1]), static_cast<std::size_t>(key_length)},
-            [=](sycl::id<2> index)
-            {
-                const auto row = static_cast<int64_t>(index[0]) % query_length;
-                const auto column = static_cast<int64_t>(index[1]);
-                data[index[0] * key_length + index[1]] =
-                    column > row + offset ? -std::numeric_limits<float>::infinity() : 0.0F;
-            }
+        SyclOpsTable::getInstance().getProfileCollector().record(
+            m_queue,
+            "sdpa_causal_mask",
+            SyclProfileActivity::Kind::COMPUTE,
+            0,
+            m_queue.parallel_for(
+                sycl::range<2>{
+                    static_cast<std::size_t>(dims[1]),
+                    static_cast<std::size_t>(key_length)
+                },
+                [=](sycl::id<2> index)
+                {
+                    const auto row = static_cast<int64_t>(index[0]) % query_length;
+                    const auto column = static_cast<int64_t>(index[1]);
+                    data[index[0] * key_length + index[1]] =
+                        column > row + offset ? -std::numeric_limits<float>::infinity() : 0.0F;
+                }
+            )
         );
         return mask->get();
     }

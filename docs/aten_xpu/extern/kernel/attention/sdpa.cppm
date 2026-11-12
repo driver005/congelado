@@ -111,10 +111,16 @@ public:
                 probabilities->get().getDims()
             );
             if (saved) {
-                queue->get().memcpy(
-                    saved->get().getData(),
-                    probabilities->get().getData(),
-                    probabilities->get().getByteSize()
+                SyclOpsTable::getInstance().getProfileCollector().record(
+                    queue->get(),
+                    "sdpa_save_probabilities",
+                    SyclProfileActivity::Kind::COPY,
+                    probabilities->get().getByteSize(),
+                    queue->get().memcpy(
+                        saved->get().getData(),
+                        probabilities->get().getData(),
+                        probabilities->get().getByteSize()
+                    )
                 );
             }
         }

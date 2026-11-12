@@ -5,6 +5,7 @@ module;
 #include "include/c/extern/grappler/optimizer.h"
 #include "include/c/extern/kernel/construction.h"
 #include "include/c/extern/kernel/context.h"
+#include "include/c/extern/profiler/profiler.h"
 #include "include/c/extern/stream_executor/memory.h"
 #include "include/c/extern/stream_executor/platform.h"
 #include "include/c/extern/stream_executor/stream_executor.h"
@@ -22,6 +23,7 @@ import aten_xpu_extern_stream_executor;
 import aten_xpu_extern_random_generator;
 import aten_xpu_extern_grappler;
 import aten_xpu_extern_kernel;
+import aten_xpu_profiler_sycl;
 
 export namespace aten_xpu {
 
@@ -83,6 +85,11 @@ public:
         return m_optimizer.get_vtable();
     }
 
+    const ::TF_ProfilerOps& getProfilerOps() const noexcept
+    {
+        return m_profiler.get_vtable();
+    }
+
     std::size_t getKernelCount() const noexcept
     {
         return m_kernel_count;
@@ -104,7 +111,8 @@ private:
         m_tensor{m_ops},
         m_device_graph{m_ops},
         m_grappler{m_ops},
-        m_optimizer{m_ops}
+        m_optimizer{m_ops},
+        m_profiler{m_ops}
     {
     }
 
@@ -241,6 +249,14 @@ private:
             }
         );
 
+        m_profiler.get_generic_vtable(
+            [](::TF_Profiler* handle)
+            {
+                auto* object = new SyclProfiler{SyclOpsTable::getInstance()};
+                handle->plugin_data = object->get_handle().plugin_data;
+            }
+        );
+
         m_ops.setDeviceOps(&m_device.get_vtable());
         m_ops.setExecutorOps(&m_executor.get_vtable());
         m_ops.setStreamOps(&m_stream.get_vtable());
@@ -312,6 +328,7 @@ private:
     SyclDeviceGraph m_device_graph;
     SyclGrappler m_grappler;
     SyclGrapplerOptimizer m_optimizer;
+    SyclProfiler m_profiler;
 };
 
 } // namespace aten_xpu

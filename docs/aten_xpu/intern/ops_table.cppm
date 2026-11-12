@@ -23,6 +23,7 @@ import std;
 import :placement;
 import :graph_state;
 import :shared_state;
+import :profile_collector;
 
 export namespace aten_xpu {
 
@@ -141,6 +142,11 @@ public:
         return m_kernel_runtime;
     }
 
+    SyclProfileCollector& getProfileCollector() noexcept
+    {
+        return m_profile_collector;
+    }
+
     const ::TF_StatusOps* getStatusOps() const noexcept
     {
         return m_status_ops;
@@ -241,6 +247,7 @@ private:
     SyclTensorPlacement m_placement;
     mutable SyclGraphState m_graph_state;
     SyclSharedState* m_kernel_runtime{nullptr};
+    SyclProfileCollector m_profile_collector;
 };
 
 } // namespace aten_xpu

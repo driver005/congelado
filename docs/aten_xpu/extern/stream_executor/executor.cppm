@@ -429,10 +429,17 @@ public:
     {
         static_cast<void>(device);
         try {
-            queue_of(stream).fill(
-                static_cast<uint32_t*>(location->getOpaque()),
-                pattern,
-                size / sizeof(uint32_t)
+            auto& queue = queue_of(stream);
+            SyclOpsTable::getInstance().getProfileCollector().record(
+                queue,
+                "memset32",
+                SyclProfileActivity::Kind::COPY,
+                size,
+                queue.fill(
+                    static_cast<uint32_t*>(location->getOpaque()),
+                    pattern,
+                    size / sizeof(uint32_t)
+                )
             );
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
@@ -450,19 +457,26 @@ public:
         static_cast<void>(device);
         try {
             const auto* status_ops = m_status.getOps().getStatusOps();
-            queue_of(stream).submit(
-                [callback_fn, callback_arg, status_ops](sycl::handler& handler)
-                {
-                    handler.host_task(
-                        [callback_fn, callback_arg, status_ops]()
-                        {
-                            ice::sonic::Status status{status_ops};
-                            status.create();
-                            callback_fn(callback_arg, status.get_handle());
-                            status.destroy();
-                        }
-                    );
-                }
+            auto& queue = queue_of(stream);
+            SyclOpsTable::getInstance().getProfileCollector().record(
+                queue,
+                "host_callback",
+                SyclProfileActivity::Kind::HOST,
+                0,
+                queue.submit(
+                    [callback_fn, callback_arg, status_ops](sycl::handler& handler)
+                    {
+                        handler.host_task(
+                            [callback_fn, callback_arg, status_ops]()
+                            {
+                                ice::sonic::Status status{status_ops};
+                                status.create();
+                                callback_fn(callback_arg, status.get_handle());
+                                status.destroy();
+                            }
+                        );
+                    }
+                )
             );
             out_success = true;
         } catch (const sycl::exception&) {
@@ -739,7 +753,14 @@ private:
     )
     {
         try {
-            queue_of(stream).memcpy(destination, source, size);
+            auto& queue = queue_of(stream);
+            SyclOpsTable::getInstance().getProfileCollector().record(
+                queue,
+                "memcpy",
+                SyclProfileActivity::Kind::COPY,
+                size,
+                queue.memcpy(destination, source, size)
+            );
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
         }
@@ -756,7 +777,14 @@ private:
     {
         static_cast<void>(device);
         try {
-            queue_of(stream).memset(location->getOpaque(), pattern, size);
+            auto& queue = queue_of(stream);
+            SyclOpsTable::getInstance().getProfileCollector().record(
+                queue,
+                "memset",
+                SyclProfileActivity::Kind::COPY,
+                size,
+                queue.memset(location->getOpaque(), pattern, size)
+            );
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
         }

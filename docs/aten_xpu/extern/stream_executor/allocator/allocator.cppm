@@ -53,6 +53,18 @@ public:
         m_small_blocks{true, ice::sonic::PoolId{}},
         m_large_blocks{false, ice::sonic::PoolId{}}
     {
+        // The profiler sees every allocator action while a session runs.
+        m_trace.addTracker(
+            [this](const SyclAllocatorTrace::Entry& entry)
+            {
+                SyclOpsTable::getInstance().getProfileCollector().recordMemory(
+                    std::string{m_trace.action_name(std::get<0>(entry))},
+                    std::get<1>(entry),
+                    std::get<2>(entry),
+                    std::get<3>(entry)
+                );
+            }
+        );
     }
 
     ~SyclAllocator() override

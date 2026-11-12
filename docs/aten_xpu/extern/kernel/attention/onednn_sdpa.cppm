@@ -65,12 +65,13 @@ public:
             engine,
             output.getData()
         };
-        return dnnl::graph::sycl_interop::execute(
-            partition,
-            stream,
-            input_tensors,
-            {output_tensor}
-        );
+        auto event =
+            dnnl::graph::sycl_interop::execute(partition, stream, input_tensors, {output_tensor});
+        SyclOpsTable::getInstance()
+            .getProfileCollector()
+            .record(queue, "onednn_sdpa", SyclProfileActivity::Kind::COMPUTE, 0, event);
+
+        return event;
     }
 
 private:

@@ -61,9 +61,30 @@ docs/aten_xpu/
 | `core/XPUGraph.*`, graph utils | `grappler/device_graph`, `capture_status` |
 | `mkldnn/**`, `transformers/**`, `core/XPUScaledBlas.*` | `kernel/**` |
 | `core/detail/XPUHooks.*`, `torch_csrc/Module.*` | `registration`, `plugin.cc` |
+| `torch_csrc/profiler/*` (XPU activity trace) | `extern/profiler`: SYCL event profiling, XSpace output |
 | `c10/test/**` | `test/` |
 
 The Python bindings and CMake glue were dropped. Every behavior they exposed is now reachable through the ice slots.
+
+## Profilers
+
+Four independent `ice::builder::Profiler` implementations, each its own plugin library with its own `create_profiler` (one per library is what the C ABI allows). The three vendor ones do not use SYCL.
+
+| Profiler | Library | Reports | Needs |
+|---|---|---|---|
+| SYCL (`extern/profiler/sycl`) | the main `aten_xpu` plugin | what the plugin submits: copies, fills, oneDNN primitives, host callbacks, allocator actions | `aspect::queue_profiling`; `ATEN_XPU_PROFILING=1` at load for device timestamps |
+| PTI (`extern/profiler/pti`) | `libaten_xpu_profiler_pti.so` | every kernel and copy on an Intel GPU, real kernel names | Intel PTI (`libpti_view.so`) |
+| CUPTI (`extern/profiler/cupti`) | `libaten_xpu_profiler_cupti.so` | every kernel, copy and fill on an NVIDIA GPU | CUPTI (`libcupti.so`) |
+| rocprofiler (`extern/profiler/rocprofiler`) | `libaten_xpu_profiler_rocprofiler.so` | every kernel dispatch and copy on an AMD GPU | rocprofiler-sdk |
+
+All of them return a TensorFlow `XSpace` (protobuf, `extern/profiler/proto/xplane.proto`, vendored from openxla/xla) as a `uint8` tensor.
+
+- **SYCL:** works on every device with `aspect::queue_profiling` (Level Zero, OpenCL, CUDA, HIP). Without `ATEN_XPU_PROFILING=1` queues have no profiling, so `start` still works but activities show at submission time with zero duration and the XSpace carries a warning. One XPlane per device, one XLine per queue and kind, plus an `allocator` line. Not recorded: copies on throwaway queues (`blocking_copy`, tensor copies, host reads), the Philox graph-capture fills and barriers.
+- **Vendor profilers:** `common/` holds what they share (tracer interface, `VendorProfiler`, a host-memory tensor, the plugin owner). Each library also exports `create_tensor`, because the host needs the tensor ops to read the returned `XSpace`. One XPlane per device the tracer reported (`/device:<tracer>:<device>`), one XLine per queue and kind. `start` fails with a status error if the tracer is missing.
+- Each tracer is optional twice over: its header (`pti/pti_view.h`, `cupti.h`, `rocprofiler-sdk/rocprofiler.h`) at build time, its library at run time.
+- PTI and CUPTI generally have to start before the GPU runtime initialises. rocprofiler-sdk only reports if it loads its library before HSA starts (it finds the exported `rocprofiler_configure`).
+- The CUPTI record structs follow the header (`CUpti_ActivityKernel9`, `Memcpy6`, `Memset4`, CUPTI 12.9); another CUPTI version may need other struct names.
+- Build the vendor libraries with `--force_pic`: `bazel build --force_pic //docs/aten_xpu/extern/profiler/pti:libaten_xpu_profiler_pti.so` (protobuf is linked statically).
 
 ## Kernels
 

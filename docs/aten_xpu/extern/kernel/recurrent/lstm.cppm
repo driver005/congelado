@@ -166,10 +166,17 @@ private:
     ) const
     {
         const auto bytes = static_cast<std::size_t>(source.element_count()) * item;
-        queue.memcpy(
-            static_cast<std::byte*>(destination.getData()) + static_cast<std::size_t>(slot) * bytes,
-            source.getData(),
-            bytes
+        SyclOpsTable::getInstance().getProfileCollector().record(
+            queue,
+            "lstm_copy_slot",
+            SyclProfileActivity::Kind::COPY,
+            bytes,
+            queue.memcpy(
+                static_cast<std::byte*>(destination.getData()) +
+                    static_cast<std::size_t>(slot) * bytes,
+                source.getData(),
+                bytes
+            )
         );
     }
 
@@ -293,7 +300,17 @@ private:
         auto& stream = getRuntime().getOnednn().getEngines().getStream(queue);
         dnnl::memory source{plain, executor.getEngine(), weights.getData()};
         dnnl::memory target{expected, executor.getEngine()};
-        dnnl::reorder{source, target}.execute(stream, source, target);
+        SyclOpsTable::getInstance().getProfileCollector().record(
+            queue,
+            "onednn_reorder",
+            SyclProfileActivity::Kind::COMPUTE,
+            0,
+            dnnl::sycl_interop::execute(
+                dnnl::reorder{source, target},
+                stream,
+                {{DNNL_ARG_FROM, source}, {DNNL_ARG_TO, target}}
+            )
+        );
         executor.getArguments().insert_or_assign(argument, target);
     }
 

@@ -2,6 +2,7 @@
 #include "include/c/extern/grappler/grappler.h"
 #include "include/c/extern/grappler/optimizer.h"
 #include "include/c/extern/plugin/registration.h"
+#include "include/c/extern/profiler/profiler.h"
 #include "include/c/extern/random_generator/random_generator.h"
 #include "include/c/extern/stream_executor/allocator.h"
 #include "include/c/extern/stream_executor/device.h"
@@ -69,4 +70,5 @@ extern "C"
     )
     ATEN_XPU_EXPORT_OPS(grappler, TF_GrapplerOps, &registry.getGrapplerOps())
     ATEN_XPU_EXPORT_OPS(grappler_optimizer, TFGrapplerOptimizerOps, &registry.getOptimizerOps())
+    ATEN_XPU_EXPORT_OPS(profiler, TF_ProfilerOps, &registry.getProfilerOps())
 }

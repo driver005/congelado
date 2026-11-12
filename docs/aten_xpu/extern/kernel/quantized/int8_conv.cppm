@@ -80,10 +80,16 @@ public:
             return;
         }
         if (accumulator && m_binary == "sum") {
-            queue->get().memcpy(
-                output->get().getData(),
-                accumulator->get().getData(),
-                accumulator->get().getByteSize()
+            SyclOpsTable::getInstance().getProfileCollector().record(
+                queue->get(),
+                "int8_conv_accumulator",
+                SyclProfileActivity::Kind::COPY,
+                accumulator->get().getByteSize(),
+                queue->get().memcpy(
+                    output->get().getData(),
+                    accumulator->get().getData(),
+                    accumulator->get().getByteSize()
+                )
             );
         }
 
