@@ -165,7 +165,8 @@ private:
             std::int64_t start_ns = activity.getHostSubmitNs();
             std::int64_t duration_ns = 0;
             try {
-                activity.getEvent().wait();
+                sycl::event event = activity.getEvent();
+                event.wait();
                 const auto SUBMIT = static_cast<std::int64_t>(
                     activity.getEvent()
                         .get_profiling_info<sycl::info::event_profiling::command_submit>()
