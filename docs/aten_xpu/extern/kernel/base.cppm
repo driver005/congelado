@@ -37,3 +37,6 @@ export import :attention_sdpa_math;
 export import :attention_sdpa;
 export import :attention_sdpa_backward;
 export import :recurrent_lstm;
+export import :ops_shape_inference;
+export import :ops_registrar;
+export import :ops_catalog;

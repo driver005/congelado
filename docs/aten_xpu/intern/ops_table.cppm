@@ -4,6 +4,8 @@ module;
 #include "include/c/extern/grappler/item.h"
 #include "include/c/extern/kernel/construction.h"
 #include "include/c/extern/kernel/context.h"
+#include "include/c/extern/ops/shape_handle.h"
+#include "include/c/extern/ops/shape_inference_context.h"
 #include "include/c/extern/random_generator/random_generator.h"
 #include "include/c/extern/stream_executor/allocator.h"
 #include "include/c/extern/stream_executor/device.h"
@@ -108,6 +110,16 @@ public:
     void setDeviceGraphOps(const ::TFGrapplerDeviceGraphOps* ops) noexcept
     {
         m_device_graph_ops = ops;
+    }
+
+    void setShapeInferenceContextOps(const ::TF_ShapeInferenceContextOps* ops) noexcept
+    {
+        m_shape_inference_context_ops = ops;
+    }
+
+    void setShapeHandleOps(const ::TF_ShapeHandleOps* ops) noexcept
+    {
+        m_shape_handle_ops = ops;
     }
 
     // Entry point for the C ABI `create` slots, which carry no context pointer.
@@ -227,6 +239,16 @@ public:
         return m_device_graph_ops;
     }
 
+    const ::TF_ShapeInferenceContextOps* getShapeInferenceContextOps() const noexcept
+    {
+        return m_shape_inference_context_ops;
+    }
+
+    const ::TF_ShapeHandleOps* getShapeHandleOps() const noexcept
+    {
+        return m_shape_handle_ops;
+    }
+
 private:
     const ::TF_StatusOps* m_status_ops{nullptr};
     const ::TF_StringOps* m_string_ops{nullptr};
@@ -244,6 +266,8 @@ private:
     const ::TFGrapplerDeviceGraphOps* m_device_graph_ops{nullptr};
     const ::TF_OpKernelContextOps* m_kernel_context_ops{nullptr};
     const ::TF_OpKernelConstructionOps* m_kernel_construction_ops{nullptr};
+    const ::TF_ShapeInferenceContextOps* m_shape_inference_context_ops{nullptr};
+    const ::TF_ShapeHandleOps* m_shape_handle_ops{nullptr};
     SyclTensorPlacement m_placement;
     mutable SyclGraphState m_graph_state;
     SyclSharedState* m_kernel_runtime{nullptr};

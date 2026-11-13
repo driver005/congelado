@@ -28,8 +28,9 @@ docs/aten_xpu/
 │   │                         read_only_memory_region, tree (std::filesystem + POSIX)
 │   ├── kernel/               kernel (SyclKernel<Derived> : ice::builder::Kernel), registrar,
 │   │                         context/, onednn/, matmul/, linear/, convolution/,
-│   │                         quantized/, scaled/, attention/, recurrent/
-│   └── registration/         SyclPluginRegistry (all vtables, host ops, kernel registration)
+│   │                         quantized/, scaled/, attention/, recurrent/, ops/ (op definitions
+│   │                         and shape inference)
+│   └── registration/         SyclPluginRegistry (all vtables, host ops, op and kernel registration)
 └── test/                     gtest suites on the ice::sonic wrappers (fixture.cppm)
 ```
 
@@ -115,7 +116,19 @@ Every `intern/` builder and the filesystem family have a plain C++ implementatio
 - `FilesystemTree` returns string tensors as `TextTensor`: one dimension, every string NUL terminated back to back. The caller frees them with the tensor's `delete_tensor`.
 - Tests: `test/{foundation,value,sequence,associative,filesystem}_test.cc` use `RegistryFixture` and need no XPU device.
 
+## Op definitions
+
+`SyclPluginRegistry::initialize` registers the ops before the kernels: `SyclOpCatalog` lists them, `SyclOpRegistrar` calls the host's `create_op_definition_builder` for each, and `SyclShapeInference` supplies the shape function (a `SyclShapeRule` template argument, because the C callback carries no context).
+
+- The ops layer is host provided, like the kernel context: the plugin calls `create_op_definition_builder`, `create_shape_inference_context` and `create_shape_handle`, and exports none of them. This is read from the header shapes, not confirmed against a host.
+- Defined: `Addmm`, `Addmv`, `Baddbmm`, `Linear`, `BatchMatMul`, `Conv2D`, `ConvolutionBackward`, `Conv2DBackpropInputTransposed`, `QuantizedMatMul`, `QuantizedLinear`, `QuantizedConv2D`, `WeightOnlyQuantizedMatMul`, `ScaledDotProductAttention`, `ScaledDotProductAttentionGrad`, `LSTM`, `ScaledMatMul`. Each op has the name its kernel registers with and the attrs that kernel reads (for example `Conv2D` takes `stride`, `padding` and `dilation` as int lists plus `activation`, which the grappler fusion sets).
+- The spec strings (`T: {float, half}`, `list(type) >= 0 = []`, `N * T`) follow TensorFlow's op definition grammar, which the host's op definition builder has to parse.
+- Optional inputs are a trailing `list(type)` input (`extras`, `scales`, `weights`), so the kernels' `getInputCount()` checks still work.
+- The shape context has no int or list attr getter (`get_attr_type` is the only one), so some shapes stay partial. Every op has a shape rule. Exact: the matmul family, `Linear`, `WeightOnlyQuantizedMatMul`, `ScaledMatMul`, attention, both gradients and the `LSTM` states.
+- Partly known, because the shape context can only read a dtype attr, not the int attrs: convolution and `QuantizedConv2D` give `[batch, out_channels, ?...]` (stride, padding and dilation set the spatial extents), `Conv2DBackpropInputTransposed` gives `[batch, ?...]` (channels are `weight[1] * groups`), and `QuantizedLinear` and `QuantizedMatMul` give `[..., ?]` (`weight_transposed` picks the column axis). The `LSTM` output and the attention probabilities stay unknown.
+
 ## Known gaps
+
 
 - ABI slots the plain C++ builders had to guess, to be fixed in the C headers: `Map` and `Set` have no key or value size, `Span` and `BitSet` have no bind or size slot, `Duration` has no setter (`TimePoint` fills only a `Duration`), `FilesystemTree::paths_exist` receives one String for an array (only the first path is checked), `free_options` has no context, and the filesystem has no open slot.
 

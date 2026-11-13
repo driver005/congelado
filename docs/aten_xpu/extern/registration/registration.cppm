@@ -10,6 +10,8 @@ module;
 #include "include/c/extern/grappler/optimizer.h"
 #include "include/c/extern/kernel/construction.h"
 #include "include/c/extern/kernel/context.h"
+#include "include/c/extern/ops/shape_handle.h"
+#include "include/c/extern/ops/shape_inference_context.h"
 #include "include/c/extern/profiler/profiler.h"
 #include "include/c/extern/stream_executor/memory.h"
 #include "include/c/extern/stream_executor/platform.h"
@@ -76,6 +78,7 @@ public:
         m_initialized = true;
         load_host_ops();
         load_plugin_ops();
+        register_ops();
         register_kernels();
     }
 
@@ -247,6 +250,11 @@ public:
     const ::TFFilesystemTreeOps& getFilesystemTreeOps() const noexcept
     {
         return m_filesystem_tree.get_vtable();
+    }
+
+    std::size_t getOpCount() const noexcept
+    {
+        return m_op_count;
     }
 
     std::size_t getKernelCount() const noexcept
@@ -555,12 +563,16 @@ private:
         ::TF_OpKernelContextOps* context_ops = nullptr;
         ::TF_OpKernelConstructionOps* construction_ops = nullptr;
         ::TFGrapplerItemOps* item_ops = nullptr;
+        ::TF_ShapeInferenceContextOps* shape_context_ops = nullptr;
+        ::TF_ShapeHandleOps* shape_handle_ops = nullptr;
         create_status(&status_ops, &m_host_contexts[0], nullptr);
         create_string(&string_ops, &m_host_contexts[1], nullptr);
         create_buffer(&buffer_ops, &m_host_contexts[2], nullptr);
         create_op_kernel_context(&context_ops, &m_host_contexts[3], nullptr);
         create_op_kernel_construction(&construction_ops, &m_host_contexts[4], nullptr);
         create_grappler_item(&item_ops, &m_host_contexts[5], nullptr);
+        create_shape_inference_context(&shape_context_ops, &m_host_contexts[6], nullptr);
+        create_shape_handle(&shape_handle_ops, &m_host_contexts[7], nullptr);
 
         m_ops.setStatusOps(status_ops);
         m_ops.setStringOps(string_ops);
@@ -568,6 +580,8 @@ private:
         m_ops.setKernelContextOps(context_ops);
         m_ops.setKernelConstructionOps(construction_ops);
         m_ops.setGrapplerItemOps(item_ops);
+        m_ops.setShapeInferenceContextOps(shape_context_ops);
+        m_ops.setShapeHandleOps(shape_handle_ops);
     }
 
     void load_plugin_ops()
@@ -704,6 +718,14 @@ private:
         }
     }
 
+    void register_ops()
+    {
+        SyclOpRegistrar registrar{m_ops};
+        SyclOpCatalog catalog{registrar};
+        catalog.registerAll();
+        m_op_count = registrar.getRegisteredCount();
+    }
+
     void register_kernels()
     {
         SyclKernelRegistrar registrar{m_ops};
@@ -739,9 +761,10 @@ private:
 
     SyclOpsTable& m_ops;
     SyclKernelRuntime m_kernel_runtime;
-    std::array<void*, 6> m_host_contexts{};
+    std::array<void*, 8> m_host_contexts{};
     bool m_initialized{false};
     std::size_t m_kernel_count{0};
+    std::size_t m_op_count{0};
     SyclPlatform m_platform;
     SyclDevice m_device;
     SyclExecutor m_executor;
