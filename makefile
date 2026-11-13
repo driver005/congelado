@@ -26,7 +26,7 @@ format:
 	$(SOURCE_FILES) | xargs -P $(shell nproc) clang-format -i
 
 canary:
-	bazel build //include/core/ffi:core_ffi //bazel/probes:gmf_probe
+	bazel build //include/core/ffi:core_ffi //third_party/probes:gmf_probe
 
 warn-check:
 	bazel build --keep_going --config=warnings //...

@@ -1,7 +1,7 @@
 """Custom build macros modeled on TensorFlow's tensorflow.bzl (tf_copts, tf_cuda_library, check_deps), adapted not copied."""
 
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
-load("//bazel:copts.bzl", "congelado_copts", "congelado_linkopts")
+load("//third_party:copts.bzl", "congelado_copts", "congelado_linkopts")
 
 def congelado_cxx26_copts():
     """Default copts for all own targets. C++26 std is set per-target; global is C++20 in .bazelrc.

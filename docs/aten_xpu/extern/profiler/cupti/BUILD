@@ -1,5 +1,5 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
-load("//bazel:build_defs.bzl", "congelado_cxx26_copts", "congelado_module_library")
+load("//third_party:build_defs.bzl", "congelado_cxx26_copts", "congelado_module_library")
 
 congelado_module_library(
     name = "aten_xpu_profiler_cupti",

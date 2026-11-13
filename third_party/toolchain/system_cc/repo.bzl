@@ -13,5 +13,5 @@ def repo():
     new_local_repository(
         name = "system_cc",
         path = "/usr/bin",
-        build_file = "//bazel/toolchain/system_cc:system_cc.BUILD",
+        build_file = "//third_party/toolchain/system_cc:system_cc.BUILD",
     )

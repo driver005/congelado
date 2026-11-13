@@ -29,9 +29,9 @@ runs:
           ~/.cache/congelado-ci/bazel-disk
           ~/.cache/congelado-ci/bazelisk
           ~/.cache/congelado-ci/ccache
-        key: ci-${{ inputs.cache-key }}-${{ hashFiles('MODULE.bazel.lock', '.bazelrc', 'bazel/ci.bazelrc', 'docker/Dockerfile.ci') }}-${{ github.sha }}
+        key: ci-${{ inputs.cache-key }}-${{ hashFiles('MODULE.bazel.lock', '.bazelrc', 'third_party/ci.bazelrc', 'docker/Dockerfile.ci') }}-${{ github.sha }}
         restore-keys: |
-          ci-${{ inputs.cache-key }}-${{ hashFiles('MODULE.bazel.lock', '.bazelrc', 'bazel/ci.bazelrc', 'docker/Dockerfile.ci') }}-
+          ci-${{ inputs.cache-key }}-${{ hashFiles('MODULE.bazel.lock', '.bazelrc', 'third_party/ci.bazelrc', 'docker/Dockerfile.ci') }}-
           ci-${{ inputs.cache-key }}-
 
     - name: Run ${{ inputs.target }}

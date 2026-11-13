@@ -255,7 +255,7 @@
   "moduleExtensions": {
     "//third_party:extension.bzl%third_party_deps": {
       "general": {
-        "bzlTransitiveDigest": "pCR1rH+1fDnxvVmu+86P8zp/z/Kfsz/cDEBCTDRG0VM=",
+        "bzlTransitiveDigest": "DXGfb0UEntiqi5hKjycJDp2oyhEo9qW9OEjY5K7B11o=",
         "usagesDigest": "gaLLBAzV/YGmCnqyLGLqzdxWzmTNplEvjc1eTaYCmkw=",
         "recordedInputs": [
           "REPO_MAPPING:,bazel_tools bazel_tools"
@@ -304,7 +304,7 @@
             "repoRuleId": "@@bazel_tools//tools/build_defs/repo:local.bzl%new_local_repository",
             "attributes": {
               "path": "/usr/bin",
-              "build_file": "@@//bazel/toolchain/system_cc:system_cc.BUILD"
+              "build_file": "@@//third_party/toolchain/system_cc:system_cc.BUILD"
             }
           },
           "adaptive_cpp": {
@@ -317,14 +317,14 @@
             }
           },
           "sycl": {
-            "repoRuleId": "@@//bazel/toolchain/sdk:sycl.bzl%sycl_sdk",
+            "repoRuleId": "@@//third_party/toolchain/sdk:sycl.bzl%sycl_sdk",
             "attributes": {
               "url": "https://github.com/intel/llvm/releases/download/v7.2.0/sycl_linux.tar.gz",
               "sha256": "385586a25e75ac727883f0be5e442dec0ee81b3c20f9a29037a79921ad2f1728"
             }
           },
           "sycl_hip": {
-            "repoRuleId": "@@//bazel/toolchain/sdk:sycl_hip.bzl%sycl_hip_sdk",
+            "repoRuleId": "@@//third_party/toolchain/sdk:sycl_hip.bzl%sycl_hip_sdk",
             "attributes": {
               "source_url": "https://github.com/intel/llvm/archive/refs/tags/v7.2.0.tar.gz",
               "source_sha256": "ac68497d26a975caa05d23128f392dce7bbf29f4322831fcd81949f159b11418",
@@ -332,7 +332,7 @@
             }
           },
           "onednn_intel": {
-            "repoRuleId": "@@//bazel/toolchain/sdk:onednn.bzl%onednn_sdk",
+            "repoRuleId": "@@//third_party/toolchain/sdk:onednn.bzl%onednn_sdk",
             "attributes": {
               "vendor": "INTEL",
               "compiler": "@@+third_party_deps+sycl//:BUILD.bazel",
@@ -342,7 +342,7 @@
             }
           },
           "onednn_nvidia": {
-            "repoRuleId": "@@//bazel/toolchain/sdk:onednn.bzl%onednn_sdk",
+            "repoRuleId": "@@//third_party/toolchain/sdk:onednn.bzl%onednn_sdk",
             "attributes": {
               "vendor": "NVIDIA",
               "compiler": "@@+third_party_deps+sycl//:BUILD.bazel",
@@ -352,7 +352,7 @@
             }
           },
           "onednn_amd": {
-            "repoRuleId": "@@//bazel/toolchain/sdk:onednn.bzl%onednn_sdk",
+            "repoRuleId": "@@//third_party/toolchain/sdk:onednn.bzl%onednn_sdk",
             "attributes": {
               "vendor": "AMD",
               "compiler": "@@+third_party_deps+sycl_hip//:BUILD.bazel",
@@ -362,7 +362,7 @@
             }
           },
           "onednn_generic": {
-            "repoRuleId": "@@//bazel/toolchain/sdk:onednn.bzl%onednn_sdk",
+            "repoRuleId": "@@//third_party/toolchain/sdk:onednn.bzl%onednn_sdk",
             "attributes": {
               "vendor": "GENERIC",
               "compiler": "@@+third_party_deps+sycl//:BUILD.bazel",
@@ -372,15 +372,23 @@
             }
           },
           "pti": {
-            "repoRuleId": "@@//bazel/toolchain/sdk:pti.bzl%pti_sdk",
+            "repoRuleId": "@@//third_party/toolchain/sdk:pti.bzl%pti_sdk",
             "attributes": {
               "url": "https://github.com/intel/pti-gpu/archive/refs/tags/pti-1.2.0.tar.gz",
               "sha256": "b2fe5853d2f68efbc2da9a402a72e2d3ae53dd350e4604f0e4e904ff60b68394",
               "version": "1.2.0"
             }
           },
+          "level_zero": {
+            "repoRuleId": "@@//third_party/toolchain/sdk:level_zero.bzl%level_zero_sdk",
+            "attributes": {
+              "url": "https://github.com/oneapi-src/level-zero/archive/refs/tags/v1.20.2.tar.gz",
+              "sha256": "b310191f1ca8fb8b72456bd8f66156348b720027fc910e539475426f4ea25639",
+              "version": "1.20.2"
+            }
+          },
           "cupti": {
-            "repoRuleId": "@@//bazel/toolchain/sdk:cupti.bzl%cupti_sdk",
+            "repoRuleId": "@@//third_party/toolchain/sdk:cupti.bzl%cupti_sdk",
             "attributes": {
               "wheels": {
                 "x86_64": [
@@ -397,7 +405,7 @@
             }
           },
           "rocprofiler": {
-            "repoRuleId": "@@//bazel/toolchain/sdk:rocprofiler.bzl%rocprofiler_sdk",
+            "repoRuleId": "@@//third_party/toolchain/sdk:rocprofiler.bzl%rocprofiler_sdk",
             "attributes": {
               "debs": [
                 "https://repo.radeon.com/rocm/apt/7.2.4/pool/main/r/rocprofiler-sdk/rocprofiler-sdk_1.1.0-93~24.04_amd64.deb 39270239e68660cd025d3c9e84a04478696d9737f69012cd350c380aad911c30",

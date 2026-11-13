@@ -1,4 +1,4 @@
-load("//bazel:build_defs.bzl", "congelado_cc_library", "congelado_module_library")
+load("//third_party:build_defs.bzl", "congelado_cc_library", "congelado_module_library")
 
 # --- Module ---
 

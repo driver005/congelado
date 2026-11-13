@@ -1,4 +1,4 @@
-load("//bazel:build_defs.bzl", "congelado_module_library")
+load("//third_party:build_defs.bzl", "congelado_module_library")
 
 # Real, native implementations of things include/c/ only ever declares as a C ABI (dormant,
 # no backend in this repo) — dynamic_library.cppm is the POSIX dlopen/dlsym-backed

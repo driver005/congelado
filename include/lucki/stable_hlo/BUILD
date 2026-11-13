@@ -1,6 +1,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary")
-load("//bazel:build_defs.bzl", "congelado_cc_binary", "congelado_module_library")
-load("//bazel:copts.bzl", "congelado_copts")
+load("//third_party:build_defs.bzl", "congelado_cc_binary", "congelado_module_library")
+load("//third_party:copts.bzl", "congelado_copts")
 
 # Build-time code generator: emits ONLY table.cppm — the one file that actually varies
 # with generator/ops.json's content. Everything else yoshi_omah_lay_stable_hlo needs is a normal

@@ -1,4 +1,4 @@
-load("//bazel:build_defs.bzl", "congelado_module_library")
+load("//third_party:build_defs.bzl", "congelado_module_library")
 
 # Everything the four profilers share that does not need SYCL: the tracer interface, the XSpace
 # producing profiler base, a host-memory tensor and the plugin owner.

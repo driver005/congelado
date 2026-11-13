@@ -8,7 +8,7 @@ mkdir -p "${report_dir}/artifacts"
 
 mapfile -t targets < <(bazel query 'attr(tags, "\bfuzz\b", tests(//...))' 2>/dev/null)
 if [[ ${#targets[@]} -eq 0 ]]; then
-    echo "No fuzz targets (use congelado_fuzz_test in bazel/build_defs.bzl)." | tee "${report_dir}/summary.md"
+    echo "No fuzz targets (use congelado_fuzz_test in third_party/build_defs.bzl)." | tee "${report_dir}/summary.md"
     exit 0
 fi
 

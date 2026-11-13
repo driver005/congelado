@@ -1,4 +1,4 @@
-load("//bazel:proto.bzl", "proto_service")
+load("//third_party:proto.bzl", "proto_service")
 
 package(default_visibility = ["//visibility:public"])
 

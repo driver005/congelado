@@ -1,7 +1,7 @@
 load("@com_google_protobuf//bazel:cc_proto_library.bzl", "cc_proto_library")
 load("@com_google_protobuf//bazel:proto_library.bzl", "proto_library")
 load("@rules_cc//cc:defs.bzl", "cc_library", "cc_test")
-load("//bazel:copts.bzl", "congelado_copts")
+load("//third_party:copts.bzl", "congelado_copts")
 
 proto_library(
     name = "xplane_proto",

@@ -1,4 +1,4 @@
-load("@congelado//bazel:build_defs.bzl", "congelado_cc_library")
+load("@congelado//third_party:build_defs.bzl", "congelado_cc_library")
 
 package(features = ["cpp_modules"])
 

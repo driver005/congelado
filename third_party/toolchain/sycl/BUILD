@@ -9,7 +9,7 @@ load("@rules_cc//cc/toolchains:toolchain.bzl", "cc_toolchain")
 # archiver come from @sycl, the module dependency scanner is handed that compiler, and a `sycl`
 # feature, on by default, adds the SYCL front end flags. Select it with `--config=sycl` (the platform
 # below). Everything else (module arguments, include handling, the
-# cpp_modules feature) is shared with //bazel/toolchain/system_cc.
+# cpp_modules feature) is shared with //third_party/toolchain/system_cc.
 
 constraint_setting(
     name = "sycl_compiler",
@@ -133,17 +133,17 @@ cc_toolchain(
     name = "sycl_clang",
     args = [
         ":resource_dir",
-        "//bazel/toolchain/system_cc:absolute_system_includes",
-        "//bazel/toolchain/system_cc:module_actions_user_compile_flags",
-        "//bazel/toolchain/system_cc:module_actions_quote_include_paths",
-        "//bazel/toolchain/system_cc:module_actions_include_paths",
-        "//bazel/toolchain/system_cc:module_actions_system_include_paths",
-        "//bazel/toolchain/system_cc:module_actions_external_include_paths",
-        "//bazel/toolchain/system_cc:cpp20_module_compile_flags",
-        "//bazel/toolchain/system_cc:module_actions_input_flags",
-        "//bazel/toolchain/system_cc:module_actions_output_flags",
-        "//bazel/toolchain/system_cc:module_compile_dotd_flags",
-        "//bazel/toolchain/system_cc:module_compile_modmap_flags",
+        "//third_party/toolchain/system_cc:absolute_system_includes",
+        "//third_party/toolchain/system_cc:module_actions_user_compile_flags",
+        "//third_party/toolchain/system_cc:module_actions_quote_include_paths",
+        "//third_party/toolchain/system_cc:module_actions_include_paths",
+        "//third_party/toolchain/system_cc:module_actions_system_include_paths",
+        "//third_party/toolchain/system_cc:module_actions_external_include_paths",
+        "//third_party/toolchain/system_cc:cpp20_module_compile_flags",
+        "//third_party/toolchain/system_cc:module_actions_input_flags",
+        "//third_party/toolchain/system_cc:module_actions_output_flags",
+        "//third_party/toolchain/system_cc:module_compile_dotd_flags",
+        "//third_party/toolchain/system_cc:module_compile_modmap_flags",
     ],
     compiler = "clang",
     enabled_features = [
@@ -152,7 +152,7 @@ cc_toolchain(
     ],
     known_features = [
         "@rules_cc//cc/toolchains/args:experimental_replace_legacy_action_config_features",
-        "//bazel/toolchain/system_cc:cpp_modules_feature",
+        "//third_party/toolchain/system_cc:cpp_modules_feature",
         ":sycl_feature",
     ],
     tool_map = ":tools",

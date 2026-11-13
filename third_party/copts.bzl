@@ -1,6 +1,6 @@
 """Project-wide copts, mirroring apply_common_layer_settings() in xmake/common.lua."""
 
-load("//bazel:conditionals.bzl", "if_linux", "if_x86_64")
+load("//third_party:conditionals.bzl", "if_linux", "if_x86_64")
 
 def congelado_copts():
     """Compiler flags every congelado library/binary should use. No -Werror: xmake's own warning set is TODO/commented out."""

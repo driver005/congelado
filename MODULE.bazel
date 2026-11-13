@@ -118,13 +118,13 @@ use_repo(third_party_deps, "stduuid", "reflect_cpp", "system_libstdcxx", "org_br
 # unconditionally by rules_cc's own MODULE.bazel) is broken under Bazel 9.2.0:
 # its cc_toolchain_suite.bzl wrapper calls the now-fully-removed native
 # cc_toolchain_suite with no Starlark fallback anywhere in rules_cc — hence
-# hand-rolling one via rules_cc's modern declarative API (bazel/toolchain).
+# hand-rolling one via rules_cc's modern declarative API (third_party/toolchain).
 # Root-module registrations win toolchain resolution over any transitive
 # module's (rules_cc's broken default included), so this must live here.
-# The SYCL toolchain is only a candidate on //bazel/toolchain/sycl:linux_x86_64_sycl (--config=sycl).
+# The SYCL toolchain is only a candidate on //third_party/toolchain/sycl:linux_x86_64_sycl (--config=sycl).
 register_toolchains(
-    "//bazel/toolchain/sycl:sycl_clang_toolchain",
-    "//bazel/toolchain/system_cc:system_clang_toolchain",
+    "//third_party/toolchain/sycl:sycl_clang_toolchain",
+    "//third_party/toolchain/system_cc:system_clang_toolchain",
 )
 
 # rules_ml_toolchain

@@ -27,7 +27,7 @@ subdirectory(
     path = "lib/clang/23/include",
 )
 
-# The compiler binaries the SYCL C++ toolchain (//bazel/toolchain/sycl) runs.
+# The compiler binaries the SYCL C++ toolchain (//third_party/toolchain/sycl) runs.
 exports_files(["bin/clang", "bin/clang++", "bin/llvm-ar"])
 
 filegroup(

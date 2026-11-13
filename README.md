@@ -8,7 +8,7 @@ fleet that executes tasks straight off the wire. No cap, no legacy header soup.*
 [![license](https://img.shields.io/badge/license-OCNAL%20v1.0-blue)](LICENSE)
 [![language](https://img.shields.io/badge/language-C%2B%2B26-00599C)](MODULE.bazel)
 [![build](https://img.shields.io/badge/build-Bazel-43A047)](https://bazel.build)
-[![modules](https://img.shields.io/badge/modules-native%20C%2B%2B%20modules-6f42c1)](bazel/)
+[![modules](https://img.shields.io/badge/modules-native%20C%2B%2B%20modules-6f42c1)](third_party/)
 
 </div>
 

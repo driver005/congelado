@@ -1,4 +1,4 @@
-load("//bazel:build_defs.bzl", "congelado_cc_binary")
+load("//third_party:build_defs.bzl", "congelado_cc_binary")
 
 # XLA hello world — commented out (XLA dependency removed)
 # congelado_cc_binary(

@@ -64,7 +64,7 @@ public:
         return *this;
     }
 
-    // Example: ("//bazel:build_defs.bzl", "congelado_module_library")
+    // Example: ("//third_party:build_defs.bzl", "congelado_module_library")
     BuildFile& set_load(std::string load_file, std::string rule)
     {
         m_load_file = std::move(load_file);
@@ -106,7 +106,7 @@ public:
 
 private:
     std::string m_banner;
-    std::string m_load_file{"//bazel:build_defs.bzl"};
+    std::string m_load_file{"//third_party:build_defs.bzl"};
     std::string m_rule{"congelado_module_library"};
     std::string m_name;
     std::vector<std::string> m_partitions;
