@@ -4,5 +4,6 @@ export import aten_xpu_extern_stream_executor;
 export import aten_xpu_extern_random_generator;
 export import aten_xpu_extern_grappler;
 export import aten_xpu_extern_kernel;
+export import aten_xpu_extern_filesystem;
 export import aten_xpu_profiler_sycl;
 export import aten_xpu_extern_registration;

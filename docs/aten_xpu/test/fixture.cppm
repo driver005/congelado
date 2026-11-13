@@ -14,6 +14,16 @@ import aten_xpu;
 
 export namespace aten_xpu {
 
+// Brings the plugin up so the host type implementations bind to the host status and string ops.
+class RegistryFixture : public ::testing::Test
+{
+protected:
+    void SetUp() override
+    {
+        SyclPluginRegistry::getInstance().initialize();
+    }
+};
+
 class SyclTestFixture : public ::testing::Test
 {
 protected:

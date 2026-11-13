@@ -12,7 +12,10 @@ docs/aten_xpu/
 ├── base.cppm                 aten_xpu (re-exports intern + extern)
 ├── plugin.cc                 C entry points only (create_plugin, create_*/destroy_*)
 ├── intern/                   aten_xpu_intern
-│   ops_table, handle, status, tensor, tensor_factory
+│   ops_table, handle, status, tensor, tensor_factory, and the plain C++ builders
+│   (no SYCL): string, status_store, buffer, registration, complex, duration, time_point,
+│   data_type, attr_type, shape, hash, file_statistics, text_tensor, array, vector, deque,
+│   bit_set, span, list, forward_list, hive, map, set, failure
 ├── extern/                   aten_xpu_extern
 │   ├── stream_executor/      platform, device, device_guard, peer_access, level_zero,
 │   │                         executor, stream, stream_pool, event, timer, memory, mem_pool,
@@ -21,10 +24,12 @@ docs/aten_xpu/
 │   │                         host_cache, pluggable_allocator}
 │   ├── random_generator/     random_generator, philox_state, philox_codec
 │   ├── grappler/             grappler, device_graph, capture_status, optimizer
+│   ├── filesystem/           filesystem, random_access_file, writable_file,
+│   │                         read_only_memory_region, tree (std::filesystem + POSIX)
 │   ├── kernel/               kernel (SyclKernel<Derived> : ice::builder::Kernel), registrar,
 │   │                         context/, onednn/, matmul/, linear/, convolution/,
 │   │                         quantized/, scaled/, attention/, recurrent/
-│   └── registration/         SyclPluginRegistry (vtables, host ops, kernel registration)
+│   └── registration/         SyclPluginRegistry (all vtables, host ops, kernel registration)
 └── test/                     gtest suites on the ice::sonic wrappers (fixture.cppm)
 ```
 
@@ -99,7 +104,20 @@ All of them return a TensorFlow `XSpace` (protobuf, `extern/profiler/proto/xplan
 | ScaledDotProductAttention, its backward | `attention/*` (oneDNN graph fused path plus math path) |
 | LSTM (multi-layer, bidirectional, inference) | `recurrent/lstm` |
 
+## Plain C++ builders
+
+Every `intern/` builder and the filesystem family have a plain C++ implementation (`String`, `Status`, `Vector`, `FilesystemTree`, ...). None of them needs SYCL.
+
+- `SyclPluginRegistry` owns one prototype of each class, so every C vtable has a stable address, and getters such as `getVectorOps()` return it. There is no second registry.
+- `plugin.cc` exports `create_<name>` for all of them. `create_string`, `create_status` and `create_buffer` are weak, so a real host definition overrides them; the other types bind to whichever status and string ops are in effect.
+- Values the C ABI cannot carry come from the constructor: `Map` and `Set` take key and value sizes, `BitSet` its size, `Span::bind` its memory, `Duration` and `TimePoint` their ticks, and the files and memory region their path. Objects made through a `create` slot use defaults (8 byte keys and values, 64 bits, no path).
+- Elements of the containers are byte erased: call `set_element_size` first. Pointers handed out by `get`, `find` and `data` are valid until the container changes.
+- `FilesystemTree` returns string tensors as `TextTensor`: one dimension, every string NUL terminated back to back. The caller frees them with the tensor's `delete_tensor`.
+- Tests: `test/{foundation,value,sequence,associative,filesystem}_test.cc` use `RegistryFixture` and need no XPU device.
+
 ## Known gaps
+
+- ABI slots the plain C++ builders had to guess, to be fixed in the C headers: `Map` and `Set` have no key or value size, `Span` and `BitSet` have no bind or size slot, `Duration` has no setter (`TimePoint` fills only a `Duration`), `FilesystemTree::paths_exist` receives one String for an array (only the first path is checked), `free_options` has no context, and the filesystem has no open slot.
 
 - LSTM runs forward inference only; no training workspace.
 - SDPA has no dropout. The fused path covers non-causal attention; causal attention uses the math path.
