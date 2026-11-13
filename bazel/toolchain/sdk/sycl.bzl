@@ -9,7 +9,26 @@ Download: the intel/llvm release tarball (x86_64 Linux only; Intel ships no aarc
 load(":discover.bzl", "first_root", "host_arch", "link_existing", "missing", "search_roots", "write_status")
 
 _BUILD = """
+load("@bazel_skylib//rules/directory:directory.bzl", "directory")
+load("@bazel_skylib//rules/directory:subdirectory.bzl", "subdirectory")
+
 package(default_visibility = ["//visibility:public"])
+
+# The compiler's own builtin headers (stddef.h, float.h, ...); the SYCL C++ toolchain
+# allowlists this directory as a builtin include directory.
+directory(
+    name = "clang_resource",
+    srcs = glob(["lib/clang/*/include/**"], allow_empty = True),
+)
+
+subdirectory(
+    name = "clang_resource_include",
+    parent = ":clang_resource",
+    path = "lib/clang/23/include",
+)
+
+# The compiler binaries the SYCL C++ toolchain (//bazel/toolchain/sycl) runs.
+exports_files(["bin/clang", "bin/clang++", "bin/llvm-ar"])
 
 filegroup(
     name = "compiler",

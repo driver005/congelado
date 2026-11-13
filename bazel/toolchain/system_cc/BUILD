@@ -4,6 +4,9 @@ load("@rules_cc//cc/toolchains:tool.bzl", "cc_tool")
 load("@rules_cc//cc/toolchains:tool_map.bzl", "cc_tool_map")
 load("@rules_cc//cc/toolchains:toolchain.bzl", "cc_toolchain")
 
+# The SYCL toolchain reuses the module and include argument sets declared below.
+package(default_visibility = ["//bazel/toolchain:__subpackages__"])
+
 # rules_cc's built-in arg backfill (experimental_replace_legacy_action_config_features)
 # scopes every flag set (source-file-in, output-file-out, user copts, ...) to
 # @rules_cc//cc/toolchains/actions:compile_actions, which is only

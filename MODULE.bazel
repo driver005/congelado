@@ -121,7 +121,11 @@ use_repo(third_party_deps, "stduuid", "reflect_cpp", "system_libstdcxx", "org_br
 # hand-rolling one via rules_cc's modern declarative API (bazel/toolchain).
 # Root-module registrations win toolchain resolution over any transitive
 # module's (rules_cc's broken default included), so this must live here.
-register_toolchains("//bazel/toolchain/system_cc:system_clang_toolchain")
+# The SYCL toolchain is only a candidate on //bazel/toolchain/sycl:linux_x86_64_sycl (--config=sycl).
+register_toolchains(
+    "//bazel/toolchain/sycl:sycl_clang_toolchain",
+    "//bazel/toolchain/system_cc:system_clang_toolchain",
+)
 
 # rules_ml_toolchain
 bazel_dep(name = "rules_ml_toolchain")

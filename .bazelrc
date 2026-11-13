@@ -96,3 +96,6 @@ common:linux_arm64 --define=ynn_enable_arm64_neonfp8=false
 import %workspace%/warnings.bazelrc
 
 import %workspace%/bazel/ci.bazelrc
+
+# Builds the SYCL modules with the DPC++ clang from @sycl (see bazel/toolchain/sycl).
+common:sycl --platforms=//bazel/toolchain/sycl:linux_x86_64_sycl
