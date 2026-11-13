@@ -1,6 +1,6 @@
 module;
 
-export module aten_xpu_extern_gradients:tensorflow_add;
+export module aten_xpu_extern_gradients:math_add;
 
 import std;
 import aten_xpu_intern;

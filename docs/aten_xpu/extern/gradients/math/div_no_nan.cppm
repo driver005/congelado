@@ -1,6 +1,6 @@
 module;
 
-export module aten_xpu_extern_gradients:tensorflow_div_no_nan;
+export module aten_xpu_extern_gradients:math_div_no_nan;
 
 import std;
 import aten_xpu_intern;

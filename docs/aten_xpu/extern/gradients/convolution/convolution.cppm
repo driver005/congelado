@@ -1,6 +1,6 @@
 module;
 
-export module aten_xpu_extern_gradients:plugin_convolution;
+export module aten_xpu_extern_gradients:convolution_convolution;
 
 import std;
 import cc_ice_intern_sonic;

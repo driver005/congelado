@@ -1,6 +1,6 @@
 module;
 
-export module aten_xpu_extern_gradients:tensorflow_identity_n;
+export module aten_xpu_extern_gradients:math_identity_n;
 
 import std;
 import aten_xpu_intern;

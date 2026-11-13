@@ -1,6 +1,6 @@
 module;
 
-export module aten_xpu_extern_gradients:tensorflow_sparse_softmax_cross_entropy;
+export module aten_xpu_extern_gradients:activation_sparse_softmax_cross_entropy;
 
 import std;
 import aten_xpu_intern;

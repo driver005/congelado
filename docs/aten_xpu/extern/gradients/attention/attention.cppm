@@ -1,6 +1,6 @@
 module;
 
-export module aten_xpu_extern_gradients:plugin_attention;
+export module aten_xpu_extern_gradients:attention_attention;
 
 import std;
 import cc_ice_intern_sonic;

@@ -1,6 +1,6 @@
 module;
 
-export module aten_xpu_extern_gradients:plugin_transpose;
+export module aten_xpu_extern_gradients:transpose_transpose;
 
 import std;
 import cc_ice_intern_sonic;

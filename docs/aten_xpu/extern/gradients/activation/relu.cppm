@@ -1,6 +1,6 @@
 module;
 
-export module aten_xpu_extern_gradients:tensorflow_relu;
+export module aten_xpu_extern_gradients:activation_relu;
 
 import std;
 import aten_xpu_intern;

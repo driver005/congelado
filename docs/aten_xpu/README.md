@@ -10,8 +10,6 @@ The tree mirrors `include/cc/ice`. Each directory is one C++ module, and each fi
 ```
 docs/aten_xpu/
 ├── base.cppm                 aten_xpu (re-exports intern + extern)
-├── plugin/                   one C entry file per plugin library (create_plugin, create_*/destroy_*)
-├── plugin_entry.h            export macros shared by the plugin entry files
 ├── intern/                   aten_xpu_intern
 │   ops_table, handle, status, tensor, tensor_factory, and the plain C++ builders
 │   (no SYCL): string, status_store, buffer, registration, complex, duration, time_point,
@@ -72,7 +70,7 @@ docs/aten_xpu/
 | `core/XPUGeneratorImpl.*`, `PhiloxXpuState.h` | `random_generator/` |
 | `core/XPUGraph.*`, graph utils | `grappler/device_graph`, `capture_status` |
 | `mkldnn/**`, `transformers/**`, `core/XPUScaledBlas.*` | `kernel/**` |
-| `core/detail/XPUHooks.*`, `torch_csrc/Module.*` | `registration`, `plugin/*.cc` |
+| `core/detail/XPUHooks.*`, `torch_csrc/Module.*` | `registration` |
 | `torch_csrc/profiler/*` (XPU activity trace) | `extern/profiler`: SYCL event profiling, XSpace output |
 | `c10/test/**` | `test/` |
 
@@ -116,7 +114,6 @@ All of them return a TensorFlow `XSpace` (protobuf, `extern/profiler/proto/xplan
 Every `intern/` builder and the filesystem family have a plain C++ implementation (`String`, `Status`, `Vector`, `FilesystemTree`, ...). None of them needs SYCL.
 
 - `SyclPluginRegistry` owns one prototype of each class, so every C vtable has a stable address, and getters such as `getVectorOps()` return it. There is no second registry.
-- Each file in `plugin/` exports `create_<name>` for its own domain (`intern`, `stream_executor`, `random_generator`, `grappler`, `kernel`, `filesystem`, `profiler`, `gradients`); every domain builds as its own `libaten_xpu_<domain>.so` and brings up only its part of the registry. `create_string`, `create_status` and `create_buffer` are weak, so a real host definition overrides them; the other types bind to whichever status and string ops are in effect.
 - Values the C ABI cannot carry come from the constructor: `Map` and `Set` take key and value sizes, `BitSet` its size, `Span::bind` its memory, `Duration` and `TimePoint` their ticks, and the files and memory region their path. Objects made through a `create` slot use defaults (8 byte keys and values, 64 bits, no path).
 - Elements of the containers are byte erased: call `set_element_size` first. Pointers handed out by `get`, `find` and `data` are valid until the container changes.
 - `FilesystemTree` returns string tensors as `TextTensor`: one dimension, every string NUL terminated back to back. The caller frees them with the tensor's `delete_tensor`.

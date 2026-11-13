@@ -1,6 +1,6 @@
 module;
 
-export module aten_xpu_extern_gradients:plugin_copy;
+export module aten_xpu_extern_gradients:copy_copy;
 
 import std;
 import cc_ice_intern_sonic;
