@@ -45,6 +45,13 @@ public:
         delete this;
     }
 
+    // A new tensor object for a view or a bitcast; it is owned through the handle it returns.
+    static ::TF_Tensor* create_handle()
+    {
+        auto* object = new SyclTensor{SyclOpsTable::getInstance()};
+        return const_cast<::TF_Tensor*>(&object->get_handle());
+    }
+
     void get_name(const ice::sonic::String& out_name) noexcept override
     {
         m_status.copy_into(out_name, "SyclTensor");

@@ -136,7 +136,7 @@ public:
     {
         ice::sonic::Code code{ice::sonic::Code::k_ok};
         m_status.get_code(code);
-        return code == ice::sonic::Code::k_ok;
+        return code == ice::sonic::Code{ice::sonic::Code::k_ok};
     }
 
     void fail(ice::sonic::Code code, std::string_view message)

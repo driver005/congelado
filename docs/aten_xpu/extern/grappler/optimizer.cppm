@@ -1,8 +1,6 @@
 module;
 
-#include "cc/proto/attr_value.pb.h"
 #include "cc/proto/graph.pb.h"
-#include "cc/proto/node_def.pb.h"
 #include "include/c/extern/grappler/optimizer.h"
 
 export module aten_xpu_extern_grappler:optimizer;
@@ -11,6 +9,10 @@ import std;
 import cc_ice_intern_sonic;
 import cc_ice_extern_grappler_builder;
 import aten_xpu_intern;
+import :properties;
+import :op_lookup;
+import :pass_context;
+import :pipeline;
 
 export namespace aten_xpu {
 
@@ -23,6 +25,7 @@ public:
             ops.getBufferOps(),
             ops.getStatusOps()
         },
+        m_ops{ops},
         m_status{ops}
     {
     }
@@ -54,11 +57,33 @@ public:
             return;
         }
 
-        m_protected.clear();
-        collect_protected(item, out_status, false);
-        collect_protected(item, out_status, true);
+        m_preserved.clear();
+        m_fetch.clear();
+        collect_names(item, out_status, false, m_preserved);
+        collect_names(item, out_status, true, m_fetch);
 
-        const auto fused = fuse_bias_and_activation(graph);
+        // Shape inference runs the shape function of every op, so the passes see the shapes the
+        // host's registry defines; the op lookup shows which attrs and flags those ops declare.
+        tensorflow::GraphDef fused = graph;
+        try {
+            SyclGraphProperties properties{m_ops, item};
+            properties.infer();
+            SyclOpLookup lookup{m_ops, graph_buf};
+            SyclPassContext context{properties, lookup};
+            context.setPreserved(m_preserved);
+            context.setFetch(m_fetch);
+            context.setConfigs(m_ops.getGrapplerOptimizerConfigs());
+            context.setDeviceInfo(
+                m_ops.getDeviceMemoryBytes(),
+                m_ops.getDeviceBandwidth(),
+                m_ops.getDeviceCount()
+            );
+            SyclGraphPipeline pipeline{context};
+            pipeline.run(fused);
+        } catch (const std::exception& error) {
+            m_status.fail(out_status, ice::sonic::Code::k_internal, error.what());
+            return;
+        }
         if (!fused.SerializeToString(&m_scratch_bytes)) {
             m_status.fail(out_status, ice::sonic::Code::k_internal, "failed to serialize GraphDef");
             return;
@@ -67,10 +92,11 @@ public:
     }
 
 private:
-    void collect_protected(
+    void collect_names(
         const ice::sonic::GrapplerItem& item,
         const ice::sonic::Status& status,
-        bool fetch_nodes
+        bool fetch_nodes,
+        std::set<std::string>& names
     )
     {
         int count = 0;
@@ -108,107 +134,14 @@ private:
         }
 
         for (std::size_t index = 0; index < m_scratch_values.size(); ++index) {
-            m_protected.emplace(m_scratch_values[index], m_scratch_lengths[index]);
+            names.emplace(m_scratch_values[index], m_scratch_lengths[index]);
         }
     }
 
-    bool is_fusable_producer(const std::string& op) const noexcept
-    {
-        return op == "Conv2D" || op == "Addmm" || op == "Bmm" || op == "MatMul";
-    }
-
-    int count_consumers(const tensorflow::GraphDef& graph, const std::string& output) const
-    {
-        int count = 0;
-        for (const auto& node: graph.node()) {
-            count += static_cast<int>(std::ranges::count(node.input(), output));
-        }
-        return count;
-    }
-
-    const tensorflow::NodeDef*
-    find_node(const tensorflow::GraphDef& graph, const std::string& name) const
-    {
-        const auto found = std::ranges::find_if(
-            graph.node(),
-            [&name](const tensorflow::NodeDef& node)
-            {
-                return node.name() == name;
-            }
-        );
-        return found == graph.node().end() ? nullptr : &*found;
-    }
-
-    const tensorflow::NodeDef*
-    find_relu_consumer(const tensorflow::GraphDef& graph, const std::string& output) const
-    {
-        const auto found = std::ranges::find_if(
-            graph.node(),
-            [&output](const tensorflow::NodeDef& node)
-            {
-                return node.op() == "Relu" && node.input_size() == 1 && node.input(0) == output;
-            }
-        );
-        return found == graph.node().end() ? nullptr : &*found;
-    }
-
-    tensorflow::GraphDef fuse_bias_and_activation(const tensorflow::GraphDef& input)
-    {
-        m_scratch_absorbed.clear();
-        m_scratch_replacements.clear();
-
-        for (const auto& node: input.node()) {
-            if (node.op() != "BiasAdd" || node.input_size() == 0 ||
-                m_protected.contains(node.name())) {
-                continue;
-            }
-
-            const auto* producer = find_node(input, node.input(0));
-            if (producer == nullptr || !is_fusable_producer(producer->op()) ||
-                m_protected.contains(producer->name()) ||
-                m_scratch_absorbed.contains(producer->name()) ||
-                count_consumers(input, producer->name()) != 1) {
-                continue;
-            }
-
-            tensorflow::NodeDef fused = *producer;
-            if (node.input_size() > 1) {
-                fused.add_input(node.input(1));
-            }
-            fused.set_name(node.name());
-            m_scratch_absorbed.insert(producer->name());
-
-            const auto* relu = count_consumers(input, node.name()) == 1
-                                   ? find_relu_consumer(input, node.name())
-                                   : nullptr;
-            if (relu != nullptr && !m_protected.contains(relu->name())) {
-                (*fused.mutable_attr())["activation"].set_i(1);
-                fused.set_name(relu->name());
-                m_scratch_absorbed.insert(node.name());
-                m_scratch_replacements.emplace(relu->name(), std::move(fused));
-                continue;
-            }
-            m_scratch_replacements.emplace(node.name(), std::move(fused));
-        }
-
-        tensorflow::GraphDef output;
-        *output.mutable_versions() = input.versions();
-        *output.mutable_library() = input.library();
-        for (const auto& node: input.node()) {
-            if (m_scratch_absorbed.contains(node.name())) {
-                continue;
-            }
-            const auto replacement = m_scratch_replacements.find(node.name());
-            *output.add_node() =
-                replacement == m_scratch_replacements.end() ? node : replacement->second;
-        }
-        return output;
-    }
-
+    const SyclOpsTable& m_ops;
     SyclStatus m_status;
-    std::set<std::string> m_protected;
-    std::set<std::string> m_scratch_absorbed;
-    std::map<std::string, tensorflow::NodeDef> m_scratch_replacements;
+    std::set<std::string> m_preserved;
+    std::set<std::string> m_fetch;
     std::vector<char*> m_scratch_values;
     std::vector<std::size_t> m_scratch_lengths;
     std::vector<std::byte> m_scratch_storage;

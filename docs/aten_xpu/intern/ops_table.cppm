@@ -1,7 +1,11 @@
 module;
 
+#include "include/c/extern/grappler/configs.h"
 #include "include/c/extern/grappler/device_graph.h"
+#include "include/c/extern/grappler/function_library.h"
 #include "include/c/extern/grappler/item.h"
+#include "include/c/extern/grappler/properties.h"
+#include "include/c/extern/gradients/context.h"
 #include "include/c/extern/kernel/construction.h"
 #include "include/c/extern/kernel/context.h"
 #include "include/c/extern/ops/shape_handle.h"
@@ -120,6 +124,39 @@ public:
     void setShapeHandleOps(const ::TF_ShapeHandleOps* ops) noexcept
     {
         m_shape_handle_ops = ops;
+    }
+
+    // What the memory and parallelism optimizers need to know about the device.
+    void setDeviceInfo(
+        std::uint64_t memory_bytes,
+        std::uint64_t bandwidth,
+        int device_count
+    ) noexcept
+    {
+        m_device_memory_bytes = memory_bytes;
+        m_device_bandwidth = bandwidth;
+        m_device_count = device_count;
+    }
+
+    // The optimizer settings the host chose (set through the grappler configs object).
+    void setGrapplerOptimizerConfigs(const ::TFGrapplerOptimizerConfigs& configs) noexcept
+    {
+        m_grappler_optimizer_configs = configs;
+    }
+
+    void setGrapplerFunctionLibraryOps(const ::TFGrapplerFunctionLibraryOps* ops) noexcept
+    {
+        m_grappler_function_library_ops = ops;
+    }
+
+    void setGrapplerPropertiesOps(const ::TFGrapplerPropertiesOps* ops) noexcept
+    {
+        m_grappler_properties_ops = ops;
+    }
+
+    void setGradientContextOps(const ::TFGradientContextOps* ops) noexcept
+    {
+        m_gradient_context_ops = ops;
     }
 
     // Entry point for the C ABI `create` slots, which carry no context pointer.
@@ -249,6 +286,42 @@ public:
         return m_shape_handle_ops;
     }
 
+    std::uint64_t getDeviceMemoryBytes() const noexcept
+    {
+        return m_device_memory_bytes;
+    }
+
+    // Bytes per second of device memory; 0 when the device does not report it.
+    std::uint64_t getDeviceBandwidth() const noexcept
+    {
+        return m_device_bandwidth;
+    }
+
+    int getDeviceCount() const noexcept
+    {
+        return m_device_count;
+    }
+
+    const ::TFGrapplerOptimizerConfigs& getGrapplerOptimizerConfigs() const noexcept
+    {
+        return m_grappler_optimizer_configs;
+    }
+
+    const ::TFGrapplerFunctionLibraryOps* getGrapplerFunctionLibraryOps() const noexcept
+    {
+        return m_grappler_function_library_ops;
+    }
+
+    const ::TFGrapplerPropertiesOps* getGrapplerPropertiesOps() const noexcept
+    {
+        return m_grappler_properties_ops;
+    }
+
+    const ::TFGradientContextOps* getGradientContextOps() const noexcept
+    {
+        return m_gradient_context_ops;
+    }
+
 private:
     const ::TF_StatusOps* m_status_ops{nullptr};
     const ::TF_StringOps* m_string_ops{nullptr};
@@ -268,6 +341,13 @@ private:
     const ::TF_OpKernelConstructionOps* m_kernel_construction_ops{nullptr};
     const ::TF_ShapeInferenceContextOps* m_shape_inference_context_ops{nullptr};
     const ::TF_ShapeHandleOps* m_shape_handle_ops{nullptr};
+    std::uint64_t m_device_memory_bytes{0};
+    std::uint64_t m_device_bandwidth{0};
+    int m_device_count{0};
+    ::TFGrapplerOptimizerConfigs m_grappler_optimizer_configs{};
+    const ::TFGrapplerFunctionLibraryOps* m_grappler_function_library_ops{nullptr};
+    const ::TFGrapplerPropertiesOps* m_grappler_properties_ops{nullptr};
+    const ::TFGradientContextOps* m_gradient_context_ops{nullptr};
     SyclTensorPlacement m_placement;
     mutable SyclGraphState m_graph_state;
     SyclSharedState* m_kernel_runtime{nullptr};

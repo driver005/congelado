@@ -3,6 +3,7 @@ module;
 #include "include/c/intern/datatype.h"
 
 #include <oneapi/dnnl/dnnl.hpp>
+#include <oneapi/dnnl/dnnl_sycl.hpp>
 #include <sycl/sycl.hpp>
 
 export module aten_xpu_extern_kernel:recurrent_lstm;

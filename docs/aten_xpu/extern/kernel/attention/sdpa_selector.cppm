@@ -80,9 +80,9 @@ public:
 private:
     bool supported_dtype(ice::sonic::DataTypeEnum dtype) const noexcept
     {
-        return dtype == ice::sonic::DataTypeEnum::k_half ||
-               dtype == ice::sonic::DataTypeEnum::k_bfloat16 ||
-               dtype == ice::sonic::DataTypeEnum::k_float;
+        return dtype == ice::sonic::DataTypeEnum{ice::sonic::DataTypeEnum::k_half} ||
+               dtype == ice::sonic::DataTypeEnum{ice::sonic::DataTypeEnum::k_bfloat16} ||
+               dtype == ice::sonic::DataTypeEnum{ice::sonic::DataTypeEnum::k_float};
     }
 };
 

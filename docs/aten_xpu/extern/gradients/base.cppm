@@ -1,0 +1,26 @@
+export module aten_xpu_extern_gradients;
+
+export import :value;
+export import :emitter;
+export import :gradient;
+export import :tensorflow_add;
+export import :tensorflow_bias_add;
+export import :tensorflow_div_no_nan;
+export import :tensorflow_exp;
+export import :tensorflow_identity_n;
+export import :tensorflow_log1p;
+export import :tensorflow_matmul;
+export import :tensorflow_multiply;
+export import :tensorflow_negate;
+export import :tensorflow_not_differentiable;
+export import :tensorflow_relu;
+export import :tensorflow_sparse_softmax_cross_entropy;
+export import :tensorflow_sqrt;
+export import :tensorflow_subtract;
+export import :plugin_addmm;
+export import :plugin_attention;
+export import :plugin_convolution;
+export import :plugin_copy;
+export import :plugin_linear;
+export import :plugin_transpose;
+export import :catalog;

@@ -7,6 +7,7 @@ module;
 export module aten_xpu_extern_stream_executor:executor;
 
 import std;
+import cc_ice_extern_random_generator_sonic;
 import cc_ice_extern_stream_executor_sonic;
 import cc_ice_intern_sonic;
 import cc_ice_extern_stream_executor_builder;
@@ -358,7 +359,9 @@ public:
         }
 
         try {
-            native->wait_and_throw();
+            // wait_and_throw is not const; an event is a reference counted handle.
+            sycl::event handle{*native};
+            handle.wait_and_throw();
         } catch (const sycl::exception& error) {
             m_status.fail_from(out_status, error);
         }

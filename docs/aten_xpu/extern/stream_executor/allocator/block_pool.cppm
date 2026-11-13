@@ -2,6 +2,8 @@ module;
 
 #include "include/c/extern/stream_executor/mem_pool.h"
 
+#include <sycl/sycl.hpp>
+
 export module aten_xpu_extern_stream_executor:allocator_block_pool;
 
 import std;

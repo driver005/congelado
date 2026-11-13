@@ -99,6 +99,13 @@ public:
             assign(m_scratch_first, attribute);
             builder.type_constraint(m_scratch_first, type, m_status);
         }
+        // A kernel names the arguments that live in host memory (the copies to and from the host).
+        if constexpr (requires { Kernel::k_host_memory_args; }) {
+            for (const auto argument: Kernel::k_host_memory_args) {
+                assign(m_scratch_first, argument);
+                builder.host_memory(m_scratch_first);
+            }
+        }
         assign(m_scratch_first, op_name);
         builder.register_kernel_builder(m_scratch_first, m_status);
         destroy_kernel_builder(handle.plugin_data);
@@ -119,7 +126,7 @@ public:
     {
         ice::sonic::Code code{ice::sonic::Code::k_ok};
         m_status.get_code(code);
-        return code == ice::sonic::Code::k_ok;
+        return code == ice::sonic::Code{ice::sonic::Code::k_ok};
     }
 
     std::size_t getRegisteredCount() const noexcept

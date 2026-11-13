@@ -97,6 +97,47 @@ public:
             {"activation: T", "packed_weight: Tweight", "scales: Tscales"},
             {"output: T"}
         );
+        registered &= m_registrar.add<SyclShapeRule::k_unknown>(
+            "Transpose",
+            {"T: type", "Tperm: {int32, int64} = DT_INT32"},
+            {"x: T", "perm: Tperm"},
+            {"y: T"}
+        );
+        registered &= m_registrar.add<SyclShapeRule::k_identity>(
+            "_CopyFromXpuToHost",
+            {"T: type"},
+            {"x: T"},
+            {"y: T"}
+        );
+        registered &= m_registrar.add<SyclShapeRule::k_identity>(
+            "_CopyFromHostToXpu",
+            {"T: type"},
+            {"x: T"},
+            {"y: T"}
+        );
+        registered &= m_registrar.add<SyclShapeRule::k_unknown>(
+            "_ScopedAllocator",
+            {"T: type", "total: int", "sa_name: string", "id: int", "expected_call_count: int"},
+            {},
+            {"output: T"}
+        );
+        registered &= m_registrar.add<SyclShapeRule::k_unknown>(
+            "_ScopedAllocatorConcat",
+            {"T: type", "total: int", "sa_name: string", "id: int", "N: int >= 2"},
+            {"backing: T", "inputs: N * T"},
+            {"output: T"}
+        );
+        registered &= m_registrar.add<SyclShapeRule::k_unknown>(
+            "_ScopedAllocatorSplit",
+            {"T: type",
+             "sa_name: string",
+             "id: int",
+             "N: int >= 2",
+             "ranks: list(int)",
+             "dims: list(int)"},
+            {"concat: T"},
+            {"output: N * T"}
+        );
         registered &= m_registrar.add<SyclShapeRule::k_attention>(
             "ScaledDotProductAttention",
             {k_float_types,
@@ -168,6 +209,25 @@ public:
              "output_padding: list(int) = []",
              "dilation: list(int) = []",
              "groups: int = 1",
+             "data_format: string = 'NCHW'",
+             "unary: string = 'none'",
+             "algorithm: string = 'none'",
+             "binary: string = 'none'",
+             "scalars: list(float) = []",
+             "activation: int = 0",
+             "Textras: list(type) >= 0 = []"},
+            {"source: T", "weight: T", "extras: Textras"},
+            {"output: T"}
+        );
+        registered &= m_registrar.add<SyclShapeRule::k_convolution>(
+            "Conv3D",
+            {k_float_types,
+             "stride: list(int) = []",
+             "padding: list(int) = []",
+             "output_padding: list(int) = []",
+             "dilation: list(int) = []",
+             "groups: int = 1",
+             "data_format: string = 'NCHW'",
              "unary: string = 'none'",
              "algorithm: string = 'none'",
              "binary: string = 'none'",

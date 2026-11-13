@@ -5,9 +5,13 @@ module;
 #include "include/c/extern/filesystem/read_only_memory_region.h"
 #include "include/c/extern/filesystem/tree.h"
 #include "include/c/extern/filesystem/writable_file.h"
+#include "include/c/extern/gradients/gradient.h"
+#include "include/c/extern/grappler/configs.h"
+#include "include/c/extern/grappler/function_library.h"
 #include "include/c/extern/grappler/grappler.h"
 #include "include/c/extern/grappler/item.h"
 #include "include/c/extern/grappler/optimizer.h"
+#include "include/c/extern/grappler/properties.h"
 #include "include/c/extern/kernel/construction.h"
 #include "include/c/extern/kernel/context.h"
 #include "include/c/extern/ops/shape_handle.h"
@@ -39,6 +43,8 @@ module;
 #include "include/c/intern/tstring.h"
 #include "include/c/intern/vector.h"
 
+#include <sycl/sycl.hpp>
+
 export module aten_xpu_extern_registration:registration;
 
 import std;
@@ -48,6 +54,7 @@ import aten_xpu_extern_stream_executor;
 import aten_xpu_extern_random_generator;
 import aten_xpu_extern_grappler;
 import aten_xpu_extern_kernel;
+import aten_xpu_extern_gradients;
 import aten_xpu_extern_filesystem;
 import aten_xpu_profiler_sycl;
 
@@ -80,6 +87,7 @@ public:
         load_plugin_ops();
         register_ops();
         register_kernels();
+        register_gradients();
     }
 
     SyclOpsTable& getOps() noexcept
@@ -105,6 +113,11 @@ public:
     const ::TF_GrapplerOps& getGrapplerOps() const noexcept
     {
         return m_grappler.get_vtable();
+    }
+
+    const ::TFGrapplerConfigsOps& getConfigsOps() const noexcept
+    {
+        return m_configs.get_vtable();
     }
 
     const ::TFGrapplerOptimizerOps& getOptimizerOps() const noexcept
@@ -252,6 +265,17 @@ public:
         return m_filesystem_tree.get_vtable();
     }
 
+    // The process-wide registry; every gradient is registered in it with type "gradient".
+    const ice::sonic::Registration& getGlobalRegistry() const noexcept
+    {
+        return *m_global_registry;
+    }
+
+    const ::TFGradientOps* getGradientOps() const noexcept
+    {
+        return m_gradients.findDefault(*m_global_registry);
+    }
+
     std::size_t getOpCount() const noexcept
     {
         return m_op_count;
@@ -283,11 +307,13 @@ private:
         m_device_graph{m_ops},
         m_grappler{m_ops},
         m_optimizer{m_ops},
+        m_configs{m_ops},
         m_profiler{m_ops},
         m_string{},
         m_status{&m_string.get_vtable()},
         m_buffer{&m_string.get_vtable()},
         m_registration{&m_string.get_vtable()},
+        m_gradients{m_ops},
         m_complex{},
         m_duration{},
         m_time_point{&m_duration.get_vtable()},
@@ -565,6 +591,9 @@ private:
         ::TFGrapplerItemOps* item_ops = nullptr;
         ::TF_ShapeInferenceContextOps* shape_context_ops = nullptr;
         ::TF_ShapeHandleOps* shape_handle_ops = nullptr;
+        ::TFGrapplerFunctionLibraryOps* function_library_ops = nullptr;
+        ::TFGrapplerPropertiesOps* properties_ops = nullptr;
+        ::TFGradientContextOps* gradient_context_ops = nullptr;
         create_status(&status_ops, &m_host_contexts[0], nullptr);
         create_string(&string_ops, &m_host_contexts[1], nullptr);
         create_buffer(&buffer_ops, &m_host_contexts[2], nullptr);
@@ -573,6 +602,9 @@ private:
         create_grappler_item(&item_ops, &m_host_contexts[5], nullptr);
         create_shape_inference_context(&shape_context_ops, &m_host_contexts[6], nullptr);
         create_shape_handle(&shape_handle_ops, &m_host_contexts[7], nullptr);
+        create_grappler_function_library(&function_library_ops, &m_host_contexts[8], nullptr);
+        create_grappler_properties(&properties_ops, &m_host_contexts[9], nullptr);
+        create_gradient_context(&gradient_context_ops, &m_host_contexts[10], nullptr);
 
         m_ops.setStatusOps(status_ops);
         m_ops.setStringOps(string_ops);
@@ -582,6 +614,9 @@ private:
         m_ops.setGrapplerItemOps(item_ops);
         m_ops.setShapeInferenceContextOps(shape_context_ops);
         m_ops.setShapeHandleOps(shape_handle_ops);
+        m_ops.setGrapplerFunctionLibraryOps(function_library_ops);
+        m_ops.setGrapplerPropertiesOps(properties_ops);
+        m_ops.setGradientContextOps(gradient_context_ops);
     }
 
     void load_plugin_ops()
@@ -692,6 +727,14 @@ private:
             }
         );
 
+        m_configs.get_generic_vtable(
+            [](::TFGrapplerConfigs* handle)
+            {
+                auto* object = new SyclGrapplerConfigs{SyclOpsTable::getInstance()};
+                handle->plugin_data = object->get_handle().plugin_data;
+            }
+        );
+
         m_profiler.get_generic_vtable(
             [](::TF_Profiler* handle)
             {
@@ -712,10 +755,36 @@ private:
         m_ops.setKernelRuntime(&m_kernel_runtime);
         m_ops.setDeviceGraphOps(&m_device_graph.get_vtable());
 
+        load_device_info();
         if (m_platform.getDeviceCount() > 0) {
             m_ops.getPlacement()
                 .setPlacement(m_platform.getContext(), m_platform.getNativeDevice(0), 0);
         }
+    }
+
+    // The memory size and bandwidth of device 0, for the optimizers that budget memory and
+    // replicas.
+    void load_device_info()
+    {
+        const int count = m_platform.getDeviceCount();
+        if (count <= 0) {
+            return;
+        }
+        const sycl::device& device = m_platform.getNativeDevice(0);
+        const std::uint64_t clock_mhz =
+            device.has(sycl::aspect::ext_intel_memory_clock_rate)
+                ? device.get_info<sycl::ext::intel::info::device::memory_clock_rate>()
+                : 0;
+        const std::uint64_t bus_bits =
+            device.has(sycl::aspect::ext_intel_memory_bus_width)
+                ? device.get_info<sycl::ext::intel::info::device::memory_bus_width>()
+                : 0;
+        // Double data rate: two transfers per clock.
+        m_ops.setDeviceInfo(
+            device.get_info<sycl::info::device::global_mem_size>(),
+            clock_mhz * 1'000'000 * (bus_bits / 8) * 2,
+            count
+        );
     }
 
     void register_ops()
@@ -739,12 +808,46 @@ private:
             registrar.add<SyclAddmvKernel>(k_addmv_kernel_name, type);
             registrar.add<SyclLinearKernel>(k_linear_kernel_name, type);
             registrar.add<SyclConvolutionKernel>(k_convolution_kernel_name, type);
+            registrar.add<SyclConvolutionKernel>(k_convolution_3d_kernel_name, type);
             registrar.add<SyclConvolutionBackwardKernel>(k_convolution_backward_kernel_name, type);
             registrar.add<SyclDeconvolutionKernel>(k_deconvolution_kernel_name, type);
             registrar.add<SyclWeightOnlyMatmulKernel>(k_weight_only_matmul_kernel_name, type);
             registrar.add<SyclSdpaKernel>(k_sdpa_kernel_name, type);
             registrar.add<SyclSdpaBackwardKernel>(k_sdpa_backward_kernel_name, type);
             registrar.add<SyclLstmKernel>(k_lstm_kernel_name, type);
+        }
+        for (const auto type:
+             {ice::sonic::DataTypeEnum::k_float,
+              ice::sonic::DataTypeEnum::k_half,
+              ice::sonic::DataTypeEnum::k_bfloat16,
+              ice::sonic::DataTypeEnum::k_int32,
+              ice::sonic::DataTypeEnum::k_int64,
+              ice::sonic::DataTypeEnum::k_uint8}) {
+            registrar.add<SyclTransposeKernel>(k_transpose_kernel_name, type);
+        }
+        for (const auto type:
+             {ice::sonic::DataTypeEnum::k_float,
+              ice::sonic::DataTypeEnum::k_half,
+              ice::sonic::DataTypeEnum::k_bfloat16,
+              ice::sonic::DataTypeEnum::k_int32,
+              ice::sonic::DataTypeEnum::k_int64,
+              ice::sonic::DataTypeEnum::k_uint8}) {
+            registrar.add<SyclCopyToHostKernel>(k_copy_to_host_kernel_name, type);
+            registrar.add<SyclCopyFromHostKernel>(k_copy_from_host_kernel_name, type);
+        }
+        for (const auto type:
+             {ice::sonic::DataTypeEnum::k_float,
+              ice::sonic::DataTypeEnum::k_half,
+              ice::sonic::DataTypeEnum::k_bfloat16}) {
+            registrar.add<SyclScopedAllocatorKernel>(k_scoped_allocator_kernel_name, type);
+            registrar.add<SyclScopedAllocatorConcatKernel>(
+                k_scoped_allocator_concat_kernel_name,
+                type
+            );
+            registrar.add<SyclScopedAllocatorSplitKernel>(
+                k_scoped_allocator_split_kernel_name,
+                type
+            );
         }
         for (const auto type:
              {ice::sonic::DataTypeEnum::k_qint8, ice::sonic::DataTypeEnum::k_quint8}) {
@@ -759,9 +862,16 @@ private:
         m_kernel_count = registrar.getRegisteredCount();
     }
 
+    void register_gradients()
+    {
+        m_global_registry.emplace(&m_registration.get_vtable());
+        m_global_registry->create();
+        m_gradients.registerAll(*m_global_registry);
+    }
+
     SyclOpsTable& m_ops;
     SyclKernelRuntime m_kernel_runtime;
-    std::array<void*, 8> m_host_contexts{};
+    std::array<void*, 11> m_host_contexts{};
     bool m_initialized{false};
     std::size_t m_kernel_count{0};
     std::size_t m_op_count{0};
@@ -780,11 +890,14 @@ private:
     SyclDeviceGraph m_device_graph;
     SyclGrappler m_grappler;
     SyclGrapplerOptimizer m_optimizer;
+    SyclGrapplerConfigs m_configs;
     SyclProfiler m_profiler;
     String m_string;
     Status m_status;
     Buffer m_buffer;
     Registration m_registration;
+    std::optional<ice::sonic::Registration> m_global_registry;
+    SyclGradientCatalog m_gradients;
     Complex m_complex;
     Duration m_duration;
     TimePoint m_time_point;

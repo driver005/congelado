@@ -69,7 +69,8 @@ public:
         const ice::sonic::Status& out_status
     ) noexcept override
     {
-        if (memory_space != ice::sonic::MemorySpace::k_device || !m_allocate) {
+        if (memory_space != ice::sonic::MemorySpace{ice::sonic::MemorySpace::k_device} ||
+            !m_allocate) {
             m_status.fail(
                 out_status,
                 ice::sonic::Code::k_unimplemented,

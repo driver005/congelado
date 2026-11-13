@@ -11,6 +11,7 @@ import cc_ice_extern_stream_executor_sonic;
 import cc_ice_extern_grappler_sonic;
 import cc_ice_intern_sonic;
 import cc_ice_extern_grappler_builder;
+import cc_ice_extern_random_generator_sonic;
 import aten_xpu_intern;
 import aten_xpu_extern_stream_executor;
 import aten_xpu_extern_random_generator;

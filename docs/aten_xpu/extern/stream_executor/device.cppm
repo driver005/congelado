@@ -286,9 +286,8 @@ private:
         properties.setHasFp16(m_device.has(sycl::aspect::fp16));
         properties.setHasFp64(m_device.has(sycl::aspect::fp64));
         properties.setHasAtomic64(m_device.has(sycl::aspect::atomic64));
-        properties.setHasBfloat16Conversions(
-            m_device.has(sycl::aspect::ext_oneapi_bfloat16_math_functions)
-        );
+        // bfloat16 is a type of the oneAPI extension on every device; there is no aspect to ask.
+        properties.setHasBfloat16Conversions(true);
         properties.setHasSubgroupMatrixMultiplyAccumulate(
             m_device.has(sycl::aspect::ext_intel_matrix)
         );

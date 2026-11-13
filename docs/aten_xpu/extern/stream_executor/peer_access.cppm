@@ -29,7 +29,9 @@ public:
     {
         auto& cached = m_cache.at(index * m_device_count + peer_index);
         if (cached == -1) {
-            cached = static_cast<int8_t>(device.ext_oneapi_can_access_peer(
+            // The extension calls are not const; a device is a reference counted handle.
+            sycl::device handle{device};
+            cached = static_cast<int8_t>(handle.ext_oneapi_can_access_peer(
                 peer,
                 sycl::ext::oneapi::peer_access::access_supported
             ));
@@ -49,7 +51,8 @@ public:
         }
 
         if (index != peer_index) {
-            device.ext_oneapi_enable_peer_access(peer);
+            sycl::device handle{device};
+            handle.ext_oneapi_enable_peer_access(peer);
         }
         return true;
     }

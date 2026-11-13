@@ -244,7 +244,7 @@ public:
 private:
     void read_host(const SyclTensor& tensor, void* destination, std::size_t bytes) const
     {
-        if (tensor.getMemorySpace() != ice::sonic::MemorySpace::k_device) {
+        if (tensor.getMemorySpace() != ice::sonic::MemorySpace{ice::sonic::MemorySpace::k_device}) {
             std::memcpy(destination, tensor.getData(), bytes);
             return;
         }

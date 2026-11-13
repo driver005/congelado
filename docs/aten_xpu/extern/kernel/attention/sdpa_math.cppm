@@ -280,7 +280,7 @@ private:
 
     SyclTensor& probabilities_as(SyclTensor& scores, ice::sonic::DataTypeEnum dtype)
     {
-        if (dtype == ice::sonic::DataTypeEnum::k_float) {
+        if (dtype == ice::sonic::DataTypeEnum{ice::sonic::DataTypeEnum::k_float}) {
             return scores;
         }
         auto converted = m_context.allocateTemp(dtype, scores.getDims());

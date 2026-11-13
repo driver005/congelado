@@ -17,6 +17,7 @@ export namespace aten_xpu {
 enum class SyclShapeRule
 {
     k_unknown,
+    k_identity,
     k_matmul,
     k_batch_matmul,
     k_addend_matmul,
@@ -69,6 +70,9 @@ private:
         m_context.set_unknown_shape(m_status);
         switch (rule) {
             case SyclShapeRule::k_unknown:
+                return;
+            case SyclShapeRule::k_identity:
+                passThrough(0, 0);
                 return;
             case SyclShapeRule::k_matmul:
                 matmul(0);

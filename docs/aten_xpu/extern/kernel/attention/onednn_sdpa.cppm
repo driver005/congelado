@@ -65,8 +65,9 @@ public:
             engine,
             output.getData()
         };
+        std::vector<dnnl::graph::tensor> output_tensors{output_tensor};
         auto event =
-            dnnl::graph::sycl_interop::execute(partition, stream, input_tensors, {output_tensor});
+            dnnl::graph::sycl_interop::execute(partition, stream, input_tensors, output_tensors);
         SyclOpsTable::getInstance()
             .getProfileCollector()
             .record(queue, "onednn_sdpa", SyclProfileActivity::Kind::COMPUTE, 0, event);

@@ -3,6 +3,8 @@
 #include "include/c/extern/filesystem/read_only_memory_region.h"
 #include "include/c/extern/filesystem/tree.h"
 #include "include/c/extern/filesystem/writable_file.h"
+#include "include/c/extern/gradients/gradient.h"
+#include "include/c/extern/grappler/configs.h"
 #include "include/c/extern/grappler/device_graph.h"
 #include "include/c/extern/grappler/grappler.h"
 #include "include/c/extern/grappler/optimizer.h"
@@ -114,8 +116,10 @@ extern "C"
         TFGrapplerDeviceGraphOps,
         registry.getOps().getDeviceGraphOps()
     )
+    ATEN_XPU_EXPORT_OPS(gradient, TFGradientOps, registry.getGradientOps())
     ATEN_XPU_EXPORT_OPS(grappler, TF_GrapplerOps, &registry.getGrapplerOps())
     ATEN_XPU_EXPORT_OPS(grappler_optimizer, TFGrapplerOptimizerOps, &registry.getOptimizerOps())
+    ATEN_XPU_EXPORT_OPS(grappler_configs, TFGrapplerConfigsOps, &registry.getConfigsOps())
     ATEN_XPU_EXPORT_OPS(profiler, TF_ProfilerOps, &registry.getProfilerOps())
 
     ATEN_XPU_EXPORT_WEAK_OPS(string, TF_StringOps, &registry.getStringOps())

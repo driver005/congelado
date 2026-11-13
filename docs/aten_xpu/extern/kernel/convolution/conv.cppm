@@ -18,6 +18,8 @@ import :onednn_convolution_primitive;
 export namespace aten_xpu {
 
 inline constexpr std::string_view k_convolution_kernel_name = "Conv2D";
+// The kernel is N-d: it takes the spatial rank from the source tensor.
+inline constexpr std::string_view k_convolution_3d_kernel_name = "Conv3D";
 
 class SyclConvolutionKernel : public SyclKernel<SyclConvolutionKernel>
 {
@@ -32,6 +34,15 @@ public:
         m_scalar_count = construction.getFloatList("scalars", m_scalars);
         if (m_unary == "none") {
             m_unary = m_fusion.activation_name(construction.getInt64("activation", 0));
+        }
+        // The kernel reads channels-first tensors; the layout pass converts channels-last graphs.
+        const std::string format = construction.getString("data_format", "NCHW");
+        if (format != "NCHW" && format != "NCDHW") {
+            construction.fail(
+                ice::sonic::Code::k_invalid_argument,
+                "convolution expects NCHW or NCDHW data; run the layout pass on channels-last "
+                "graphs"
+            );
         }
     }
 

@@ -133,9 +133,11 @@ public:
             *out_memory = ice::sonic::DeviceMemoryBase{};
             out_memory->setSize(size);
 
-            if (memory_space == ice::sonic::MemorySpace::k_host_pinned) {
+            if (memory_space == ice::sonic::MemorySpace{ice::sonic::MemorySpace::k_host_pinned}) {
                 out_memory->setOpaque(m_host_cache->allocate(size));
-            } else if (memory_space == ice::sonic::MemorySpace::k_unified) {
+            } else if (
+                memory_space == ice::sonic::MemorySpace{ice::sonic::MemorySpace::k_unified}
+            ) {
                 out_memory->setOpaque(
                     sycl::aligned_alloc_shared(k_min_block_size, size, m_device, m_context)
                 );
