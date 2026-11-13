@@ -179,12 +179,16 @@ cc_args(
 cc_tool(
     name = "clang",
     src = "@system_cc//:clang",
+    # Lets Bazel build the -fPIC object variants that a linkshared target needs from its deps.
+    capabilities = ["@rules_cc//cc/toolchains/capabilities:supports_pic"],
     tags = ["manual"],
 )
 
 cc_tool(
     name = "clang++",
     src = "@system_cc//:clang++",
+    # Lets Bazel build the -fPIC object variants that a linkshared target needs from its deps.
+    capabilities = ["@rules_cc//cc/toolchains/capabilities:supports_pic"],
     tags = ["manual"],
 )
 
