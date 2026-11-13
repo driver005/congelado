@@ -63,6 +63,21 @@ export namespace aten_xpu {
 inline constexpr std::string_view k_plugin_name = "aten_xpu";
 inline constexpr std::string_view k_plugin_version = "0.1.0";
 
+// The domains a plugin library can bring up; every domain builds as its own plugin.
+class SyclPluginDomain
+{
+public:
+    static constexpr unsigned k_intern = 1U << 0;
+    static constexpr unsigned k_stream_executor = 1U << 1;
+    static constexpr unsigned k_random_generator = 1U << 2;
+    static constexpr unsigned k_grappler = 1U << 3;
+    static constexpr unsigned k_kernel = 1U << 4;
+    static constexpr unsigned k_filesystem = 1U << 5;
+    static constexpr unsigned k_profiler = 1U << 6;
+    static constexpr unsigned k_gradients = 1U << 7;
+    static constexpr unsigned k_all = (1U << 8) - 1U;
+};
+
 class SyclPluginRegistry
 {
 public:
@@ -77,17 +92,27 @@ public:
         return registry;
     }
 
-    void initialize()
+    // Brings up the given domains (SyclPluginDomain bits); each part is done once, so several
+    // plugin libraries, or several calls, never register an op, kernel or gradient twice.
+    void initialize(unsigned domains = SyclPluginDomain::k_all)
     {
-        if (m_initialized) {
+        const unsigned pending = domains & ~m_initialized;
+        if (pending == 0) {
             return;
         }
-        m_initialized = true;
-        load_host_ops();
-        load_plugin_ops();
-        register_ops();
-        register_kernels();
-        register_gradients();
+        const bool first = m_initialized == 0;
+        m_initialized |= pending;
+        if (first) {
+            load_host_ops();
+            load_plugin_ops();
+        }
+        if ((pending & SyclPluginDomain::k_kernel) != 0) {
+            register_ops();
+            register_kernels();
+        }
+        if ((pending & SyclPluginDomain::k_gradients) != 0) {
+            register_gradients();
+        }
     }
 
     SyclOpsTable& getOps() noexcept
@@ -872,7 +897,7 @@ private:
     SyclOpsTable& m_ops;
     SyclKernelRuntime m_kernel_runtime;
     std::array<void*, 11> m_host_contexts{};
-    bool m_initialized{false};
+    unsigned m_initialized{0};
     std::size_t m_kernel_count{0};
     std::size_t m_op_count{0};
     SyclPlatform m_platform;
