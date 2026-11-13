@@ -26,9 +26,12 @@ cc_library(
     includes = ["include"],
     srcs = glob(["lib/libdnnl.so"], allow_empty = True),
 )
+
+# Nothing to build for an installed oneDNN: the stamp the toolchains wait for is empty.
+filegroup(name = "ready", srcs = [])
 """
 
-_EMPTY_BUILD = 'package(default_visibility = ["//visibility:public"])\ncc_library(name = "onednn")\n'
+_EMPTY_BUILD = 'package(default_visibility = ["//visibility:public"])\ncc_library(name = "onednn")\nfilegroup(name = "ready", srcs = [])\n'
 
 def _env_name(vendor):
     return "ATEN_XPU_ONEDNN_{}_HOME".format(vendor)
@@ -56,17 +59,45 @@ def _vendor_library_root(ctx, vendor):
 def _source_build_file(ctx, vendor, arguments):
     """BUILD file whose onednn target compiles the downloaded source as a Bazel action."""
     return """
-load("{rule}", "onednn_cmake")
+load("@rules_cc//cc:defs.bzl", "cc_library")
+load("{rule}", "onednn_build")
 
 package(default_visibility = ["//visibility:public"])
 
-onednn_cmake(
-    name = "onednn",
+onednn_build(
+    name = "build",
     vendor = "{vendor}",
     cmakelists = "src/CMakeLists.txt",
     sources = glob(["src/**"], exclude = ["src/tests/**", "src/doc/**", "src/examples/**"]),
     compiler = "{compiler}",
     cmake_args = {arguments},
+)
+
+# A constant stamp that exists once oneDNN is built; the toolchains list it as a tool input, so no C++
+# compile or link starts before oneDNN is done.
+filegroup(
+    name = "ready",
+    srcs = [":build"],
+    output_group = "ready",
+)
+
+filegroup(
+    name = "headers",
+    srcs = [":build"],
+    output_group = "install",
+)
+
+filegroup(
+    name = "library",
+    srcs = [":build"],
+    output_group = "library",
+)
+
+cc_library(
+    name = "onednn",
+    hdrs = [":headers"],
+    srcs = [":library"],
+    includes = ["build_install/include"],
 )
 """.format(
         rule = str(Label("//third_party/toolchain/sdk:onednn_build.bzl")),

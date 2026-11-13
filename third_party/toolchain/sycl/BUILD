@@ -39,6 +39,8 @@ platform(
 cc_tool(
     name = "clang",
     src = "@sycl//:bin/clang",
+    # Compiling and linking wait for oneDNN to be built (see onednn_build.bzl).
+    data = ["@onednn_intel//:ready"],
     # Lets Bazel build the -fPIC object variants that a linkshared target needs from its deps.
     capabilities = ["@rules_cc//cc/toolchains/capabilities:supports_pic"],
     tags = ["manual"],
@@ -47,6 +49,8 @@ cc_tool(
 cc_tool(
     name = "clang++",
     src = "@sycl//:bin/clang++",
+    # Compiling and linking wait for oneDNN to be built (see onednn_build.bzl).
+    data = ["@onednn_intel//:ready"],
     # Lets Bazel build the -fPIC object variants that a linkshared target needs from its deps.
     capabilities = ["@rules_cc//cc/toolchains/capabilities:supports_pic"],
     tags = ["manual"],
