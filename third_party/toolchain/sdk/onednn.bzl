@@ -5,6 +5,8 @@ means one repository per vendor: @onednn_intel, @onednn_nvidia, @onednn_amd, @on
 Search order: ATEN_XPU_ONEDNN_<VENDOR>_HOME (for example ATEN_XPU_ONEDNN_AMD_HOME), /opt/onednn-<vendor>.
 A root counts only if its dnnl_config.h was configured for the same vendor and libdnnl exists.
 Build: the pinned release tarball with the matching DPC++ repository (@sycl, or @sycl_hip for AMD) as compiler.
+The repository only downloads the source; onednn_build.bzl compiles it as a Bazel action (cached, shown as "Compiling
+oneDNN", ninja status in /tmp/aten_xpu_onednn_<vendor>.log).
  - INTEL: needs nothing beyond the compiler.
  - NVIDIA: needs a CUDA toolkit with cuDNN and cuBLAS (CUDA_HOME).
  - AMD and GENERIC build without the Graph API (ONEDNN_BUILD_GRAPH=OFF): no fused-attention path there.
@@ -51,20 +53,43 @@ def _vendor_library_root(ctx, vendor):
         return None, "CUDA toolkit with cuDNN and cuBLAS not found; install them or set CUDA_HOME"
     return "", None
 
-def _build_from_source(ctx):
+def _source_build_file(ctx, vendor, arguments):
+    """BUILD file whose onednn target compiles the downloaded source as a Bazel action."""
+    return """
+load("{rule}", "onednn_cmake")
+
+package(default_visibility = ["//visibility:public"])
+
+onednn_cmake(
+    name = "onednn",
+    vendor = "{vendor}",
+    cmakelists = "src/CMakeLists.txt",
+    sources = glob(["src/**"], exclude = ["src/tests/**", "src/doc/**", "src/examples/**"]),
+    compiler = "{compiler}",
+    cmake_args = {arguments},
+)
+""".format(
+        rule = str(Label("//third_party/toolchain/sdk:onednn_build.bzl")),
+        vendor = vendor,
+        compiler = "@@{}//:bin/clang++".format(ctx.attr.compiler.repo_name),
+        arguments = repr(arguments),
+    )
+
+def _prepare_source_build(ctx):
+    """Downloads the source and returns the BUILD file text, or an error string."""
     vendor = ctx.attr.vendor
     compiler_root = str(ctx.path(ctx.attr.compiler).dirname)
-    clang = compiler_root + "/bin/clang++"
-    if not ctx.path(clang).exists:
-        return "no DPC++ compiler in " + compiler_root + " (the matching SYCL repository is empty)"
+    if not ctx.path(compiler_root + "/bin/clang++").exists:
+        return None, "no DPC++ compiler in " + compiler_root + " (the matching SYCL repository is empty)"
     for tool in ["cmake", "ninja"]:
         if not ctx.which(tool):
-            return "{} not found on PATH".format(tool)
+            return None, "{} not found on PATH".format(tool)
 
     library_root, error = _vendor_library_root(ctx, vendor)
     if error:
-        return error
+        return None, error
 
+    ctx.report_progress("downloading oneDNN source")
     ctx.download_and_extract(
         url = ctx.attr.url,
         sha256 = ctx.attr.sha256,
@@ -73,19 +98,8 @@ def _build_from_source(ctx):
         strip_prefix = ctx.attr.strip_prefix,
     )
 
-    install = str(ctx.path("install"))
+    # The compiler, source directory and install prefix are added by the build action.
     arguments = [
-        "cmake",
-        "-S",
-        str(ctx.path("src")),
-        "-B",
-        str(ctx.path("build")),
-        "-G",
-        "Ninja",
-        "-DCMAKE_BUILD_TYPE=Release",
-        "-DCMAKE_INSTALL_PREFIX=" + install,
-        "-DCMAKE_C_COMPILER=" + compiler_root + "/bin/clang",
-        "-DCMAKE_CXX_COMPILER=" + clang,
         "-DDNNL_CPU_RUNTIME=SYCL",
         "-DDNNL_GPU_RUNTIME=SYCL",
         "-DDNNL_GPU_VENDOR=" + vendor,
@@ -101,20 +115,7 @@ def _build_from_source(ctx):
     arch = ctx.getenv("ATEN_XPU_AMD_ARCH")
     if vendor == "AMD" and arch:
         arguments.append("-DDNNL_AMD_SYCL_KERNELS_TARGET_ARCH=" + arch)
-
-    environment = {"LD_LIBRARY_PATH": compiler_root + "/lib"}
-    configure = ctx.execute(arguments, environment = environment, timeout = 1800)
-    if configure.return_code != 0:
-        return "cmake configure failed: " + configure.stderr[-2000:]
-
-    for step in [["--build", str(ctx.path("build"))], ["--install", str(ctx.path("build"))]]:
-        result = ctx.execute(["cmake"] + step, environment = environment, timeout = 21600)
-        if result.return_code != 0:
-            return "cmake {} failed: {}".format(step[0], result.stderr[-2000:])
-
-    for name in ["include", "lib"]:
-        ctx.symlink(install + "/" + name, name)
-    return None
+    return _source_build_file(ctx, vendor, arguments), None
 
 def _impl(ctx):
     vendor = ctx.attr.vendor
@@ -126,9 +127,11 @@ def _impl(ctx):
             write_status(ctx, "onednn_" + vendor.lower(), "system", root)
             return
 
-    error = _build_from_source(ctx) if ctx.os.name == "linux" else "oneDNN SYCL builds are Linux only here"
+    build_file, error = (None, "oneDNN SYCL builds are Linux only here")
+    if ctx.os.name == "linux":
+        build_file, error = _prepare_source_build(ctx)
     if not error:
-        ctx.file("BUILD.bazel", _BUILD)
+        ctx.file("BUILD.bazel", build_file)
         write_status(ctx, "onednn_" + vendor.lower(), "build", ctx.attr.url)
         return
 

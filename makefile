@@ -1,21 +1,35 @@
 SHELL := /bin/bash
 MODE ?= debug
 
-.PHONY: all dev build build-debug build-prod test canary editor clean download xmake-dev xmake-build xmake-install xmake-reinstall xmake-test xmake-run xmake-run-worker xmake-run-worker-docker xmake-debug xmake-config-debug xmake-rebuild xmake-windows xmake-linux xmake-benchmark xmake-editor xmake-clean clean-conan clean-all info-outdated update gen-inso-tests inso-test gen-cc-abi check-cc-abi compose-env-up compose-env-rm compose-up compose-update compose-rm compose-release-up compose-release-update compose-release-rm ui-run ui-build-web api-test format
+.PHONY: all dev build build-debug build-prod onednn onednn-debug onednn-prod test canary editor clean download xmake-dev xmake-build xmake-install xmake-reinstall xmake-test xmake-run xmake-run-worker xmake-run-worker-docker xmake-debug xmake-config-debug xmake-rebuild xmake-windows xmake-linux xmake-benchmark xmake-editor xmake-clean clean-conan clean-all info-outdated update gen-inso-tests inso-test gen-cc-abi check-cc-abi compose-env-up compose-env-rm compose-up compose-update compose-rm compose-release-up compose-release-update compose-release-rm ui-run ui-build-web api-test format
 
 all: dev
 
 
 dev: build-debug editor
 
+# oneDNN is built alone, first: its compile is the heaviest action, so it must not compete with
+# the rest of the tree for memory. Each target uses the same config as the build that follows,
+# because the config is part of the action key; once built it comes from the cache.
+ONEDNN := @onednn_intel//:onednn
+
+onednn:
+	bazel build $(ONEDNN)
+
+onednn-debug:
+	bazel build --config=debug $(ONEDNN)
+
+onednn-prod:
+	bazel build --config=prod $(ONEDNN)
+
 #--keep_going
-build:
+build: onednn
 	bazel build  //...
 
-build-debug:
+build-debug: onednn-debug
 	bazel build --config=debug //...
 
-build-prod:
+build-prod: onednn-prod
 	bazel build --config=prod //...
 
 test:
