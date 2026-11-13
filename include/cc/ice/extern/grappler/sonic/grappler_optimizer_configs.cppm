@@ -38,7 +38,10 @@ public:
         ::TF_TriState dependency_optimization,
         ::TF_TriState auto_parallel,
         ::TF_TriState memory_optimization,
-        ::TF_TriState scoped_allocator_optimization
+        ::TF_TriState scoped_allocator_optimization,
+        std::int32_t auto_parallel_replicas,
+        std::uint64_t memory_limit_bytes,
+        const char* scoped_allocator_enable_ops
     ) noexcept
     {
         m_value.disable_model_pruning = disable_model_pruning;
@@ -60,6 +63,9 @@ public:
         m_value.auto_parallel = auto_parallel;
         m_value.memory_optimization = memory_optimization;
         m_value.scoped_allocator_optimization = scoped_allocator_optimization;
+        m_value.auto_parallel_replicas = auto_parallel_replicas;
+        m_value.memory_limit_bytes = memory_limit_bytes;
+        m_value.scoped_allocator_enable_ops = scoped_allocator_enable_ops;
     }
 
     ::TF_TriState getDisableModelPruning() const noexcept
@@ -250,6 +256,36 @@ public:
     void setScopedAllocatorOptimization(::TF_TriState value) noexcept
     {
         m_value.scoped_allocator_optimization = value;
+    }
+
+    std::int32_t getAutoParallelReplicas() const noexcept
+    {
+        return m_value.auto_parallel_replicas;
+    }
+
+    void setAutoParallelReplicas(std::int32_t value) noexcept
+    {
+        m_value.auto_parallel_replicas = value;
+    }
+
+    std::uint64_t getMemoryLimitBytes() const noexcept
+    {
+        return m_value.memory_limit_bytes;
+    }
+
+    void setMemoryLimitBytes(std::uint64_t value) noexcept
+    {
+        m_value.memory_limit_bytes = value;
+    }
+
+    const char* getScopedAllocatorEnableOps() const noexcept
+    {
+        return m_value.scoped_allocator_enable_ops;
+    }
+
+    void setScopedAllocatorEnableOps(const char* value) noexcept
+    {
+        m_value.scoped_allocator_enable_ops = value;
     }
 };
 

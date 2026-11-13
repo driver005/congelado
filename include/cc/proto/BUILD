@@ -1,5 +1,7 @@
 load("//bazel:proto.bzl", "proto_service")
 
+package(default_visibility = ["//visibility:public"])
+
 proto_service(
     name = "address",
     srcs = ["address.proto"],
@@ -40,6 +42,16 @@ proto_service(
 proto_service(
     name = "allocation_description",
     srcs = ["allocation_description.proto"],
+)
+
+proto_service(
+    name = "tensor_properties",
+    srcs = ["tensor_properties.proto"],
+    deps = [
+        ":tensor_proto",
+        ":tensor_shape_proto",
+        ":types_proto",
+    ],
 )
 
 proto_service(

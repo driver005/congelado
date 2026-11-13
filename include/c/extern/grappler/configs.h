@@ -5,6 +5,7 @@
 #include "include/c/macros.h"
 
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -49,10 +50,16 @@ extern "C"
         TF_TriState auto_parallel;
         TF_TriState memory_optimization;
         TF_TriState scoped_allocator_optimization;
+        // Replicas for auto parallel; 0 means 1.
+        int32_t auto_parallel_replicas;
+        // Device memory budget for memory optimization; 0 means the device's global memory size.
+        uint64_t memory_limit_bytes;
+        // Comma separated op names the scoped allocator targets; NULL means CollectiveReduce.
+        const char* scoped_allocator_enable_ops;
     } TFGrapplerOptimizerConfigs;
 
 #define TF_GRAPPLER_OPTIMIZER_CONFIGS_STRUCT_SIZE                                                  \
-    TF_OFFSET_OF_END(TFGrapplerOptimizerConfigs, scoped_allocator_optimization)
+    TF_OFFSET_OF_END(TFGrapplerOptimizerConfigs, scoped_allocator_enable_ops)
 
     typedef struct TFGrapplerConfigs
     {

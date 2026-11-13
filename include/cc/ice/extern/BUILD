@@ -9,6 +9,7 @@ congelado_module_library(
     deps = [
         "//include/cc/ice/extern/filesystem:cc_ice_extern_filesystem",
         "//include/cc/ice/extern/generator:cc_ice_extern_generator",
+        "//include/cc/ice/extern/gradients:cc_ice_extern_gradients",
         "//include/cc/ice/extern/grappler:cc_ice_extern_grappler",
         "//include/cc/ice/extern/jobber:cc_ice_extern_jobber",
         "//include/cc/ice/extern/otel:cc_ice_extern_otel",

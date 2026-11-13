@@ -5,6 +5,7 @@ export module cc_ice_extern;
 // clang-format off
 export import cc_ice_extern_filesystem;
 export import cc_ice_extern_generator;
+export import cc_ice_extern_gradients;
 export import cc_ice_extern_grappler;
 export import cc_ice_extern_jobber;
 export import cc_ice_extern_otel;

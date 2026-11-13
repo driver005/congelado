@@ -8,6 +8,7 @@ module;
 export module cc_ice_extern_grappler_sonic:properties;
 
 import std;
+import :item;
 import cc_ice_intern_sonic;
 import cc_ice_runtime_sonic;
 
@@ -105,6 +106,14 @@ public:
             num_values,
             out_status.get_handle()
         );
+    }
+
+    void bind(
+        const ice::sonic::GrapplerItem& item,
+        const ice::sonic::Status& out_status
+    ) const noexcept
+    {
+        m_ops->bind(get_handle(), item.get_handle(), out_status.get_handle());
     }
 };
 

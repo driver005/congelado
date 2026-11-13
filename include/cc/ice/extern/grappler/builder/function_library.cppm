@@ -34,11 +34,13 @@ public:
         const ice::sonic::Buffer& out_buf,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
+    virtual void
+    bind(const ice::sonic::Buffer& graph_buf, const ice::sonic::Status& out_status) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TFGrapplerFunctionLibrary*)) noexcept
     {
         m_vtable = ::TFGrapplerFunctionLibraryOps{
-            .struct_size = TF_OFFSET_OF_END(::TFGrapplerFunctionLibraryOps, look_up_op_def),
+            .struct_size = TF_OFFSET_OF_END(::TFGrapplerFunctionLibraryOps, bind),
 
             .create = create,
             .destroy =
@@ -57,6 +59,17 @@ public:
                 self.look_up_op_def(
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
                     self.wrap(std::type_identity<ice::sonic::Buffer>{}, out_buf),
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
+            },
+            .bind =
+                [](::TFGrapplerFunctionLibrary* lib,
+                   const ::TF_Buffer* graph_buf,
+                   ::TF_Status* out_status) noexcept
+            {
+                auto& self = GrapplerFunctionLibrary::from_handle(lib);
+                self.bind(
+                    self.wrap(std::type_identity<ice::sonic::Buffer>{}, graph_buf),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },

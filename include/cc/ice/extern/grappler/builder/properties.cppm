@@ -3,6 +3,7 @@
 
 module;
 
+#include "include/c/extern/grappler/item.h"
 #include "include/c/extern/grappler/properties.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
@@ -10,6 +11,7 @@ module;
 export module cc_ice_extern_grappler_builder:properties;
 
 import std;
+import cc_ice_extern_grappler_sonic;
 import cc_ice_intern_sonic;
 import cc_ice_runtime_builder;
 
@@ -20,6 +22,7 @@ class GrapplerProperties :
         GrapplerProperties,
         ::TFGrapplerPropertiesOps,
         ::TFGrapplerProperties,
+        ::TFGrapplerItemOps,
         ::TF_StatusOps,
         ::TF_StringOps>
 {
@@ -56,11 +59,13 @@ public:
         int num_values,
         const ice::sonic::Status& out_status
     ) noexcept = 0;
+    virtual void
+    bind(const ice::sonic::GrapplerItem& item, const ice::sonic::Status& out_status) noexcept = 0;
 
     void get_generic_vtable(void (*create)(::TFGrapplerProperties*)) noexcept
     {
         m_vtable = ::TFGrapplerPropertiesOps{
-            .struct_size = TF_OFFSET_OF_END(::TFGrapplerPropertiesOps, get_output_properties),
+            .struct_size = TF_OFFSET_OF_END(::TFGrapplerPropertiesOps, bind),
 
             .create = create,
             .destroy =
@@ -139,6 +144,17 @@ public:
                     self.wrap(std::type_identity<ice::sonic::String>{}, name),
                     out_properties,
                     num_values,
+                    self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
+                );
+            },
+            .bind =
+                [](::TFGrapplerProperties* props,
+                   const ::TFGrapplerItem* item,
+                   ::TF_Status* out_status) noexcept
+            {
+                auto& self = GrapplerProperties::from_handle(props);
+                self.bind(
+                    self.wrap(std::type_identity<ice::sonic::GrapplerItem>{}, item),
                     self.wrap(std::type_identity<ice::sonic::Status>{}, out_status)
                 );
             },

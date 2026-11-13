@@ -1,6 +1,7 @@
 #ifndef CONGELADO_C_GRAPPLER_PROPERTIES_H_
 #define CONGELADO_C_GRAPPLER_PROPERTIES_H_
 
+#include "include/c/extern/grappler/item.h"
 #include "include/c/intern/buffer.h"
 #include "include/c/intern/status.h"
 #include "include/c/intern/tstring.h"
@@ -57,10 +58,17 @@ extern "C"
             int num_values,
             TF_Status* out_status
         );
+        // Binds the properties to the grappler item being optimized; call it before
+        // infer_statically.
+        void (*bind)(
+            TFGrapplerProperties* props,
+            const TFGrapplerItem* item,
+            TF_Status* out_status
+        );
     } TFGrapplerPropertiesOps;
 
 #define TF_GRAPPLER_PROPERTIES_STRUCT_SIZE                                                         \
-    TF_OFFSET_OF_END(TFGrapplerPropertiesOps, get_output_properties)
+    TF_OFFSET_OF_END(TFGrapplerPropertiesOps, bind)
 
     TF_CAPI_EXPORT void create_grappler_properties(
         TFGrapplerPropertiesOps** ops,

@@ -42,6 +42,14 @@ public:
             out_status.get_handle()
         );
     }
+
+    void bind(
+        const ice::sonic::Buffer& graph_buf,
+        const ice::sonic::Status& out_status
+    ) const noexcept
+    {
+        m_ops->bind(get_handle(), graph_buf.get_handle(), out_status.get_handle());
+    }
 };
 
 } // namespace ice::sonic
