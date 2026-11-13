@@ -18,6 +18,8 @@ congelado_cc_library(
     name = "std",
     module_interfaces = ["std.cc"],
     copts = ["-stdlib=libstdc++", "-std=gnu++26"],
+    # The std module builds before everything, the external dependencies included.
+    wait_for_deps = False,
     visibility = ["//visibility:public"],
 )
 
@@ -26,5 +28,7 @@ congelado_cc_library(
     module_interfaces = ["std.compat.cc"],
     copts = ["-stdlib=libstdc++", "-std=gnu++26"],
     deps = [":std"],
+    # The std module builds before everything, the external dependencies included.
+    wait_for_deps = False,
     visibility = ["//visibility:public"],
 )
