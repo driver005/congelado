@@ -2,6 +2,7 @@
 
 load("//bazel/toolchain/sdk:cupti.bzl", cupti_repo = "repo")
 load("//bazel/toolchain/sdk:onednn.bzl", onednn_repo = "repo")
+load("//bazel/toolchain/sdk:level_zero.bzl", level_zero_repo = "repo")
 load("//bazel/toolchain/sdk:pti.bzl", pti_repo = "repo")
 load("//bazel/toolchain/sdk:rocprofiler.bzl", rocprofiler_repo = "repo")
 load("//bazel/toolchain/sdk:sycl.bzl", sycl_repo = "repo")
@@ -23,6 +24,7 @@ def _third_party_impl(module_ctx):
     sycl_hip_repo()
     onednn_repo()
     pti_repo()
+    level_zero_repo()
     cupti_repo()
     rocprofiler_repo()
 

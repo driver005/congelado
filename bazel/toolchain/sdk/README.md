@@ -6,6 +6,7 @@ Each repository tries two routes in order: search for an existing install, else 
 | --- | --- | --- | --- |
 | `@sycl` | `ATEN_XPU_SYCL_HOME`, `CMPLR_ROOT`, `ONEAPI_ROOT` | `/opt/intel/oneapi/compiler/*` | DPC++ release `sycl_linux.tar.gz`, x86_64 only |
 | `@pti` | `ATEN_XPU_PTI_HOME`, `PTI_ROOT` | `/opt/intel/oneapi/pti` | pti-gpu `pti-1.2.0` headers, `pti_export.h` and `pti_version.h` generated |
+| `@level_zero` | `ATEN_XPU_LEVEL_ZERO_HOME`, `LEVEL_ZERO_ROOT` | `/usr/local`, `/usr` | oneapi-src/level-zero `v1.20.2` headers, installed into `include/level_zero/` like level-zero-devel |
 | `@cupti` | `ATEN_XPU_CUPTI_HOME`, `CUDA_HOME`, `CUDA_PATH` | `/usr/local/cuda*`, `/opt/cuda`, `/usr` | PyPI wheels `cupti`, `runtime`, `nvcc` (x86_64 and aarch64) |
 | `@rocprofiler` | `ATEN_XPU_ROCPROFILER_HOME`, `ROCM_PATH`, `ROCM_HOME` | `/opt/rocm`, `/opt/rocm-*` | ROCm 7.2.4 debs: rocprofiler-sdk, roctx, hsa-rocr-dev, hip-dev (x86_64 only) |
 
