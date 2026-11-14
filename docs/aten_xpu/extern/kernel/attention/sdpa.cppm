@@ -55,7 +55,7 @@ public:
 
         auto backend =
             m_selector.choose(query->get(), key->get(), value->get(), mask, m_dropout, m_is_causal);
-        if (backend == m_selector.Backend::invalid) {
+        if (backend == SyclSdpaSelector::Backend::invalid) {
             context.fail(
                 ice::sonic::Code::k_invalid_argument,
                 "attention expects [batch, heads, length, head_dim] inputs"
@@ -63,7 +63,7 @@ public:
             return;
         }
         if (m_return_probabilities) {
-            backend = m_selector.Backend::math;
+            backend = SyclSdpaSelector::Backend::math;
         }
 
         m_scratch_dims.assign(query->get().getDims().begin(), query->get().getDims().end());
@@ -77,7 +77,7 @@ public:
         const float scale = m_scale > 0.0F
                                 ? m_scale
                                 : 1.0F / std::sqrt(static_cast<float>(query->get().getDims()[3]));
-        if (backend == m_selector.Backend::fused) {
+        if (backend == SyclSdpaSelector::Backend::fused) {
             getRuntime().getSdpa().run(
                 queue->get(),
                 query->get(),
