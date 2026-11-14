@@ -130,7 +130,7 @@ use_repo(third_party_deps, "stduuid", "reflect_cpp", "system_libstdcxx", "org_br
 # hand-rolling one via rules_cc's modern declarative API (third_party/toolchain).
 # Root-module registrations win toolchain resolution over any transitive
 # module's (rules_cc's broken default included), so this must live here.
-# The SYCL toolchain is only a candidate on //third_party/toolchain/sycl:linux_x86_64_sycl (--config=sycl).
+# The SYCL toolchain (DPC++ clang) is first, so it is the default; system_cc is the fallback.
 register_toolchains(
     # The bundled make and pkg-config would be compiled from source (and fail to bootstrap here).
     "@rules_foreign_cc//toolchains:preinstalled_make_toolchain",

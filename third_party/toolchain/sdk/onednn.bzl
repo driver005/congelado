@@ -20,7 +20,13 @@ cmake(
     build_args = ["-j", "6"],
     generate_crosstool_file = False,
     cache_entries = {entries},
-    env = {{"LD_LIBRARY_PATH": "$$EXT_BUILD_ROOT$$/external/{compiler}/lib"}},
+    env = {{
+        "LD_LIBRARY_PATH": "$$EXT_BUILD_ROOT$$/external/{compiler}/lib",
+        # The C++ toolchain's flags (-fsycl-is-host, ...) clash with oneDNN's own -fsycl; it sets its flags itself.
+        "CFLAGS": "",
+        "CXXFLAGS": "",
+        "ASMFLAGS": "",
+    }},
     build_data = ["@sycl//:toolchain_files"],
     out_static_libs = ["libdnnl.a"],
     linkopts = ["-ldl", "-lpthread", "-ltbb"],

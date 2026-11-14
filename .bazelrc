@@ -99,5 +99,3 @@ import %workspace%/warnings.bazelrc
 
 import %workspace%/third_party/ci.bazelrc
 
-# Builds the SYCL modules with the DPC++ clang from @sycl (see third_party/toolchain/sycl).
-common:sycl --platforms=//third_party/toolchain/sycl:linux_x86_64_sycl

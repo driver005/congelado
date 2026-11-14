@@ -27,7 +27,7 @@ subdirectory(
     path = "lib/clang/23/include",
 )
 
-# The compiler binaries the SYCL C++ toolchain (//third_party/toolchain/sycl) runs.
+# The DPC++ compiler binaries oneDNN (sdk/onednn.bzl) builds with.
 exports_files(["bin/clang", "bin/clang++", "bin/llvm-ar"])
 
 filegroup(
