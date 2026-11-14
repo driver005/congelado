@@ -97,3 +97,17 @@ onednn_build = rule(
         "cmake_args": attr.string_list(),
     },
 )
+
+def _output_impl(ctx):
+    return [DefaultInfo(files = ctx.attr.build[OutputGroupInfo][ctx.attr.output_group])]
+
+# Target-side view of a build output. The build itself is always requested in the exec configuration, the
+# same one the toolchains use for the tool input, so target and exec builds are one action and oneDNN
+# compiles once.
+onednn_output = rule(
+    implementation = _output_impl,
+    attrs = {
+        "build": attr.label(mandatory = True, cfg = "exec"),
+        "output_group": attr.string(mandatory = True),
+    },
+)

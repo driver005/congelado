@@ -60,7 +60,7 @@ def _source_build_file(ctx, vendor, arguments):
     """BUILD file whose onednn target compiles the downloaded source as a Bazel action."""
     return """
 load("@rules_cc//cc:defs.bzl", "cc_library")
-load("{rule}", "onednn_build")
+load("{rule}", "onednn_build", "onednn_output")
 
 package(default_visibility = ["//visibility:public"])
 
@@ -81,15 +81,15 @@ filegroup(
     output_group = "ready",
 )
 
-filegroup(
+onednn_output(
     name = "headers",
-    srcs = [":build"],
+    build = ":build",
     output_group = "install",
 )
 
-filegroup(
+onednn_output(
     name = "library",
-    srcs = [":build"],
+    build = ":build",
     output_group = "library",
 )
 
