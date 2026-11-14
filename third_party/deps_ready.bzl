@@ -2,8 +2,7 @@
 
 Every own target (congelado_cc_library, congelado_cc_binary, congelado_cc_test, congelado_module_library)
 depends on it, so no own code compiles before these dependencies are built. The order of a whole build is
-therefore: oneDNN (a tool input of the toolchains, see toolchain/sdk/onednn_build.bzl), then these
-dependencies, then the project.
+therefore: these dependencies (oneDNN included, one compile action per source file), then the project.
 
 The stamp is a header with constant content that the compile actions of dependents list as an input, so it
 makes them wait without invalidating them when a dependency is rebuilt. The rule needs no C++ toolchain,

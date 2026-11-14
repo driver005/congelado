@@ -32,6 +32,8 @@ common:windows --host_cxxopt=/std:c++20
 
 build --jobs=HOST_CPUS
 build --local_resources=memory=HOST_RAM
+# C++ module compiles take 1-2 GB each; half the cores keep a 15 GB machine out of swap and the OOM killer.
+build --local_resources=cpu=HOST_CPUS*0.5
 build --spawn_strategy=local
 build --worker_sandboxing=false
 

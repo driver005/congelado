@@ -70,10 +70,10 @@ AMD GPU (`@sycl_hip`, `@rocprofiler`, `@onednn_amd`):
 | Repo | Search env vars | Fallback |
 | --- | --- | --- |
 | `@sycl_hip` | `ATEN_XPU_SYCL_HIP_HOME` (needs `lib/libur_adapter_hip.so`) | build intel/llvm v7.2.0 with `--hip` (about 1 hour, needs ROCm, cmake, ninja) |
-| `@onednn_intel` | `ATEN_XPU_ONEDNN_INTEL_HOME` | build oneDNN v3.14.2 with `@sycl` |
-| `@onednn_nvidia` | `ATEN_XPU_ONEDNN_NVIDIA_HOME` | build with `@sycl`; needs `CUDA_HOME` with cuDNN and cuBLAS |
-| `@onednn_generic` | `ATEN_XPU_ONEDNN_GENERIC_HOME` | build with `@sycl`; plain SYCL kernels for any SYCL device, slower and fewer ops, no vendor libraries needed |
-| `@onednn_amd` | `ATEN_XPU_ONEDNN_AMD_HOME` | build with `@sycl_hip`; needs ROCm with HIP, rocBLAS, MIOpen; `ATEN_XPU_AMD_ARCH=gfx90a` also enables the generic SYCL kernels |
+| `@onednn_intel` | - | build oneDNN v3.14.2 with `@sycl` |
+| `@onednn_nvidia` | - | build with `@sycl`; needs `CUDA_HOME` with cuDNN and cuBLAS |
+| `@onednn_generic` | - | build with `@sycl`; plain SYCL kernels for any SYCL device, slower and fewer ops, no vendor libraries needed |
+| `@onednn_amd` | - | build with `@sycl_hip`; needs ROCm with HIP, rocBLAS, MIOpen; `ATEN_XPU_AMD_ARCH=gfx90a` also enables the generic SYCL kernels |
 
 - oneDNN fixes the GPU vendor at build time, so each vendor is a separate library.
 - The prebuilt Intel DPC++ tarball has the Level Zero and CUDA adapters only; AMD needs `@sycl_hip`.

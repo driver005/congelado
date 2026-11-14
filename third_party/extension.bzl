@@ -22,7 +22,9 @@ def _third_party_impl(module_ctx):
     adaptive_cpp_repo()
     sycl_repo()
     sycl_hip_repo()
-    onednn_repo()
+    module_ctx.getenv("PATH")  # sccache on PATH caches every oneDNN object; Bazel does not re-run this when it gets installed, so edit this line then
+    sccache = module_ctx.which("sccache")
+    onednn_repo(str(sccache) if sccache else "")
     pti_repo()
     level_zero_repo()
     cupti_repo()

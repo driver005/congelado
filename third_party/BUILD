@@ -8,5 +8,6 @@ deps_ready(
     deps = [
         "@com_google_protobuf//:protobuf",
         "@reflect_cpp//:reflect_cpp",
+        "@onednn_intel//:onednn",
     ],
 )

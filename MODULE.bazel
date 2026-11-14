@@ -79,6 +79,15 @@ EOF
     ],
 )
 
+bazel_dep(name = "rules_foreign_cc", version = "0.15.1")  # builds oneDNN (CMake and ninja)
+
+# Bazel runs actions with PWD=/proc/self/cwd, so the scripts' EXT_BUILD_ROOT=$(pwd) becomes /proc/self/cwd, and
+# coreutils 9.12 `mkdir -p /proc/self/cwd/...` fails there; the physical working directory is the same place.
+single_version_override(
+    module_name = "rules_foreign_cc",
+    version = "0.15.1",
+    patch_cmds = ["sed -i 's|return \"$(pwd)\"|return \"$(pwd -P)\"|' foreign_cc/private/framework/toolchains/linux_commands.bzl"],
+)
 bazel_dep(name = "rules_python", version = "2.2.0")
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
@@ -123,6 +132,9 @@ use_repo(third_party_deps, "stduuid", "reflect_cpp", "system_libstdcxx", "org_br
 # module's (rules_cc's broken default included), so this must live here.
 # The SYCL toolchain is only a candidate on //third_party/toolchain/sycl:linux_x86_64_sycl (--config=sycl).
 register_toolchains(
+    # The bundled make and pkg-config would be compiled from source (and fail to bootstrap here).
+    "@rules_foreign_cc//toolchains:preinstalled_make_toolchain",
+    "@rules_foreign_cc//toolchains:preinstalled_pkgconfig_toolchain",
     "//third_party/toolchain/sycl:sycl_clang_toolchain",
     "//third_party/toolchain/system_cc:system_clang_toolchain",
 )
