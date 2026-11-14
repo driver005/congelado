@@ -52,7 +52,6 @@
     "https://bcr.bazel.build/modules/bazel_lib/3.1.0/MODULE.bazel": "6809765c14e3c766a9b9286c7b0ec56ed87a73326e48fe01749f0c0fdcfe3287",
     "https://bcr.bazel.build/modules/bazel_lib/3.1.0/source.json": "aaf7c2dc816219f4cb356c9d65f2555fb7f9543e537199f74a921f7877d23dfb",
     "https://bcr.bazel.build/modules/bazel_skylib/1.0.3/MODULE.bazel": "bcb0fd896384802d1ad283b4e4eb4d718eebd8cb820b0a2c3a347fb971afd9d8",
-    "https://bcr.bazel.build/modules/bazel_skylib/1.1.1/MODULE.bazel": "1add3e7d93ff2e6998f9e118022c84d163917d912f5afafb3058e3d2f1545b5e",
     "https://bcr.bazel.build/modules/bazel_skylib/1.2.0/MODULE.bazel": "44fe84260e454ed94ad326352a698422dbe372b21a1ac9f3eab76eb531223686",
     "https://bcr.bazel.build/modules/bazel_skylib/1.2.1/MODULE.bazel": "f35baf9da0efe45fa3da1696ae906eea3d615ad41e2e3def4aeb4e8bc0ef9a7a",
     "https://bcr.bazel.build/modules/bazel_skylib/1.3.0/MODULE.bazel": "20228b92868bf5cfc41bda7afc8a8ba2a543201851de39d990ec957b513579c5",
@@ -143,7 +142,8 @@
     "https://bcr.bazel.build/modules/rules_apple/4.1.0/MODULE.bazel": "76e10fd4a48038d3fc7c5dc6e63b7063bbf5304a2e3bd42edda6ec660eebea68",
     "https://bcr.bazel.build/modules/rules_cc/0.2.22/MODULE.bazel": "94df4328edef9e44d38de5e73b037cd348e75e7ae55f4e21bf07878c41a31ebb",
     "https://bcr.bazel.build/modules/rules_cc/0.2.22/source.json": "b2d6d6f9c332ce269ad75b89c6f3168d809a66173c9040210fb9bcc733ab42fa",
-    "https://bcr.bazel.build/modules/rules_foreign_cc/0.9.0/MODULE.bazel": "c9e8c682bf75b0e7c704166d79b599f93b72cfca5ad7477df596947891feeef6",
+    "https://bcr.bazel.build/modules/rules_foreign_cc/0.15.1/MODULE.bazel": "c2c60d26c79fda484acb95cdbec46e89d6b28b4845cb277160ce1e0c8622bb88",
+    "https://bcr.bazel.build/modules/rules_foreign_cc/0.15.1/source.json": "a161811a63ba8a859086da3b7ff3ad04f2e9c255d7727b41087103fc0eb22f55",
     "https://bcr.bazel.build/modules/rules_fuzzing/0.5.2/MODULE.bazel": "40c97d1144356f52905566c55811f13b299453a14ac7769dfba2ac38192337a8",
     "https://bcr.bazel.build/modules/rules_go/0.41.0/MODULE.bazel": "55861d8e8bb0e62cbd2896f60ff303f62ffcb0eddb74ecb0e5c0cbe36fc292c8",
     "https://bcr.bazel.build/modules/rules_go/0.42.0/MODULE.bazel": "8cfa875b9aa8c6fce2b2e5925e73c1388173ea3c32a0db4d2b4804b453c14270",
@@ -206,6 +206,7 @@
     "https://bcr.bazel.build/modules/rules_python/0.37.2/MODULE.bazel": "b5ffde91410745750b6c13be1c5dc4555ef5bc50562af4a89fd77807fdde626a",
     "https://bcr.bazel.build/modules/rules_python/0.4.0/MODULE.bazel": "9208ee05fd48bf09ac60ed269791cf17fb343db56c8226a720fbb1cdf467166c",
     "https://bcr.bazel.build/modules/rules_python/1.0.0/MODULE.bazel": "898a3d999c22caa585eb062b600f88654bf92efb204fa346fb55f6f8edffca43",
+    "https://bcr.bazel.build/modules/rules_python/1.2.0/MODULE.bazel": "5aeeb48b2a6c19d668b48adf2b8a2b209a6310c230db0ce77450f148a89846e4",
     "https://bcr.bazel.build/modules/rules_python/1.3.0/MODULE.bazel": "8361d57eafb67c09b75bf4bbe6be360e1b8f4f18118ab48037f2bd50aa2ccb13",
     "https://bcr.bazel.build/modules/rules_python/1.4.1/MODULE.bazel": "8991ad45bdc25018301d6b7e1d3626afc3c8af8aaf4bc04f23d0b99c938b73a6",
     "https://bcr.bazel.build/modules/rules_python/1.5.1/MODULE.bazel": "acfe65880942d44a69129d4c5c3122d57baaf3edf58ae5a6bd4edea114906bf5",
@@ -255,10 +256,13 @@
   "moduleExtensions": {
     "//third_party:extension.bzl%third_party_deps": {
       "general": {
-        "bzlTransitiveDigest": "DXGfb0UEntiqi5hKjycJDp2oyhEo9qW9OEjY5K7B11o=",
+        "bzlTransitiveDigest": "NaE/hRcw4lcDJTdqQIWH5AEAESwzRY17bfuJSgRRZjs=",
         "usagesDigest": "gaLLBAzV/YGmCnqyLGLqzdxWzmTNplEvjc1eTaYCmkw=",
         "recordedInputs": [
-          "REPO_MAPPING:,bazel_tools bazel_tools"
+          "REPO_MAPPING:,bazel_tools bazel_tools",
+          "ENV:PATH /root/.cache/bazelisk/downloads/sha256/7668a95db1250f12c40407251e4e203b4ec8bf39bc495d2f485b2d8c99048694/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+          "REPO_MAPPING:,sycl +third_party_deps+sycl",
+          "REPO_MAPPING:,sycl_hip +third_party_deps+sycl_hip"
         ],
         "generatedRepoSpecs": {
           "stduuid": {
@@ -332,43 +336,39 @@
             }
           },
           "onednn_intel": {
-            "repoRuleId": "@@//third_party/toolchain/sdk:onednn.bzl%onednn_sdk",
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
             "attributes": {
-              "vendor": "INTEL",
-              "compiler": "@@+third_party_deps+sycl//:BUILD.bazel",
               "url": "https://github.com/uxlfoundation/oneDNN/archive/refs/tags/v3.14.2.tar.gz",
               "sha256": "ed509c84b9d73bacabff00e6aaedbde570568e26dedb129030fee9c8c196f168",
-              "strip_prefix": "oneDNN-3.14.2"
+              "strip_prefix": "oneDNN-3.14.2",
+              "build_file_content": "\nload(\"@rules_foreign_cc//foreign_cc:defs.bzl\", \"cmake\")\n\nfilegroup(name = \"src\", srcs = glob([\"**\"], exclude = [\"tests/**\", \"doc/**\", \"examples/**\"]))\n\ncmake(\n    name = \"onednn\",\n    lib_source = \":src\",\n    # The C++ toolchain's flags (-fsycl-is-host, ...) clash with oneDNN's own -fsycl, which sets its flags itself.\n    # rules_foreign_cc exports them as CXXFLAGS after any env, so only -D on the command line clears them.\n    generate_args = [\"-GNinja\", \"-DCMAKE_C_FLAGS=\", \"-DCMAKE_CXX_FLAGS=\", \"-DCMAKE_ASM_FLAGS=\"],\n    # Bazel does not hand its job count to an action: half the cores, the formula of .bazelrc local_resources cpu.\n    build_args = [\"-j\", \"$$(( $$(nproc) / 2 ))\"],\n    generate_crosstool_file = False,\n    cache_entries = {\"CMAKE_BUILD_TYPE\": \"Release\", \"CMAKE_C_COMPILER\": \"$$EXT_BUILD_ROOT$$/external/+third_party_deps+sycl/bin/clang\", \"CMAKE_CXX_COMPILER\": \"$$EXT_BUILD_ROOT$$/external/+third_party_deps+sycl/bin/clang++\", \"CMAKE_POSITION_INDEPENDENT_CODE\": \"ON\", \"DNNL_CPU_RUNTIME\": \"SYCL\", \"DNNL_GPU_RUNTIME\": \"SYCL\", \"DNNL_GPU_VENDOR\": \"INTEL\", \"DNNL_LIBRARY_TYPE\": \"STATIC\", \"DNNL_DPCPP_HOST_COMPILER\": \"g++\", \"DNNL_BUILD_TESTS\": \"OFF\", \"DNNL_BUILD_EXAMPLES\": \"OFF\", \"DNNL_BUILD_DOC\": \"OFF\"},\n    env = {\"LD_LIBRARY_PATH\": \"$$EXT_BUILD_ROOT$$/external/+third_party_deps+sycl/lib\"},\n    build_data = [\"@sycl//:toolchain_files\"],\n    out_static_libs = [\"libdnnl.a\"],\n    linkopts = [\"-ldl\", \"-lpthread\", \"-ltbb\"],\n    deps = [\"@sycl//:sycl\"],\n    visibility = [\"//visibility:public\"],\n)\n"
             }
           },
           "onednn_nvidia": {
-            "repoRuleId": "@@//third_party/toolchain/sdk:onednn.bzl%onednn_sdk",
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
             "attributes": {
-              "vendor": "NVIDIA",
-              "compiler": "@@+third_party_deps+sycl//:BUILD.bazel",
               "url": "https://github.com/uxlfoundation/oneDNN/archive/refs/tags/v3.14.2.tar.gz",
               "sha256": "ed509c84b9d73bacabff00e6aaedbde570568e26dedb129030fee9c8c196f168",
-              "strip_prefix": "oneDNN-3.14.2"
+              "strip_prefix": "oneDNN-3.14.2",
+              "build_file_content": "\nload(\"@rules_foreign_cc//foreign_cc:defs.bzl\", \"cmake\")\n\nfilegroup(name = \"src\", srcs = glob([\"**\"], exclude = [\"tests/**\", \"doc/**\", \"examples/**\"]))\n\ncmake(\n    name = \"onednn\",\n    lib_source = \":src\",\n    # The C++ toolchain's flags (-fsycl-is-host, ...) clash with oneDNN's own -fsycl, which sets its flags itself.\n    # rules_foreign_cc exports them as CXXFLAGS after any env, so only -D on the command line clears them.\n    generate_args = [\"-GNinja\", \"-DCMAKE_C_FLAGS=\", \"-DCMAKE_CXX_FLAGS=\", \"-DCMAKE_ASM_FLAGS=\"],\n    # Bazel does not hand its job count to an action: half the cores, the formula of .bazelrc local_resources cpu.\n    build_args = [\"-j\", \"$$(( $$(nproc) / 2 ))\"],\n    generate_crosstool_file = False,\n    cache_entries = {\"CMAKE_BUILD_TYPE\": \"Release\", \"CMAKE_C_COMPILER\": \"$$EXT_BUILD_ROOT$$/external/+third_party_deps+sycl/bin/clang\", \"CMAKE_CXX_COMPILER\": \"$$EXT_BUILD_ROOT$$/external/+third_party_deps+sycl/bin/clang++\", \"CMAKE_POSITION_INDEPENDENT_CODE\": \"ON\", \"DNNL_CPU_RUNTIME\": \"SYCL\", \"DNNL_GPU_RUNTIME\": \"SYCL\", \"DNNL_GPU_VENDOR\": \"NVIDIA\", \"DNNL_LIBRARY_TYPE\": \"STATIC\", \"DNNL_DPCPP_HOST_COMPILER\": \"g++\", \"DNNL_BUILD_TESTS\": \"OFF\", \"DNNL_BUILD_EXAMPLES\": \"OFF\", \"DNNL_BUILD_DOC\": \"OFF\"},\n    env = {\"LD_LIBRARY_PATH\": \"$$EXT_BUILD_ROOT$$/external/+third_party_deps+sycl/lib\"},\n    build_data = [\"@sycl//:toolchain_files\"],\n    out_static_libs = [\"libdnnl.a\"],\n    linkopts = [\"-ldl\", \"-lpthread\", \"-ltbb\"],\n    deps = [\"@sycl//:sycl\"],\n    visibility = [\"//visibility:public\"],\n)\n"
             }
           },
           "onednn_amd": {
-            "repoRuleId": "@@//third_party/toolchain/sdk:onednn.bzl%onednn_sdk",
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
             "attributes": {
-              "vendor": "AMD",
-              "compiler": "@@+third_party_deps+sycl_hip//:BUILD.bazel",
               "url": "https://github.com/uxlfoundation/oneDNN/archive/refs/tags/v3.14.2.tar.gz",
               "sha256": "ed509c84b9d73bacabff00e6aaedbde570568e26dedb129030fee9c8c196f168",
-              "strip_prefix": "oneDNN-3.14.2"
+              "strip_prefix": "oneDNN-3.14.2",
+              "build_file_content": "\nload(\"@rules_foreign_cc//foreign_cc:defs.bzl\", \"cmake\")\n\nfilegroup(name = \"src\", srcs = glob([\"**\"], exclude = [\"tests/**\", \"doc/**\", \"examples/**\"]))\n\ncmake(\n    name = \"onednn\",\n    lib_source = \":src\",\n    # The C++ toolchain's flags (-fsycl-is-host, ...) clash with oneDNN's own -fsycl, which sets its flags itself.\n    # rules_foreign_cc exports them as CXXFLAGS after any env, so only -D on the command line clears them.\n    generate_args = [\"-GNinja\", \"-DCMAKE_C_FLAGS=\", \"-DCMAKE_CXX_FLAGS=\", \"-DCMAKE_ASM_FLAGS=\"],\n    # Bazel does not hand its job count to an action: half the cores, the formula of .bazelrc local_resources cpu.\n    build_args = [\"-j\", \"$$(( $$(nproc) / 2 ))\"],\n    generate_crosstool_file = False,\n    cache_entries = {\"CMAKE_BUILD_TYPE\": \"Release\", \"CMAKE_C_COMPILER\": \"$$EXT_BUILD_ROOT$$/external/+third_party_deps+sycl_hip/bin/clang\", \"CMAKE_CXX_COMPILER\": \"$$EXT_BUILD_ROOT$$/external/+third_party_deps+sycl_hip/bin/clang++\", \"CMAKE_POSITION_INDEPENDENT_CODE\": \"ON\", \"DNNL_CPU_RUNTIME\": \"SYCL\", \"DNNL_GPU_RUNTIME\": \"SYCL\", \"DNNL_GPU_VENDOR\": \"AMD\", \"DNNL_LIBRARY_TYPE\": \"STATIC\", \"DNNL_DPCPP_HOST_COMPILER\": \"g++\", \"DNNL_BUILD_TESTS\": \"OFF\", \"DNNL_BUILD_EXAMPLES\": \"OFF\", \"DNNL_BUILD_DOC\": \"OFF\", \"ONEDNN_BUILD_GRAPH\": \"OFF\"},\n    env = {\"LD_LIBRARY_PATH\": \"$$EXT_BUILD_ROOT$$/external/+third_party_deps+sycl_hip/lib\"},\n    build_data = [\"@sycl//:toolchain_files\"],\n    out_static_libs = [\"libdnnl.a\"],\n    linkopts = [\"-ldl\", \"-lpthread\", \"-ltbb\"],\n    deps = [\"@sycl//:sycl\"],\n    visibility = [\"//visibility:public\"],\n)\n"
             }
           },
           "onednn_generic": {
-            "repoRuleId": "@@//third_party/toolchain/sdk:onednn.bzl%onednn_sdk",
+            "repoRuleId": "@@bazel_tools//tools/build_defs/repo:http.bzl%http_archive",
             "attributes": {
-              "vendor": "GENERIC",
-              "compiler": "@@+third_party_deps+sycl//:BUILD.bazel",
               "url": "https://github.com/uxlfoundation/oneDNN/archive/refs/tags/v3.14.2.tar.gz",
               "sha256": "ed509c84b9d73bacabff00e6aaedbde570568e26dedb129030fee9c8c196f168",
-              "strip_prefix": "oneDNN-3.14.2"
+              "strip_prefix": "oneDNN-3.14.2",
+              "build_file_content": "\nload(\"@rules_foreign_cc//foreign_cc:defs.bzl\", \"cmake\")\n\nfilegroup(name = \"src\", srcs = glob([\"**\"], exclude = [\"tests/**\", \"doc/**\", \"examples/**\"]))\n\ncmake(\n    name = \"onednn\",\n    lib_source = \":src\",\n    # The C++ toolchain's flags (-fsycl-is-host, ...) clash with oneDNN's own -fsycl, which sets its flags itself.\n    # rules_foreign_cc exports them as CXXFLAGS after any env, so only -D on the command line clears them.\n    generate_args = [\"-GNinja\", \"-DCMAKE_C_FLAGS=\", \"-DCMAKE_CXX_FLAGS=\", \"-DCMAKE_ASM_FLAGS=\"],\n    # Bazel does not hand its job count to an action: half the cores, the formula of .bazelrc local_resources cpu.\n    build_args = [\"-j\", \"$$(( $$(nproc) / 2 ))\"],\n    generate_crosstool_file = False,\n    cache_entries = {\"CMAKE_BUILD_TYPE\": \"Release\", \"CMAKE_C_COMPILER\": \"$$EXT_BUILD_ROOT$$/external/+third_party_deps+sycl/bin/clang\", \"CMAKE_CXX_COMPILER\": \"$$EXT_BUILD_ROOT$$/external/+third_party_deps+sycl/bin/clang++\", \"CMAKE_POSITION_INDEPENDENT_CODE\": \"ON\", \"DNNL_CPU_RUNTIME\": \"SYCL\", \"DNNL_GPU_RUNTIME\": \"SYCL\", \"DNNL_GPU_VENDOR\": \"GENERIC\", \"DNNL_LIBRARY_TYPE\": \"STATIC\", \"DNNL_DPCPP_HOST_COMPILER\": \"g++\", \"DNNL_BUILD_TESTS\": \"OFF\", \"DNNL_BUILD_EXAMPLES\": \"OFF\", \"DNNL_BUILD_DOC\": \"OFF\", \"ONEDNN_BUILD_GRAPH\": \"OFF\"},\n    env = {\"LD_LIBRARY_PATH\": \"$$EXT_BUILD_ROOT$$/external/+third_party_deps+sycl/lib\"},\n    build_data = [\"@sycl//:toolchain_files\"],\n    out_static_libs = [\"libdnnl.a\"],\n    linkopts = [\"-ldl\", \"-lpthread\", \"-ltbb\"],\n    deps = [\"@sycl//:sycl\"],\n    visibility = [\"//visibility:public\"],\n)\n"
             }
           },
           "pti": {
