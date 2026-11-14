@@ -2,7 +2,7 @@
 
 oneDNN fixes the GPU vendor at build time, so "all cards" means one repository per vendor. rules_foreign_cc runs CMake
 with ninja and the DPC++ compiler of @sycl (@sycl_hip for AMD), as one action. The static libdnnl.a links into the
-plugins; ninja runs 6 jobs, as the C++ compiles do (.bazelrc local_resources). NVIDIA and AMD find CUDA (cuDNN, cuBLAS) or ROCm (HIP, rocBLAS, MIOpen) through `--action_env=CUDA_HOME` or
+plugins; ninja runs half the cores as jobs, as the C++ compiles do (.bazelrc local_resources). NVIDIA and AMD find CUDA (cuDNN, cuBLAS) or ROCm (HIP, rocBLAS, MIOpen) through `--action_env=CUDA_HOME` or
 `--action_env=ROCM_PATH`; AMD also takes `-DDNNL_AMD_SYCL_KERNELS_TARGET_ARCH=gfx90a` in `cache_entries` for the generic kernels.
 """
 
@@ -19,7 +19,8 @@ cmake(
     # The C++ toolchain's flags (-fsycl-is-host, ...) clash with oneDNN's own -fsycl, which sets its flags itself.
     # rules_foreign_cc exports them as CXXFLAGS after any env, so only -D on the command line clears them.
     generate_args = ["-GNinja", "-DCMAKE_C_FLAGS=", "-DCMAKE_CXX_FLAGS=", "-DCMAKE_ASM_FLAGS="],
-    build_args = ["-j", "6"],
+    # Bazel does not hand its job count to an action: half the cores, the formula of .bazelrc local_resources cpu.
+    build_args = ["-j", "$$(( $$(nproc) / 2 ))"],
     generate_crosstool_file = False,
     cache_entries = {entries},
     env = {{"LD_LIBRARY_PATH": "$$EXT_BUILD_ROOT$$/external/{compiler}/lib"}},

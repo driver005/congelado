@@ -3,9 +3,6 @@
 load("@rules_cc//cc:defs.bzl", "cc_binary", "cc_library", "cc_test")
 load("//third_party:copts.bzl", "congelado_copts", "congelado_linkopts")
 
-# Own targets build after the external C++ dependencies (see deps_ready.bzl).
-_DEPS_READY = str(Label("//third_party:deps_ready"))
-
 def congelado_cxx26_copts():
     """Default copts for all own targets. C++26 std is set per-target; global is C++20 in .bazelrc.
 
@@ -21,15 +18,12 @@ def congelado_cc_library(
         name,
         copts = congelado_cxx26_copts(),
         features = ["cpp_modules"],
-        wait_for_deps = True,
         **kwargs):
     """Own cc_library; opts into C++26 named-modules machinery per-target.
 
     TF/xla_cc_binary replace semantics: passing copts/features REPLACES the
     defaults — merge via congelado_cxx26_copts() yourself if you add extras.
     """
-    if wait_for_deps:
-        kwargs["deps"] = kwargs.get("deps", []) + [_DEPS_READY]
     cc_library(
         name = name,
         copts = copts,
@@ -41,11 +35,8 @@ def congelado_cc_binary(
         name,
         copts = congelado_cxx26_copts(),
         features = ["cpp_modules"],
-        wait_for_deps = True,
         **kwargs):
     """Own cc_binary; same defaults and replace semantics as congelado_cc_library."""
-    if wait_for_deps:
-        kwargs["deps"] = kwargs.get("deps", []) + [_DEPS_READY]
     cc_binary(
         name = name,
         copts = copts,
@@ -77,7 +68,7 @@ def congelado_module_library(
         hdrs = hdrs + interfaces,  # also as hdrs: sibling module sources must be real inputs, see memory
         copts = copts,
         linkopts = congelado_linkopts(),
-        deps = deps + ["@system_libstdcxx//:std", _DEPS_READY],
+        deps = deps + ["@system_libstdcxx//:std"],
         features = features,
         visibility = visibility,
         alwayslink = alwayslink,
@@ -98,7 +89,7 @@ def congelado_cc_test(
         copts = copts,
         features = features,
         linkopts = congelado_linkopts() + linkopts,
-        deps = deps + ["@system_libstdcxx//:std", _DEPS_READY],
+        deps = deps + ["@system_libstdcxx//:std"],
         **kwargs
     )
 
