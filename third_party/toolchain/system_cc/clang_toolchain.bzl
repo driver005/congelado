@@ -40,6 +40,7 @@ def clang_toolchain(
         strip,
         scanner,
         scanner_data = [],
+        clangxx_data = [],
         args = [],
         features = [],
         target_constraints = []):
@@ -49,7 +50,7 @@ def clang_toolchain(
       name: the cc_toolchain target; `<name>_toolchain` is the toolchain() to register.
       clang: C compiler label. clangxx: C++ compiler and linker label. ar, strip: archiver and strip labels.
       scanner: clang-scan-deps wrapper script (the scan output goes to stdout, so it needs a wrapper).
-      scanner_data: files the wrapper needs. args: extra cc_args. features: extra features, on by default.
+      scanner_data, clangxx_data: files the scanner and a clangxx wrapper script need. args: extra cc_args. features: extra features, on by default.
       target_constraints: extra constraints a platform needs to select this toolchain.
     """
     cc_feature(name = name + "_cpp_modules", feature_name = "cpp_modules", tags = ["manual"])
@@ -81,8 +82,8 @@ def clang_toolchain(
     cc_args(name = name + "_module_kind", actions = [_ACTIONS + "cpp20_module_compile"], args = ["-x", "c++-module"], tags = ["manual"])
 
     # supports_pic lets Bazel build the -fPIC objects a linkshared target needs from its deps.
-    for tool, source in {"clang": clang, "clangxx": clangxx}.items():
-        cc_tool(name = name + "_" + tool, src = source, capabilities = ["@rules_cc//cc/toolchains/capabilities:supports_pic"], tags = ["manual"])
+    for tool, source, data in [("clang", clang, []), ("clangxx", clangxx, clangxx_data)]:
+        cc_tool(name = name + "_" + tool, src = source, data = data, capabilities = ["@rules_cc//cc/toolchains/capabilities:supports_pic"], tags = ["manual"])
     cc_tool(name = name + "_ar", src = ar, tags = ["manual"])
     cc_tool(name = name + "_strip", src = strip, tags = ["manual"])
     cc_tool(name = name + "_scanner", src = scanner, data = scanner_data, tags = ["manual"])

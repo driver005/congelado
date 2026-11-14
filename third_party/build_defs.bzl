@@ -53,8 +53,12 @@ def congelado_module_library(
         visibility = None,
         copts = congelado_cxx26_copts(),
         features = ["cpp_modules"],
-        alwayslink = False):
+        alwayslink = False,
+        serial = False):
     """One Bazel target per C++ module; partitions are extra module_interfaces srcs, not separate targets.
+
+    serial: pass True to compile this module's files one at a time (heavy files: the compile lock of
+    third_party/toolchain/sycl/clangxx_wrapper.sh), while every other target keeps building in parallel.
 
     alwayslink: pass True when this module's only externally-visible effect is a static-init
     side effect nothing directly references (e.g. a self-registering factory, see
@@ -66,7 +70,7 @@ def congelado_module_library(
         name = name,
         module_interfaces = interfaces,
         hdrs = hdrs + interfaces,  # also as hdrs: sibling module sources must be real inputs, see memory
-        copts = copts,
+        copts = copts + (["-DCONGELADO_SERIAL_COMPILE"] if serial else []),
         linkopts = congelado_linkopts(),
         deps = deps + ["@system_libstdcxx//:std"],
         features = features,
