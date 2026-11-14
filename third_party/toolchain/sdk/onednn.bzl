@@ -16,17 +16,13 @@ filegroup(name = "src", srcs = glob(["**"], exclude = ["tests/**", "doc/**", "ex
 cmake(
     name = "onednn",
     lib_source = ":src",
-    generate_args = ["-GNinja"],
+    # The C++ toolchain's flags (-fsycl-is-host, ...) clash with oneDNN's own -fsycl, which sets its flags itself.
+    # rules_foreign_cc exports them as CXXFLAGS after any env, so only -D on the command line clears them.
+    generate_args = ["-GNinja", "-DCMAKE_C_FLAGS=", "-DCMAKE_CXX_FLAGS=", "-DCMAKE_ASM_FLAGS="],
     build_args = ["-j", "6"],
     generate_crosstool_file = False,
     cache_entries = {entries},
-    env = {{
-        "LD_LIBRARY_PATH": "$$EXT_BUILD_ROOT$$/external/{compiler}/lib",
-        # The C++ toolchain's flags (-fsycl-is-host, ...) clash with oneDNN's own -fsycl; it sets its flags itself.
-        "CFLAGS": "",
-        "CXXFLAGS": "",
-        "ASMFLAGS": "",
-    }},
+    env = {{"LD_LIBRARY_PATH": "$$EXT_BUILD_ROOT$$/external/{compiler}/lib"}},
     build_data = ["@sycl//:toolchain_files"],
     out_static_libs = ["libdnnl.a"],
     linkopts = ["-ldl", "-lpthread", "-ltbb"],
