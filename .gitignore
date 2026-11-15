@@ -8,14 +8,13 @@ build/
 # Python bytecode cache (scripts/)
 __pycache__/
 
-
-
 # Local reference material (downloaded pub/npm archives, gitignored)
 .reference/
 
 # Local bazel state (output user root lives in the workspace: the sandbox tmpfs is wiped)
 .bzluser/
 .bzlrepo/
+.cache/
 
 # CI reports (make ci-*)
 reports/
@@ -23,3 +22,9 @@ reports/
 # Dev TLS material generated at runtime by include/io/flow/socket/sync.cppm
 server.key
 server.crt
+
+audit.json
+
+.claude/
+.agy/
+.agents/
