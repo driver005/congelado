@@ -67,8 +67,7 @@ extern "C"
         );
     } TFGrapplerPropertiesOps;
 
-#define TF_GRAPPLER_PROPERTIES_STRUCT_SIZE                                                         \
-    TF_OFFSET_OF_END(TFGrapplerPropertiesOps, bind)
+#define TF_GRAPPLER_PROPERTIES_STRUCT_SIZE TF_OFFSET_OF_END(TFGrapplerPropertiesOps, bind)
 
     TF_CAPI_EXPORT void create_grappler_properties(
         TFGrapplerPropertiesOps** ops,
