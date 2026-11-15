@@ -92,8 +92,8 @@ bazel_dep(name = "rules_python", version = "2.2.0")
 bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_proto", version = "7.1.0")
 bazel_dep(name = "protobuf", version = "36.1.bcr.1", repo_name = "com_google_protobuf")
-bazel_dep(name = "rules_shell", version = "0.6.1")
-bazel_dep(name = "bazel_skylib", version = "1.8.2")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+bazel_dep(name = "bazel_skylib", version = "1.9.0")
 
 # hedron_compile_commands: editor tooling only (compile_commands.json for
 # clangd), dev_dependency so it never affects real builds. Not in BCR, hence
