@@ -169,6 +169,7 @@ private:
     sycl::queue* m_queue{nullptr};
     std::size_t m_size{0};
     std::size_t m_requested_size{0};
+    // TODO: missing
     SyclBlockPool* m_pool{nullptr};
     std::byte* m_pointer{nullptr};
     bool m_allocated{false};
@@ -176,6 +177,7 @@ private:
     SyclBlock* m_previous{nullptr};
     SyclBlock* m_next{nullptr};
     int m_event_count{0};
+    // TODO: missing
     SyclExpandableSegment* m_expandable_segment{nullptr};
     std::set<sycl::queue*> m_stream_uses;
 };
